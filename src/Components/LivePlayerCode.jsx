@@ -1,10 +1,8 @@
-import PlayerCard from "../Components/PlayerCard";
-import MoneyCounter from "../Components/MoneyCounter";
-import Header from "../Components/Header";
-
+import Image from "next/image";
+import styles from "./page.module.css";
 
 export default async function Home() {
-  const response = await fetch(
+  const respond = await fetch(
     "https://generous-shelagh-khalid-organization-eb1285b3.koyeb.app/api/players/current",
     {
       headers: {
@@ -14,17 +12,11 @@ export default async function Home() {
     }
   );
 
-  if (!response.ok) {
+  if (!respond.ok) {
     return <p>Kunde inte hämta datan</p>;
   }
 
-  const data = await response.json();
+  const data = await respond.json();
 
-  return (
-    <main>
-      <Header />
-      <PlayerCard playerCount={data.playersCount} />
-      <MoneyCounter />
-    </main>
-  );
+  return <div>{data.playersCount}</div>;
 }
