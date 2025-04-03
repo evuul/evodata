@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react"
 import PlayerCard from "../Components/PlayerCard";
 import MoneyCounter from "../Components/MoneyCounter";
 import Header from "../Components/Header";
