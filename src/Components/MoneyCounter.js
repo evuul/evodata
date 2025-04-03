@@ -25,7 +25,11 @@ const MoneyCounter = () => {
   return (
     <Card
       sx={{
-        maxWidth: 380,
+        maxWidth: {
+          xs: "100%",   // 100% bredd för mobil
+          sm: 380,      // 380px bredd för tablet och större
+          md: 450       //för större skärmar
+        },
         margin: "20px auto",
         background: "linear-gradient(145deg, rgb(10, 25, 47), rgb(20, 50, 70))",
         borderRadius: "24px",
@@ -49,13 +53,21 @@ const MoneyCounter = () => {
           </Typography>
 
           {/* Pengasiffra utan animation */}
-          <Typography variant="h3" fontWeight="bold" sx={{
-            fontSize: "48px",
-            background: "linear-gradient(45deg, rgb(175, 238, 238), rgb(240, 255, 255))",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            textShadow: "0 0 5px rgba(175, 238, 238, 0.4)",
-          }}>
+          <Typography
+            variant="h3"
+            fontWeight="bold"
+            sx={{
+              fontSize: {
+                xs: "2rem",  // För mobil
+                sm: "3rem",  // För tablet
+                md: "4rem",  // För större skärmar (desktop)
+              },
+              background: "linear-gradient(45deg, rgb(175, 238, 238), rgb(240, 255, 255))",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              textShadow: "0 0 5px rgba(175, 238, 238, 0.4)",
+            }}
+          >
             {money.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} SEK
           </Typography>
         </Box>

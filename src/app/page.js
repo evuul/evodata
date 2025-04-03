@@ -1,6 +1,7 @@
 import PlayerCard from "../Components/PlayerCard";
 import MoneyCounter from "../Components/MoneyCounter";
 import Header from "../Components/Header";
+import ComingUpdates from "../Components/ComingUpdates";
 
 
 export default async function Home() {
@@ -25,6 +26,7 @@ export default async function Home() {
       <Header />
       <PlayerCard playerCount={data.playersCount} />
       <MoneyCounter />
+      <ComingUpdates />
     </main>
   );
 }

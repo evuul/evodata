@@ -34,7 +34,11 @@ export default function PlayerCard({ playerCount }) {
   return (
     <Card
       sx={{
-        maxWidth: 380,
+        maxWidth: {
+          xs: "100%",   // För mobil, full bredd
+          sm: 380,      // För tablet och större, max 380px
+          md: 450       //för större skärmar
+        },
         margin: "20px auto",
         background: "linear-gradient(145deg, rgb(10, 25, 47), rgb(20, 50, 70))",
         borderRadius: "24px",
@@ -73,7 +77,11 @@ export default function PlayerCard({ playerCount }) {
               variant="h2"
               fontWeight="bold"
               sx={{
-                fontSize: "48px",
+                fontSize: {
+                  xs: "2rem",  // För mobil
+                  sm: "3rem",  // För tablet
+                  md: "4rem",  // För desktop
+                },
                 background: "linear-gradient(45deg, rgb(175, 238, 238), rgb(240, 255, 255))",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
