@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import { Typography, Box } from "@mui/material";
 import { motion } from "framer-motion";
+import { Manrope } from "next/font/google"; 
+
+const manrope = Manrope({ subsets: ["latin"], weight: "400" });
 
 const updates = [
   { text: "Interaktiva grafer och statistik", done: false },
@@ -20,22 +23,23 @@ const ComingUpdates = () => {
       display="flex"
       flexDirection="column"
       alignItems="center"
-      justifyContent="center" // Lägg till justifyContent för att centrera vertikalt
+      justifyContent="center"
       marginTop="40px"
-      width="100%" // Se till att Box tar upp hela bredden
+      width="100%"
     >
       {/* Rubrik */}
       <Typography
         variant="h4"
         sx={{
-          fontWeight: "bold",
+          fontWeight: "800",
+          fontFamily: manrope.style.fontFamily, // ✅ Fixat här!
           fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3rem" },
           background: "linear-gradient(90deg, #ff00ff, #8800ff, #00e5ff)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           textShadow: "0 0 15px rgba(255, 0, 255, 0.6)",
           textAlign: "center",
-          width: "100%", // Se till att Typography tar upp hela bredden
+          width: "100%",
         }}
       >
         Fler uppdateringar på väg! 🚀
@@ -48,10 +52,10 @@ const ComingUpdates = () => {
           listStyle: "none",
           padding: 0,
           marginTop: "30px",
-          width: "100%", // Se till att Box tar upp hela bredden
+          width: "100%",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center", // Centrera listelementen
+          alignItems: "center",
         }}
       >
         {updateList.map((item, index) => (
@@ -62,8 +66,9 @@ const ComingUpdates = () => {
             transition={{ duration: 0.3, delay: index * 0.1 }}
             whileHover={{ scale: 1.05, transition: { duration: 0.15 } }}
             style={{
-              fontSize: "2.0rem",
-              fontWeight: "bold",
+              fontSize: "1.8rem",
+              fontWeight: "700",
+              fontFamily: manrope.style.fontFamily, // ✅ Fixat här också!
               marginBottom: "12px",
               background: "linear-gradient(90deg, #b300ff, #7700ff, #0099ff)",
               WebkitBackgroundClip: "text",
@@ -73,7 +78,7 @@ const ComingUpdates = () => {
               opacity: item.done ? 0.7 : 1,
               cursor: item.done ? "default" : "pointer",
               transition: "opacity 0.2s ease-in-out",
-              textAlign: "center", // Centrera texten i listelementen
+              textAlign: "center",
             }}
           >
             {item.text}
