@@ -3,24 +3,29 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, Box, Typography } from "@mui/material";
 
-const MoneyCounter = () => {
-  const exchangeRate = 10.83; // EUR till SEK
-  const quarterlyProfitEUR = 377100000; // Evolution Q4 2023 vinst i EUR
-  const quarterlyProfitSEK = quarterlyProfitEUR * exchangeRate; // Omvandlat till SEK
+const MoneyCounter = ({ sx = {} }) => {
+  const [amount, setAmount] = useState(0);
 
-  // Beräkningar
-  const profitPerDay = quarterlyProfitSEK / 92; // 92 dagar i kvartalet
-  const profitPerSecond = profitPerDay / 24 / 60 / 60; // Omvandlat till SEK per sekund
-
-  const [money, setMoney] = useState(0);
-
+  // Enkel animering för att räkna upp pengar
   useEffect(() => {
+    const targetAmount = 36374400; // Totalt mål att uppnå
+    const duration = 86400000; // Totalt antal sekunder på 24 timmar (24h * 60m * 60s)
+    const stepTime = 20; // Hur ofta vi uppdaterar (i millisekunder)
+    const steps = duration / stepTime; // Antal uppdateringar baserat på stepTime
+    const increment = targetAmount / steps; // Hur mycket vi ökar varje gång
+  
+    let current = 0;
     const interval = setInterval(() => {
-      setMoney((prevMoney) => prevMoney + profitPerSecond);
-    }, 1000);
-
-    return () => clearInterval(interval); // Clean up the interval when component unmounts
-  }, [profitPerSecond]);
+      current += increment;
+      if (current >= targetAmount) {
+        current = targetAmount;
+        clearInterval(interval); // Stanna när vi når målet
+      }
+      setAmount(Math.floor(current)); // Uppdatera amount på skärmen
+    }, stepTime);
+  
+    return () => clearInterval(interval); // Rensa intervallet när komponenten tas bort
+  }, []);
 
   return (
     <Card
@@ -28,7 +33,7 @@ const MoneyCounter = () => {
         maxWidth: {
           xs: "100%",   // 100% bredd för mobil
           sm: 380,      // 380px bredd för tablet och större
-          md: 450       //för större skärmar
+          md: 450       // För större skärmar
         },
         margin: "20px auto",
         background: "linear-gradient(145deg, rgb(10, 25, 47), rgb(20, 50, 70))",
@@ -38,6 +43,7 @@ const MoneyCounter = () => {
         textAlign: "center",
         color: "#ffffff",
         border: "3px solid rgb(30, 100, 130)",
+        ...sx, // Spread för eventuella externa styles
       }}
     >
       <CardContent>
@@ -52,7 +58,7 @@ const MoneyCounter = () => {
             Ren vinst sedan du öppnade sidan:
           </Typography>
 
-          {/* Pengasiffra utan animation */}
+          {/* Pengasiffra med animation */}
           <Typography
             variant="h3"
             fontWeight="bold"
@@ -65,10 +71,11 @@ const MoneyCounter = () => {
               background: "linear-gradient(45deg, rgb(175, 238, 238), rgb(240, 255, 255))",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              textShadow: "0 0 5px rgba(175, 238, 238, 0.4)",
+              textShadow: "0 0 5px rgba(0, 230, 118, 0.6)", // Grön textskugga (#00e676)
+              color: "#00e676",  // Sätt textfärgen till den gröna färgen
             }}
           >
-            {money.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} SEK
+            {amount.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} SEK
           </Typography>
         </Box>
       </CardContent>

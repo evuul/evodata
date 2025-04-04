@@ -3,6 +3,8 @@ import PlayerCard from "../Components/PlayerCard";
 import MoneyCounter from "../Components/MoneyCounter";
 import Header from "../Components/Header";
 import ComingUpdates from "../Components/ComingUpdates";
+import { Grid, Box } from "@mui/material"; // Importera Grid och Box från MUI
+
 
 
 export default async function Home() {
@@ -23,11 +25,19 @@ export default async function Home() {
   const data = await response.json();
 
   return (
-    <main>
-      <Header />
-      <PlayerCard playerCount={data.playersCount} />
-      <MoneyCounter />
-      <ComingUpdates />
-    </main>
+<main>
+  <Header />
+
+      <Box sx={{ height: "100%" }}>
+        <PlayerCard playerCount={data.playersCount} />
+      </Box>
+
+      <Box sx={{ height: "100%" }}>
+        <MoneyCounter />
+
+</Box>
+
+  <ComingUpdates />
+</main>
   );
 }
