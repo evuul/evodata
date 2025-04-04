@@ -1,5 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import Sidebar from "../Components/Sidebar"; // Importera Sidebar
+// import Sidebar from "../Components/Sidebar"; // Importera Sidebar
 import "./globals.css";
 import { Box } from "@mui/material";
 
@@ -24,7 +24,7 @@ export default function RootLayout({ children }) {
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Box sx={{ display: "flex" }}>
           {/* Sidomeny */}
-          <Sidebar />
+          {/* <Sidebar /> */}
 
           {/* Huvudinnehåll */}
           <Box sx={{ flexGrow: 1, padding: "20px" }}>
