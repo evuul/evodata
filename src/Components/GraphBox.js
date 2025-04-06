@@ -83,7 +83,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         margin: "20px auto",
         // Responsiv bredd
         width: {
-          xs: "80%",  // För mobil: 90% av skärmens bredd
+          xs: "90%",  // För mobil: 90% av skärmens bredd
           sm: "80%",  // För tablet: 80% av skärmens bredd
           md: "90%",  // För desktop: 70% av skärmens bredd
         },
