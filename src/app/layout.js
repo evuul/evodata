@@ -21,6 +21,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        {/* Lägg till viewport meta-taggen här */}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Box sx={{ display: "flex" }}>
           {/* Sidomeny */}
