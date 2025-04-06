@@ -71,10 +71,10 @@ export default async function Home() {
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" }, // Stänger upp en kolumnlayout på mobil och radlayout på större skärmar
-          justifyContent: "space-around", // Justerar innehållet
-          gap: 2, // Lägg till mellanrum mellan komponenter
-          height: "100%",
+          flexDirection: { xs: "column", md: "row" }, // Kolumnlayout på mobil och radlayout på större skärmar
+          justifyContent: "space-between", // Justerar innehållet
+          gap: { xs: 2, md: 3 }, // Anpassa gap för olika skärmstorlekar
+          padding: { xs: 2, md: 3 }, // Lägg till responsiv padding för att skapa utrymme på skärmar
         }}
       >
         <Box sx={{ width: { xs: "100%", md: "48%" } }}>
@@ -86,7 +86,7 @@ export default async function Home() {
         </Box>
       </Box>
 
-      <Box sx={{ height: "100%" }}>
+      <Box sx={{ marginTop: 3 }}>
         <GraphBox
           revenueData={formattedRevenueData} // Kvartalsdata för omsättning
           marginData={formattedMarginData}   // Kvartalsdata för marginal
@@ -95,7 +95,7 @@ export default async function Home() {
         />
       </Box>
 
-      <Box sx={{ height: "100%" }}>
+      <Box sx={{ marginTop: 3 }}>
         <StockBuybackInfo
           isActive={true}
           buybackCash={500000000}

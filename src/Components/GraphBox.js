@@ -8,17 +8,17 @@ import {
   Tab,
 } from "@mui/material";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
 } from "recharts";
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 
-// Dividenddata (som tidigare)
+// Dividenddata
 const dividendData = [
   { date: "2020", dividend: 4.42 },
   { date: "2021", dividend: 6.87 },
@@ -28,57 +28,48 @@ const dividendData = [
   { date: "2025", dividend: 32.07 },
 ];
 
-// Definiera dina tabbar
 const graphOptions = [
   { label: "Omsättning", key: "revenue" },
   { label: "Marginal", key: "margin" },
   { label: "Utdelning", key: "dividend" },
-  { label: "Tillväxt", key: "growth" }, // Ny tab för Tillväxt
+  { label: "Tillväxt", key: "growth" },
 ];
 
 const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData }) => {
   const [activeTab, setActiveTab] = useState("revenue");
-  const [viewMode, setViewMode] = useState("quarter"); // "quarter" eller "year"
+  const [viewMode, setViewMode] = useState("quarter");
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const handleTabChange = (event, newValue) => {
-    setActiveTab(newValue);
-  };
+  const handleTabChange = (event, newValue) => setActiveTab(newValue);
+  const handleViewModeChange = (event, newView) => newView && setViewMode(newView);
 
-  const handleViewModeChange = (event, newView) => {
-    if (newView) setViewMode(newView);
-  };
-
-  // Funktion för att beräkna utdelningstillväxt i procent
   const calculateDividendGrowth = (data) => {
-    let growth = [];
-    for (let i = 1; i < data.length; i++) {
-      const percentGrowth = ((data[i].dividend - data[i - 1].dividend) / data[i - 1].dividend) * 100;
-      growth.push({ date: data[i].date, growth: percentGrowth });
-    }
-    return growth;
+    return data.slice(1).map((d, i) => {
+      const prev = data[i].dividend;
+      const growth = ((d.dividend - prev) / prev) * 100;
+      return { date: d.date, growth };
+    });
   };
 
   const dividendGrowthData = calculateDividendGrowth(dividendData);
 
-  // Funktion för att formatera Tooltip för Omsättning och Marginal
   const formatTooltipValue = (value, type) => {
     if (type === "revenue") {
-      const formattedRevenue = new Intl.NumberFormat("sv-SE", {
+      return `${new Intl.NumberFormat("sv-SE", {
         style: "decimal",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(value); // Format: 2 584,75
-  
-      return `${formattedRevenue} M EUR`; // Lägg till "EUR" för att visa valuta
+      }).format(value)} M EUR`;
     } else if (type === "margin") {
-      return `${value.toFixed(2)}%`; // Exempel: 23.45%
+      return `${value.toFixed(2)}%`;
     }
     return value;
   };
 
-  // Filtrera och visa korrekt data beroende på Helår eller Kvartal
   const filteredRevenueData = viewMode === "year" ? annualRevenueData : revenueData;
   const filteredMarginData = viewMode === "year" ? annualMarginData : marginData;
+  const currentBarSize = isMobile ? 20 : 40;
 
   return (
     <Card
@@ -116,7 +107,6 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         ))}
       </Tabs>
 
-      {/* Lägg till Tabs för att växla mellan kvartal och helår, men döljs vid Utdelning */}
       {activeTab !== "dividend" && activeTab !== "growth" && (
         <Tabs
           value={viewMode}
@@ -131,53 +121,58 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         </Tabs>
       )}
 
-      <Box sx={{ height: 400 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          {activeTab === "revenue" && (
-            <BarChart data={filteredRevenueData}>
-              <XAxis dataKey="date" stroke="#ccc" />
-              <YAxis stroke="#ccc" />
-              <Tooltip formatter={(value) => formatTooltipValue(value, "revenue")} />
-              <Bar dataKey="value" fill="#00e676" barSize={40} />
-            </BarChart>
-          )}
-          {activeTab === "margin" && (
-            <BarChart data={filteredMarginData}>
-              <XAxis dataKey="date" stroke="#ccc" />
-              <YAxis stroke="#ccc" />
-              <Tooltip formatter={(value) => formatTooltipValue(value, "margin")} />
-              <Bar dataKey="value" fill="#00e676" barSize={40} />
-            </BarChart>
-          )}
-          {activeTab === "dividend" && (
-            <BarChart data={dividendData}>
-              <XAxis dataKey="date" stroke="#ccc" />
-              <YAxis stroke="#ccc" />
-              <Tooltip formatter={(value) => `${value} SEK`} />
-              <Bar dataKey="dividend" fill="#00e676" barSize={40} />
-            </BarChart>
-          )}
-          {activeTab === "growth" && (
-            <Box sx={{ textAlign: "center", padding: "20px" }}>
-
-              <Typography variant="h6" sx={{ color: "#00e676" }}>
-                Utdelningstillväxt per år:
+      {/* Main chart area */}
+      <Box sx={{ height: activeTab === "growth" ? "auto" : 400 }}>
+        {activeTab === "growth" ? (
+          <Box sx={{ textAlign: "center", padding: isMobile ? "10px" : "20px" }}>
+            <Typography
+              variant={isMobile ? "h6" : "h5"}
+              sx={{ color: "#00e676", marginBottom: "10px" }}
+            >
+              Utdelningstillväxt per år:
+            </Typography>
+            {dividendGrowthData.map((item, index) => (
+              <Typography
+                key={index}
+                variant={isMobile ? "h6" : "h4"}
+                sx={{
+                  color: item.growth < 0 ? "#f44336" : "#4caf50",
+                  fontWeight: "bold",
+                  marginBottom: "5px",
+                }}
+              >
+                {item.date}: {item.growth.toFixed(2)}%
               </Typography>
-              {dividendGrowthData.map((item, index) => (
-                <Typography
-                  key={index}
-                  variant="h4"
-                  sx={{
-                    color: item.growth < 0 ? "#f44336" : "#4caf50",
-                    fontWeight: "bold",
-                  }}
-                >
-                  {item.date}: {item.growth.toFixed(2)}%
-                </Typography>
-              ))}
-            </Box>
-          )}
-        </ResponsiveContainer>
+            ))}
+          </Box>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            {activeTab === "revenue" && (
+              <BarChart data={filteredRevenueData}>
+                <XAxis dataKey="date" stroke="#ccc" />
+                <YAxis stroke="#ccc" />
+                <Tooltip formatter={(value) => formatTooltipValue(value, "revenue")} />
+                <Bar dataKey="value" fill="#00e676" barSize={currentBarSize} />
+              </BarChart>
+            )}
+            {activeTab === "margin" && (
+              <BarChart data={filteredMarginData}>
+                <XAxis dataKey="date" stroke="#ccc" />
+                <YAxis stroke="#ccc" />
+                <Tooltip formatter={(value) => formatTooltipValue(value, "margin")} />
+                <Bar dataKey="value" fill="#00e676" barSize={currentBarSize} />
+              </BarChart>
+            )}
+            {activeTab === "dividend" && (
+              <BarChart data={dividendData}>
+                <XAxis dataKey="date" stroke="#ccc" />
+                <YAxis stroke="#ccc" />
+                <Tooltip formatter={(value) => `${value} SEK`} />
+                <Bar dataKey="dividend" fill="#00e676" barSize={currentBarSize} />
+              </BarChart>
+            )}
+          </ResponsiveContainer>
+        )}
       </Box>
     </Card>
   );
