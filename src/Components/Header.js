@@ -6,8 +6,8 @@ const Header = () => {
     <Box
       sx={{
         textAlign: "center",
-        marginTop: "30px",
-        padding: "20px",
+        marginTop: "20px",
+        padding: "10px",
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)", // Gradient för bakgrund
         borderRadius: "10px",
         boxShadow: "0 4px 10px rgba(0, 0, 0, 0.2)", // Lägger till skugga för djup
@@ -30,7 +30,7 @@ const Header = () => {
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
           textShadow: "0 0 10px rgba(206, 222, 222, 0.6)", // Ljus skugga för texten
-          marginBottom: "20px",
+          marginBottom: "0px",
         }}
       >
       Evolution Tracker!
@@ -44,7 +44,7 @@ const Header = () => {
           letterSpacing: "0.5px",
         }}
       >
-        Här håller vi koll på utvecklingen och statistik för 2025!
+        {/* Här håller vi koll på utvecklingen och statistik för 2025! */}
       </Typography>
     </Box>
   );
