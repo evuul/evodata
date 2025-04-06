@@ -39,7 +39,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarter");
   const theme = useTheme();
-  const isMobile = useClientMediaQuery('(max-width: 600px)');
+  const isMobile = useClientMediaQuery(theme.breakpoints.down('sm'));
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
   const handleViewModeChange = (event, newView) => newView && setViewMode(newView);
@@ -54,17 +54,20 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
 
   const dividendGrowthData = calculateDividendGrowth(dividendData);
 
+  // Format för att visa rätt text i Tooltip
   const formatTooltipValue = (value, type) => {
     if (type === "revenue") {
-      return `${new Intl.NumberFormat("sv-SE", {
+      return [`Omsättning: ${new Intl.NumberFormat("sv-SE", {
         style: "decimal",
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(value)} M EUR`;
+      }).format(value)} M EUR`];
     } else if (type === "margin") {
-      return `${value.toFixed(2)}%`;
+      return [`Marginal: ${value.toFixed(2)}%`];
+    } else if (type === "dividend") {
+      return [`Utdelning: ${value} SEK`];
     }
-    return value;
+    return [value];
   };
 
   const filteredRevenueData = viewMode === "year" ? annualRevenueData : revenueData;
@@ -78,7 +81,12 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         borderRadius: "20px",
         padding: "25px",
         margin: "20px auto",
-        maxWidth: "1000px",
+        // Responsiv bredd
+        width: {
+          xs: "80%",  // För mobil: 90% av skärmens bredd
+          sm: "80%",  // För tablet: 80% av skärmens bredd
+          md: "90%",  // För desktop: 70% av skärmens bredd
+        },
         boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
       }}
     >
@@ -167,7 +175,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
               <BarChart data={dividendData}>
                 <XAxis dataKey="date" stroke="#ccc" />
                 <YAxis stroke="#ccc" />
-                <Tooltip formatter={(value) => `${value} SEK`} />
+                <Tooltip formatter={(value) => formatTooltipValue(value, "dividend")} />
                 <Bar dataKey="dividend" fill="#00e676" barSize={currentBarSize} />
               </BarChart>
             )}
