@@ -67,12 +67,23 @@ export default async function Home() {
     <main>
       <Header />
 
-      <Box sx={{ height: "100%" }}>
-        <PlayerCard playerCount={data.playersCount} />
-      </Box>
+      {/* Layout justering för att vara responsiv */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" }, // Stänger upp en kolumnlayout på mobil och radlayout på större skärmar
+          justifyContent: "space-around", // Justerar innehållet
+          gap: 2, // Lägg till mellanrum mellan komponenter
+          height: "100%",
+        }}
+      >
+        <Box sx={{ width: { xs: "100%", md: "48%" } }}>
+          <PlayerCard playerCount={data.playersCount} />
+        </Box>
 
-      <Box sx={{ height: "100%" }}>
-        <MoneyCounter />
+        <Box sx={{ width: { xs: "100%", md: "48%" } }}>
+          <MoneyCounter />
+        </Box>
       </Box>
 
       <Box sx={{ height: "100%" }}>
