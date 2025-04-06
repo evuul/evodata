@@ -39,7 +39,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarter");
   const theme = useTheme();
-  const isMobile = useClientMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useClientMediaQuery('(max-width: 600px)');
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
   const handleViewModeChange = (event, newView) => newView && setViewMode(newView);
