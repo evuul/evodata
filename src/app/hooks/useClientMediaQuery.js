@@ -7,13 +7,13 @@ export default function useClientMediaQuery(query) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const media = window.matchMedia(query);
-    const listener = () => setMatches(media.matches);
+    const mediaQueryList = window.matchMedia(query);
+    const handleChange = () => setMatches(mediaQueryList.matches);
 
-    setMatches(media.matches);
-    media.addEventListener("change", listener);
+    handleChange(); // Sätt initialt värde
+    mediaQueryList.addEventListener("change", handleChange);
 
-    return () => media.removeEventListener("change", listener);
+    return () => mediaQueryList.removeEventListener("change", handleChange);
   }, [query]);
 
   return matches;
