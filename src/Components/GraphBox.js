@@ -116,8 +116,8 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         ))}
       </Tabs>
 
-      {/* Lägg till Tabs för att växla mellan kvartal och helår */}
-      {activeTab !== "growth" && (
+      {/* Lägg till Tabs för att växla mellan kvartal och helår, men döljs vid Utdelning */}
+      {activeTab !== "dividend" && activeTab !== "growth" && (
         <Tabs
           value={viewMode}
           onChange={handleViewModeChange}
