@@ -1,0 +1,1034 @@
+[
+  {
+    "Datum": "2020-03-16",
+    "Antal_aktier": 195000,
+    "Transaktionsvärde": 61728244,
+    "Snittkurs": 316.55
+  },
+  {
+    "Datum": "2020-03-17",
+    "Antal_aktier": 143000,
+    "Transaktionsvärde": 45822548,
+    "Snittkurs": 320.43
+  },
+  {
+    "Datum": "2021-12-06",
+    "Antal_aktier": 150000,
+    "Transaktionsvärde": 135713265,
+    "Snittkurs": 904.76
+  },
+  {
+    "Datum": "2021-12-07",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 98551920,
+    "Snittkurs": 985.52
+  },
+  {
+    "Datum": "2021-12-08",
+    "Antal_aktier": 44820,
+    "Transaktionsvärde": 46487828,
+    "Snittkurs": 1037.21
+  },
+  {
+    "Datum": "2021-12-09",
+    "Antal_aktier": 22000,
+    "Transaktionsvärde": 24143926,
+    "Snittkurs": 1097.45
+  },
+  {
+    "Datum": "2021-12-10",
+    "Antal_aktier": 150000,
+    "Transaktionsvärde": 167360835,
+    "Snittkurs": 1115.74
+  },
+  {
+    "Datum": "2021-12-13",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 114909850,
+    "Snittkurs": 1149.10
+  },
+  {
+    "Datum": "2021-12-14",
+    "Antal_aktier": 150000,
+    "Transaktionsvärde": 166141155,
+    "Snittkurs": 1107.61
+  },
+  {
+    "Datum": "2021-12-15",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 113805360,
+    "Snittkurs": 1138.05
+  },
+  {
+    "Datum": "2021-12-16",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 114171420,
+    "Snittkurs": 1141.71
+  },
+  {
+    "Datum": "2021-12-17",
+    "Antal_aktier": 121045,
+    "Transaktionsvärde": 137225327,
+    "Snittkurs": 1133.67
+  },
+  {
+    "Datum": "2021-12-20",
+    "Antal_aktier": 10000,
+    "Transaktionsvärde": 11473680,
+    "Snittkurs": 1147.37
+  },
+  {
+    "Datum": "2021-12-21",
+    "Antal_aktier": 30000,
+    "Transaktionsvärde": 35287344,
+    "Snittkurs": 1176.24
+  },
+  {
+    "Datum": "2021-12-22",
+    "Antal_aktier": 20000,
+    "Transaktionsvärde": 23682122,
+    "Snittkurs": 1184.11
+  },
+  {
+    "Datum": "2021-12-23",
+    "Antal_aktier": 3500,
+    "Transaktionsvärde": 4199500,
+    "Snittkurs": 1199.86
+  },
+  {
+    "Datum": "2021-12-29",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 62006925,
+    "Snittkurs": 1240.14
+  },
+  {
+    "Datum": "2021-12-30",
+    "Antal_aktier": 7500,
+    "Transaktionsvärde": 9333000,
+    "Snittkurs": 1244.40
+  },
+  {
+    "Datum": "2022-02-09",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 105426200,
+    "Snittkurs": 1054.26
+  },
+  {
+    "Datum": "2022-02-10",
+    "Antal_aktier": 170000,
+    "Transaktionsvärde": 187990097,
+    "Snittkurs": 1105.82
+  },
+  {
+    "Datum": "2022-02-11",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 107495970,
+    "Snittkurs": 1074.96
+  },
+  {
+    "Datum": "2022-02-14",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 103583960,
+    "Snittkurs": 1035.84
+  },
+  {
+    "Datum": "2022-02-15",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 108491660,
+    "Snittkurs": 1084.92
+  },
+  {
+    "Datum": "2022-02-16",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 54005470,
+    "Snittkurs": 1080.11
+  },
+  {
+    "Datum": "2022-02-17",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 53509100,
+    "Snittkurs": 1070.18
+  },
+  {
+    "Datum": "2022-02-18",
+    "Antal_aktier": 77000,
+    "Transaktionsvärde": 77911133,
+    "Snittkurs": 1011.83
+  },
+  {
+    "Datum": "2023-11-27",
+    "Antal_aktier": 55000,
+    "Transaktionsvärde": 60447755,
+    "Snittkurs": 1099.05
+  },
+  {
+    "Datum": "2023-11-28",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 54112305,
+    "Snittkurs": 1082.24
+  },
+  {
+    "Datum": "2023-11-29",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 55257060,
+    "Snittkurs": 1105.14
+  },
+  {
+    "Datum": "2023-11-30",
+    "Antal_aktier": 39400,
+    "Transaktionsvärde": 43202675,
+    "Snittkurs": 1096.51
+  },
+  {
+    "Datum": "2024-12-01",
+    "Antal_aktier": 56000,
+    "Transaktionsvärde": 61273284,
+    "Snittkurs": 1094.16
+  },
+  {
+    "Datum": "2024-12-04",
+    "Antal_aktier": 56100,
+    "Transaktionsvärde": 62122542,
+    "Snittkurs": 1107.35
+  },
+  {
+    "Datum": "2024-12-05",
+    "Antal_aktier": 56000,
+    "Transaktionsvärde": 62197615,
+    "Snittkurs": 1110.67
+  },
+  {
+    "Datum": "2023-12-06",
+    "Antal_aktier": 45000,
+    "Transaktionsvärde": 50716332,
+    "Snittkurs": 1127.02
+  },
+  {
+    "Datum": "2024-12-07",
+    "Antal_aktier": 56000,
+    "Transaktionsvärde": 62338651,
+    "Snittkurs": 1113.19
+  },
+  {
+    "Datum": "2024-12-08",
+    "Antal_aktier": 43002,
+    "Transaktionsvärde": 49146818,
+    "Snittkurs": 1142.89
+  },
+  {
+    "Datum": "2024-12-11",
+    "Antal_aktier": 45000,
+    "Transaktionsvärde": 51979000,
+    "Snittkurs": 1155.08
+  },
+  {
+    "Datum": "2024-12-12",
+    "Antal_aktier": 56100,
+    "Transaktionsvärde": 64693487,
+    "Snittkurs": 1153.18
+  },
+  {
+    "Datum": "2023-12-13",
+    "Antal_aktier": 45000,
+    "Transaktionsvärde": 52961013,
+    "Snittkurs": 1176.91
+  },
+  {
+    "Datum": "2024-12-14",
+    "Antal_aktier": 47000,
+    "Transaktionsvärde": 55379136,
+    "Snittkurs": 1178.27
+  },
+  {
+    "Datum": "2024-12-15",
+    "Antal_aktier": 45000,
+    "Transaktionsvärde": 53645139,
+    "Snittkurs": 1192.11
+  },
+  {
+    "Datum": "2024-12-18",
+    "Antal_aktier": 56000,
+    "Transaktionsvärde": 66176454,
+    "Snittkurs": 1181.72
+  },
+  {
+    "Datum": "2024-12-19",
+    "Antal_aktier": 31697,
+    "Transaktionsvärde": 38008050,
+    "Snittkurs": 1199.10
+  },
+  {
+    "Datum": "2023-12-20",
+    "Antal_aktier": 50600,
+    "Transaktionsvärde": 60977331,
+    "Snittkurs": 1205.08
+  },
+  {
+    "Datum": "2024-12-21",
+    "Antal_aktier": 56000,
+    "Transaktionsvärde": 67006576,
+    "Snittkurs": 1196.54
+  },
+  {
+    "Datum": "2024-12-22",
+    "Antal_aktier": 48000,
+    "Transaktionsvärde": 57122947,
+    "Snittkurs": 1190.06
+  },
+  {
+    "Datum": "2024-12-27",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 60033300,
+    "Snittkurs": 1200.66
+  },
+  {
+    "Datum": "2024-12-28",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 60115510,
+    "Snittkurs": 1202.31
+  },
+  {
+    "Datum": "2023-12-29",
+    "Antal_aktier": 40000,
+    "Transaktionsvärde": 48297556,
+    "Snittkurs": 1207.43
+  },
+  {
+    "Datum": "2024-01-02",
+    "Antal_aktier": 42000,
+    "Transaktionsvärde": 50855767,
+    "Snittkurs": 1210.85
+  },
+  {
+    "Datum": "2024-01-03",
+    "Antal_aktier": 62000,
+    "Transaktionsvärde": 74079720,
+    "Snittkurs": 1194.83
+  },
+  {
+    "Datum": "2024-01-04",
+    "Antal_aktier": 71999,
+    "Transaktionsvärde": 85286048,
+    "Snittkurs": 1168.38
+  },
+  {
+    "Datum": "2024-01-05",
+    "Antal_aktier": 90000,
+    "Transaktionsvärde": 105154947,
+    "Snittkurs": 1168.38
+  },
+  {
+    "Datum": "2024-01-08",
+    "Antal_aktier": 90000,
+    "Transaktionsvärde": 104620293,
+    "Snittkurs": 1162.44
+  },
+  {
+    "Datum": "2024-01-09",
+    "Antal_aktier": 60000,
+    "Transaktionsvärde": 70280022,
+    "Snittkurs": 1171.33
+  },
+  {
+    "Datum": "2024-01-10",
+    "Antal_aktier": 57000,
+    "Transaktionsvärde": 66739852,
+    "Snittkurs": 1170.87
+  },
+  {
+    "Datum": "2024-01-11",
+    "Antal_aktier": 42000,
+    "Transaktionsvärde": 49211828,
+    "Snittkurs": 1171.71
+  },
+  {
+    "Datum": "2024-01-12",
+    "Antal_aktier": 98500,
+    "Transaktionsvärde": 113305535,
+    "Snittkurs": 1150.31
+  },
+  {
+    "Datum": "2024-01-15",
+    "Antal_aktier": 56000,
+    "Transaktionsvärde": 64403656,
+    "Snittkurs": 1150.06
+  },
+  {
+    "Datum": "2024-01-16",
+    "Antal_aktier": 62589,
+    "Transaktionsvärde": 71832575,
+    "Snittkurs": 1147.68
+  },
+  {
+    "Datum": "2024-01-17",
+    "Antal_aktier": 59000,
+    "Transaktionsvärde": 68196241,
+    "Snittkurs": 1155.52
+  },
+  {
+    "Datum": "2024-01-18",
+    "Antal_aktier": 4286,
+    "Transaktionsvärde": 5040266,
+    "Snittkurs": 1175.98
+  },
+  {
+    "Datum": "2024-01-19",
+    "Antal_aktier": 3017,
+    "Transaktionsvärde": 3603117,
+    "Snittkurs": 1194.27
+  },
+  {
+    "Datum": "2024-01-23",
+    "Antal_aktier": 310,
+    "Transaktionsvärde": 377283,
+    "Snittkurs": 1217.04
+  },
+  {
+    "Datum": "2024-01-24",
+    "Antal_aktier": 1943,
+    "Transaktionsvärde": 2378922,
+    "Snittkurs": 1224.35
+  },
+  {
+    "Datum": "2024-01-25",
+    "Antal_aktier": 39000,
+    "Transaktionsvärde": 47444642,
+    "Snittkurs": 1216.52
+  },
+  {
+    "Datum": "2024-01-26",
+    "Antal_aktier": 39400,
+    "Transaktionsvärde": 48079327,
+    "Snittkurs": 1220.28
+  },
+  {
+    "Datum": "2024-01-29",
+    "Antal_aktier": 40000,
+    "Transaktionsvärde": 48652388,
+    "Snittkurs": 1216.30
+  },
+  {
+    "Datum": "2024-01-30",
+    "Antal_aktier": 33750,
+    "Transaktionsvärde": 41425877,
+    "Snittkurs": 1227.43
+  },
+  {
+    "Datum": "2024-01-31",
+    "Antal_aktier": 53500,
+    "Transaktionsvärde": 65352325,
+    "Snittkurs": 1221.53
+  },
+  {
+    "Datum": "2024-02-01",
+    "Antal_aktier": 430,
+    "Transaktionsvärde": 532657,
+    "Snittkurs": 1238.73
+  },
+  {
+    "Datum": "2024-02-05",
+    "Antal_aktier": 166,
+    "Transaktionsvärde": 210092,
+    "Snittkurs": 1265.61
+  },
+  {
+    "Datum": "2024-02-07",
+    "Antal_aktier": 33750,
+    "Transaktionsvärde": 43073457,
+    "Snittkurs": 1276.25
+  },
+  {
+    "Datum": "2024-02-08",
+    "Antal_aktier": 16978,
+    "Transaktionsvärde": 21807130,
+    "Snittkurs": 1284.43
+  },
+  {
+    "Datum": "2024-02-09",
+    "Antal_aktier": 8500,
+    "Transaktionsvärde": 11095273,
+    "Snittkurs": 1305.32
+  },
+  {
+    "Datum": "2024-02-12",
+    "Antal_aktier": 22500,
+    "Transaktionsvärde": 29569630,
+    "Snittkurs": 1314.20
+  },
+  {
+    "Datum": "2024-02-13",
+    "Antal_aktier": 55000,
+    "Transaktionsvärde": 71423077,
+    "Snittkurs": 1298.60
+  },
+  {
+    "Datum": "2024-02-14",
+    "Antal_aktier": 40964,
+    "Transaktionsvärde": 53385644,
+    "Snittkurs": 1303.23
+  },
+  {
+    "Datum": "2024-02-15",
+    "Antal_aktier": 49000,
+    "Transaktionsvärde": 64109894,
+    "Snittkurs": 1308.36
+  },
+  {
+    "Datum": "2024-02-16",
+    "Antal_aktier": 30000,
+    "Transaktionsvärde": 39466581,
+    "Snittkurs": 1315.55
+  },
+  {
+    "Datum": "2024-02-19",
+    "Antal_aktier": 46000,
+    "Transaktionsvärde": 5998435,
+    "Snittkurs": 1303.92
+  },
+  {
+    "Datum": "2024-02-20",
+    "Antal_aktier": 3250,
+    "Transaktionsvärde": 4351438,
+    "Snittkurs": 1338.90
+  },
+  {
+    "Datum": "2024-02-21",
+    "Antal_aktier": 55000,
+    "Transaktionsvärde": 7323448,
+    "Snittkurs": 1331.46
+  },
+  {
+    "Datum": "2024-02-22",
+    "Antal_aktier": 34000,
+    "Transaktionsvärde": 45550959,
+    "Snittkurs": 1339.73
+  },
+  {
+    "Datum": "2024-02-23",
+    "Antal_aktier": 35000,
+    "Transaktionsvärde": 47253248,
+    "Snittkurs": 1350.09
+  },
+  {
+    "Datum": "2024-02-26",
+    "Antal_aktier": 34000,
+    "Transaktionsvärde": 46060650,
+    "Snittkurs": 1354.72
+  },
+  {
+    "Datum": "2024-02-27",
+    "Antal_aktier": 38000,
+    "Transaktionsvärde": 51362369,
+    "Snittkurs": 1351.64
+  },
+  {
+    "Datum": "2024-02-28",
+    "Antal_aktier": 49700,
+    "Transaktionsvärde": 67232529,
+    "Snittkurs": 1352.76
+  },
+  {
+    "Datum": "2024-02-29",
+    "Antal_aktier": 44000,
+    "Transaktionsvärde": 59238330,
+    "Snittkurs": 1346.32
+  },
+  {
+    "Datum": "2024-03-01",
+    "Antal_aktier": 42800,
+    "Transaktionsvärde": 57747082,
+    "Snittkurs": 1349.23
+  },
+  {
+    "Datum": "2024-03-04",
+    "Antal_aktier": 54000,
+    "Transaktionsvärde": 71966788,
+    "Snittkurs": 1332.71
+  },
+  {
+    "Datum": "2024-03-05",
+    "Antal_aktier": 54000,
+    "Transaktionsvärde": 71632188,
+    "Snittkurs": 1326.52
+  },
+  {
+    "Datum": "2024-03-06",
+    "Antal_aktier": 51074,
+    "Transaktionsvärde": 67441281,
+    "Snittkurs": 1320.46
+  },
+  {
+    "Datum": "2024-03-07",
+    "Antal_aktier": 58650,
+    "Transaktionsvärde": 76641034,
+    "Snittkurs": 1306.75
+  },
+  {
+    "Datum": "2024-03-08",
+    "Antal_aktier": 41600,
+    "Transaktionsvärde": 54647640,
+    "Snittkurs": 1313.64
+  },
+  {
+    "Datum": "2024-03-11",
+    "Antal_aktier": 46000,
+    "Transaktionsvärde": 60353430,
+    "Snittkurs": 1312.03
+  },
+  {
+    "Datum": "2024-03-12",
+    "Antal_aktier": 24456,
+    "Transaktionsvärde": 32768420,
+    "Snittkurs": 1339.89
+  },
+  {
+    "Datum": "2024-03-13",
+    "Antal_aktier": 30860,
+    "Transaktionsvärde": 42342175,
+    "Snittkurs": 1372.07
+  },
+  {
+    "Datum": "2024-03-14",
+    "Antal_aktier": 43000,
+    "Transaktionsvärde": 59183381,
+    "Snittkurs": 1376.35
+  },
+  {
+    "Datum": "2024-03-15",
+    "Antal_aktier": 40000,
+    "Transaktionsvärde": 55193232,
+    "Snittkurs": 1379.83
+  },
+  {
+    "Datum": "2024-03-18",
+    "Antal_aktier": 45600,
+    "Transaktionsvärde": 62444603,
+    "Snittkurs": 1369.39
+  },
+  {
+    "Datum": "2024-03-19",
+    "Antal_aktier": 47500,
+    "Transaktionsvärde": 65019672,
+    "Snittkurs": 1368.83
+  },
+  {
+    "Datum": "2024-03-20",
+    "Antal_aktier": 50500,
+    "Transaktionsvärde": 69070693,
+    "Snittkurs": 1367.73
+  },
+  {
+    "Datum": "2024-03-21",
+    "Antal_aktier": 45100,
+    "Transaktionsvärde": 61981430,
+    "Snittkurs": 1374.31
+  },
+  {
+    "Datum": "2024-03-22",
+    "Antal_aktier": 70300,
+    "Transaktionsvärde": 92506434,
+    "Snittkurs": 1315.88
+  },
+  {
+    "Datum": "2024-03-25",
+    "Antal_aktier": 44000,
+    "Transaktionsvärde": 56432266,
+    "Snittkurs": 1282.55
+  },
+  {
+    "Datum": "2024-03-26",
+    "Antal_aktier": 40431,
+    "Transaktionsvärde": 52395648,
+    "Snittkurs": 1295.92
+  },
+  {
+    "Datum": "2024-03-27",
+    "Antal_aktier": 43950,
+    "Transaktionsvärde": 57784365,
+    "Snittkurs": 1314.77
+  },
+  {
+    "Datum": "2024-03-28",
+    "Antal_aktier": 44995,
+    "Transaktionsvärde": 59982789,
+    "Snittkurs": 1333.09
+  },
+  {
+    "Datum": "2024-07-19",
+    "Antal_aktier": 68570,
+    "Transaktionsvärde": 73250204,
+    "Snittkurs": 1068.25
+  },
+  {
+    "Datum": "2024-07-22",
+    "Antal_aktier": 70600,
+    "Transaktionsvärde": 73062457,
+    "Snittkurs": 1034.87
+  },
+  {
+    "Datum": "2024-07-23",
+    "Antal_aktier": 70900,
+    "Transaktionsvärde": 72439543,
+    "Snittkurs": 1021.71
+  },
+  {
+    "Datum": "2024-07-24",
+    "Antal_aktier": 70000,
+    "Transaktionsvärde": 71478834,
+    "Snittkurs": 1021.12
+  },
+  {
+    "Datum": "2024-07-25",
+    "Antal_aktier": 71198,
+    "Transaktionsvärde": 72078726,
+    "Snittkurs": 1012.37
+  },
+  {
+    "Datum": "2024-07-26",
+    "Antal_aktier": 70000,
+    "Transaktionsvärde": 71777195,
+    "Snittkurs": 1025.38
+  },
+  {
+    "Datum": "2024-07-29",
+    "Antal_aktier": 71073,
+    "Transaktionsvärde": 72786434,
+    "Snittkurs": 1024.10
+  },
+  {
+    "Datum": "2024-07-30",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 51442430,
+    "Snittkurs": 1028.84
+  },
+  {
+    "Datum": "2024-07-31",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 51814345,
+    "Snittkurs": 1036.28
+  },
+  {
+    "Datum": "2024-08-01",
+    "Antal_aktier": 50000,
+    "Transaktionsvärde": 51835730,
+    "Snittkurs": 1036.71
+  },
+  {
+    "Datum": "2024-08-02",
+    "Antal_aktier": 76400,
+    "Transaktionsvärde": 76909924,
+    "Snittkurs": 1006.67
+  },
+    {
+        "Datum": "2024-08-05",
+        "Antal_aktier": 79100,
+        "Transaktionsvärde": 77368050,
+        "Snittkurs": 978.10
+      },
+      {
+        "Datum": "2024-08-06",
+        "Antal_aktier": 79000,
+        "Transaktionsvärde": 77113551,
+        "Snittkurs": 976.12
+      },
+      {
+        "Datum": "2024-08-07",
+        "Antal_aktier": 90000,
+        "Transaktionsvärde": 87820821,
+        "Snittkurs": 975.78
+      },
+      {
+        "Datum": "2024-08-08",
+        "Antal_aktier": 45000,
+        "Transaktionsvärde": 44740125,
+        "Snittkurs": 994.22
+      },
+      {
+        "Datum": "2024-08-09",
+        "Antal_aktier": 45000,
+        "Transaktionsvärde": 45546327,
+        "Snittkurs": 1012.14
+      },
+    {
+        "Datum": "2024-08-12",
+        "Antal_aktier": 55000,
+        "Transaktionsvärde": 55201316,
+        "Snittkurs": 1003.66
+      },
+      {
+        "Datum": "2024-08-13",
+        "Antal_aktier": 40000,
+        "Transaktionsvärde": 39868788,
+        "Snittkurs": 996.71
+      },
+      {
+        "Datum": "2024-08-14",
+        "Antal_aktier": 55000,
+        "Transaktionsvärde": 55657140,
+        "Snittkurs": 1011.94
+      },
+      {
+        "Datum": "2024-08-15",
+        "Antal_aktier": 22738,
+        "Transaktionsvärde": 23106858,
+        "Snittkurs": 1016.22
+      },
+      {
+        "Datum": "2024-08-16",
+        "Antal_aktier": 50000,
+        "Transaktionsvärde": 51772710,
+        "Snittkurs": 1035.45
+      },
+    {
+        "Datum": "2024-08-19",
+        "Antal_aktier": 50000,
+        "Transaktionsvärde": 51924200,
+        "Snittkurs": 1038.48
+      },
+      {
+        "Datum": "2024-08-20",
+        "Antal_aktier": 50000,
+        "Transaktionsvärde": 52250090,
+        "Snittkurs": 1045.00
+      },
+      {
+        "Datum": "2024-08-21",
+        "Antal_aktier": 78546,
+        "Transaktionsvärde": 82458808,
+        "Snittkurs": 1049.81
+      },
+      {
+        "Datum": "2024-08-22",
+        "Antal_aktier": 100000,
+        "Transaktionsvärde": 105964060,
+        "Snittkurs": 1059.64
+      },
+      {
+        "Datum": "2024-08-23",
+        "Antal_aktier": 100000,
+        "Transaktionsvärde": 106339900,
+        "Snittkurs": 1063.39
+      },
+    {
+        "Datum": "2024-08-26",
+        "Antal_aktier": 103000,
+        "Transaktionsvärde": 110004216,
+        "Snittkurs": 1068.00
+      },
+      {
+        "Datum": "2024-08-27",
+        "Antal_aktier": 100000,
+        "Transaktionsvärde": 106646350,
+        "Snittkurs": 1066.46
+      },
+      {
+        "Datum": "2024-08-28",
+        "Antal_aktier": 105000,
+        "Transaktionsvärde": 111865225,
+        "Snittkurs": 1065.38
+      },
+      {
+        "Datum": "2024-08-29",
+        "Antal_aktier": 105000,
+        "Transaktionsvärde": 111752130,
+        "Snittkurs": 1064.30
+      },
+      {
+        "Datum": "2024-08-30",
+        "Antal_aktier": 106621,
+        "Transaktionsvärde": 113724154,
+        "Snittkurs": 1066.62
+      },
+    {
+        "Datum": "2024-09-04",
+        "Antal_aktier": 45000,
+        "Transaktionsvärde": 45695191,
+        "Snittkurs": 1015.44
+      },
+      {
+        "Datum": "2024-09-05",
+        "Antal_aktier": 39600,
+        "Transaktionsvärde": 40153877,
+        "Snittkurs": 1013.98
+      },
+      {
+        "Datum": "2024-09-06",
+        "Antal_aktier": 35000,
+        "Transaktionsvärde": 35153674,
+        "Snittkurs": 1004.39
+      },
+      {
+        "Datum": "2024-09-10",
+        "Antal_aktier": 23400,
+        "Transaktionsvärde": 23362012,
+        "Snittkurs": 998.37
+      },
+      {
+        "Datum": "2024-09-11",
+        "Antal_aktier": 14000,
+        "Transaktionsvärde": 14101679,
+        "Snittkurs": 1007.26
+      },
+      {
+        "Datum": "2024-09-12",
+        "Antal_aktier": 28000,
+        "Transaktionsvärde": 28218825,
+        "Snittkurs": 1007.81
+      },
+      {
+        "Datum": "2024-09-13",
+        "Antal_aktier": 1822,
+        "Transaktionsvärde": 1838857,
+        "Snittkurs": 1009.25
+      },
+        {
+        "Datum": "2024-09-16",
+        "Antal_aktier": 11600,
+        "Transaktionsvärde": 11672210,
+        "Snittkurs": 1006.22
+      },
+      {
+        "Datum": "2024-09-17",
+        "Antal_aktier": 22670,
+        "Transaktionsvärde": 22729506,
+        "Snittkurs": 1002.62
+      },
+      {
+        "Datum": "2024-09-18",
+        "Antal_aktier": 23000,
+        "Transaktionsvärde": 23014669,
+        "Snittkurs": 1000.63
+      },
+      {
+        "Datum": "2024-09-20",
+        "Antal_aktier": 96000,
+        "Transaktionsvärde": 96160972,
+        "Snittkurs": 1001.67
+      },
+    {
+        "Datum": "2024-09-23",
+        "Antal_aktier": 30000,
+        "Transaktionsvärde": 30142257,
+        "Snittkurs": 1004.74
+      },
+      {
+        "Datum": "2024-09-24",
+        "Antal_aktier": 100000,
+        "Transaktionsvärde": 99603610,
+        "Snittkurs": 996.03
+      },
+      {
+        "Datum": "2024-09-25",
+        "Antal_aktier": 54871,
+        "Transaktionsvärde": 54533790,
+        "Snittkurs": 993.85
+      },
+      {
+        "Datum": "2024-09-26",
+        "Antal_aktier": 13500,
+        "Transaktionsvärde": 13634526,
+        "Snittkurs": 1009.96
+      },
+      {
+        "Datum": "2024-09-27",
+        "Antal_aktier": 1313,
+        "Transaktionsvärde": 1325893,
+        "Snittkurs": 1009.81
+      },
+      {
+        "Datum": "2024-09-30",
+        "Antal_aktier": 45000,
+        "Transaktionsvärde": 45095872,
+        "Snittkurs": 1002.13
+      },
+      {
+        "Datum": "2024-10-01",
+        "Antal_aktier": 50000,
+        "Transaktionsvärde": 50032760,
+        "Snittkurs": 1000.65
+      },
+      {
+        "Datum": "2024-10-02",
+        "Antal_aktier": 110000,
+        "Transaktionsvärde": 108976406,
+        "Snittkurs": 990.69
+      },
+      {
+        "Datum": "2024-10-03",
+        "Antal_aktier": 85000,
+        "Transaktionsvärde": 83981513,
+        "Snittkurs": 988.01
+      },
+      {
+        "Datum": "2024-10-04",
+        "Antal_aktier": 45067,
+        "Transaktionsvärde": 44913312,
+        "Snittkurs": 996.58
+      },
+      {
+        "Datum": "2024-10-07",
+        "Antal_aktier": 95000,
+        "Transaktionsvärde": 97051928,
+        "Snittkurs": 990.02
+      },
+      {
+        "Datum": "2024-10-08",
+        "Antal_aktier": 119059,
+        "Transaktionsvärde": 116803093,
+        "Snittkurs": 981.05
+      },
+      {
+        "Datum": "2024-10-09",
+        "Antal_aktier": 121100,
+        "Transaktionsvärde": 117137268,
+        "Snittkurs": 967.27
+      },
+      {
+        "Datum": "2024-10-10",
+        "Antal_aktier": 127300,
+        "Transaktionsvärde": 122058346,
+        "Snittkurs": 9657.82
+      },
+      {
+        "Datum": "2024-10-11",
+        "Antal_aktier": 129400,
+        "Transaktionsvärde": 125238043,
+        "Snittkurs": 967.83
+      },
+        {
+          "Datum": "2024-10-14",
+          "Antal_aktier": 134900,
+          "Transaktionsvärde": 128184367,
+          "Snittkurs": 950.21
+        },
+        {
+          "Datum": "2024-10-15",
+          "Antal_aktier": 144100,
+          "Transaktionsvärde": 137071580,
+          "Snittkurs": 951.22
+        },
+        {
+          "Datum": "2024-10-16",
+          "Antal_aktier": 148200,
+          "Transaktionsvärde": 141339392,
+          "Snittkurs": 953.70
+        },
+        {
+          "Datum": "2024-10-17",
+          "Antal_aktier": 154100,
+          "Transaktionsvärde": 148152510,
+          "Snittkurs": 961.40
+        },
+        {
+          "Datum": "2024-10-18",
+          "Antal_aktier": 125800,
+          "Transaktionsvärde": 120901926,
+          "Snittkurs": 961.06
+        },
+        {
+          "Datum": "2024-10-21",
+          "Antal_aktier": 130137,
+          "Transaktionsvärde": 124719201,
+          "Snittkurs": 958.36
+        }
+]
