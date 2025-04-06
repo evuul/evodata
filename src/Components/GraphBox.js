@@ -15,7 +15,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import useMediaQuery from '@mui/material/useMediaQuery';
+import useClientMediaQuery from "../app/hooks/useClientMediaQuery";
 import { useTheme } from '@mui/material/styles';
 
 // Dividenddata
@@ -39,7 +39,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarter");
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobile = useClientMediaQuery(theme.breakpoints.down('sm'));
 
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
   const handleViewModeChange = (event, newView) => newView && setViewMode(newView);
