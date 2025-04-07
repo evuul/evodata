@@ -48,9 +48,9 @@ const pulseRed = keyframes`
 
 // Totala aktier över tid (utan att ta hänsyn till indragningar)
 const totalSharesData = [
-  { date: "2019", totalShares: 186562243 },
-  { date: "2020", totalShares: 186562243 },
-  { date: "2021", totalShares: 213771346 },
+  { date: "2019", totalShares: 181622725 },
+  { date: "2020", totalShares: 183927915 },
+  { date: "2021", totalShares: 215111115 },
   { date: "2022", totalShares: 213771346 },
   { date: "2023", totalShares: 213566498 },
   { date: "2024", totalShares: 209562751 },

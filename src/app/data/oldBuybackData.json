@@ -12,6 +12,13 @@
     "Snittkurs": 320.43
   },
   {
+    "Datum": "2021-06-01",
+    "Antal_aktier": -338000,
+    "Snittkurs": 0,
+    "Transaktionsvärde": 0,
+    "Kommentar": "Indragning av återköpta aktier enligt årsstämmans beslut 2021"
+  },
+  {
     "Datum": "2021-12-06",
     "Antal_aktier": 150000,
     "Transaktionsvärde": 135713265,
@@ -154,6 +161,13 @@
     "Antal_aktier": 77000,
     "Transaktionsvärde": 77911133,
     "Snittkurs": 1011.83
+  },
+  {
+    "Datum": "2023-06-01",
+    "Antal_aktier": -199333,
+    "Snittkurs": 0,
+    "Transaktionsvärde": 0,
+    "Kommentar": "Indragning av återköpta aktier enligt årsstämmans beslut 2023"
   },
   {
     "Datum": "2023-11-27",
