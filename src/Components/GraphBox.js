@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -8,17 +8,18 @@ import {
   Tab,
 } from "@mui/material";
 import {
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  CartesianGrid,
+  Label,
 } from "recharts";
 import useClientMediaQuery from "../app/hooks/useClientMediaQuery";
 import { useTheme } from '@mui/material/styles';
 
-// Dividenddata
 const dividendData = [
   { date: "2020", dividend: 4.42 },
   { date: "2021", dividend: 6.87 },
@@ -29,13 +30,13 @@ const dividendData = [
 ];
 
 const graphOptions = [
-  { label: "Omsättning", key: "revenue" },
-  { label: "Marginal", key: "margin" },
-  { label: "Utdelning", key: "dividend" },
-  { label: "Tillväxt", key: "growth" },
+  { label: "Omsättning", key: "revenue", color: "#2196f3" },
+  { label: "Marginal", key: "margin", color: "#ff9800" },
+  { label: "Utdelning", key: "dividend", color: "#00e676" },
+  { label: "AVG Spelare", key: "players", color: "#9c27b0" },
 ];
 
-const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData }) => {
+const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData, playersData }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarter");
   const theme = useTheme();
@@ -44,35 +45,158 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const handleTabChange = (event, newValue) => setActiveTab(newValue);
   const handleViewModeChange = (event, newView) => newView && setViewMode(newView);
 
-  const calculateDividendGrowth = (data) => {
-    return data.slice(1).map((d, i) => {
-      const prev = data[i].dividend;
-      const growth = ((d.dividend - prev) / prev) * 100;
-      return { date: d.date, growth };
+  // Beräkna genomsnittligt antal spelare för de senaste X dagarna
+  const calculateAveragePlayers = (data, days) => {
+    if (!data || data.length === 0) return { average: 0, daysCount: 0 };
+
+    const today = new Date();
+    const cutoffDate = new Date(today);
+    cutoffDate.setDate(today.getDate() - days);
+
+    const recentData = data.filter(item => {
+      const itemDate = new Date(item.Datum);
+      return itemDate >= cutoffDate && itemDate <= today;
     });
+
+    const totalPlayers = recentData.reduce((sum, item) => sum + (Number(item.Players) || 0), 0);
+    const average = recentData.length > 0 ? totalPlayers / recentData.length : 0;
+
+    return {
+      average: Math.round(average),
+      daysCount: recentData.length,
+    };
   };
 
-  const dividendGrowthData = calculateDividendGrowth(dividendData);
+  // Hämta sista mätpunkten för varje graf
+  const getLastDataPoint = (data, key) => {
+    if (!data || data.length === 0) return 0;
+    const lastItem = data[data.length - 1];
+    return Number(lastItem[key] || lastItem.value || lastItem.Players || 0);
+  };
 
-  // Format för att visa rätt text i Tooltip
+  // Beräkna genomsnittet för "AVG Spelare" och sista värden för alla grafer
+  const { average: avgPlayers, daysCount } = useMemo(() => calculateAveragePlayers(playersData, 30), [playersData]);
+  const lastRevenue = useMemo(() => getLastDataPoint(viewMode === "year" ? annualRevenueData : revenueData, "value"), [revenueData, annualRevenueData, viewMode]);
+  const lastMargin = useMemo(() => getLastDataPoint(viewMode === "year" ? annualMarginData : marginData, "value"), [marginData, annualMarginData, viewMode]);
+  const lastDividend = useMemo(() => getLastDataPoint(dividendData, "dividend"), [dividendData]);
+  const lastPlayers = useMemo(() => getLastDataPoint(playersData, "Players"), [playersData]);
+
   const formatTooltipValue = (value, type) => {
-    if (type === "revenue") {
-      return [`Omsättning: ${new Intl.NumberFormat("sv-SE", {
-        style: "decimal",
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(value)} M EUR`];
-    } else if (type === "margin") {
-      return [`Marginal: ${value.toFixed(2)}%`];
-    } else if (type === "dividend") {
-      return [`Utdelning: ${value} SEK`];
-    }
+    if (type === "revenue") return [`Omsättning: ${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M EUR`];
+    if (type === "margin") return [`Marginal: ${value.toFixed(2)}%`];
+    if (type === "dividend") return [`Utdelning: ${value} SEK`];
+    if (type === "players") return [`Spelare: ${value.toLocaleString("sv-SE")}`];
     return [value];
+  };
+
+  const formatYAxisTick = (value) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+    return value.toLocaleString("sv-SE");
+  };
+
+  const getYDomain = (data, key, tab, viewMode) => {
+    if (!data || data.length === 0) return [0, 1];
+    const values = data.map(item => {
+      const val = item[key] || item.value || item.Players;
+      return isNaN(val) ? 0 : Number(val);
+    });
+
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+
+    if (tab === "players") {
+      const lowerBound = Math.floor(minValue / 2000) * 2000;
+      const upperBound = Math.ceil(maxValue / 2000) * 2000;
+      return [lowerBound, upperBound];
+    } else if (tab === "revenue") {
+      const interval = viewMode === "year" ? 300 : 100;
+      const lowerBound = 0;
+      const upperBound = Math.ceil(maxValue / interval) * interval;
+      return [lowerBound, upperBound];
+    } else if (tab === "margin") {
+      const interval = 5;
+      const lowerBound = Math.floor(minValue / interval) * interval;
+      const upperBound = Math.ceil(maxValue / interval) * interval;
+      return [lowerBound, upperBound];
+    } else if (tab === "dividend") {
+      const interval = 6; // Fast intervall på 6 SEK
+      const lowerBound = 0;
+      const upperBound = Math.ceil(maxValue / interval) * interval;
+      return [lowerBound, upperBound];
+    }
+
+    return [0, maxValue * 1.1];
   };
 
   const filteredRevenueData = viewMode === "year" ? annualRevenueData : revenueData;
   const filteredMarginData = viewMode === "year" ? annualMarginData : marginData;
-  const currentBarSize = isMobile ? 20 : 40;
+
+  const graphConfig = {
+    revenue: { data: filteredRevenueData, key: "value", labelX: "Datum", labelY: "Omsättning (M EUR)" },
+    margin: { data: filteredMarginData, key: "value", labelX: "Datum", labelY: "Marginal (%)" },
+    dividend: { data: dividendData, key: "dividend", labelX: "År", labelY: "Utdelning (SEK)" },
+    players: { data: playersData, key: "Players", labelX: "Datum", labelY: "Antal spelare" },
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <Box sx={{ background: "#333", padding: "10px", borderRadius: "5px", color: "#fff" }}>
+          <Typography>{`Datum: ${label}`}</Typography>
+          <Typography>{payload[0].value ? formatTooltipValue(payload[0].value, activeTab)[0] : ""}</Typography>
+        </Box>
+      );
+    }
+    return null;
+  };
+
+  const renderChart = () => {
+    const { data, key, labelX, labelY } = graphConfig[activeTab];
+    const color = graphOptions.find(opt => opt.key === activeTab).color;
+
+    return (
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+          <XAxis dataKey={activeTab === "players" ? "Datum" : "date"} stroke="#ccc">
+            <Label value={labelX} offset={-10} position="insideBottom" fill="#ccc" />
+          </XAxis>
+          <YAxis
+            stroke="#ccc"
+            domain={getYDomain(data, key, activeTab, viewMode)}
+            tickFormatter={formatYAxisTick}
+            width={60}
+            tickCount={
+              activeTab === "revenue" ? (viewMode === "year" ? 8 : 6) :
+              activeTab === "margin" ? 6 :
+              activeTab === "dividend" ? 7 : // 7 ticks för utdelning (0, 6, 12, 18, 24, 30, 36)
+              9
+            }
+            interval={0}
+          >
+            <Label
+              value={labelY}
+              angle={-90}
+              offset={-30}
+              position="insideLeft"
+              fill="#ccc"
+            />
+          </YAxis>
+          <Tooltip content={<CustomTooltip />} />
+          <Line
+            type="monotone"
+            dataKey={key}
+            stroke={color}
+            strokeWidth={2}
+            dot={{ r: 4, fill: color }}
+            activeDot={{ r: 6 }}
+            isAnimationActive={true}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    );
+  };
 
   return (
     <Card
@@ -81,23 +205,13 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         borderRadius: "20px",
         padding: "25px",
         margin: "20px auto",
-        // Responsiv bredd
-        width: {
-          xs: "90%",  // För mobil: 90% av skärmens bredd
-          sm: "80%",  // För tablet: 80% av skärmens bredd
-          md: "90%",  // För desktop: 70% av skärmens bredd
-        },
+        width: { xs: "90%", sm: "80%", md: "70%" },
         boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
       }}
     >
       <Typography
         variant="h5"
-        sx={{
-          fontWeight: "bold",
-          color: "#00e676",
-          marginBottom: "10px",
-          textAlign: "center",
-        }}
+        sx={{ fontWeight: "bold", color: "#00e676", marginBottom: "10px", textAlign: "center" }}
       >
         Finansiell översikt
       </Typography>
@@ -115,7 +229,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         ))}
       </Tabs>
 
-      {activeTab !== "dividend" && activeTab !== "growth" && (
+      {activeTab !== "dividend" && activeTab !== "players" && (
         <Tabs
           value={viewMode}
           onChange={handleViewModeChange}
@@ -129,58 +243,62 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         </Tabs>
       )}
 
-      {/* Main chart area */}
-      <Box sx={{ height: activeTab === "growth" ? "auto" : 400 }}>
-        {activeTab === "growth" ? (
-          <Box sx={{ textAlign: "center", padding: isMobile ? "10px" : "20px" }}>
-            <Typography
-              variant={isMobile ? "h6" : "h5"}
-              sx={{ color: "#00e676", marginBottom: "10px" }}
-            >
-              Utdelningstillväxt per år:
-            </Typography>
-            {dividendGrowthData.map((item, index) => (
-              <Typography
-                key={index}
-                variant={isMobile ? "h6" : "h4"}
-                sx={{
-                  color: item.growth < 0 ? "#f44336" : "#4caf50",
-                  fontWeight: "bold",
-                  marginBottom: "5px",
-                }}
-              >
-                {item.date}: {item.growth.toFixed(2)}%
-              </Typography>
-            ))}
-          </Box>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            {activeTab === "revenue" && (
-              <BarChart data={filteredRevenueData}>
-                <XAxis dataKey="date" stroke="#ccc" />
-                <YAxis stroke="#ccc" />
-                <Tooltip formatter={(value) => formatTooltipValue(value, "revenue")} />
-                <Bar dataKey="value" fill="#00e676" barSize={currentBarSize} />
-              </BarChart>
-            )}
-            {activeTab === "margin" && (
-              <BarChart data={filteredMarginData}>
-                <XAxis dataKey="date" stroke="#ccc" />
-                <YAxis stroke="#ccc" />
-                <Tooltip formatter={(value) => formatTooltipValue(value, "margin")} />
-                <Bar dataKey="value" fill="#00e676" barSize={currentBarSize} />
-              </BarChart>
-            )}
-            {activeTab === "dividend" && (
-              <BarChart data={dividendData}>
-                <XAxis dataKey="date" stroke="#ccc" />
-                <YAxis stroke="#ccc" />
-                <Tooltip formatter={(value) => formatTooltipValue(value, "dividend")} />
-                <Bar dataKey="dividend" fill="#00e676" barSize={currentBarSize} />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
-        )}
+      {activeTab === "revenue" && (
+        <Typography
+          variant="body1"
+          sx={{
+            color: "#ccc",
+            textAlign: "center",
+            marginBottom: "20px",
+            fontSize: "1rem",
+          }}
+        >
+          Senaste omsättning: {lastRevenue.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M EUR
+        </Typography>
+      )}
+      {activeTab === "margin" && (
+        <Typography
+          variant="body1"
+          sx={{
+            color: "#ccc",
+            textAlign: "center",
+            marginBottom: "20px",
+            fontSize: "1rem",
+          }}
+        >
+          Senaste marginal: {lastMargin.toFixed(2)}%
+        </Typography>
+      )}
+      {activeTab === "dividend" && (
+        <Typography
+          variant="body1"
+          sx={{
+            color: "#ccc",
+            textAlign: "center",
+            marginBottom: "20px",
+            fontSize: "1rem",
+          }}
+        >
+          Senaste utdelning: {lastDividend.toLocaleString("sv-SE")} SEK
+        </Typography>
+      )}
+      {activeTab === "players" && (
+        <Typography
+          variant="body1"
+          sx={{
+            color: "#ccc",
+            textAlign: "center",
+            marginBottom: "20px",
+            fontSize: "1rem",
+          }}
+        >
+          Genomsnitt antal: {avgPlayers.toLocaleString("sv-SE")} <br />
+          Senaste {daysCount} dagar
+        </Typography>
+      )}
+
+      <Box sx={{ height: 400 }}>
+        {renderChart()}
       </Box>
     </Card>
   );
