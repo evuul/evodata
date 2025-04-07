@@ -4,7 +4,9 @@ import StockBuybackInfo from "../Components/StockBuybackInfo";
 import MoneyCounter from "../Components/MoneyCounter";
 import ComingUpdates from "../Components/ComingUpdates";
 import GraphBox from "../Components/GraphBox";
-import financialReports from "./data/financialReports.json"; // Se till att importera JSON-filen korrekt
+import financialReports from "./data/financialReports.json";
+// Importera din averagePlayers.json-fil
+import averagePlayersData from "./data/averagePlayers.json"; // Anpassa sökvägen vid behov
 import { Box } from "@mui/material";
 
 // Format för kvartalsdata (Omsättning och Marginal)
@@ -15,7 +17,7 @@ const formattedRevenueData = financialReports.financialReports.map((report) => (
 
 const formattedMarginData = financialReports.financialReports.map((report) => ({
   date: `${report.year} ${report.quarter}`,
-  value: report.adjustedOperatingMargin, // Använder adjustedOperatingMargin som marginal
+  value: report.adjustedOperatingMargin,
 }));
 
 // Här summerar vi alla kvartalsdata per år för att få helårsomsättningen och genomsnittlig marginal
@@ -24,24 +26,20 @@ const annualMarginData = [];
 const years = [...new Set(financialReports.financialReports.map(report => report.year))];
 
 years.forEach((year) => {
-  // Summera kvartalsomsättningen för att få helårsomsättningen
   const quarterlyRevenue = financialReports.financialReports.filter(report => report.year === year);
   const totalRevenue = quarterlyRevenue.reduce((acc, report) => acc + report.operatingRevenues, 0);
 
-  // Beräkna genomsnittlig marginal för helåret
   const quarterlyMargins = financialReports.financialReports.filter(report => report.year === year);
   const averageMargin = quarterlyMargins.reduce((acc, report) => acc + report.adjustedOperatingMargin, 0) / quarterlyMargins.length;
 
-  // Lägg till summerad omsättning för helåret
   annualRevenueData.push({
     date: `${year} Helår`,
-    value: totalRevenue, // Summerad omsättning för helåret
+    value: totalRevenue,
   });
 
-  // Lägg till genomsnittlig marginal för helåret
   annualMarginData.push({
     date: `${year} Helår`,
-    value: averageMargin, // Genomsnittlig marginal för helåret
+    value: averageMargin,
   });
 });
 
@@ -67,14 +65,13 @@ export default async function Home() {
     <main>
       <Header />
 
-      {/* Layout justering för att vara responsiv */}
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" }, // Kolumnlayout på mobil och radlayout på större skärmar
-          justifyContent: "space-between", // Justerar innehållet
-          gap: { xs: 2, md: 3 }, // Anpassa gap för olika skärmstorlekar
-          padding: { xs: 2, md: 3 }, // Lägg till responsiv padding för att skapa utrymme på skärmar
+          flexDirection: { xs: "column", md: "row" },
+          justifyContent: "space-between",
+          gap: { xs: 2, md: 3 },
+          padding: { xs: 2, md: 3 },
         }}
       >
         <Box sx={{ width: { xs: "100%", md: "48%" } }}>
@@ -88,10 +85,11 @@ export default async function Home() {
 
       <Box sx={{ marginTop: 3 }}>
         <GraphBox
-          revenueData={formattedRevenueData} // Kvartalsdata för omsättning
-          marginData={formattedMarginData}   // Kvartalsdata för marginal
-          annualRevenueData={annualRevenueData} // Helårsdata för omsättning
-          annualMarginData={annualMarginData}   // Helårsdata för marginal
+          revenueData={formattedRevenueData}
+          marginData={formattedMarginData}
+          annualRevenueData={annualRevenueData}
+          annualMarginData={annualMarginData}
+          playersData={averagePlayersData} // Skicka din averagePlayersData som en prop
         />
       </Box>
 
