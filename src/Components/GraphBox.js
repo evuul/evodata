@@ -11,6 +11,10 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Select,
+  MenuItem,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   LineChart,
@@ -45,6 +49,9 @@ const GraphBox = ({
   );
   const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Q4");
 
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const today = new Date("2025-04-07");
 
   const handleTabChange = (event, newValue) => {
@@ -57,7 +64,7 @@ const GraphBox = ({
 
   const handleGeoYearChange = (event, newValue) => {
     setSelectedGeoYear(newValue);
-    setSelectedGeoPeriod("Helår"); // Återställ till "Helår" när årtalet ändras
+    setSelectedGeoPeriod("Helår");
   };
 
   const handleGeoPeriodChange = (event, newValue) => {
@@ -97,7 +104,7 @@ const GraphBox = ({
   // Hämta unika årtal från financialReports, bara från 2020 och framåt
   const uniqueYears = [...new Set(
     financialReports.financialReports
-      .filter(report => report.year >= 2020) // Filtrera årtal från 2020 och framåt
+      .filter(report => report.year >= 2020)
       .map(report => report.year)
   )].sort();
 
@@ -113,12 +120,12 @@ const GraphBox = ({
     const quarters = financialReports.financialReports
       .filter(report => report.year.toString() === selectedGeoYear)
       .map(report => report.quarter);
-    return [...new Set(quarters)]; // Unika kvartal för det valda året
+    return [...new Set(quarters)];
   }, [selectedGeoYear, financialReports]);
 
   // Filtrera data för geografisk fördelning baserat på valt årtal och period
   const geoDataOptions = financialReports.financialReports
-    .filter(report => report.year >= 2020) // Filtrera data från 2020 och framåt
+    .filter(report => report.year >= 2020)
     .map(report => ({
       label: `${report.year} ${report.quarter}`,
       year: report.year,
@@ -258,9 +265,9 @@ const GraphBox = ({
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
         borderRadius: "20px",
         boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        padding: "25px",
+        padding: { xs: "15px", sm: "25px" },
         margin: "20px auto",
-        width: { xs: "90%", sm: "80%", md: "70%" },
+        width: { xs: "95%", sm: "80%", md: "70%" },
       }}
     >
       <Typography
@@ -270,26 +277,104 @@ const GraphBox = ({
           color: "#00e676",
           marginBottom: "20px",
           textAlign: "center",
+          fontSize: { xs: "1.5rem", sm: "2rem" },
         }}
       >
         Finansiell översikt
       </Typography>
 
-      <Tabs
-        value={activeTab}
-        onChange={handleTabChange}
-        centered
-        textColor="inherit"
-        TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-        sx={{ color: "#ccc", marginBottom: "20px" }}
-      >
-        <Tab label="Omsättning" value="revenue" />
-        <Tab label="Marginal" value="margin" />
-        <Tab label="Utdelning" value="dividend" />
-        <Tab label="AVG Spelare" value="players" />
-        <Tab label="Geografisk fördelning" value="geoDistribution" />
-        <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
-      </Tabs>
+      {/* Tabs för "Finansiell översikt" */}
+      {isMobile ? (
+        <Select
+          value={activeTab}
+          onChange={(event) => setActiveTab(event.target.value)}
+          fullWidth
+          sx={{
+            color: "#ccc",
+            backgroundColor: "#2e2e2e",
+            marginBottom: "20px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+            "& .MuiSelect-select": {
+              padding: "12px 32px",
+              textAlign: "center",
+              fontSize: "1rem",
+              fontWeight: "bold",
+              transition: "background-color 0.3s ease",
+            },
+            "& .MuiSelect-icon": {
+              color: "#00e676",
+            },
+            "&:hover": {
+              backgroundColor: "#3e3e3e",
+            },
+            "&.Mui-focused": {
+              backgroundColor: "#3e3e3e",
+              boxShadow: "0 0 0 2px rgba(0, 230, 118, 0.3)",
+            },
+          }}
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                backgroundColor: "#2e2e2e",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
+                "& .MuiMenuItem-root": {
+                  color: "#ccc",
+                  textAlign: "center", // Centrera texten i alternativen
+                  justifyContent: "center", // Centrera innehållet horisontellt
+                  padding: "12px 16px",
+                  fontSize: "1rem",
+                  transition: "background-color 0.3s ease",
+                  "&:hover": {
+                    backgroundColor: "#00e676",
+                    color: "#1e1e1e",
+                  },
+                  "&.Mui-selected": {
+                    backgroundColor: "#00e676",
+                    color: "#1e1e1e",
+                    fontWeight: "bold",
+                    "&:hover": {
+                      backgroundColor: "#00c853",
+                    },
+                  },
+                },
+              },
+            },
+          }}
+        >
+          <MenuItem value="revenue">Omsättning</MenuItem>
+          <MenuItem value="margin">Marginal</MenuItem>
+          <MenuItem value="dividend">Utdelning</MenuItem>
+          <MenuItem value="players">AVG Spelare</MenuItem>
+          <MenuItem value="geoDistribution">Geografisk fördelning</MenuItem>
+          <MenuItem value="liveCasinoRng">LiveCasino vs RNG</MenuItem>
+        </Select>
+      ) : (
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          textColor="inherit"
+          TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+          sx={{
+            color: "#ccc",
+            marginBottom: "20px",
+            "& .MuiTab-root": {
+              fontSize: { xs: "0.8rem", sm: "1rem" },
+              padding: { xs: "6px 8px", sm: "12px 16px" },
+            },
+          }}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+        >
+          <Tab label="Omsättning" value="revenue" />
+          <Tab label="Marginal" value="margin" />
+          <Tab label="Utdelning" value="dividend" />
+          <Tab label="AVG Spelare" value="players" />
+          <Tab label="Geografisk fördelning" value="geoDistribution" />
+          <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
+        </Tabs>
+      )}
 
       {/* Omsättning */}
       {activeTab === "revenue" && (
@@ -297,29 +382,57 @@ const GraphBox = ({
           <Tabs
             value={viewMode}
             onChange={handleViewModeChange}
-            centered
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-            sx={{ color: "#ccc", marginBottom: "20px" }}
+            sx={{
+              color: "#ccc",
+              marginBottom: "20px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             <Tab label="Per kvartal" value="quarterly" />
             <Tab label="Per helår" value="yearly" />
           </Tabs>
 
-          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
             {viewMode === "quarterly" ? "Omsättning per kvartal" : "Omsättning per helår"}
           </Typography>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "quarterly" ? revenueData : annualRevenueData}
-              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
-              <YAxis stroke="#ccc" tickFormatter={formatRevenueTick}>
-                <Label value="Omsättning (MEUR)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              <YAxis
+                stroke="#ccc"
+                tickFormatter={formatRevenueTick}
+                width={isMobile ? 40 : 60}
+              >
+                <Label
+                  value="Omsättning (MEUR)"
+                  angle={-90}
+                  offset={-10}
+                  position="insideLeft"
+                  fill="#ccc"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                />
               </YAxis>
               <Tooltip
                 formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
@@ -344,29 +457,58 @@ const GraphBox = ({
           <Tabs
             value={viewMode}
             onChange={handleViewModeChange}
-            centered
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-            sx={{ color: "#ccc", marginBottom: "20px" }}
+            sx={{
+              color: "#ccc",
+              marginBottom: "20px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             <Tab label="Per kvartal" value="quarterly" />
             <Tab label="Per helår" value="yearly" />
           </Tabs>
 
-          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
             {viewMode === "quarterly" ? "Marginal per kvartal" : "Marginal per helår"}
           </Typography>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "quarterly" ? marginData : annualMarginData}
-              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
-              <YAxis stroke="#ccc" domain={[0, 100]} tickFormatter={formatMarginTick}>
-                <Label value="Marginal (%)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              <YAxis
+                stroke="#ccc"
+                domain={[0, 100]}
+                tickFormatter={formatMarginTick}
+                width={isMobile ? 40 : 60}
+              >
+                <Label
+                  value="Marginal (%)"
+                  angle={-90}
+                  offset={-10}
+                  position="insideLeft"
+                  fill="#ccc"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                />
               </YAxis>
               <Tooltip
                 formatter={(value) => `${value.toLocaleString("sv-SE")}%`}
@@ -395,6 +537,7 @@ const GraphBox = ({
               color: "#00e676",
               marginBottom: "20px",
               textAlign: "center",
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Utdelning
@@ -403,40 +546,92 @@ const GraphBox = ({
           <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
             {latestHistorical && (
               <>
-                <Typography variant="body1" color="#fff">
+                <Typography
+                  variant="body1"
+                  color="#fff"
+                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                >
                   Senaste utdelning: {latestHistorical.dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
                 </Typography>
-                <Typography variant="body1" color="#fff">
+                <Typography
+                  variant="body1"
+                  color="#fff"
+                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                >
                   Direktavkastning: {(latestHistorical.dividendYield || 0).toFixed(2)}% (baserat på aktiekurs {latestHistorical.sharePriceAtDividend} SEK)
                 </Typography>
               </>
             )}
             {planned.length > 0 && (
               <>
-                <Typography variant="body1" color="#FFD700" sx={{ marginTop: "10px" }}>
+                <Typography
+                  variant="body1"
+                  color="#FFD700"
+                  sx={{ marginTop: "10px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                >
                   Kommande utdelning:
                 </Typography>
-                <Typography variant="body1" color="#FFD700">
+                <Typography
+                  variant="body1"
+                  color="#FFD700"
+                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                >
                   X-dag: {planned[0].exDate} | Utdelningsdag: {planned[0].date} | Planerad utdelning: {planned[0].dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK | Direktavkastning: {plannedYield.toFixed(2)}% (baserat på nuvarande kurs {dividendData.currentSharePrice} SEK)
                 </Typography>
               </>
             )}
           </Box>
 
-          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
             Utdelning över tid
           </Typography>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={combinedDividendData} margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+            <LineChart
+              data={combinedDividendData}
+              margin={{ top: 20, right: isMobile ? 20 : 40, bottom: 20, left: isMobile ? 20 : 40 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
-              <YAxis yAxisId="left" stroke="#ccc" tickFormatter={formatDividendTick}>
-                <Label value="Utdelning (SEK)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              <YAxis
+                yAxisId="left"
+                stroke="#ccc"
+                tickFormatter={formatDividendTick}
+                width={isMobile ? 40 : 60}
+              >
+                <Label
+                  value="Utdelning (SEK)"
+                  angle={-90}
+                  offset={-10}
+                  position="insideLeft"
+                  fill="#ccc"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                />
               </YAxis>
-              <YAxis yAxisId="right" orientation="right" stroke="#ccc" tickFormatter={formatDividendYieldTick}>
-                <Label value="Direktavkastning (%)" angle={90} offset={-30} position="insideRight" fill="#ccc" />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                stroke="#ccc"
+                tickFormatter={formatDividendYieldTick}
+                width={isMobile ? 40 : 60}
+              >
+                <Label
+                  value="Direktavkastning (%)"
+                  angle={90}
+                  offset={-10}
+                  position="insideRight"
+                  fill="#ccc"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                />
               </YAxis>
               <Tooltip
                 formatter={(value, name) => [
@@ -469,31 +664,56 @@ const GraphBox = ({
             </LineChart>
           </ResponsiveContainer>
 
-          <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginTop: "20px",
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
             Historiska och planerade utdelningar
           </Typography>
-          <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", overflow: "hidden" }}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ color: "#ccc", textAlign: "center" }}>Datum</TableCell>
-                <TableCell sx={{ color: "ccc", textAlign: "center" }}>Utdelning per aktie (SEK)</TableCell>
-                <TableCell sx={{ color: "#ccc", textAlign: "center" }}>Direktavkastning (%)</TableCell>
-                <TableCell sx={{ color: "#ccc", textAlign: "center" }}>Typ</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {combinedDividendData.map((item) => (
-                <TableRow key={item.date}>
-                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.date}</TableCell>
-                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.dividendPerShare.toLocaleString()}</TableCell>
-                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.dividendYield.toFixed(2)}%</TableCell>
-                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>
-                    {item.type === "historical" ? "Historisk" : "Planerad"}
+          <Box sx={{ overflowX: "auto", width: "100%" }}>
+            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "600px" : "auto" }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    Datum
+                  </TableCell>
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    Utdelning per aktie (SEK)
+                  </TableCell>
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    Direktavkastning (%)
+                  </TableCell>
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    Typ
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {combinedDividendData.map((item) => (
+                  <TableRow key={item.date}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      {item.date}
+                    </TableCell>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      {item.dividendPerShare.toLocaleString()}
+                    </TableCell>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      {item.dividendYield.toFixed(2)}%
+                    </TableCell>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      {item.type === "historical" ? "Historisk" : "Planerad"}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
         </Box>
       )}
 
@@ -506,15 +726,18 @@ const GraphBox = ({
               color: "#ccc",
               textAlign: "center",
               marginBottom: "20px",
-              fontSize: "1rem",
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             Genomsnitt antal: {avgPlayers.toLocaleString("sv-SE")} <br />
             Senaste {daysCount} dagar
           </Typography>
 
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={playersData} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+          <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
+            <LineChart
+              data={playersData}
+              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="Datum" stroke="#ccc">
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
@@ -523,11 +746,18 @@ const GraphBox = ({
                 stroke="#ccc"
                 domain={getPlayersYDomain(playersData)}
                 tickFormatter={formatPlayersTick}
-                width={60}
+                width={isMobile ? 40 : 60}
                 tickCount={9}
                 interval={0}
               >
-                <Label value="Antal spelare" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+                <Label
+                  value="Antal spelare"
+                  angle={-90}
+                  offset={-10}
+                  position="insideLeft"
+                  fill="#ccc"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                />
               </YAxis>
               <Tooltip
                 formatter={(value) => `Spelare: ${value.toLocaleString("sv-SE")}`}
@@ -557,6 +787,7 @@ const GraphBox = ({
               color: "#00e676",
               marginBottom: "20px",
               textAlign: "center",
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Geografisk fördelning av intäkter
@@ -566,24 +797,42 @@ const GraphBox = ({
           <Tabs
             value={selectedGeoYear}
             onChange={handleGeoYearChange}
-            centered
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-            sx={{ color: "#ccc", marginBottom: "10px" }}
+            sx={{
+              color: "#ccc",
+              marginBottom: "10px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             {uniqueYears.map(year => (
               <Tab key={year} label={year} value={year.toString()} />
             ))}
           </Tabs>
 
-          {/* Tabs för att välja kvartal eller helår (dynamiska flikar) */}
+          {/* Tabs för att välja kvartal eller helår */}
           <Tabs
             value={selectedGeoPeriod}
             onChange={handleGeoPeriodChange}
-            centered
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
-            sx={{ color: "#ccc", marginBottom: "20px" }}
+            sx={{
+              color: "#ccc",
+              marginBottom: "20px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             {availableQuarters.includes("Q1") && <Tab label="Q1" value="Q1" />}
             {availableQuarters.includes("Q2") && <Tab label="Q2" value="Q2" />}
@@ -592,13 +841,20 @@ const GraphBox = ({
             <Tab label="Helår" value="Helår" />
           </Tabs>
 
-          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
             Intäkter per region ({selectedGeoYear} {selectedGeoPeriod})
           </Typography>
 
-          {/* Kontrollera om det finns data för det valda kvartalet */}
           {selectedGeoData.length > 0 && selectedGeoData.some(item => item.value > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
               <PieChart>
                 <Pie
                   data={selectedGeoData}
@@ -606,9 +862,10 @@ const GraphBox = ({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={isMobile ? 80 : 100}
                   fill="#8884d8"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                  label={isMobile ? false : ({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                  labelLine={isMobile ? false : true}
                 >
                   {selectedGeoData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -622,7 +879,11 @@ const GraphBox = ({
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <Typography variant="body1" color="#ccc" sx={{ textAlign: "center", marginBottom: "20px" }}>
+            <Typography
+              variant="body1"
+              color="#ccc"
+              sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+            >
               Ingen data tillgänglig för detta kvartal.
             </Typography>
           )}
@@ -638,6 +899,7 @@ const GraphBox = ({
               fontWeight: "bold",
               marginBottom: "20px",
               textAlign: "center",
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             <span style={{ color: "#00e676" }}>LiveCasino</span>{" "}
@@ -648,29 +910,57 @@ const GraphBox = ({
           <Tabs
             value={viewMode}
             onChange={handleViewModeChange}
-            centered
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-            sx={{ color: "#ccc", marginBottom: "20px" }}
+            sx={{
+              color: "#ccc",
+              marginBottom: "20px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             <Tab label="Per kvartal" value="quarterly" />
             <Tab label="Per helår" value="yearly" />
           </Tabs>
 
-          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
             {viewMode === "quarterly" ? "Intäkter per kvartal" : "Intäkter per helår"}
           </Typography>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <BarChart
               data={viewMode === "quarterly" ? liveCasinoRngDataQuarterly : liveCasinoRngDataYearly}
-              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
-              <YAxis stroke="#ccc" tickFormatter={formatLiveCasinoRngTick}>
-                <Label value="Intäkter (MEUR)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              <YAxis
+                stroke="#ccc"
+                tickFormatter={formatLiveCasinoRngTick}
+                width={isMobile ? 40 : 60}
+              >
+                <Label
+                  value="Intäkter (MEUR)"
+                  angle={-90}
+                  offset={-10}
+                  position="insideLeft"
+                  fill="#ccc"
+                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                />
               </YAxis>
               <Tooltip
                 formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
