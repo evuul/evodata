@@ -122,7 +122,7 @@ export default async function Home() {
       {/* StockBuybackInfo */}
       <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
         <StockBuybackInfo
-          isActive={true}
+          isActive={false}
           buybackCash={500000000}
           sharesBought={2100081}
           averagePrice={809}
