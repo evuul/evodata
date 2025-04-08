@@ -5,9 +5,12 @@ import MoneyCounter from "../Components/MoneyCounter";
 import ComingUpdates from "../Components/ComingUpdates";
 import GraphBox from "../Components/GraphBox";
 import financialReports from "./data/financialReports.json";
-// Importera din averagePlayers.json-fil
-import averagePlayersData from "./data/averagePlayers.json"; // Anpassa sökvägen vid behov
+import averagePlayersData from "./data/averagePlayers.json";
+import dividendData from "./data/dividendData.json"; // Importera dividendData
 import { Box } from "@mui/material";
+
+// Logga dividendData för att kontrollera att den importeras korrekt
+console.log("dividendData i page.js:", dividendData);
 
 // Format för kvartalsdata (Omsättning och Marginal)
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
@@ -89,7 +92,8 @@ export default async function Home() {
           marginData={formattedMarginData}
           annualRevenueData={annualRevenueData}
           annualMarginData={annualMarginData}
-          playersData={averagePlayersData} // Skicka din averagePlayersData som en prop
+          playersData={averagePlayersData}
+          dividendData={dividendData} // Skicka dividendData som prop
         />
       </Box>
 
