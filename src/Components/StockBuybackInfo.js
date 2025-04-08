@@ -137,19 +137,70 @@ const calculateAverageDailyBuyback = () => {
   return { averageDaily, averagePrice };
 };
 
+// Funktion för att hämta aktiepriset från API
+const fetchCurrentSharePrice = async (symbol) => {
+  try {
+    const response = await fetch(`/api/stock?symbol=${symbol}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    const price = data.price?.regularMarketPrice?.raw;
+    if (typeof price !== 'number') {
+      throw new Error('Ogiltigt prisformat i API-svaret');
+    }
+
+    return price;
+  } catch (error) {
+    console.error('Error fetching stock price:', error);
+    throw error;
+  }
+};
+
 const StockBuybackInfo = ({
   isActive,
   buybackCash,
   sharesBought,
   averagePrice = 0,
-  dividendData, // Lägg till dividendData som prop
+  dividendData, // Fortfarande som prop för fallback
 }) => {
   const [activeTab, setActiveTab] = useState("buyback");
   const [viewMode, setViewMode] = useState("daily");
   const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" });
+  const [currentSharePrice, setCurrentSharePrice] = useState(null);
+  const [loadingPrice, setLoadingPrice] = useState(true);
+  const [priceError, setPriceError] = useState(null);
 
-  // Hämta currentSharePrice från dividendData
-  const currentSharePrice = dividendData?.currentSharePrice || 0;
+  // Hämta aktiepriset när komponenten laddas
+  useEffect(() => {
+    const fetchStockPrice = async () => {
+      try {
+        setLoadingPrice(true);
+        const price = await fetchCurrentSharePrice('EVO.ST');
+        setCurrentSharePrice(price);
+        setPriceError(null);
+      } catch (err) {
+        setPriceError('Kunde inte hämta aktiepriset. Visar statiskt pris som reserv.');
+        setCurrentSharePrice(dividendData?.currentSharePrice || 0);
+        console.error('Error fetching stock price:', err);
+      } finally {
+        setLoadingPrice(false);
+      }
+    };
+
+    fetchStockPrice();
+  }, [dividendData?.currentSharePrice]);
 
   const buybackCashInSEK = buybackCash * exchangeRate;
   const totalBuybackValue = sharesBought * averagePrice;
@@ -278,6 +329,15 @@ const StockBuybackInfo = ({
           </Box>
 
           <Box display="flex" flexDirection="column" alignItems="center" mt={2}>
+            {priceError && (
+              <Typography
+                variant="body2"
+                color="#ff1744"
+                sx={{ marginBottom: "10px", textAlign: "center" }}
+              >
+                {priceError}
+              </Typography>
+            )}
             <Typography variant="body1" color="#fff" sx={{ marginBottom: "5px", textAlign: "center" }}>
               Återköpta aktier: {sharesBought.toLocaleString()}
             </Typography>
@@ -290,9 +350,15 @@ const StockBuybackInfo = ({
             <Typography variant="body1" color="#fff" sx={{ marginBottom: "5px", textAlign: "center" }}>
               Kvar av kassan: {remainingCash.toLocaleString()} SEK
             </Typography>
-            <Typography variant="body1" color="#00e676" sx={{ marginBottom: "5px", textAlign: "center" }}>
-              Kvar att köpa för: {remainingSharesToBuy.toLocaleString()} aktier (baserat på {currentSharePrice} SEK/aktie)
-            </Typography>
+            {loadingPrice ? (
+              <Typography variant="body1" color="#ccc" sx={{ marginBottom: "5px", textAlign: "center" }}>
+                Laddar aktiepris...
+              </Typography>
+            ) : (
+              <Typography variant="body1" color="#00e676" sx={{ marginBottom: "5px", textAlign: "center" }}>
+                Kvar att köpa för: {remainingSharesToBuy.toLocaleString()} aktier (baserat på {currentSharePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK/aktie)
+              </Typography>
+            )}
           </Box>
         </Box>
       )}
