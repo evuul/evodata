@@ -7,6 +7,7 @@ import GraphBox from "../Components/GraphBox";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
+import StockPrice from "../Components/StockPrice";
 import { Box } from "@mui/material";
 
 // Logga dividendData och financialReports för att kontrollera att de importeras korrekt
@@ -68,6 +69,16 @@ export default async function Home() {
   return (
     <main>
       <Header />
+        {/* Centrera StockPrice */}
+        <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center', // Centrera horisontellt
+          margin: { xs: '10px 0', sm: '20px 0' }, // Lägg till marginal över och under
+        }}
+      >
+        <StockPrice />
+      </Box>
 
       {/* Container för PlayerCard och MoneyCounter */}
       <Box

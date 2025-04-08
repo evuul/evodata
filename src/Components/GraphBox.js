@@ -33,6 +33,37 @@ import {
   Legend,
 } from "recharts";
 
+// Funktion för att hämta aktiepriset från API
+const fetchCurrentSharePrice = async (symbol) => {
+  try {
+    const response = await fetch(`/api/stock?symbol=${symbol}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (data.error) {
+      throw new Error(data.error);
+    }
+
+    const price = data.price?.regularMarketPrice?.raw;
+    if (typeof price !== 'number') {
+      throw new Error('Ogiltigt prisformat i API-svaret');
+    }
+
+    return price;
+  } catch (error) {
+    console.error('Error fetching stock price:', error);
+    throw error;
+  }
+};
+
 const GraphBox = ({
   revenueData,
   marginData,
@@ -41,6 +72,7 @@ const GraphBox = ({
   playersData,
   dividendData,
   financialReports,
+  stockSymbol = 'EVO.ST', // Ändrat till rätt symbol
 }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
@@ -48,11 +80,34 @@ const GraphBox = ({
     financialReports.financialReports[financialReports.financialReports.length - 1].year.toString()
   );
   const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Q4");
+  const [currentSharePrice, setCurrentSharePrice] = useState(null);
+  const [loadingPrice, setLoadingPrice] = useState(true);
+  const [priceError, setPriceError] = useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const today = new Date("2025-04-07");
+
+  // Hämta aktiepriset när komponenten laddas
+  useEffect(() => {
+    const fetchStockPrice = async () => {
+      try {
+        setLoadingPrice(true);
+        const price = await fetchCurrentSharePrice(stockSymbol);
+        setCurrentSharePrice(price);
+        setPriceError(null);
+      } catch (err) {
+        setPriceError('Kunde inte hämta aktiepriset. Visar statiskt pris som reserv.');
+        setCurrentSharePrice(dividendData.currentSharePrice || 0);
+        console.error('Error fetching stock price:', err);
+      } finally {
+        setLoadingPrice(false);
+      }
+    };
+
+    fetchStockPrice();
+  }, [stockSymbol, dividendData.currentSharePrice]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -86,8 +141,8 @@ const GraphBox = ({
     date: item.paymentDate,
     dividendPerShare: item.dividendPerShare,
     type: "planned",
-    dividendYield: dividendData.currentSharePrice
-      ? (item.dividendPerShare / dividendData.currentSharePrice) * 100
+    dividendYield: currentSharePrice
+      ? (item.dividendPerShare / currentSharePrice) * 100
       : 0,
     isFuture: new Date(item.paymentDate) > today,
     exDate: item.exDate,
@@ -189,10 +244,6 @@ const GraphBox = ({
       rng: totalRng,
     });
   });
-
-  // Logga datan för felsökning
-  console.log("liveCasinoRngDataQuarterly:", liveCasinoRngDataQuarterly);
-  console.log("liveCasinoRngDataYearly:", liveCasinoRngDataYearly);
 
   // Beräkna genomsnittligt antal spelare för de senaste 30 dagarna
   const calculateAveragePlayers = (data, days) => {
@@ -322,8 +373,8 @@ const GraphBox = ({
               sx: {
                 backgroundColor: "#2e2e2e",
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
-                maxHeight: "50vh", // Sätt en maxhöjd (50% av skärmhöjden)
-                overflowY: "auto", // Aktivera vertikal scroll
+                maxHeight: "50vh",
+                overflowY: "auto",
                 "& .MuiMenuItem-root": {
                   color: "#ccc",
                   textAlign: "center",
@@ -344,8 +395,7 @@ const GraphBox = ({
                     },
                   },
                 },
-                // Förbättra scrollbeteende på mobila enheter
-                WebkitOverflowScrolling: "touch", // Förbättrar scroll på iOS
+                WebkitOverflowScrolling: "touch",
                 "&::-webkit-scrollbar": {
                   width: "6px",
                 },
@@ -563,40 +613,61 @@ const GraphBox = ({
           </Typography>
 
           <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
-            {latestHistorical && (
-              <>
-                <Typography
-                  variant="body1"
-                  color="#fff"
-                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
-                >
-                  Senaste utdelning: {latestHistorical.dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
-                </Typography>
-                <Typography
-                  variant="body1"
-                  color="#fff"
-                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
-                >
-                  Direktavkastning: {(latestHistorical.dividendYield || 0).toFixed(2)}% (baserat på aktiekurs {latestHistorical.sharePriceAtDividend} SEK)
-                </Typography>
-              </>
+            {priceError && (
+              <Typography
+                variant="body2"
+                color="#ff1744"
+                sx={{ marginBottom: "10px", fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+              >
+                {priceError}
+              </Typography>
             )}
-            {planned.length > 0 && (
+            {loadingPrice ? (
+              <Typography
+                variant="body1"
+                color="#ccc"
+                sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+              >
+                Laddar aktiepris...
+              </Typography>
+            ) : (
               <>
-                <Typography
-                  variant="body1"
-                  color="#FFD700"
-                  sx={{ marginTop: "10px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
-                >
-                  Kommande utdelning:
-                </Typography>
-                <Typography
-                  variant="body1"
-                  color="#FFD700"
-                  sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
-                >
-                  X-dag: {planned[0].exDate} | Utdelningsdag: {planned[0].date} | Planerad utdelning: {planned[0].dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK | Direktavkastning: {plannedYield.toFixed(2)}% (baserat på nuvarande kurs {dividendData.currentSharePrice} SEK)
-                </Typography>
+                {latestHistorical && (
+                  <>
+                    <Typography
+                      variant="body1"
+                      color="#fff"
+                      sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
+                      Senaste utdelning: {latestHistorical.dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color="#fff"
+                      sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
+                      Direktavkastning: {(latestHistorical.dividendYield || 0).toFixed(2)}% (baserat på aktiekurs {latestHistorical.sharePriceAtDividend} SEK)
+                    </Typography>
+                  </>
+                )}
+                {planned.length > 0 && (
+                  <>
+                    <Typography
+                      variant="body1"
+                      color="#FFD700"
+                      sx={{ marginTop: "10px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
+                      Kommande utdelning:
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color="#FFD700"
+                      sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
+                      X-dag: {planned[0].exDate} | Utdelningsdag: {planned[0].date} | Planerad utdelning: {planned[0].dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK | Direktavkastning: {plannedYield.toFixed(2)}% (baserat på nuvarande kurs {currentSharePrice ? currentSharePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "N/A"} SEK)
+                    </Typography>
+                  </>
+                )}
               </>
             )}
           </Box>
