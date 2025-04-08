@@ -29,9 +29,10 @@ const graphOptions = [
 
 // Färger för olika typer av utdelningar
 const COLORS = {
+  line: "#00e676", // Stark grön för hela linjen
   historical: "#00e676", // Stark grön för historiska utdelningar
-  planned: "#66BB6A",    // Mjukare grön för planerade utdelningar
-  estimated: "#A5D6A7",  // Ljus grön för förväntade utdelningar
+  planned: "#66BB6A",    // Mjukare grön för planerade utdelningar (används för punkten)
+  upcoming: "#FFD700",   // Guld för den kommande utdelningen
 };
 
 const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData, playersData, dividendData }) => {
@@ -45,7 +46,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
 
   // Beräkna genomsnittligt antal spelare för de senaste X dagarna
   const calculateAveragePlayers = (data, days) => {
-    if (!data || data.length === 0) return { average: 0, daysCount: 0 };
+    if (!data || !Array.isArray(data) || data.length === 0) return { average: 0, daysCount: 0 };
 
     const today = new Date();
     const cutoffDate = new Date(today);
@@ -53,7 +54,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
 
     const recentData = data.filter(item => {
       const itemDate = new Date(item.Datum);
-      return itemDate >= cutoffDate && itemDate <= today;
+      return itemDate >= cutoffDate && itemDate <= today && !isNaN(itemDate);
     });
 
     const totalPlayers = recentData.reduce((sum, item) => sum + (Number(item.Players) || 0), 0);
@@ -67,36 +68,41 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
 
   // Hämta sista mätpunkten för varje graf
   const getLastDataPoint = (data, key) => {
-    if (!data || data.length === 0) return 0;
+    if (!data || !Array.isArray(data) || data.length === 0) return 0;
     const lastItem = data[data.length - 1];
     return Number(lastItem[key] || lastItem.value || lastItem.dividendPerShare || lastItem.Players || 0);
   };
 
-  // Kombinera historiska, planerade och förväntade utdelningar för grafen
+  // Kombinera historiska och planerade utdelningar för grafen
   const combinedDividendData = useMemo(() => {
-    // Kontrollera att dividendData finns, annars returnera en tom array
     if (!dividendData) {
       console.warn("dividendData är undefined i GraphBox");
       return [];
     }
 
+    const today = new Date();
+
     const historical = (dividendData.historicalDividends || []).map(item => ({
       date: item.date,
       dividendPerShare: item.dividendPerShare,
       type: "historical",
+      dividendYield: (item.dividendPerShare / item.sharePriceAtDividend) * 100,
+      isFuture: new Date(item.date) > today,
     }));
-    const planned = (dividendData.plannedDividends || []).map(item => ({
+
+    const planned = (dividendData.plannedDividends || []).map((item, index) => ({
       date: item.paymentDate,
       dividendPerShare: item.dividendPerShare,
       type: "planned",
-    }));
-    const estimated = (dividendData.estimatedDividends || []).map(item => ({
-      date: item.paymentDate, // Använd paymentDate för estimatedDividends
-      dividendPerShare: item.dividendPerShare,
-      type: "estimated",
+      dividendYield: dividendData.currentSharePrice
+        ? (item.dividendPerShare / dividendData.currentSharePrice) * 100
+        : 0,
+      isFuture: new Date(item.paymentDate) > today,
+      exDate: item.exDate,
+      isUpcoming: index === 0, // Markera den första planerade utdelningen som "kommande"
     }));
 
-    return [...historical, ...planned, ...estimated].sort((a, b) => new Date(a.date) - new Date(b.date));
+    return [...historical, ...planned].sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [dividendData]);
 
   // Beräkna genomsnittet för "AVG Spelare" och sista värden för alla grafer
@@ -104,7 +110,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const lastRevenue = useMemo(() => getLastDataPoint(viewMode === "year" ? annualRevenueData : revenueData, "value"), [revenueData, annualRevenueData, viewMode]);
   const lastMargin = useMemo(() => getLastDataPoint(viewMode === "year" ? annualMarginData : marginData, "value"), [marginData, annualMarginData, viewMode]);
   const lastDividend = useMemo(() => getLastDataPoint(dividendData?.historicalDividends || [], "dividendPerShare"), [dividendData]);
-  const lastPlayers = useMemo(() => getLastDataPoint(playersData, "Players"), [playersData]);
+  const lastPlayers = useMemo(() => getLastDataPoint(playersData || [], "Players"), [playersData]);
 
   // Beräkna direktavkastning för den senaste historiska utdelningen
   const lastDividendEntry = dividendData?.historicalDividends?.[dividendData.historicalDividends.length - 1];
@@ -127,11 +133,14 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   };
 
   const getYDomain = (data, key, tab, viewMode) => {
-    if (!data || data.length === 0) return [0, 1];
+    if (!data || !Array.isArray(data) || data.length === 0) return [0, 1];
+
     const values = data.map(item => {
       const val = item[key] || item.value || item.dividendPerShare || item.Players;
       return isNaN(val) ? 0 : Number(val);
-    });
+    }).filter(val => !isNaN(val));
+
+    if (values.length === 0) return [0, 1];
 
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
@@ -164,21 +173,28 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const filteredMarginData = viewMode === "year" ? annualMarginData : marginData;
 
   const graphConfig = {
-    revenue: { data: filteredRevenueData, key: "value", labelX: "Datum", labelY: "Omsättning (M EUR)" },
-    margin: { data: filteredMarginData, key: "value", labelX: "Datum", labelY: "Marginal (%)" },
-    dividend: { data: combinedDividendData, key: "dividendPerShare", labelX: "År", labelY: "Utdelning (SEK)" },
-    players: { data: playersData, key: "Players", labelX: "Datum", labelY: "Antal spelare" },
+    revenue: { data: filteredRevenueData || [], key: "value", labelX: "Datum", labelY: "Omsättning (M EUR)" },
+    margin: { data: filteredMarginData || [], key: "value", labelX: "Datum", labelY: "Marginal (%)" },
+    dividend: { data: combinedDividendData || [], key: "dividendPerShare", labelX: "År", labelY: "Utdelning (SEK)" },
+    players: { data: playersData || [], key: "Players", labelX: "Datum", labelY: "Antal spelare" },
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
-      const type = payload[0].payload.type;
-      const typeLabel = type === "historical" ? "Historisk" : type === "planned" ? "Planerad" : "Förväntad";
+      const data = payload[0].payload;
+      const type = data.type;
+      const typeLabel = type === "historical" ? "Historisk" : "Planerad";
       return (
         <Box sx={{ background: "#333", padding: "10px", borderRadius: "5px", color: "#fff" }}>
           <Typography>{`Datum: ${label}`}</Typography>
           <Typography>{payload[0].value ? formatTooltipValue(payload[0].value, activeTab)[0] : ""}</Typography>
-          <Typography>{`Typ: ${typeLabel}`}</Typography>
+          {activeTab === "dividend" && (
+            <Typography>{`Direktavkastning: ${data.dividendYield.toFixed(2)}%`}</Typography>
+          )}
+          {activeTab === "dividend" && type === "planned" && (
+            <Typography>{`Kommande på ${data.exDate}`}</Typography>
+          )}
+          {activeTab === "dividend" && <Typography>{`Typ: ${typeLabel}`}</Typography>}
         </Box>
       );
     }
@@ -187,70 +203,97 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
 
   const renderChart = () => {
     const { data, key, labelX, labelY } = graphConfig[activeTab];
-    const color = graphOptions.find(opt => opt.key === activeTab).color;
+    const color = graphOptions.find(opt => opt.key === activeTab)?.color || "#fff";
+
+    // Om datan är tom, visa ett meddelande
+    if (!data || data.length === 0) {
+      return (
+        <Box sx={{ height: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Typography variant="body1" sx={{ color: "#ccc" }}>
+            Ingen data tillgänglig för {graphOptions.find(opt => opt.key === activeTab)?.label || "denna graf"}.
+          </Typography>
+        </Box>
+      );
+    }
 
     if (activeTab === "dividend") {
-      // För utdelningsgrafen, dela upp datan i tre linjer för historiska, planerade och förväntade utdelningar
       return (
-        <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-            <XAxis dataKey="date" stroke="#ccc">
-              <Label value={labelX} offset={-10} position="insideBottom" fill="#ccc" />
-            </XAxis>
-            <YAxis
-              stroke="#ccc"
-              domain={getYDomain(data, key, activeTab, viewMode)}
-              tickFormatter={formatYAxisTick}
-              width={60}
-              tickCount={7}
-              interval={0}
-            >
-              <Label
-                value={labelY}
-                angle={-90}
-                offset={-30}
-                position="insideLeft"
-                fill="#ccc"
+        <>
+          {/* Legend för utdelningsgrafen */}
+          <Box sx={{ display: "flex", justifyContent: "center", marginBottom: "10px" }}>
+            <Box sx={{ display: "flex", alignItems: "center", marginRight: "20px" }}>
+              <Box sx={{ width: "20px", height: "2px", backgroundColor: COLORS.historical, marginRight: "5px" }} />
+              <Typography variant="body2" sx={{ color: "#ccc" }}>Historiska</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", marginRight: "20px" }}>
+              <Box sx={{ width: "20px", height: "2px", backgroundColor: COLORS.planned, marginRight: "5px" }} />
+              <Typography variant="body2" sx={{ color: "#ccc" }}>Planerade</Typography>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box sx={{ width: "20px", height: "2px", backgroundColor: COLORS.upcoming, marginRight: "5px" }} />
+              <Typography variant="body2" sx={{ color: "#ccc" }}>Kommande</Typography>
+            </Box>
+          </Box>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="date" stroke="#ccc">
+                <Label value={labelX} offset={-10} position="insideBottom" fill="#ccc" />
+              </XAxis>
+              <YAxis
+                stroke="#ccc"
+                domain={getYDomain(data, key, activeTab, viewMode)}
+                tickFormatter={formatYAxisTick}
+                width={60}
+                tickCount={7}
+                interval={0}
+              >
+                <Label
+                  value={labelY}
+                  angle={-90}
+                  offset={-30}
+                  position="insideLeft"
+                  fill="#ccc"
+                />
+              </YAxis>
+              <Tooltip content={<CustomTooltip />} />
+              {/* En sammanhängande linje för alla utdelningar */}
+              <Line
+                type="monotone"
+                dataKey="dividendPerShare"
+                stroke={COLORS.line} // Samma gröna färg för hela linjen
+                strokeWidth={2}
+                dot={(props) => {
+                  const { payload } = props;
+                  return (
+                    <circle
+                      cx={props.cx}
+                      cy={props.cy}
+                      r={payload.isUpcoming ? 6 : 4} // Större cirkel för den kommande
+                      fill={
+                        payload.isUpcoming
+                          ? COLORS.upcoming
+                          : payload.type === "historical"
+                          ? COLORS.historical
+                          : COLORS.planned
+                      }
+                      stroke={payload.isUpcoming ? "#fff" : "none"} // Vit kant runt den kommande
+                      strokeWidth={payload.isUpcoming ? 2 : 0}
+                    />
+                  );
+                }}
+                activeDot={{ r: 6 }}
+                isAnimationActive={true}
+                name="Utdelningar"
+                connectNulls={true}
+                strokeDasharray={(props) => {
+                  const { payload } = props;
+                  return payload.isFuture ? "5 5" : undefined; // Streckad linje för framtida utdelningar
+                }}
               />
-            </YAxis>
-            <Tooltip content={<CustomTooltip />} />
-            {/* Historiska utdelningar */}
-            <Line
-              type="monotone"
-              dataKey={(item) => (item.type === "historical" ? item.dividendPerShare : null)}
-              stroke={COLORS.historical}
-              strokeWidth={2}
-              dot={{ r: 4, fill: COLORS.historical }}
-              activeDot={{ r: 6 }}
-              isAnimationActive={true}
-              name="Historiska utdelningar"
-            />
-            {/* Planerade utdelningar */}
-            <Line
-              type="monotone"
-              dataKey={(item) => (item.type === "planned" ? item.dividendPerShare : null)}
-              stroke={COLORS.planned}
-              strokeWidth={2}
-              dot={{ r: 4, fill: COLORS.planned }}
-              activeDot={{ r: 6 }}
-              isAnimationActive={true}
-              name="Planerade utdelningar"
-            />
-            {/* Förväntade utdelningar */}
-            <Line
-              type="monotone"
-              dataKey={(item) => (item.type === "estimated" ? item.dividendPerShare : null)}
-              stroke={COLORS.estimated}
-              strokeWidth={2}
-              dot={{ r: 4, fill: COLORS.estimated }}
-              activeDot={{ r: 6 }}
-              isAnimationActive={true}
-              name="Förväntade utdelningar"
-              strokeDasharray="5 5"
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            </LineChart>
+          </ResponsiveContainer>
+        </>
       );
     }
 
@@ -404,48 +447,26 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
               >
                 Kommande utdelning:
               </Typography>
-              {dividendData.plannedDividends.map((planned, index) => (
-                <Typography
-                  key={index}
-                  variant="body1"
-                  sx={{
-                    color: "#ccc",
-                    textAlign: "center",
-                    fontSize: "1rem",
-                  }}
-                >
-                  X-dag: {planned.exDate} | Utdelningsdag: {planned.paymentDate}
-                  {planned.dividendPerShare && ` | Planerad utdelning: ${planned.dividendPerShare.toLocaleString("sv-SE")} SEK`}
-                </Typography>
-              ))}
-            </>
-          )}
-          {(dividendData?.estimatedDividends?.length > 0) && (
-            <>
-              <Typography
-                variant="body1"
-                sx={{
-                  color: COLORS.estimated,
-                  textAlign: "center",
-                  fontSize: "1rem",
-                  marginTop: "10px",
-                }}
-              >
-                Förväntad utdelning:
-              </Typography>
-              {dividendData.estimatedDividends.map((estimated, index) => (
-                <Typography
-                  key={index}
-                  variant="body1"
-                  sx={{
-                    color: "#ccc",
-                    textAlign: "center",
-                    fontSize: "1rem",
-                  }}
-                >
-                  X-dag: {estimated.exDate} | Utdelningsdag: {estimated.paymentDate} | Förväntad utdelning: {estimated.dividendPerShare.toLocaleString("sv-SE")} SEK
-                </Typography>
-              ))}
+              {dividendData.plannedDividends.map((planned, index) => {
+                const plannedYield = dividendData.currentSharePrice
+                  ? (planned.dividendPerShare / dividendData.currentSharePrice) * 100
+                  : 0;
+                return (
+                  <Typography
+                    key={index}
+                    variant="body1"
+                    sx={{
+                      color: "#ccc",
+                      textAlign: "center",
+                      fontSize: "1rem",
+                    }}
+                  >
+                    X-dag: {planned.exDate} | Utdelningsdag: {planned.paymentDate}
+                    {planned.dividendPerShare && ` | Planerad utdelning: ${planned.dividendPerShare.toLocaleString("sv-SE")} SEK`}
+                    {dividendData.currentSharePrice && ` | Direktavkastning: ${plannedYield.toFixed(2)}% (baserat på nuvarande kurs ${dividendData.currentSharePrice} SEK)`}
+                  </Typography>
+                );
+              })}
             </>
           )}
         </Box>
