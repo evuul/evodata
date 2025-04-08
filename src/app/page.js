@@ -6,11 +6,12 @@ import ComingUpdates from "../Components/ComingUpdates";
 import GraphBox from "../Components/GraphBox";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
-import dividendData from "./data/dividendData.json"; // Importera dividendData
+import dividendData from "./data/dividendData.json";
 import { Box } from "@mui/material";
 
-// Logga dividendData för att kontrollera att den importeras korrekt
+// Logga dividendData och financialReports för att kontrollera att de importeras korrekt
 console.log("dividendData i page.js:", dividendData);
+console.log("financialReports i page.js:", financialReports);
 
 // Format för kvartalsdata (Omsättning och Marginal)
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
@@ -93,7 +94,8 @@ export default async function Home() {
           annualRevenueData={annualRevenueData}
           annualMarginData={annualMarginData}
           playersData={averagePlayersData}
-          dividendData={dividendData} // Skicka dividendData som prop
+          dividendData={dividendData}
+          financialReports={financialReports} // Skicka financialReports som prop
         />
       </Box>
 
@@ -103,6 +105,7 @@ export default async function Home() {
           buybackCash={500000000}
           sharesBought={2100081}
           averagePrice={809}
+          dividendData={dividendData}
         />
       </Box>
 

@@ -23,28 +23,36 @@ export default function PlayerCard({ playerCount }) {
   }, []);
 
   const isHighPlayerCount = playerCount > 90000;
+  const isVeryHighPlayerCount = playerCount > 100000;
 
   return (
     <Card
       sx={{
-        maxWidth: {
-          xs: "100%",   // För mobil, full bredd
-          sm: 380,      // För tablet och större, max 380px
-          md: 450       // För större skärmar
-        },
+        width: { xs: "90%", sm: "80%", md: "70%" }, // Samma bredd som GraphBox och Header
         margin: "20px auto",
-        background: "linear-gradient(145deg, rgb(10, 25, 47), rgb(20, 50, 70))",
-        borderRadius: "24px",
-        boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)",
+        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)", // Samma gradient som GraphBox
+        borderRadius: "20px", // Samma rundade hörn som GraphBox
+        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)", // Samma skugga som GraphBox
+        border: "1px solid rgba(255, 255, 255, 0.1)", // Samma subtila kantlinje som Header
         padding: "20px",
         textAlign: "center",
         color: "#ffffff",
-        border: "3px solid rgb(30, 100, 130)",
       }}
     >
       <CardContent>
         <Box display="flex" justifyContent="center" alignItems="center">
-          <Typography variant="h5" sx={{ fontWeight: "bold", color: "#ff9966" }}>
+          <Typography
+            variant="h4" // Ökat till h4 för mer tyngd
+            sx={{
+              fontWeight: "bold",
+              color: "#00e676", // Matchar den gröna färgen från GraphBox
+              fontSize: {
+                xs: "1.5rem", // För mobil
+                sm: "2rem",   // För tablet
+                md: "2.5rem", // För desktop
+              },
+            }}
+          >
             Antal spelare:
           </Typography>
         </Box>
@@ -59,29 +67,44 @@ export default function PlayerCard({ playerCount }) {
                 sm: "3rem",  // För tablet
                 md: "4rem",  // För desktop
               },
-              background: "linear-gradient(45deg, rgb(175, 238, 238), rgb(240, 255, 255))",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              textShadow: "0 0 5px rgba(0, 230, 118, 0.6)", // Grön textskugga (#00e676)
-              color: "#00e676",  // Grön färg för texten
+              color: "#00e676", // Solid grön färg för att matcha GraphBox
             }}
           >
             {playerCount.toLocaleString()}
             {isHighPlayerCount && (
               <span
                 style={{
-                  color: "#ffcc00",  // Guld färg för ikonen
+                  color: "#FFCA28", // Gul färg för att matcha andra gula element i GraphBox
                   fontSize: "48px",
-                  textShadow: "0 0 5px rgba(255, 204, 0, 0.4)", // Guld textskugga
+                  marginLeft: "10px",
                 }}
               >
                 🚀
               </span>
             )}
+            {isVeryHighPlayerCount && (
+              <span
+                style={{
+                  color: "#FFD700", // Guld för att fira milstolpen
+                  fontSize: "48px",
+                  marginLeft: "10px",
+                }}
+              >
+                🏆
+              </span>
+            )}
           </Typography>
 
           {/* Senast uppdaterad */}
-          <Typography variant="body2" sx={{ marginTop: "10px", opacity: 0.7 }}>
+          <Typography
+            variant="body2"
+            sx={{
+              marginTop: "15px", // Mer utrymme för luft
+              color: "#ccc", // Samma grå färg som i GraphBox
+              opacity: 0.8, // Matchar GraphBox
+              letterSpacing: "0.5px", // För bättre läsbarhet
+            }}
+          >
             Senast uppdaterad: {lastUpdated}
           </Typography>
         </Box>
