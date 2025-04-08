@@ -69,25 +69,45 @@ export default async function Home() {
     <main>
       <Header />
 
+      {/* Container för PlayerCard och MoneyCounter */}
       <Box
         sx={{
           display: "flex",
-          flexDirection: { xs: "column", md: "row" },
-          justifyContent: "space-between",
-          gap: { xs: 2, md: 3 },
-          padding: { xs: 2, md: 3 },
+          justifyContent: "center", // Centrera horisontellt
+          alignItems: "stretch", // Säkerställ att de har samma höjd
+          flexWrap: "wrap", // Låt dem gå till nästa rad på små skärmar
+          gap: { xs: "15px", sm: "20px" }, // Avstånd mellan PlayerCard och MoneyCounter
+          width: { xs: "95%", sm: "80%", md: "90%" }, // Samma bredd som GraphBox
+          maxWidth: "1200px", // Sätt en maxbredd för att undvika att det blir för brett
+          margin: "0 auto", // Centrera containern
+          padding: { xs: "10px", sm: "20px" },
         }}
       >
-        <Box sx={{ width: { xs: "100%", md: "48%" } }}>
+        {/* PlayerCard */}
+        <Box
+          sx={{
+            flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 10px)" }, // 100% på xs, 50% minus halva gapet på sm och uppåt
+            minWidth: { xs: "100%", sm: "300px" }, // Minsta bredd för att undvika att det blir för smalt
+            maxWidth: { xs: "100%", sm: "calc(50% - 10px)" }, // Begränsa bredden
+          }}
+        >
           <PlayerCard playerCount={data.playersCount} />
         </Box>
 
-        <Box sx={{ width: { xs: "100%", md: "48%" } }}>
+        {/* MoneyCounter */}
+        <Box
+          sx={{
+            flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 10px)" }, // 100% på xs, 50% minus halva gapet på sm och uppåt
+            minWidth: { xs: "100%", sm: "300px" }, // Minsta bredd för att undvika att det blir för smalt
+            maxWidth: { xs: "100%", sm: "calc(50% - 10px)" }, // Begränsa bredden
+          }}
+        >
           <MoneyCounter />
         </Box>
       </Box>
 
-      <Box sx={{ marginTop: 3 }}>
+      {/* GraphBox */}
+      <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
         <GraphBox
           revenueData={formattedRevenueData}
           marginData={formattedMarginData}
@@ -95,11 +115,12 @@ export default async function Home() {
           annualMarginData={annualMarginData}
           playersData={averagePlayersData}
           dividendData={dividendData}
-          financialReports={financialReports} // Skicka financialReports som prop
+          financialReports={financialReports}
         />
       </Box>
 
-      <Box sx={{ marginTop: 3 }}>
+      {/* StockBuybackInfo */}
+      <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
         <StockBuybackInfo
           isActive={true}
           buybackCash={500000000}
@@ -109,7 +130,10 @@ export default async function Home() {
         />
       </Box>
 
-      <ComingUpdates />
+      {/* ComingUpdates */}
+      <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
+        <ComingUpdates />
+      </Box>
     </main>
   );
 }

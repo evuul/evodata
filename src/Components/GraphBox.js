@@ -190,6 +190,10 @@ const GraphBox = ({
     });
   });
 
+  // Logga datan för felsökning
+  console.log("liveCasinoRngDataQuarterly:", liveCasinoRngDataQuarterly);
+  console.log("liveCasinoRngDataYearly:", liveCasinoRngDataYearly);
+
   // Beräkna genomsnittligt antal spelare för de senaste 30 dagarna
   const calculateAveragePlayers = (data, days) => {
     if (!data || !Array.isArray(data) || data.length === 0) return { average: 0, daysCount: 0 };
@@ -318,10 +322,12 @@ const GraphBox = ({
               sx: {
                 backgroundColor: "#2e2e2e",
                 boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
+                maxHeight: "50vh", // Sätt en maxhöjd (50% av skärmhöjden)
+                overflowY: "auto", // Aktivera vertikal scroll
                 "& .MuiMenuItem-root": {
                   color: "#ccc",
-                  textAlign: "center", // Centrera texten i alternativen
-                  justifyContent: "center", // Centrera innehållet horisontellt
+                  textAlign: "center",
+                  justifyContent: "center",
                   padding: "12px 16px",
                   fontSize: "1rem",
                   transition: "background-color 0.3s ease",
@@ -337,6 +343,21 @@ const GraphBox = ({
                       backgroundColor: "#00c853",
                     },
                   },
+                },
+                // Förbättra scrollbeteende på mobila enheter
+                WebkitOverflowScrolling: "touch", // Förbättrar scroll på iOS
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "#2e2e2e",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "#00e676",
+                  borderRadius: "3px",
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  background: "#00c853",
                 },
               },
             },
@@ -355,6 +376,7 @@ const GraphBox = ({
           onChange={handleTabChange}
           textColor="inherit"
           TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+          centered
           sx={{
             color: "#ccc",
             marginBottom: "20px",
@@ -363,9 +385,6 @@ const GraphBox = ({
               padding: { xs: "6px 8px", sm: "12px 16px" },
             },
           }}
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
         >
           <Tab label="Omsättning" value="revenue" />
           <Tab label="Marginal" value="margin" />
@@ -635,8 +654,8 @@ const GraphBox = ({
               </YAxis>
               <Tooltip
                 formatter={(value, name) => [
-                  name === "dividendPerShare" ? `${value.toLocaleString("sv-SE")} SEK` : `${value.toFixed(2)}%`,
-                  name === "dividendPerShare" ? "Utdelning per aktie" : "Direktavkastning",
+                  name === "Utdelning (SEK)" ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK` : `${value.toFixed(2)}%`,
+                  name === "Utdelning (SEK)" ? "Utdelning per aktie" : "Direktavkastning",
                 ]}
                 contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
               />
@@ -939,37 +958,48 @@ const GraphBox = ({
           >
             {viewMode === "quarterly" ? "Intäkter per kvartal" : "Intäkter per helår"}
           </Typography>
-          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-            <BarChart
-              data={viewMode === "quarterly" ? liveCasinoRngDataQuarterly : liveCasinoRngDataYearly}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
-                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
-              </XAxis>
-              <YAxis
-                stroke="#ccc"
-                tickFormatter={formatLiveCasinoRngTick}
-                width={isMobile ? 40 : 60}
+          {liveCasinoRngDataQuarterly.length > 0 || liveCasinoRngDataYearly.length > 0 ? (
+            <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+              <BarChart
+                data={viewMode === "quarterly" ? liveCasinoRngDataQuarterly : liveCasinoRngDataYearly}
+                margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
               >
-                <Label
-                  value="Intäkter (MEUR)"
-                  angle={-90}
-                  offset={-10}
-                  position="insideLeft"
-                  fill="#ccc"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis dataKey="date" stroke="#ccc">
+                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+                </XAxis>
+                <YAxis
+                  stroke="#ccc"
+                  tickFormatter={formatLiveCasinoRngTick}
+                  width={isMobile ? 40 : 60}
+                >
+                  <Label
+                    value="Intäkter (MEUR)"
+                    angle={-90}
+                    offset={-10}
+                    position="insideLeft"
+                    fill="#ccc"
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
+                  />
+                </YAxis>
+                <Tooltip
+                  formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
                 />
-              </YAxis>
-              <Tooltip
-                formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
-                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-              />
-              <Bar dataKey="liveCasino" stackId="a" fill="#00e676" name="LiveCasino" />
-              <Bar dataKey="rng" stackId="a" fill="#FFCA28" name="RNG" />
-            </BarChart>
-          </ResponsiveContainer>
+                <Legend verticalAlign="top" height={36} />
+                <Bar dataKey="liveCasino" stackId="a" fill="#00e676" name="LiveCasino" />
+                <Bar dataKey="rng" stackId="a" fill="#FFCA28" name="RNG" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <Typography
+              variant="body1"
+              color="#ccc"
+              sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+            >
+              Ingen data tillgänglig för LiveCasino vs RNG.
+            </Typography>
+          )}
         </Box>
       )}
     </Card>
