@@ -13,7 +13,7 @@ const MoneyCounter = ({ sx = {} }) => {
     const stepTime = 20; // Hur ofta vi uppdaterar (i millisekunder)
     const steps = duration / stepTime; // Antal uppdateringar baserat på stepTime
     const increment = targetAmount / steps; // Hur mycket vi ökar varje gång
-  
+
     let current = 0;
     const interval = setInterval(() => {
       current += increment;
@@ -23,38 +23,54 @@ const MoneyCounter = ({ sx = {} }) => {
       }
       setAmount(Math.floor(current)); // Uppdatera amount på skärmen
     }, stepTime);
-  
+
     return () => clearInterval(interval); // Rensa intervallet när komponenten tas bort
   }, []);
 
   return (
     <Card
       sx={{
-        maxWidth: {
-          xs: "100%",   // 100% bredd för mobil
-          sm: 380,      // 380px bredd för tablet och större
-          md: 450       // För större skärmar
-        },
+        width: { xs: "90%", sm: "80%", md: "70%" }, // Samma bredd som GraphBox, Header och PlayerCard
         margin: "20px auto",
-        background: "linear-gradient(145deg, rgb(10, 25, 47), rgb(20, 50, 70))",
-        borderRadius: "24px",
-        boxShadow: "0 12px 24px rgba(0, 0, 0, 0.2)",
+        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)", // Samma gradient som GraphBox
+        borderRadius: "20px", // Samma rundade hörn som GraphBox
+        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)", // Samma skugga som GraphBox
+        border: "1px solid rgba(255, 255, 255, 0.1)", // Samma subtila kantlinje som Header och PlayerCard
         padding: "20px",
         textAlign: "center",
         color: "#ffffff",
-        border: "3px solid rgb(30, 100, 130)",
         ...sx, // Spread för eventuella externa styles
       }}
     >
       <CardContent>
         <Box display="flex" justifyContent="center" alignItems="center">
-          <Typography variant="h5" sx={{ fontWeight: "bold", color: "#ff9966" }}>
-            Evolution Money Counter 💰
+          <Typography
+            variant="h4" // Ökat till h4 för mer tyngd, som i PlayerCard
+            sx={{
+              fontWeight: "bold",
+              color: "#00e676", // Matchar den gröna färgen från GraphBox
+              fontSize: {
+                xs: "1.5rem", // För mobil
+                sm: "2rem",   // För tablet
+                md: "2.5rem", // För desktop
+              },
+            }}
+          >
+            Money Counter{" "}
+            <span style={{ color: "#FFCA28" }}>💰</span> {/* Gul färg för emojin */}
           </Typography>
         </Box>
 
         <Box display="flex" flexDirection="column" alignItems="center" marginTop="20px">
-          <Typography variant="h6" sx={{ opacity: 0.9, marginBottom: "5px" }}>
+          <Typography
+            variant="body1" // Ändrat till body1 för att matcha PlayerCard
+            sx={{
+              color: "#ccc", // Samma grå färg som i GraphBox och PlayerCard
+              opacity: 0.8, // Matchar GraphBox och PlayerCard
+              marginBottom: "10px", // Mer utrymme för luft
+              letterSpacing: "0.5px", // För bättre läsbarhet
+            }}
+          >
             Ren vinst sedan du öppnade sidan:
           </Typography>
 
@@ -68,11 +84,7 @@ const MoneyCounter = ({ sx = {} }) => {
                 sm: "3rem",  // För tablet
                 md: "4rem",  // För större skärmar (desktop)
               },
-              background: "linear-gradient(45deg, rgb(175, 238, 238), rgb(240, 255, 255))",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              textShadow: "0 0 5px rgba(0, 230, 118, 0.6)", // Grön textskugga (#00e676)
-              color: "#00e676",  // Sätt textfärgen till den gröna färgen
+              color: "#00e676", // Solid grön färg för att matcha GraphBox
             }}
           >
             {amount.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} SEK

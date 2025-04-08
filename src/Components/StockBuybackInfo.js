@@ -30,9 +30,6 @@ import oldBuybackData from "../app/data/oldBuybackData.json"; // Importera JSON-
 // Växelkurs (exempelvärde)
 const exchangeRate = 10.83; // Exempel: 1 EUR = 10.83 SEK
 
-// Manuellt angivet pris för att beräkna hur många aktier som kan köpas
-const currentSharePrice = 724; // Sätt det aktuella priset här (uppdatera manuellt)
-
 // Animationer för glow-effekt
 const pulseGreen = keyframes`
   0% { box-shadow: 0 0 6px rgba(0, 255, 0, 0.3); }
@@ -62,7 +59,6 @@ const calculateEvolutionOwnershipPerYear = () => {
   const ownershipByYear = {};
   let cumulativeShares = 0;
 
-  // Gå igenom alla transaktioner (både återköp och indragningar)
   oldBuybackData.forEach((item) => {
     const year = item.Datum.split("-")[0];
     cumulativeShares += item.Antal_aktier; // Hanterar både positiva (återköp) och negativa (indragningar)
@@ -74,13 +70,12 @@ const calculateEvolutionOwnershipPerYear = () => {
     }
   });
 
-  // Konvertera till array-format för graf och tabell
   const evolutionOwnershipData = Object.keys(ownershipByYear)
     .map((year) => ({
       date: year,
       shares: ownershipByYear[year],
     }))
-    .sort((a, b) => a.date - b.date); // Sortera efter år
+    .sort((a, b) => a.date - b.date);
 
   return evolutionOwnershipData;
 };
@@ -88,8 +83,8 @@ const calculateEvolutionOwnershipPerYear = () => {
 // Beräkna totala makulerade aktier (endast för visning som text)
 const calculateCancelledShares = () => {
   return oldBuybackData
-    .filter((item) => item.Antal_aktier < 0) // Endast indragningar
-    .reduce((sum, item) => sum + Math.abs(item.Antal_aktier), 0); // Summera absoluta värden
+    .filter((item) => item.Antal_aktier < 0)
+    .reduce((sum, item) => sum + Math.abs(item.Antal_aktier), 0);
 };
 
 // Beräkna Evolutions ägande och makulerade aktier
@@ -112,7 +107,7 @@ const buybackDataForGraphDaily = oldBuybackData.filter((item) => item.Antal_akti
 const buybackDataForGraphYearly = () => {
   const yearlyData = {};
   oldBuybackData
-    .filter((item) => item.Antal_aktier > 0) // Endast positiva transaktioner
+    .filter((item) => item.Antal_aktier > 0)
     .forEach((item) => {
       const year = item.Datum.split("-")[0];
       if (!yearlyData[year]) {
@@ -126,25 +121,17 @@ const buybackDataForGraphYearly = () => {
 
 // Beräkna genomsnittlig handel per dag och genomsnittspris (endast positiva transaktioner)
 const calculateAverageDailyBuyback = () => {
-  const positiveTransactions = oldBuybackData.filter((item) => item.Antal_aktier > 0); // Endast återköp
+  const positiveTransactions = oldBuybackData.filter((item) => item.Antal_aktier > 0);
   if (positiveTransactions.length === 0) return { averageDaily: 0, averagePrice: 0 };
 
-  // Första och sista datumet för återköp
   const firstDate = new Date(positiveTransactions[0].Datum);
-  const today = new Date("2025-04-07"); // Dagens datum (7 april 2025)
-
-  // Beräkna antalet dagar mellan första återköpet och idag
+  const today = new Date("2025-04-07");
   const timeDifference = today - firstDate;
-  const daysDifference = Math.ceil(timeDifference / (1000 * 60 * 60 * 24)); // Konvertera till dagar
+  const daysDifference = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
 
-  // Totalt antal återköpta aktier
   const totalSharesBought = positiveTransactions.reduce((sum, item) => sum + item.Antal_aktier, 0);
-
-  // Totalt transaktionsvärde och genomsnittspris
   const totalTransactionValue = positiveTransactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
   const averagePrice = totalSharesBought > 0 ? totalTransactionValue / totalSharesBought : 0;
-
-  // Genomsnitt per dag
   const averageDaily = daysDifference > 0 ? totalSharesBought / daysDifference : 0;
 
   return { averageDaily, averagePrice };
@@ -155,10 +142,14 @@ const StockBuybackInfo = ({
   buybackCash,
   sharesBought,
   averagePrice = 0,
+  dividendData, // Lägg till dividendData som prop
 }) => {
   const [activeTab, setActiveTab] = useState("buyback");
-  const [viewMode, setViewMode] = useState("daily"); // "daily" eller "yearly" för återköpsgrafen
-  const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" }); // Sortering för tabellen
+  const [viewMode, setViewMode] = useState("daily");
+  const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" });
+
+  // Hämta currentSharePrice från dividendData
+  const currentSharePrice = dividendData?.currentSharePrice || 0;
 
   const buybackCashInSEK = buybackCash * exchangeRate;
   const totalBuybackValue = sharesBought * averagePrice;
@@ -166,15 +157,12 @@ const StockBuybackInfo = ({
   const buybackProgress = (totalBuybackValue / buybackCashInSEK) * 100;
   const remainingSharesToBuy = remainingCash > 0 && currentSharePrice > 0 ? Math.floor(remainingCash / currentSharePrice) : 0;
 
-  // Senaste värden för totala aktier och Evolutions ägande
   const latestTotalShares = totalSharesData[totalSharesData.length - 1].totalShares;
   const latestEvolutionShares = evolutionOwnershipData[evolutionOwnershipData.length - 1]?.shares || 0;
   const latestOwnershipPercentage = (latestEvolutionShares / latestTotalShares) * 100;
 
-  // Beräkna genomsnittlig handel per dag och genomsnittspris
   const { averageDaily: averageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback();
 
-  // Sortera tabellen
   const sortedData = [...oldBuybackData].sort((a, b) => {
     const key = sortConfig.key;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
@@ -214,7 +202,7 @@ const StockBuybackInfo = ({
     const values = data.map(item => item[key]);
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
-    const interval = Math.ceil((maxValue - minValue) / 5 / 1000) * 1000; // Intervall på 1000 aktier
+    const interval = Math.ceil((maxValue - minValue) / 5 / 1000) * 1000;
     const lowerBound = Math.floor(minValue / interval) * interval;
     const upperBound = Math.ceil(maxValue / interval) * interval;
     return [lowerBound, upperBound];
@@ -245,7 +233,6 @@ const StockBuybackInfo = ({
         <Tab label="Återköpshistorik" value="history" />
       </Tabs>
 
-      {/* Tab 1: Återköpsstatus */}
       {activeTab === "buyback" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
@@ -260,7 +247,6 @@ const StockBuybackInfo = ({
             Status på återköp: {isActive ? "Aktivt" : "Inaktivt"}
           </Typography>
 
-          {/* Progress Bar */}
           <Box sx={{ width: "100%", marginBottom: "20px", position: "relative" }}>
             <LinearProgress
               variant="determinate"
@@ -291,7 +277,6 @@ const StockBuybackInfo = ({
             </Typography>
           </Box>
 
-          {/* Detaljer om återköpen */}
           <Box display="flex" flexDirection="column" alignItems="center" mt={2}>
             <Typography variant="body1" color="#fff" sx={{ marginBottom: "5px", textAlign: "center" }}>
               Återköpta aktier: {sharesBought.toLocaleString()}
@@ -312,7 +297,6 @@ const StockBuybackInfo = ({
         </Box>
       )}
 
-      {/* Tab 2: Evolutions ägande */}
       {activeTab === "ownership" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
@@ -327,7 +311,6 @@ const StockBuybackInfo = ({
             Evolutions ägande
           </Typography>
 
-          {/* Senaste ägarandel och makulerade aktier */}
           <Typography variant="body1" color="#fff" sx={{ marginBottom: "10px", textAlign: "center" }}>
             Evolution äger: {latestEvolutionShares.toLocaleString()} aktier
           </Typography>
@@ -340,7 +323,6 @@ const StockBuybackInfo = ({
             </Typography>
           )}
 
-          {/* Graf för antal aktier över tid */}
           <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
             Antal aktier över tid
           </Typography>
@@ -368,7 +350,6 @@ const StockBuybackInfo = ({
             </LineChart>
           </ResponsiveContainer>
 
-          {/* Tabell för historiska data */}
           <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
             Historisk data
           </Typography>
@@ -395,7 +376,6 @@ const StockBuybackInfo = ({
         </Box>
       )}
 
-      {/* Tab 3: Totala aktier */}
       {activeTab === "totalShares" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
@@ -410,12 +390,10 @@ const StockBuybackInfo = ({
             Totala aktier
           </Typography>
 
-          {/* Senaste totala aktier */}
           <Typography variant="body1" color="#fff" sx={{ marginBottom: "20px", textAlign: "center" }}>
             Totalt antal aktier: {latestTotalShares.toLocaleString()}
           </Typography>
 
-          {/* Graf för totala aktier över tid */}
           <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
             Totala aktier över tid
           </Typography>
@@ -443,7 +421,6 @@ const StockBuybackInfo = ({
             </LineChart>
           </ResponsiveContainer>
 
-          {/* Tabell för historiska data */}
           <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
             Historisk data
           </Typography>
@@ -466,7 +443,6 @@ const StockBuybackInfo = ({
         </Box>
       )}
 
-      {/* Tab 4: Återköpshistorik */}
       {activeTab === "history" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
@@ -481,7 +457,6 @@ const StockBuybackInfo = ({
             Återköpshistorik
           </Typography>
 
-          {/* Genomsnittlig handel per dag och genomsnittspris */}
           <Typography variant="body1" color="#fff" sx={{ marginBottom: "10px", textAlign: "center" }}>
             Genomsnittlig handel per dag: {Math.round(averageDailyBuyback).toLocaleString()} aktier
           </Typography>
@@ -489,7 +464,6 @@ const StockBuybackInfo = ({
             Genomsnittspris: {averageBuybackPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
           </Typography>
 
-          {/* Växla mellan dag och helår */}
           <Tabs
             value={viewMode}
             onChange={handleViewModeChange}
@@ -502,7 +476,6 @@ const StockBuybackInfo = ({
             <Tab label="Per helår" value="yearly" />
           </Tabs>
 
-          {/* Graf för återköpta aktier över tid */}
           <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
             Återköpta aktier över tid
           </Typography>
@@ -533,7 +506,6 @@ const StockBuybackInfo = ({
             </LineChart>
           </ResponsiveContainer>
 
-          {/* Tabell för historiska transaktioner (inkluderar både återköp och indragningar) */}
           <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
             Historiska transaktioner
           </Typography>

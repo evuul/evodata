@@ -7,13 +7,16 @@ const Header = () => {
       sx={{
         textAlign: "center",
         marginTop: "20px",
-        padding: "10px",
-        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)", // Gradient för bakgrund
-        borderRadius: "10px",
-        boxShadow: "0 4px 10px rgba(0, 0, 0, 0.2)", // Lägger till skugga för djup
+        padding: "20px", // Ökat padding för mer utrymme
+        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)", // Samma gradient som GraphBox
+        borderRadius: "20px", // Rundare hörn för att matcha GraphBox
+        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)", // Samma skugga som GraphBox
+        border: "1px solid rgba(255, 255, 255, 0.1)", // Subtil kantlinje
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        width: { xs: "90%", sm: "80%", md: "70%" }, // Samma bredd som GraphBox
+        margin: "20px auto", // Centrera och ge marginal
       }}
     >
       <Typography
@@ -25,26 +28,23 @@ const Header = () => {
             sm: "3rem",   // För medelstora skärmar (t.ex. tablet)
             md: "4rem",   // För större skärmar (desktop)
           },
-          color: "#fff", // Färgen på texten
-          background: "linear-gradient(90deg,rgb(224, 234, 236),rgb(38, 154, 255))",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          textShadow: "0 0 10px rgba(206, 222, 222, 0.6)", // Ljus skugga för texten
-          marginBottom: "0px",
+          color: "#00e676", // Matchar den gröna färgen från GraphBox
+          marginBottom: "10px", // Lite mer utrymme under rubriken
         }}
       >
-      Evolution Tracker!
+        Evolution Tracker!
       </Typography>
       <Typography
         variant="body1"
         sx={{
-          color: "#ccc", // Färg på undertitel
+          color: "#ccc", // Samma grå färg som i GraphBox
           fontSize: "1.2rem",
           opacity: 0.8,
-          letterSpacing: "0.5px",
+          letterSpacing: "1px", // Ökat för bättre läsbarhet
+          marginBottom: "10px", // Mer utrymme under undertiteln
         }}
       >
-        {/* Här håller vi koll på utvecklingen och statistik för 2025! */}
+        Här håller vi koll på utvecklingen och statistik för 2025!
       </Typography>
     </Box>
   );

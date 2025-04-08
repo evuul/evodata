@@ -1,11 +1,16 @@
 'use client';
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Typography,
   Card,
   Tabs,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import {
   LineChart,
@@ -16,35 +21,169 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   Label,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  Legend,
 } from "recharts";
-import useClientMediaQuery from "../app/hooks/useClientMediaQuery";
-import { useTheme } from '@mui/material/styles';
 
-const graphOptions = [
-  { label: "Omsättning", key: "revenue", color: "#2196f3" },
-  { label: "Marginal", key: "margin", color: "#ff9800" },
-  { label: "Utdelning", key: "dividend", color: "#00e676" },
-  { label: "AVG Spelare", key: "players", color: "#9c27b0" },
-];
-
-// Färger för olika typer av utdelningar
-const COLORS = {
-  line: "#00e676", // Stark grön för hela linjen
-  historical: "#00e676", // Stark grön för historiska utdelningar
-  planned: "#66BB6A",    // Mjukare grön för planerade utdelningar (används för punkten)
-  upcoming: "#FFD700",   // Guld för den kommande utdelningen
-};
-
-const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData, playersData, dividendData }) => {
+const GraphBox = ({
+  revenueData,
+  marginData,
+  annualRevenueData,
+  annualMarginData,
+  playersData,
+  dividendData,
+  financialReports,
+}) => {
   const [activeTab, setActiveTab] = useState("revenue");
-  const [viewMode, setViewMode] = useState("quarter");
-  const theme = useTheme();
-  const isMobile = useClientMediaQuery(theme.breakpoints.down('sm'));
+  const [viewMode, setViewMode] = useState("quarterly");
+  const [selectedGeoYear, setSelectedGeoYear] = useState(
+    financialReports.financialReports[financialReports.financialReports.length - 1].year.toString()
+  );
+  const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Q4");
 
-  const handleTabChange = (event, newValue) => setActiveTab(newValue);
-  const handleViewModeChange = (event, newView) => newView && setViewMode(newView);
+  const today = new Date("2025-04-07");
 
-  // Beräkna genomsnittligt antal spelare för de senaste X dagarna
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+  };
+
+  const handleViewModeChange = (event, newValue) => {
+    setViewMode(newValue);
+  };
+
+  const handleGeoYearChange = (event, newValue) => {
+    setSelectedGeoYear(newValue);
+    setSelectedGeoPeriod("Helår"); // Återställ till "Helår" när årtalet ändras
+  };
+
+  const handleGeoPeriodChange = (event, newValue) => {
+    setSelectedGeoPeriod(newValue);
+  };
+
+  // Formatera data för utdelningsgrafen
+  const historical = (dividendData.historicalDividends || []).map(item => ({
+    date: item.date,
+    dividendPerShare: item.dividendPerShare,
+    type: "historical",
+    dividendYield: item.sharePriceAtDividend
+      ? (item.dividendPerShare / item.sharePriceAtDividend) * 100
+      : 0,
+    isFuture: false,
+  }));
+
+  const planned = (dividendData.plannedDividends || []).map((item, index) => ({
+    date: item.paymentDate,
+    dividendPerShare: item.dividendPerShare,
+    type: "planned",
+    dividendYield: dividendData.currentSharePrice
+      ? (item.dividendPerShare / dividendData.currentSharePrice) * 100
+      : 0,
+    isFuture: new Date(item.paymentDate) > today,
+    exDate: item.exDate,
+    isUpcoming: index === 0,
+  }));
+
+  const combinedDividendData = [...historical, ...planned].sort(
+    (a, b) => new Date(a.date) - new Date(b.date)
+  );
+
+  const plannedYield = planned[0]?.dividendYield || 0;
+  const latestHistorical = historical[historical.length - 1];
+
+  // Hämta unika årtal från financialReports, bara från 2020 och framåt
+  const uniqueYears = [...new Set(
+    financialReports.financialReports
+      .filter(report => report.year >= 2020) // Filtrera årtal från 2020 och framåt
+      .map(report => report.year)
+  )].sort();
+
+  // Sätt default selectedGeoYear till det senaste årtalet från 2020 och framåt
+  useEffect(() => {
+    if (uniqueYears.length > 0 && !uniqueYears.includes(parseInt(selectedGeoYear))) {
+      setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
+    }
+  }, [uniqueYears, selectedGeoYear]);
+
+  // Hämta tillgängliga kvartal för det valda årtalet
+  const availableQuarters = useMemo(() => {
+    const quarters = financialReports.financialReports
+      .filter(report => report.year.toString() === selectedGeoYear)
+      .map(report => report.quarter);
+    return [...new Set(quarters)]; // Unika kvartal för det valda året
+  }, [selectedGeoYear, financialReports]);
+
+  // Filtrera data för geografisk fördelning baserat på valt årtal och period
+  const geoDataOptions = financialReports.financialReports
+    .filter(report => report.year >= 2020) // Filtrera data från 2020 och framåt
+    .map(report => ({
+      label: `${report.year} ${report.quarter}`,
+      year: report.year,
+      quarter: report.quarter,
+      data: [
+        { name: "Europa", value: report.europe || 0 },
+        { name: "Asien", value: report.asia || 0 },
+        { name: "Nordamerika", value: report.northAmerica || 0 },
+        { name: "Latinamerika", value: report.latAm || 0 },
+        { name: "Övrigt", value: report.other || 0 },
+      ],
+    }));
+
+  // Beräkna data för valt årtal och period
+  const selectedGeoData = useMemo(() => {
+    if (selectedGeoPeriod === "Helår") {
+      const yearlyReports = geoDataOptions.filter(option => option.year.toString() === selectedGeoYear);
+      const summedData = [
+        { name: "Europa", value: 0 },
+        { name: "Asien", value: 0 },
+        { name: "Nordamerika", value: 0 },
+        { name: "Latinamerika", value: 0 },
+        { name: "Övrigt", value: 0 },
+      ];
+
+      yearlyReports.forEach(report => {
+        report.data.forEach((region, index) => {
+          summedData[index].value += region.value;
+        });
+      });
+
+      return summedData;
+    } else {
+      const selectedOption = geoDataOptions.find(
+        option => option.year.toString() === selectedGeoYear && option.quarter === selectedGeoPeriod
+      );
+      return selectedOption ? selectedOption.data : [];
+    }
+  }, [selectedGeoYear, selectedGeoPeriod, geoDataOptions]);
+
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+
+  // Förbered data för LiveCasino vs RNG (Stacked Bar Chart)
+  const liveCasinoRngDataQuarterly = financialReports.financialReports
+    .filter(report => report.year >= 2020)
+    .map(report => ({
+      date: `${report.year} ${report.quarter}`,
+      liveCasino: report.liveCasino || 0,
+      rng: report.rng || 0,
+    }));
+
+  const liveCasinoRngDataYearly = [];
+  const years = [...new Set(financialReports.financialReports.map(report => report.year))].filter(year => year >= 2020);
+  years.forEach(year => {
+    const yearlyReports = financialReports.financialReports.filter(report => report.year === year);
+    const totalLiveCasino = yearlyReports.reduce((sum, report) => sum + (report.liveCasino || 0), 0);
+    const totalRng = yearlyReports.reduce((sum, report) => sum + (report.rng || 0), 0);
+    liveCasinoRngDataYearly.push({
+      date: `${year} Helår`,
+      liveCasino: totalLiveCasino,
+      rng: totalRng,
+    });
+  });
+
+  // Beräkna genomsnittligt antal spelare för de senaste 30 dagarna
   const calculateAveragePlayers = (data, days) => {
     if (!data || !Array.isArray(data) || data.length === 0) return { average: 0, daysCount: 0 };
 
@@ -66,77 +205,20 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
     };
   };
 
-  // Hämta sista mätpunkten för varje graf
-  const getLastDataPoint = (data, key) => {
-    if (!data || !Array.isArray(data) || data.length === 0) return 0;
-    const lastItem = data[data.length - 1];
-    return Number(lastItem[key] || lastItem.value || lastItem.dividendPerShare || lastItem.Players || 0);
-  };
-
-  // Kombinera historiska och planerade utdelningar för grafen
-  const combinedDividendData = useMemo(() => {
-    if (!dividendData) {
-      console.warn("dividendData är undefined i GraphBox");
-      return [];
-    }
-
-    const today = new Date();
-
-    const historical = (dividendData.historicalDividends || []).map(item => ({
-      date: item.date,
-      dividendPerShare: item.dividendPerShare,
-      type: "historical",
-      dividendYield: (item.dividendPerShare / item.sharePriceAtDividend) * 100,
-      isFuture: new Date(item.date) > today,
-    }));
-
-    const planned = (dividendData.plannedDividends || []).map((item, index) => ({
-      date: item.paymentDate,
-      dividendPerShare: item.dividendPerShare,
-      type: "planned",
-      dividendYield: dividendData.currentSharePrice
-        ? (item.dividendPerShare / dividendData.currentSharePrice) * 100
-        : 0,
-      isFuture: new Date(item.paymentDate) > today,
-      exDate: item.exDate,
-      isUpcoming: index === 0, // Markera den första planerade utdelningen som "kommande"
-    }));
-
-    return [...historical, ...planned].sort((a, b) => new Date(a.date) - new Date(b.date));
-  }, [dividendData]);
-
-  // Beräkna genomsnittet för "AVG Spelare" och sista värden för alla grafer
   const { average: avgPlayers, daysCount } = useMemo(() => calculateAveragePlayers(playersData, 30), [playersData]);
-  const lastRevenue = useMemo(() => getLastDataPoint(viewMode === "year" ? annualRevenueData : revenueData, "value"), [revenueData, annualRevenueData, viewMode]);
-  const lastMargin = useMemo(() => getLastDataPoint(viewMode === "year" ? annualMarginData : marginData, "value"), [marginData, annualMarginData, viewMode]);
-  const lastDividend = useMemo(() => getLastDataPoint(dividendData?.historicalDividends || [], "dividendPerShare"), [dividendData]);
-  const lastPlayers = useMemo(() => getLastDataPoint(playersData || [], "Players"), [playersData]);
 
-  // Beräkna direktavkastning för den senaste historiska utdelningen
-  const lastDividendEntry = dividendData?.historicalDividends?.[dividendData.historicalDividends.length - 1];
-  const dividendYield = lastDividendEntry
-    ? (lastDividendEntry.dividendPerShare / lastDividendEntry.sharePriceAtDividend) * 100
-    : 0;
-
-  const formatTooltipValue = (value, type) => {
-    if (type === "revenue") return [`Omsättning: ${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M EUR`];
-    if (type === "margin") return [`Marginal: ${value.toFixed(2)}%`];
-    if (type === "dividend") return [`Utdelning: ${value} SEK`];
-    if (type === "players") return [`Spelare: ${value.toLocaleString("sv-SE")}`];
-    return [value];
-  };
-
-  const formatYAxisTick = (value) => {
+  // Formatering för Y-axeln
+  const formatPlayersTick = (value) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
     return value.toLocaleString("sv-SE");
   };
 
-  const getYDomain = (data, key, tab, viewMode) => {
+  const getPlayersYDomain = (data) => {
     if (!data || !Array.isArray(data) || data.length === 0) return [0, 1];
 
     const values = data.map(item => {
-      const val = item[key] || item.value || item.dividendPerShare || item.Players;
+      const val = item.Players;
       return isNaN(val) ? 0 : Number(val);
     }).filter(val => !isNaN(val));
 
@@ -145,200 +227,29 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
     const minValue = Math.min(...values);
     const maxValue = Math.max(...values);
 
-    if (tab === "players") {
-      const lowerBound = Math.floor(minValue / 2000) * 2000;
-      const upperBound = Math.ceil(maxValue / 2000) * 2000;
-      return [lowerBound, upperBound];
-    } else if (tab === "revenue") {
-      const interval = viewMode === "year" ? 300 : 100;
-      const lowerBound = 0;
-      const upperBound = Math.ceil(maxValue / interval) * interval;
-      return [lowerBound, upperBound];
-    } else if (tab === "margin") {
-      const interval = 5;
-      const lowerBound = Math.floor(minValue / interval) * interval;
-      const upperBound = Math.ceil(maxValue / interval) * interval;
-      return [lowerBound, upperBound];
-    } else if (tab === "dividend") {
-      const interval = 6; // Fast intervall på 6 SEK
-      const lowerBound = 0;
-      const upperBound = Math.ceil(maxValue / interval) * interval;
-      return [lowerBound, upperBound];
-    }
-
-    return [0, maxValue * 1.1];
+    const lowerBound = Math.floor(minValue / 2000) * 2000;
+    const upperBound = Math.ceil(maxValue / 2000) * 2000;
+    return [lowerBound, upperBound];
   };
 
-  const filteredRevenueData = viewMode === "year" ? annualRevenueData : revenueData;
-  const filteredMarginData = viewMode === "year" ? annualMarginData : marginData;
-
-  const graphConfig = {
-    revenue: { data: filteredRevenueData || [], key: "value", labelX: "Datum", labelY: "Omsättning (M EUR)" },
-    margin: { data: filteredMarginData || [], key: "value", labelX: "Datum", labelY: "Marginal (%)" },
-    dividend: { data: combinedDividendData || [], key: "dividendPerShare", labelX: "År", labelY: "Utdelning (SEK)" },
-    players: { data: playersData || [], key: "Players", labelX: "Datum", labelY: "Antal spelare" },
+  const formatRevenueTick = (value) => {
+    return `${value} MEUR`;
   };
 
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const type = data.type;
-      const typeLabel = type === "historical" ? "Historisk" : "Planerad";
-      return (
-        <Box sx={{ background: "#333", padding: "10px", borderRadius: "5px", color: "#fff" }}>
-          <Typography>{`Datum: ${label}`}</Typography>
-          <Typography>{payload[0].value ? formatTooltipValue(payload[0].value, activeTab)[0] : ""}</Typography>
-          {activeTab === "dividend" && (
-            <Typography>{`Direktavkastning: ${data.dividendYield.toFixed(2)}%`}</Typography>
-          )}
-          {activeTab === "dividend" && type === "planned" && (
-            <Typography>{`Kommande på ${data.exDate}`}</Typography>
-          )}
-          {activeTab === "dividend" && <Typography>{`Typ: ${typeLabel}`}</Typography>}
-        </Box>
-      );
-    }
-    return null;
+  const formatMarginTick = (value) => {
+    return `${value}%`;
   };
 
-  const renderChart = () => {
-    const { data, key, labelX, labelY } = graphConfig[activeTab];
-    const color = graphOptions.find(opt => opt.key === activeTab)?.color || "#fff";
+  const formatDividendTick = (value) => {
+    return `${value} SEK`;
+  };
 
-    // Om datan är tom, visa ett meddelande
-    if (!data || data.length === 0) {
-      return (
-        <Box sx={{ height: 400, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Typography variant="body1" sx={{ color: "#ccc" }}>
-            Ingen data tillgänglig för {graphOptions.find(opt => opt.key === activeTab)?.label || "denna graf"}.
-          </Typography>
-        </Box>
-      );
-    }
+  const formatDividendYieldTick = (value) => {
+    return `${value}%`;
+  };
 
-    if (activeTab === "dividend") {
-      return (
-        <>
-          {/* Legend för utdelningsgrafen */}
-          <Box sx={{ display: "flex", justifyContent: "center", marginBottom: "10px" }}>
-            <Box sx={{ display: "flex", alignItems: "center", marginRight: "20px" }}>
-              <Box sx={{ width: "20px", height: "2px", backgroundColor: COLORS.historical, marginRight: "5px" }} />
-              <Typography variant="body2" sx={{ color: "#ccc" }}>Historiska</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center", marginRight: "20px" }}>
-              <Box sx={{ width: "20px", height: "2px", backgroundColor: COLORS.planned, marginRight: "5px" }} />
-              <Typography variant="body2" sx={{ color: "#ccc" }}>Planerade</Typography>
-            </Box>
-            <Box sx={{ display: "flex", alignItems: "center" }}>
-              <Box sx={{ width: "20px", height: "2px", backgroundColor: COLORS.upcoming, marginRight: "5px" }} />
-              <Typography variant="body2" sx={{ color: "#ccc" }}>Kommande</Typography>
-            </Box>
-          </Box>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
-                <Label value={labelX} offset={-10} position="insideBottom" fill="#ccc" />
-              </XAxis>
-              <YAxis
-                stroke="#ccc"
-                domain={getYDomain(data, key, activeTab, viewMode)}
-                tickFormatter={formatYAxisTick}
-                width={60}
-                tickCount={7}
-                interval={0}
-              >
-                <Label
-                  value={labelY}
-                  angle={-90}
-                  offset={-30}
-                  position="insideLeft"
-                  fill="#ccc"
-                />
-              </YAxis>
-              <Tooltip content={<CustomTooltip />} />
-              {/* En sammanhängande linje för alla utdelningar */}
-              <Line
-                type="monotone"
-                dataKey="dividendPerShare"
-                stroke={COLORS.line} // Samma gröna färg för hela linjen
-                strokeWidth={2}
-                dot={(props) => {
-                  const { payload } = props;
-                  return (
-                    <circle
-                      cx={props.cx}
-                      cy={props.cy}
-                      r={payload.isUpcoming ? 6 : 4} // Större cirkel för den kommande
-                      fill={
-                        payload.isUpcoming
-                          ? COLORS.upcoming
-                          : payload.type === "historical"
-                          ? COLORS.historical
-                          : COLORS.planned
-                      }
-                      stroke={payload.isUpcoming ? "#fff" : "none"} // Vit kant runt den kommande
-                      strokeWidth={payload.isUpcoming ? 2 : 0}
-                    />
-                  );
-                }}
-                activeDot={{ r: 6 }}
-                isAnimationActive={true}
-                name="Utdelningar"
-                connectNulls={true}
-                strokeDasharray={(props) => {
-                  const { payload } = props;
-                  return payload.isFuture ? "5 5" : undefined; // Streckad linje för framtida utdelningar
-                }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </>
-      );
-    }
-
-    // För andra grafer (revenue, margin, players)
-    return (
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-          <XAxis dataKey={activeTab === "players" ? "Datum" : "date"} stroke="#ccc">
-            <Label value={labelX} offset={-10} position="insideBottom" fill="#ccc" />
-          </XAxis>
-          <YAxis
-            stroke="#ccc"
-            domain={getYDomain(data, key, activeTab, viewMode)}
-            tickFormatter={formatYAxisTick}
-            width={60}
-            tickCount={
-              activeTab === "revenue" ? (viewMode === "year" ? 8 : 6) :
-              activeTab === "margin" ? 6 :
-              activeTab === "dividend" ? 7 :
-              9
-            }
-            interval={0}
-          >
-            <Label
-              value={labelY}
-              angle={-90}
-              offset={-30}
-              position="insideLeft"
-              fill="#ccc"
-            />
-          </YAxis>
-          <Tooltip content={<CustomTooltip />} />
-          <Line
-            type="monotone"
-            dataKey={key}
-            stroke={color}
-            strokeWidth={2}
-            dot={{ r: 4, fill: color }}
-            activeDot={{ r: 6 }}
-            isAnimationActive={true}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    );
+  const formatLiveCasinoRngTick = (value) => {
+    return `${value} MEUR`;
   };
 
   return (
@@ -346,15 +257,20 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
       sx={{
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
         borderRadius: "20px",
+        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
         padding: "25px",
         margin: "20px auto",
         width: { xs: "90%", sm: "80%", md: "70%" },
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
       }}
     >
       <Typography
-        variant="h5"
-        sx={{ fontWeight: "bold", color: "#00e676", marginBottom: "10px", textAlign: "center" }}
+        variant="h4"
+        sx={{
+          fontWeight: "bold",
+          color: "#00e676",
+          marginBottom: "20px",
+          textAlign: "center",
+        }}
       >
         Finansiell översikt
       </Typography>
@@ -364,131 +280,408 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         onChange={handleTabChange}
         centered
         textColor="inherit"
-        TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
+        TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
         sx={{ color: "#ccc", marginBottom: "20px" }}
       >
-        {graphOptions.map((tab) => (
-          <Tab key={tab.key} label={tab.label} value={tab.key} />
-        ))}
+        <Tab label="Omsättning" value="revenue" />
+        <Tab label="Marginal" value="margin" />
+        <Tab label="Utdelning" value="dividend" />
+        <Tab label="AVG Spelare" value="players" />
+        <Tab label="Geografisk fördelning" value="geoDistribution" />
+        <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
       </Tabs>
 
-      {activeTab !== "dividend" && activeTab !== "players" && (
-        <Tabs
-          value={viewMode}
-          onChange={handleViewModeChange}
-          centered
-          textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-          sx={{ color: "#ccc", marginBottom: "20px" }}
-        >
-          <Tab label="Kvartal" value="quarter" />
-          <Tab label="Helår" value="year" />
-        </Tabs>
+      {/* Omsättning */}
+      {activeTab === "revenue" && (
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Tabs
+            value={viewMode}
+            onChange={handleViewModeChange}
+            centered
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{ color: "#ccc", marginBottom: "20px" }}
+          >
+            <Tab label="Per kvartal" value="quarterly" />
+            <Tab label="Per helår" value="yearly" />
+          </Tabs>
+
+          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+            {viewMode === "quarterly" ? "Omsättning per kvartal" : "Omsättning per helår"}
+          </Typography>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+              data={viewMode === "quarterly" ? revenueData : annualRevenueData}
+              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="date" stroke="#ccc">
+                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+              </XAxis>
+              <YAxis stroke="#ccc" tickFormatter={formatRevenueTick}>
+                <Label value="Omsättning (MEUR)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              </YAxis>
+              <Tooltip
+                formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="#00e676"
+                strokeWidth={2}
+                dot={{ r: 4, fill: "#00e676" }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
       )}
 
-      {activeTab === "revenue" && (
-        <Typography
-          variant="body1"
-          sx={{
-            color: "#ccc",
-            textAlign: "center",
-            marginBottom: "20px",
-            fontSize: "1rem",
-          }}
-        >
-          Senaste omsättning: {lastRevenue.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M EUR
-        </Typography>
-      )}
+      {/* Marginal */}
       {activeTab === "margin" && (
-        <Typography
-          variant="body1"
-          sx={{
-            color: "#ccc",
-            textAlign: "center",
-            marginBottom: "20px",
-            fontSize: "1rem",
-          }}
-        >
-          Senaste marginal: {lastMargin.toFixed(2)}%
-        </Typography>
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Tabs
+            value={viewMode}
+            onChange={handleViewModeChange}
+            centered
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{ color: "#ccc", marginBottom: "20px" }}
+          >
+            <Tab label="Per kvartal" value="quarterly" />
+            <Tab label="Per helår" value="yearly" />
+          </Tabs>
+
+          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+            {viewMode === "quarterly" ? "Marginal per kvartal" : "Marginal per helår"}
+          </Typography>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+              data={viewMode === "quarterly" ? marginData : annualMarginData}
+              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="date" stroke="#ccc">
+                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+              </XAxis>
+              <YAxis stroke="#ccc" domain={[0, 100]} tickFormatter={formatMarginTick}>
+                <Label value="Marginal (%)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              </YAxis>
+              <Tooltip
+                formatter={(value) => `${value.toLocaleString("sv-SE")}%`}
+                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke="#00e676"
+                strokeWidth={2}
+                dot={{ r: 4, fill: "#00e676" }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
       )}
+
+      {/* Utdelning */}
       {activeTab === "dividend" && (
-        <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              color: "#00e676",
+              marginBottom: "20px",
+              textAlign: "center",
+            }}
+          >
+            Utdelning
+          </Typography>
+
+          <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
+            {latestHistorical && (
+              <>
+                <Typography variant="body1" color="#fff">
+                  Senaste utdelning: {latestHistorical.dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
+                </Typography>
+                <Typography variant="body1" color="#fff">
+                  Direktavkastning: {(latestHistorical.dividendYield || 0).toFixed(2)}% (baserat på aktiekurs {latestHistorical.sharePriceAtDividend} SEK)
+                </Typography>
+              </>
+            )}
+            {planned.length > 0 && (
+              <>
+                <Typography variant="body1" color="#FFD700" sx={{ marginTop: "10px" }}>
+                  Kommande utdelning:
+                </Typography>
+                <Typography variant="body1" color="#FFD700">
+                  X-dag: {planned[0].exDate} | Utdelningsdag: {planned[0].date} | Planerad utdelning: {planned[0].dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK | Direktavkastning: {plannedYield.toFixed(2)}% (baserat på nuvarande kurs {dividendData.currentSharePrice} SEK)
+                </Typography>
+              </>
+            )}
+          </Box>
+
+          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+            Utdelning över tid
+          </Typography>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={combinedDividendData} margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="date" stroke="#ccc">
+                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+              </XAxis>
+              <YAxis yAxisId="left" stroke="#ccc" tickFormatter={formatDividendTick}>
+                <Label value="Utdelning (SEK)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              </YAxis>
+              <YAxis yAxisId="right" orientation="right" stroke="#ccc" tickFormatter={formatDividendYieldTick}>
+                <Label value="Direktavkastning (%)" angle={90} offset={-30} position="insideRight" fill="#ccc" />
+              </YAxis>
+              <Tooltip
+                formatter={(value, name) => [
+                  name === "dividendPerShare" ? `${value.toLocaleString("sv-SE")} SEK` : `${value.toFixed(2)}%`,
+                  name === "dividendPerShare" ? "Utdelning per aktie" : "Direktavkastning",
+                ]}
+                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+              />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="dividendPerShare"
+                stroke="#00e676"
+                strokeWidth={2}
+                dot={{ r: 4, fill: "#00e676" }}
+                activeDot={{ r: 6 }}
+                name="Utdelning (SEK)"
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="dividendYield"
+                stroke="#FFCA28"
+                strokeWidth={2}
+                dot={{ r: 4, fill: "#FFCA28" }}
+                activeDot={{ r: 6 }}
+                name="Direktavkastning (%)"
+              />
+              <Legend verticalAlign="top" height={36} />
+            </LineChart>
+          </ResponsiveContainer>
+
+          <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
+            Historiska och planerade utdelningar
+          </Typography>
+          <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", overflow: "hidden" }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ color: "#ccc", textAlign: "center" }}>Datum</TableCell>
+                <TableCell sx={{ color: "ccc", textAlign: "center" }}>Utdelning per aktie (SEK)</TableCell>
+                <TableCell sx={{ color: "#ccc", textAlign: "center" }}>Direktavkastning (%)</TableCell>
+                <TableCell sx={{ color: "#ccc", textAlign: "center" }}>Typ</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {combinedDividendData.map((item) => (
+                <TableRow key={item.date}>
+                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.date}</TableCell>
+                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.dividendPerShare.toLocaleString()}</TableCell>
+                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.dividendYield.toFixed(2)}%</TableCell>
+                  <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+                    {item.type === "historical" ? "Historisk" : "Planerad"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Box>
+      )}
+
+      {/* AVG Spelare */}
+      {activeTab === "players" && (
+        <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
             variant="body1"
             sx={{
               color: "#ccc",
               textAlign: "center",
+              marginBottom: "20px",
               fontSize: "1rem",
             }}
           >
-            Senaste utdelning: {lastDividend.toLocaleString("sv-SE")} SEK
+            Genomsnitt antal: {avgPlayers.toLocaleString("sv-SE")} <br />
+            Senaste {daysCount} dagar
           </Typography>
-          <Typography
-            variant="body1"
-            sx={{
-              color: "#ccc",
-              textAlign: "center",
-              fontSize: "1rem",
-            }}
-          >
-            Direktavkastning: {dividendYield.toFixed(2)}% (baserat på aktiekurs {lastDividendEntry?.sharePriceAtDividend?.toLocaleString("sv-SE") || "N/A"} SEK)
-          </Typography>
-          {(dividendData?.plannedDividends?.length > 0) && (
-            <>
-              <Typography
-                variant="body1"
-                sx={{
-                  color: COLORS.planned,
-                  textAlign: "center",
-                  fontSize: "1rem",
-                  marginTop: "10px",
-                }}
+
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={playersData} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="Datum" stroke="#ccc">
+                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+              </XAxis>
+              <YAxis
+                stroke="#ccc"
+                domain={getPlayersYDomain(playersData)}
+                tickFormatter={formatPlayersTick}
+                width={60}
+                tickCount={9}
+                interval={0}
               >
-                Kommande utdelning:
-              </Typography>
-              {dividendData.plannedDividends.map((planned, index) => {
-                const plannedYield = dividendData.currentSharePrice
-                  ? (planned.dividendPerShare / dividendData.currentSharePrice) * 100
-                  : 0;
-                return (
-                  <Typography
-                    key={index}
-                    variant="body1"
-                    sx={{
-                      color: "#ccc",
-                      textAlign: "center",
-                      fontSize: "1rem",
-                    }}
-                  >
-                    X-dag: {planned.exDate} | Utdelningsdag: {planned.paymentDate}
-                    {planned.dividendPerShare && ` | Planerad utdelning: ${planned.dividendPerShare.toLocaleString("sv-SE")} SEK`}
-                    {dividendData.currentSharePrice && ` | Direktavkastning: ${plannedYield.toFixed(2)}% (baserat på nuvarande kurs ${dividendData.currentSharePrice} SEK)`}
-                  </Typography>
-                );
-              })}
-            </>
+                <Label value="Antal spelare" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              </YAxis>
+              <Tooltip
+                formatter={(value) => `Spelare: ${value.toLocaleString("sv-SE")}`}
+                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+              />
+              <Line
+                type="monotone"
+                dataKey="Players"
+                stroke="#9c27b0"
+                strokeWidth={2}
+                dot={{ r: 4, fill: "#9c27b0" }}
+                activeDot={{ r: 6 }}
+                isAnimationActive={true}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </Box>
+      )}
+
+      {/* Geografisk fördelning (Pie Chart) */}
+      {activeTab === "geoDistribution" && (
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              color: "#00e676",
+              marginBottom: "20px",
+              textAlign: "center",
+            }}
+          >
+            Geografisk fördelning av intäkter
+          </Typography>
+
+          {/* Tabs för att välja årtal */}
+          <Tabs
+            value={selectedGeoYear}
+            onChange={handleGeoYearChange}
+            centered
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{ color: "#ccc", marginBottom: "10px" }}
+          >
+            {uniqueYears.map(year => (
+              <Tab key={year} label={year} value={year.toString()} />
+            ))}
+          </Tabs>
+
+          {/* Tabs för att välja kvartal eller helår (dynamiska flikar) */}
+          <Tabs
+            value={selectedGeoPeriod}
+            onChange={handleGeoPeriodChange}
+            centered
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
+            sx={{ color: "#ccc", marginBottom: "20px" }}
+          >
+            {availableQuarters.includes("Q1") && <Tab label="Q1" value="Q1" />}
+            {availableQuarters.includes("Q2") && <Tab label="Q2" value="Q2" />}
+            {availableQuarters.includes("Q3") && <Tab label="Q3" value="Q3" />}
+            {availableQuarters.includes("Q4") && <Tab label="Q4" value="Q4" />}
+            <Tab label="Helår" value="Helår" />
+          </Tabs>
+
+          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+            Intäkter per region ({selectedGeoYear} {selectedGeoPeriod})
+          </Typography>
+
+          {/* Kontrollera om det finns data för det valda kvartalet */}
+          {selectedGeoData.length > 0 && selectedGeoData.some(item => item.value > 0) ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={selectedGeoData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={100}
+                  fill="#8884d8"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                >
+                  {selectedGeoData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <Typography variant="body1" color="#ccc" sx={{ textAlign: "center", marginBottom: "20px" }}>
+              Ingen data tillgänglig för detta kvartal.
+            </Typography>
           )}
         </Box>
       )}
-      {activeTab === "players" && (
-        <Typography
-          variant="body1"
-          sx={{
-            color: "#ccc",
-            textAlign: "center",
-            marginBottom: "20px",
-            fontSize: "1rem",
-          }}
-        >
-          Genomsnitt antal: {avgPlayers.toLocaleString("sv-SE")} <br />
-          Senaste {daysCount} dagar
-        </Typography>
-      )}
 
-      <Box sx={{ height: 400 }}>
-        {renderChart()}
-      </Box>
+      {/* LiveCasino vs RNG (Stacked Bar Chart) */}
+      {activeTab === "liveCasinoRng" && (
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              marginBottom: "20px",
+              textAlign: "center",
+            }}
+          >
+            <span style={{ color: "#00e676" }}>LiveCasino</span>{" "}
+            <span style={{ color: "#ccc" }}>vs</span>{" "}
+            <span style={{ color: "#FFCA28" }}>RNG</span>
+          </Typography>
+
+          <Tabs
+            value={viewMode}
+            onChange={handleViewModeChange}
+            centered
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{ color: "#ccc", marginBottom: "20px" }}
+          >
+            <Tab label="Per kvartal" value="quarterly" />
+            <Tab label="Per helår" value="yearly" />
+          </Tabs>
+
+          <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
+            {viewMode === "quarterly" ? "Intäkter per kvartal" : "Intäkter per helår"}
+          </Typography>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={viewMode === "quarterly" ? liveCasinoRngDataQuarterly : liveCasinoRngDataYearly}
+              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+              <XAxis dataKey="date" stroke="#ccc">
+                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+              </XAxis>
+              <YAxis stroke="#ccc" tickFormatter={formatLiveCasinoRngTick}>
+                <Label value="Intäkter (MEUR)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              </YAxis>
+              <Tooltip
+                formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+              />
+              <Bar dataKey="liveCasino" stackId="a" fill="#00e676" name="LiveCasino" />
+              <Bar dataKey="rng" stackId="a" fill="#FFCA28" name="RNG" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Box>
+      )}
     </Card>
   );
 };
