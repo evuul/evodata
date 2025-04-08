@@ -331,7 +331,7 @@ const StockBuybackInfo = ({
           <Typography variant="body1" color="#fff" sx={{ marginBottom: "10px", textAlign: "center" }}>
             Evolution äger: {latestEvolutionShares.toLocaleString()} aktier
           </Typography>
-          <Typography variant="body1" color="#fff" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          <Typography variant="body1" color="#FFCA28" sx={{ marginBottom: "10px", textAlign: "center" }}>
             Ägarandel: {latestOwnershipPercentage.toFixed(2)}%
           </Typography>
           {cancelledShares > 0 && (

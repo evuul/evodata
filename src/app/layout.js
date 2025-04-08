@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 // import Sidebar from "../Components/Sidebar"; // Importera Sidebar
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/react"
 import { Box } from "@mui/material";
 
 const geistSans = Geist({
@@ -25,7 +26,7 @@ export default function RootLayout({ children }) {
         <Box sx={{ display: "flex" }}>
           {/* Sidomeny */}
           {/* <Sidebar /> */}
-
+          <Analytics />
           {/* Huvudinnehåll */}
           <Box sx={{ flexGrow: 1, padding: "20px" }}>
             {children}

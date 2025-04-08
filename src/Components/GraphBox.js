@@ -20,15 +20,6 @@ import {
 import useClientMediaQuery from "../app/hooks/useClientMediaQuery";
 import { useTheme } from '@mui/material/styles';
 
-const dividendData = [
-  { date: "2020", dividend: 4.42 },
-  { date: "2021", dividend: 6.87 },
-  { date: "2022", dividend: 14.60 },
-  { date: "2023", dividend: 22.63 },
-  { date: "2024", dividend: 31.01 },
-  { date: "2025", dividend: 32.07 },
-];
-
 const graphOptions = [
   { label: "Omsättning", key: "revenue", color: "#2196f3" },
   { label: "Marginal", key: "margin", color: "#ff9800" },
@@ -36,7 +27,14 @@ const graphOptions = [
   { label: "AVG Spelare", key: "players", color: "#9c27b0" },
 ];
 
-const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData, playersData }) => {
+// Färger för olika typer av utdelningar
+const COLORS = {
+  historical: "#00e676", // Stark grön för historiska utdelningar
+  planned: "#66BB6A",    // Mjukare grön för planerade utdelningar
+  estimated: "#A5D6A7",  // Ljus grön för förväntade utdelningar
+};
+
+const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData, playersData, dividendData }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarter");
   const theme = useTheme();
@@ -71,15 +69,48 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const getLastDataPoint = (data, key) => {
     if (!data || data.length === 0) return 0;
     const lastItem = data[data.length - 1];
-    return Number(lastItem[key] || lastItem.value || lastItem.Players || 0);
+    return Number(lastItem[key] || lastItem.value || lastItem.dividendPerShare || lastItem.Players || 0);
   };
+
+  // Kombinera historiska, planerade och förväntade utdelningar för grafen
+  const combinedDividendData = useMemo(() => {
+    // Kontrollera att dividendData finns, annars returnera en tom array
+    if (!dividendData) {
+      console.warn("dividendData är undefined i GraphBox");
+      return [];
+    }
+
+    const historical = (dividendData.historicalDividends || []).map(item => ({
+      date: item.date,
+      dividendPerShare: item.dividendPerShare,
+      type: "historical",
+    }));
+    const planned = (dividendData.plannedDividends || []).map(item => ({
+      date: item.paymentDate,
+      dividendPerShare: item.dividendPerShare,
+      type: "planned",
+    }));
+    const estimated = (dividendData.estimatedDividends || []).map(item => ({
+      date: item.paymentDate, // Använd paymentDate för estimatedDividends
+      dividendPerShare: item.dividendPerShare,
+      type: "estimated",
+    }));
+
+    return [...historical, ...planned, ...estimated].sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [dividendData]);
 
   // Beräkna genomsnittet för "AVG Spelare" och sista värden för alla grafer
   const { average: avgPlayers, daysCount } = useMemo(() => calculateAveragePlayers(playersData, 30), [playersData]);
   const lastRevenue = useMemo(() => getLastDataPoint(viewMode === "year" ? annualRevenueData : revenueData, "value"), [revenueData, annualRevenueData, viewMode]);
   const lastMargin = useMemo(() => getLastDataPoint(viewMode === "year" ? annualMarginData : marginData, "value"), [marginData, annualMarginData, viewMode]);
-  const lastDividend = useMemo(() => getLastDataPoint(dividendData, "dividend"), [dividendData]);
+  const lastDividend = useMemo(() => getLastDataPoint(dividendData?.historicalDividends || [], "dividendPerShare"), [dividendData]);
   const lastPlayers = useMemo(() => getLastDataPoint(playersData, "Players"), [playersData]);
+
+  // Beräkna direktavkastning för den senaste historiska utdelningen
+  const lastDividendEntry = dividendData?.historicalDividends?.[dividendData.historicalDividends.length - 1];
+  const dividendYield = lastDividendEntry
+    ? (lastDividendEntry.dividendPerShare / lastDividendEntry.sharePriceAtDividend) * 100
+    : 0;
 
   const formatTooltipValue = (value, type) => {
     if (type === "revenue") return [`Omsättning: ${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} M EUR`];
@@ -98,7 +129,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const getYDomain = (data, key, tab, viewMode) => {
     if (!data || data.length === 0) return [0, 1];
     const values = data.map(item => {
-      const val = item[key] || item.value || item.Players;
+      const val = item[key] || item.value || item.dividendPerShare || item.Players;
       return isNaN(val) ? 0 : Number(val);
     });
 
@@ -135,16 +166,19 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
   const graphConfig = {
     revenue: { data: filteredRevenueData, key: "value", labelX: "Datum", labelY: "Omsättning (M EUR)" },
     margin: { data: filteredMarginData, key: "value", labelX: "Datum", labelY: "Marginal (%)" },
-    dividend: { data: dividendData, key: "dividend", labelX: "År", labelY: "Utdelning (SEK)" },
+    dividend: { data: combinedDividendData, key: "dividendPerShare", labelX: "År", labelY: "Utdelning (SEK)" },
     players: { data: playersData, key: "Players", labelX: "Datum", labelY: "Antal spelare" },
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
+      const type = payload[0].payload.type;
+      const typeLabel = type === "historical" ? "Historisk" : type === "planned" ? "Planerad" : "Förväntad";
       return (
         <Box sx={{ background: "#333", padding: "10px", borderRadius: "5px", color: "#fff" }}>
           <Typography>{`Datum: ${label}`}</Typography>
           <Typography>{payload[0].value ? formatTooltipValue(payload[0].value, activeTab)[0] : ""}</Typography>
+          <Typography>{`Typ: ${typeLabel}`}</Typography>
         </Box>
       );
     }
@@ -155,6 +189,72 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
     const { data, key, labelX, labelY } = graphConfig[activeTab];
     const color = graphOptions.find(opt => opt.key === activeTab).color;
 
+    if (activeTab === "dividend") {
+      // För utdelningsgrafen, dela upp datan i tre linjer för historiska, planerade och förväntade utdelningar
+      return (
+        <ResponsiveContainer width="100%" height={400}>
+          <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+            <XAxis dataKey="date" stroke="#ccc">
+              <Label value={labelX} offset={-10} position="insideBottom" fill="#ccc" />
+            </XAxis>
+            <YAxis
+              stroke="#ccc"
+              domain={getYDomain(data, key, activeTab, viewMode)}
+              tickFormatter={formatYAxisTick}
+              width={60}
+              tickCount={7}
+              interval={0}
+            >
+              <Label
+                value={labelY}
+                angle={-90}
+                offset={-30}
+                position="insideLeft"
+                fill="#ccc"
+              />
+            </YAxis>
+            <Tooltip content={<CustomTooltip />} />
+            {/* Historiska utdelningar */}
+            <Line
+              type="monotone"
+              dataKey={(item) => (item.type === "historical" ? item.dividendPerShare : null)}
+              stroke={COLORS.historical}
+              strokeWidth={2}
+              dot={{ r: 4, fill: COLORS.historical }}
+              activeDot={{ r: 6 }}
+              isAnimationActive={true}
+              name="Historiska utdelningar"
+            />
+            {/* Planerade utdelningar */}
+            <Line
+              type="monotone"
+              dataKey={(item) => (item.type === "planned" ? item.dividendPerShare : null)}
+              stroke={COLORS.planned}
+              strokeWidth={2}
+              dot={{ r: 4, fill: COLORS.planned }}
+              activeDot={{ r: 6 }}
+              isAnimationActive={true}
+              name="Planerade utdelningar"
+            />
+            {/* Förväntade utdelningar */}
+            <Line
+              type="monotone"
+              dataKey={(item) => (item.type === "estimated" ? item.dividendPerShare : null)}
+              stroke={COLORS.estimated}
+              strokeWidth={2}
+              dot={{ r: 4, fill: COLORS.estimated }}
+              activeDot={{ r: 6 }}
+              isAnimationActive={true}
+              name="Förväntade utdelningar"
+              strokeDasharray="5 5"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // För andra grafer (revenue, margin, players)
     return (
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={data} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
@@ -170,7 +270,7 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
             tickCount={
               activeTab === "revenue" ? (viewMode === "year" ? 8 : 6) :
               activeTab === "margin" ? 6 :
-              activeTab === "dividend" ? 7 : // 7 ticks för utdelning (0, 6, 12, 18, 24, 30, 36)
+              activeTab === "dividend" ? 7 :
               9
             }
             interval={0}
@@ -270,17 +370,85 @@ const GraphBox = ({ revenueData, marginData, annualRevenueData, annualMarginData
         </Typography>
       )}
       {activeTab === "dividend" && (
-        <Typography
-          variant="body1"
-          sx={{
-            color: "#ccc",
-            textAlign: "center",
-            marginBottom: "20px",
-            fontSize: "1rem",
-          }}
-        >
-          Senaste utdelning: {lastDividend.toLocaleString("sv-SE")} SEK
-        </Typography>
+        <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "#ccc",
+              textAlign: "center",
+              fontSize: "1rem",
+            }}
+          >
+            Senaste utdelning: {lastDividend.toLocaleString("sv-SE")} SEK
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "#ccc",
+              textAlign: "center",
+              fontSize: "1rem",
+            }}
+          >
+            Direktavkastning: {dividendYield.toFixed(2)}% (baserat på aktiekurs {lastDividendEntry?.sharePriceAtDividend?.toLocaleString("sv-SE") || "N/A"} SEK)
+          </Typography>
+          {(dividendData?.plannedDividends?.length > 0) && (
+            <>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: COLORS.planned,
+                  textAlign: "center",
+                  fontSize: "1rem",
+                  marginTop: "10px",
+                }}
+              >
+                Kommande utdelning:
+              </Typography>
+              {dividendData.plannedDividends.map((planned, index) => (
+                <Typography
+                  key={index}
+                  variant="body1"
+                  sx={{
+                    color: "#ccc",
+                    textAlign: "center",
+                    fontSize: "1rem",
+                  }}
+                >
+                  X-dag: {planned.exDate} | Utdelningsdag: {planned.paymentDate}
+                  {planned.dividendPerShare && ` | Planerad utdelning: ${planned.dividendPerShare.toLocaleString("sv-SE")} SEK`}
+                </Typography>
+              ))}
+            </>
+          )}
+          {(dividendData?.estimatedDividends?.length > 0) && (
+            <>
+              <Typography
+                variant="body1"
+                sx={{
+                  color: COLORS.estimated,
+                  textAlign: "center",
+                  fontSize: "1rem",
+                  marginTop: "10px",
+                }}
+              >
+                Förväntad utdelning:
+              </Typography>
+              {dividendData.estimatedDividends.map((estimated, index) => (
+                <Typography
+                  key={index}
+                  variant="body1"
+                  sx={{
+                    color: "#ccc",
+                    textAlign: "center",
+                    fontSize: "1rem",
+                  }}
+                >
+                  X-dag: {estimated.exDate} | Utdelningsdag: {estimated.paymentDate} | Förväntad utdelning: {estimated.dividendPerShare.toLocaleString("sv-SE")} SEK
+                </Typography>
+              ))}
+            </>
+          )}
+        </Box>
       )}
       {activeTab === "players" && (
         <Typography
