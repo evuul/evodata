@@ -1,13 +1,12 @@
 'use client';
 import React from 'react';
 import { Box, Typography, CircularProgress } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { useStockPriceContext } from '../context/StockPriceContext';
 
 const StockPrice = () => {
-  const { stockPrice, loading, error, lastUpdated } = useStockPriceContext();
+  const { stockPrice, ytdChangePercent, loading, error, lastUpdated } = useStockPriceContext();
 
   const price = stockPrice?.price?.regularMarketPrice?.raw;
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw;
@@ -27,6 +26,7 @@ const StockPrice = () => {
 
   // Bestäm färgen för procentförändringen och ikonerna
   const changeColor = isUnchanged ? '#fff' : isPositive ? '#00e676' : '#ff5722';
+  const ytdColor = ytdChangePercent >= 0 ? '#00e676' : '#ff5722'; // Färg för YTD
 
   return (
     <Box display="flex" flexDirection="column" alignItems="center">
@@ -81,31 +81,54 @@ const StockPrice = () => {
             </Typography>
           </Box>
 
-          {changePercent !== undefined && (
-            <Box display="flex" alignItems="center" mt={0.5}>
-              {isPositive ? (
-                <ArrowUpwardIcon sx={{ color: changeColor, fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
-              ) : isUnchanged ? (
-                <></> // Ingen ikon vid oförändrat
-              ) : (
-                <ArrowDownwardIcon sx={{ color: changeColor, fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
-              )}
-              <Typography
-                variant="body2"
-                sx={{
-                  color: changeColor, // Använd samma dynamiska färg
-                  fontSize: { xs: '0.8rem', sm: '0.9rem' },
-                  fontFamily: "'Roboto Mono', monospace",
-                }}
-              >
-                {changePercent > 0 ? '+' : ''}
-                {changePercent?.toLocaleString('sv-SE', {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                }) || '0.00'}%
-              </Typography>
-            </Box>
-          )}
+          <Box display="flex" alignItems="center" mt={0.5} gap={2}>
+            {/* Daglig förändring */}
+            {changePercent !== undefined && (
+              <Box display="flex" alignItems="center">
+                {isPositive ? (
+                  <ArrowUpwardIcon sx={{ color: changeColor, fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
+                ) : isUnchanged ? (
+                  <></> // Ingen ikon vid oförändrat
+                ) : (
+                  <ArrowDownwardIcon sx={{ color: changeColor, fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
+                )}
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: changeColor, // Använd samma dynamiska färg
+                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                    fontFamily: "'Roboto Mono', monospace",
+                  }}
+                >
+                  {changePercent > 0 ? '+' : ''}
+                  {changePercent?.toLocaleString('sv-SE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }) || '0.00'}%
+                </Typography>
+              </Box>
+            )}
+
+            {/* YTD-förändring */}
+            {ytdChangePercent !== null && (
+              <Box display="flex" alignItems="center">
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: ytdColor, // Grön eller röd baserat på YTD
+                    fontSize: { xs: '0.8rem', sm: '0.9rem' },
+                    fontFamily: "'Roboto Mono', monospace",
+                  }}
+                >
+                  {ytdChangePercent > 0 ? '+' : ''}
+                  {ytdChangePercent?.toLocaleString('sv-SE', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }) || '0.00'}% YTD
+                </Typography>
+              </Box>
+            )}
+          </Box>
 
           {lastUpdated && (
             <Typography

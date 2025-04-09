@@ -69,8 +69,8 @@ export default async function Home() {
   return (
     <main>
       <Header />
-        {/* Centrera StockPrice */}
-        <Box
+      {/* Centrera StockPrice */}
+      <Box
         sx={{
           display: 'flex',
           justifyContent: 'center', // Centrera horisontellt
@@ -84,22 +84,25 @@ export default async function Home() {
       <Box
         sx={{
           display: "flex",
-          justifyContent: "center", // Centrera horisontellt
-          alignItems: "stretch", // Säkerställ att de har samma höjd
-          flexWrap: "wrap", // Låt dem gå till nästa rad på små skärmar
-          gap: { xs: "15px", sm: "20px" }, // Avstånd mellan PlayerCard och MoneyCounter
-          width: { xs: "95%", sm: "80%", md: "90%" }, // Samma bredd som GraphBox
-          maxWidth: "1200px", // Sätt en maxbredd för att undvika att det blir för brett
-          margin: "0 auto", // Centrera containern
-          padding: { xs: "5px 10px", sm: "10px 20px" },
+          justifyContent: "center",
+          alignItems: "stretch",
+          flexWrap: "wrap",
+          gap: { xs: "20px", sm: "20px", md: "30px" }, // Öka gap på större skärmar för att ge mer utrymme
+          width: "100%",
+          maxWidth: "1400px", // Öka maxWidth för att ge mer utrymme på stora skärmar
+          margin: "0 auto",
+          padding: 0,
         }}
       >
         {/* PlayerCard */}
         <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 10px)" }, // 100% på xs, 50% minus halva gapet på sm och uppåt
-            minWidth: { xs: "100%", sm: "300px" }, // Minsta bredd för att undvika att det blir för smalt
-            maxWidth: { xs: "100%", sm: "calc(50% - 10px)" }, // Begränsa bredden
+            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" }, // Använd fast flex-basis istället för procent
+            minWidth: { xs: "100%", sm: "300px", md: "350px" }, // Minska minWidth för att undvika överlappning
+            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" }, // Justera maxWidth för att matcha GraphBox
+            margin: "0 auto",
+            minHeight: { xs: "200px", sm: "120px", md: "150px" },
+            boxSizing: "border-box", // Säkerställ att padding och border inte påverkar bredden
           }}
         >
           <PlayerCard playerCount={data.playersCount} />
@@ -108,9 +111,12 @@ export default async function Home() {
         {/* MoneyCounter */}
         <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 calc(50% - 10px)" }, // 100% på xs, 50% minus halva gapet på sm och uppåt
-            minWidth: { xs: "100%", sm: "300px" }, // Minsta bredd för att undvika att det blir för smalt
-            maxWidth: { xs: "100%", sm: "calc(50% - 10px)" }, // Begränsa bredden
+            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" }, // Samma flex-basis som PlayerCard
+            minWidth: { xs: "100%", sm: "300px", md: "350px" }, // Samma minWidth som PlayerCard
+            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" }, // Samma maxWidth som PlayerCard
+            margin: "0 auto",
+            minHeight: { xs: "200px", sm: "120px", md: "150px" },
+            boxSizing: "border-box", // Säkerställ att padding och border inte påverkar bredden
           }}
         >
           <MoneyCounter />
