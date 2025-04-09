@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Typography,
@@ -25,7 +25,8 @@ import {
   Label,
 } from "recharts";
 import { keyframes } from "@emotion/react";
-import oldBuybackData from "../app/data/oldBuybackData.json"; // Importera JSON-filen
+import oldBuybackData from "../app/data/oldBuybackData.json";
+import { useStockPriceContext } from '../context/StockPriceContext'; // Importera den nya context-hooken
 
 // Växelkurs (exempelvärde)
 const exchangeRate = 10.83; // Exempel: 1 EUR = 10.83 SEK
@@ -137,37 +138,6 @@ const calculateAverageDailyBuyback = () => {
   return { averageDaily, averagePrice };
 };
 
-// Funktion för att hämta aktiepriset från API
-const fetchCurrentSharePrice = async (symbol) => {
-  try {
-    const response = await fetch(`/api/stock?symbol=${symbol}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    const price = data.price?.regularMarketPrice?.raw;
-    if (typeof price !== 'number') {
-      throw new Error('Ogiltigt prisformat i API-svaret');
-    }
-
-    return price;
-  } catch (error) {
-    console.error('Error fetching stock price:', error);
-    throw error;
-  }
-};
-
 const StockBuybackInfo = ({
   isActive,
   buybackCash,
@@ -178,29 +148,12 @@ const StockBuybackInfo = ({
   const [activeTab, setActiveTab] = useState("buyback");
   const [viewMode, setViewMode] = useState("daily");
   const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" });
-  const [currentSharePrice, setCurrentSharePrice] = useState(null);
-  const [loadingPrice, setLoadingPrice] = useState(true);
-  const [priceError, setPriceError] = useState(null);
 
-  // Hämta aktiepriset när komponenten laddas
-  useEffect(() => {
-    const fetchStockPrice = async () => {
-      try {
-        setLoadingPrice(true);
-        const price = await fetchCurrentSharePrice('EVO.ST');
-        setCurrentSharePrice(price);
-        setPriceError(null);
-      } catch (err) {
-        setPriceError('Kunde inte hämta aktiepriset. Visar statiskt pris som reserv.');
-        setCurrentSharePrice(dividendData?.currentSharePrice || 0);
-        console.error('Error fetching stock price:', err);
-      } finally {
-        setLoadingPrice(false);
-      }
-    };
+  // Använd useStockPriceContext för att hämta aktiepriset
+  const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
 
-    fetchStockPrice();
-  }, [dividendData?.currentSharePrice]);
+  // Hämta det aktuella priset från useStockPriceContext, med fallback till dividendData om det blir ett fel
+  const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
   const buybackCashInSEK = buybackCash * exchangeRate;
   const totalBuybackValue = sharesBought * averagePrice;
@@ -538,12 +491,12 @@ const StockBuybackInfo = ({
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
             sx={{ color: "#ccc", marginBottom: "20px" }}
           >
-            <Tab label="Per dag" value="daily" />
-            <Tab label="Per helår" value="yearly" />
+            <Tab label="Daglig" value="daily" />
+            <Tab label="Årlig" value="yearly" />
           </Tabs>
 
           <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
-            Återköpta aktier över tid
+            {viewMode === "daily" ? "Dagliga återköp" : "Årliga återköp"}
           </Typography>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart
@@ -564,60 +517,45 @@ const StockBuybackInfo = ({
               <Line
                 type="monotone"
                 dataKey="Antal_aktier"
-                stroke="#4CAF50"
+                stroke="#00e676"
                 strokeWidth={2}
-                dot={{ r: 4, fill: "#4CAF50" }}
+                dot={{ r: 4, fill: "#00e676" }}
                 activeDot={{ r: 6 }}
               />
             </LineChart>
           </ResponsiveContainer>
 
           <Typography variant="h6" color="#ccc" sx={{ marginTop: "20px", marginBottom: "10px", textAlign: "center" }}>
-            Historiska transaktioner
+            Transaktioner
           </Typography>
-          <TableContainer sx={{ maxHeight: 300, overflowY: "auto", backgroundColor: "#2e2e2e", borderRadius: "8px" }}>
-            <Table stickyHeader sx={{ backgroundColor: "#2e2e2e" }}>
+          <TableContainer sx={{ maxHeight: 400, overflow: "auto" }}>
+            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell
-                    sx={{ color: "#ccc", textAlign: "center", backgroundColor: "#2e2e2e", cursor: "pointer" }}
-                    onClick={() => handleSort("Datum")}
-                  >
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", cursor: "pointer" }} onClick={() => handleSort("Datum")}>
                     Datum {sortConfig.key === "Datum" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                   </TableCell>
-                  <TableCell
-                    sx={{ color: "#ccc", textAlign: "center", backgroundColor: "#2e2e2e", cursor: "pointer" }}
-                    onClick={() => handleSort("Antal_aktier")}
-                  >
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", cursor: "pointer" }} onClick={() => handleSort("Antal_aktier")}>
                     Antal aktier {sortConfig.key === "Antal_aktier" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                   </TableCell>
-                  <TableCell
-                    sx={{ color: "#ccc", textAlign: "center", backgroundColor: "#2e2e2e", cursor: "pointer" }}
-                    onClick={() => handleSort("Snittkurs")}
-                  >
-                    Snittkurs (SEK) {sortConfig.key === "Snittkurs" && (sortConfig.direction === "asc" ? "↑" : "↓")}
-                  </TableCell>
-                  <TableCell
-                    sx={{ color: "#ccc", textAlign: "center", backgroundColor: "#2e2e2e", cursor: "pointer" }}
-                    onClick={() => handleSort("Transaktionsvärde")}
-                  >
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", cursor: "pointer" }} onClick={() => handleSort("Transaktionsvärde")}>
                     Transaktionsvärde (SEK) {sortConfig.key === "Transaktionsvärde" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                   </TableCell>
-                  <TableCell
-                    sx={{ color: "#ccc", textAlign: "center", backgroundColor: "#2e2e2e", cursor: "pointer" }}
-                    onClick={() => handleSort("Kommentar")}
-                  >
+                  <TableCell sx={{ color: "#ccc", textAlign: "center", cursor: "pointer" }} onClick={() => handleSort("Kommentar")}>
                     Kommentar {sortConfig.key === "Kommentar" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {sortedData.map((item) => (
-                  <TableRow key={item.Datum}>
+                {sortedData.map((item, index) => (
+                  <TableRow key={index}>
                     <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.Datum}</TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.Antal_aktier.toLocaleString()}</TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.Snittkurs.toLocaleString()}</TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.Transaktionsvärde.toLocaleString()}</TableCell>
+                    <TableCell sx={{ color: item.Antal_aktier < 0 ? "#FF6F61" : "#fff", textAlign: "center" }}>
+                      {item.Antal_aktier.toLocaleString()}
+                    </TableCell>
+                    <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+                      {item.Transaktionsvärde ? item.Transaktionsvärde.toLocaleString() : "-"}
+                    </TableCell>
                     <TableCell sx={{ color: "#fff", textAlign: "center" }}>{item.Kommentar || "-"}</TableCell>
                   </TableRow>
                 ))}

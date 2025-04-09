@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -32,37 +32,7 @@ import {
   Bar,
   Legend,
 } from "recharts";
-
-// Funktion för att hämta aktiepriset från API
-const fetchCurrentSharePrice = async (symbol) => {
-  try {
-    const response = await fetch(`/api/stock?symbol=${symbol}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.error) {
-      throw new Error(data.error);
-    }
-
-    const price = data.price?.regularMarketPrice?.raw;
-    if (typeof price !== 'number') {
-      throw new Error('Ogiltigt prisformat i API-svaret');
-    }
-
-    return price;
-  } catch (error) {
-    console.error('Error fetching stock price:', error);
-    throw error;
-  }
-};
+import { useStockPriceContext } from '../context/StockPriceContext'; // Importera den nya context-hooken
 
 const GraphBox = ({
   revenueData,
@@ -72,7 +42,7 @@ const GraphBox = ({
   playersData,
   dividendData,
   financialReports,
-  stockSymbol = 'EVO.ST', // Ändrat till rätt symbol
+  stockSymbol = 'EVO.ST',
 }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
@@ -80,34 +50,25 @@ const GraphBox = ({
     financialReports.financialReports[financialReports.financialReports.length - 1].year.toString()
   );
   const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Q4");
-  const [currentSharePrice, setCurrentSharePrice] = useState(null);
-  const [loadingPrice, setLoadingPrice] = useState(true);
-  const [priceError, setPriceError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const today = new Date("2025-04-07");
 
-  // Hämta aktiepriset när komponenten laddas
-  useEffect(() => {
-    const fetchStockPrice = async () => {
-      try {
-        setLoadingPrice(true);
-        const price = await fetchCurrentSharePrice(stockSymbol);
-        setCurrentSharePrice(price);
-        setPriceError(null);
-      } catch (err) {
-        setPriceError('Kunde inte hämta aktiepriset. Visar statiskt pris som reserv.');
-        setCurrentSharePrice(dividendData.currentSharePrice || 0);
-        console.error('Error fetching stock price:', err);
-      } finally {
-        setLoadingPrice(false);
-      }
-    };
+  // Använd useStockPriceContext för att hämta aktiepriset
+  const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
 
-    fetchStockPrice();
-  }, [stockSymbol, dividendData.currentSharePrice]);
+  // Hämta det aktuella priset från useStockPriceContext, med fallback till dividendData om det blir ett fel
+  const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
+
+  // Uppdatera senast uppdaterad tid när priset ändras
+  React.useEffect(() => {
+    if (stockPrice && !loadingPrice) {
+      setLastUpdated(new Date());
+    }
+  }, [stockPrice, loadingPrice]);
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -164,7 +125,7 @@ const GraphBox = ({
   )].sort();
 
   // Sätt default selectedGeoYear till det senaste årtalet från 2020 och framåt
-  useEffect(() => {
+  React.useEffect(() => {
     if (uniqueYears.length > 0 && !uniqueYears.includes(parseInt(selectedGeoYear))) {
       setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
     }
@@ -632,6 +593,15 @@ const GraphBox = ({
               </Typography>
             ) : (
               <>
+                {lastUpdated && (
+                  <Typography
+                    variant="body2"
+                    color="#ccc"
+                    sx={{ marginBottom: "10px", fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                  >
+                    Senast uppdaterad: {lastUpdated.toLocaleTimeString("sv-SE")}
+                  </Typography>
+                )}
                 {latestHistorical && (
                   <>
                     <Typography
