@@ -53,7 +53,8 @@ export default async function Home() {
     "https://generous-shelagh-khalid-organization-eb1285b3.koyeb.app/api/players/current",
     {
       headers: {
-        authorization: `Bearer ${process.env.APIKey}`, // Använd miljövariabeln
+        authorization:
+          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJBbGV4YW5kZXIuZWtAbGl2ZS5zZSIsImlhdCI6MTc0MzM2MDk1MywiZXhwIjoxNzQ1OTUyOTUzfQ.ve8DB7ND1_4ptX0oteIzF3fbVFxr9gIEqfi2uVPPZAU",
       },
       cache: "no-store",
     }
