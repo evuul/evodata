@@ -1,91 +1,35 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, CircularProgress, keyframes } from '@mui/material';
+import React from 'react';
+import { Box, Typography, CircularProgress } from '@mui/material';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'; // Ikon för uppåtgående trend
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'; // Ikon för nedåtgående trend
-
-// Animation för en subtil puls-effekt
-const pulse = keyframes`
-  0% { box-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
-  50% { box-shadow: 0 0 15px rgba(0, 230, 118, 0.6); }
-  100% { box-shadow: 0 0 5px rgba(0, 230, 118, 0.3); }
-`;
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import { useStockPriceContext } from '../context/StockPriceContext';
 
 const StockPrice = () => {
-  const [stockPrice, setStockPrice] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { stockPrice, loading, error, lastUpdated } = useStockPriceContext();
 
-  useEffect(() => {
-    const fetchStockPrice = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/stock?symbol=EVO.ST');
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
-        setStockPrice(data);
-        setError(null);
-      } catch (err) {
-        setError('Kunde inte hämta aktiepriset.');
-        console.error('Error fetching stock price:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStockPrice();
-  }, []);
-
-  // Hämta pris och procentuell förändring
   const price = stockPrice?.price?.regularMarketPrice?.raw;
-  const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw; // Procentuell förändring
-  const isPositive = changePercent > 0; // Avgör om trenden är uppåt eller nedåt
+  const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw;
+  const isPositive = changePercent > 0;
+  const isUnchanged = changePercent === 0; // Kontrollera om förändringen är 0%
+
+  // Bestäm färgen för priset baserat på förändringen
+  const priceColorStyle = isUnchanged
+    ? { color: '#fff' } // Vitt vid oförändrat
+    : {
+        background: isPositive
+          ? 'linear-gradient(45deg, #00e676, #66ffa6)' // Grön gradient vid positiv
+          : 'linear-gradient(45deg, #ff5722, #ff8a65)', // Röd gradient vid negativ
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+      };
+
+  // Bestäm färgen för procentförändringen och ikonerna
+  const changeColor = isUnchanged ? '#fff' : isPositive ? '#00e676' : '#ff5722';
 
   return (
-    <Box
-      sx={{
-        padding: { xs: '12px', sm: '16px' },
-        background: 'linear-gradient(135deg, #2e2e2e, #1e1e1e)',
-        borderRadius: '12px',
-        textAlign: 'center',
-        display: 'inline-flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        boxShadow: '0 6px 12px rgba(0, 0, 0, 0.4)',
-        animation: `${pulse} 2s infinite ease-in-out`,
-        // transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-        // '&:hover': {
-        //   transform: 'translateY(-3px)',
-        //   boxShadow: '0 8px 16px rgba(0, 230, 118, 0.3)',
-        // },
-      }}
-    >
-      {/* Rubrik */}
-      <Box display="flex" alignItems="center" mb={1}>
-        <TrendingUpIcon
-          sx={{
-            color: '#00e676',
-            fontSize: { xs: '1.2rem', sm: '1.5rem' },
-            mr: 1,
-          }}
-        />
-        <Typography
-          variant="subtitle1"
-          sx={{
-            color: '#ccc',
-            fontSize: { xs: '0.9rem', sm: '1rem' },
-            fontFamily: "'Roboto', sans-serif",
-            fontWeight: 500,
-          }}
-        >
-          Aktiepris
-        </Typography>
-      </Box>
-
-      {/* Pris och trendindikator */}
+    <Box display="flex" flexDirection="column" alignItems="center">
       {loading ? (
         <CircularProgress
           size={24}
@@ -102,7 +46,6 @@ const StockPrice = () => {
             fontSize: { xs: '0.85rem', sm: '0.9rem' },
             fontFamily: "'Roboto', sans-serif",
             fontWeight: 400,
-            px: 2,
           }}
         >
           {error}
@@ -113,14 +56,11 @@ const StockPrice = () => {
             <Typography
               variant="h4"
               sx={{
-                color: '#fff',
                 fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' },
                 fontFamily: "'Roboto Mono', monospace",
                 fontWeight: 700,
-                background: 'linear-gradient(45deg, #00e676, #66ffa6)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
                 letterSpacing: '2px',
+                ...priceColorStyle, // Applicera dynamisk färg
               }}
             >
               {price?.toLocaleString('sv-SE', {
@@ -141,18 +81,19 @@ const StockPrice = () => {
             </Typography>
           </Box>
 
-          {/* Trendindikator */}
           {changePercent !== undefined && (
             <Box display="flex" alignItems="center" mt={0.5}>
               {isPositive ? (
-                <ArrowUpwardIcon sx={{ color: '#00e676', fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
+                <ArrowUpwardIcon sx={{ color: changeColor, fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
+              ) : isUnchanged ? (
+                <></> // Ingen ikon vid oförändrat
               ) : (
-                <ArrowDownwardIcon sx={{ color: '#ff5722', fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
+                <ArrowDownwardIcon sx={{ color: changeColor, fontSize: { xs: '1rem', sm: '1.2rem' }, mr: 0.5 }} />
               )}
               <Typography
                 variant="body2"
                 sx={{
-                  color: isPositive ? '#00e676' : '#ff5722',
+                  color: changeColor, // Använd samma dynamiska färg
                   fontSize: { xs: '0.8rem', sm: '0.9rem' },
                   fontFamily: "'Roboto Mono', monospace",
                 }}
@@ -164,6 +105,20 @@ const StockPrice = () => {
                 }) || '0.00'}%
               </Typography>
             </Box>
+          )}
+
+          {lastUpdated && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#ccc',
+                fontSize: { xs: '0.75rem', sm: '0.8rem' },
+                fontFamily: "'Roboto', sans-serif",
+                mt: 1,
+              }}
+            >
+              Senast uppdaterad: {lastUpdated.toLocaleTimeString('sv-SE')}
+            </Typography>
           )}
         </Box>
       )}

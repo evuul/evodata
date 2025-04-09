@@ -91,7 +91,7 @@ export default async function Home() {
           width: { xs: "95%", sm: "80%", md: "90%" }, // Samma bredd som GraphBox
           maxWidth: "1200px", // Sätt en maxbredd för att undvika att det blir för brett
           margin: "0 auto", // Centrera containern
-          padding: { xs: "10px", sm: "20px" },
+          padding: { xs: "5px 10px", sm: "10px 20px" },
         }}
       >
         {/* PlayerCard */}
