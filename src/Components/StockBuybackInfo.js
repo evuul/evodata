@@ -23,10 +23,13 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   Label,
+  BarChart,
+  Bar,
+  Legend,
 } from "recharts";
 import { keyframes } from "@emotion/react";
 import oldBuybackData from "../app/data/oldBuybackData.json";
-import { useStockPriceContext } from '../context/StockPriceContext'; // Importera den nya context-hooken
+import { useStockPriceContext } from '../context/StockPriceContext';
 
 // Växelkurs (exempelvärde)
 const exchangeRate = 10.83; // Exempel: 1 EUR = 10.83 SEK
@@ -88,6 +91,83 @@ const calculateCancelledShares = () => {
     .reduce((sum, item) => sum + Math.abs(item.Antal_aktier), 0);
 };
 
+// Beräkna utdelningar och aktieåterköp per år för "Återinvestering till investerare"
+const calculateShareholderReturns = (dividendData) => {
+  // Beräkna utdelningar per år från historicalDividends
+  const dividendsByYear = {};
+  dividendData.historicalDividends.forEach((dividend) => {
+    const year = new Date(dividend.date).getFullYear();
+    const totalSharesForYear = totalSharesData.find(
+      (share) => share.date === year.toString()
+    )?.totalShares || 0;
+
+    const totalDividend = dividend.dividendPerShare * totalSharesForYear;
+
+    if (!dividendsByYear[year]) {
+      dividendsByYear[year] = 0;
+    }
+    dividendsByYear[year] += totalDividend;
+  });
+
+  // Lägg till planerade utdelningar för 2025 från plannedDividends
+  if (dividendData.plannedDividends && dividendData.plannedDividends.length > 0) {
+    dividendData.plannedDividends.forEach((planned) => {
+      const year = new Date(planned.exDate).getFullYear();
+      const totalSharesForYear = totalSharesData.find(
+        (share) => share.date === year.toString()
+      )?.totalShares || 0;
+
+      const totalDividend = planned.dividendPerShare * totalSharesForYear;
+
+      if (!dividendsByYear[year]) {
+        dividendsByYear[year] = 0;
+      }
+      dividendsByYear[year] += totalDividend;
+    });
+  }
+
+  // Beräkna aktieåterköp per år
+  const buybacksByYear = {};
+  oldBuybackData.forEach((buyback) => {
+    if (buyback.Antal_aktier > 0) { // Endast positiva transaktioner (återköp)
+      const year = new Date(buyback.Datum).getFullYear();
+      if (!buybacksByYear[year]) {
+        buybacksByYear[year] = 0;
+      }
+      buybacksByYear[year] += buyback.Transaktionsvärde;
+    }
+  });
+
+  // Kombinera data för varje år
+  const years = new Set([
+    ...Object.keys(dividendsByYear),
+    ...Object.keys(buybacksByYear),
+  ]);
+  const combinedData = Array.from(years)
+    .sort()
+    .map((year) => ({
+      year: parseInt(year),
+      dividends: dividendsByYear[year] || 0,
+      buybacks: buybacksByYear[year] || 0,
+    }));
+
+  // Beräkna totala återinvesteringar
+  const total = combinedData.reduce((sum, yearData) => {
+    return sum + yearData.dividends + yearData.buybacks;
+  }, 0);
+
+  // Beräkna totala utdelningar och aktieåterköp separat
+  const totalDividends = combinedData.reduce((sum, yearData) => sum + yearData.dividends, 0);
+  const totalBuybacks = combinedData.reduce((sum, yearData) => sum + yearData.buybacks, 0);
+
+  // Beräkna totala utdelningar och aktieåterköp för det senaste året (2025 eller senast tillgängliga år)
+  const latestYear = Math.max(...combinedData.map(item => item.year));
+  const latestYearData = combinedData.find(item => item.year === latestYear);
+  const latestYearReturns = latestYearData ? (latestYearData.dividends + latestYearData.buybacks) : 0;
+
+  return { combinedData, total, totalDividends, totalBuybacks, latestYearReturns, latestYear };
+};
+
 // Beräkna Evolutions ägande och makulerade aktier
 const evolutionOwnershipData = calculateEvolutionOwnershipPerYear();
 const cancelledShares = calculateCancelledShares();
@@ -143,17 +223,23 @@ const StockBuybackInfo = ({
   buybackCash,
   sharesBought,
   averagePrice = 0,
-  dividendData, // Fortfarande som prop för fallback
+  dividendData,
 }) => {
   const [activeTab, setActiveTab] = useState("buyback");
   const [viewMode, setViewMode] = useState("daily");
   const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" });
 
-  // Använd useStockPriceContext för att hämta aktiepriset
-  const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
+  // Använd useStockPriceContext för att hämta aktiepriset och marknadsvärdet
+  const { stockPrice, marketCap, loading: loadingPrice, error: priceError } = useStockPriceContext();
 
   // Hämta det aktuella priset från useStockPriceContext, med fallback till dividendData om det blir ett fel
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
+
+  // Beräkna återinvesteringar
+  const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData);
+
+  // Beräkna direktavkastning baserat på marketCap från StockPriceContext
+  const directYieldPercentage = marketCap > 0 ? (latestYearReturns / marketCap) * 100 : 0;
 
   const buybackCashInSEK = buybackCash * exchangeRate;
   const totalBuybackValue = sharesBought * averagePrice;
@@ -212,6 +298,13 @@ const StockBuybackInfo = ({
     return [lowerBound, upperBound];
   };
 
+  // Förbered data för stapeldiagrammet
+  const chartData = returnsData.map((item) => ({
+    year: item.year === 2025 ? `${item.year} (pågående)` : item.year,
+    dividends: item.dividends / 1000000, // Konvertera till Mkr
+    buybacks: item.buybacks / 1000000, // Konvertera till Mkr
+  }));
+
   return (
     <Card
       sx={{
@@ -235,6 +328,7 @@ const StockBuybackInfo = ({
         <Tab label="Evolutions ägande" value="ownership" />
         <Tab label="Totala aktier" value="totalShares" />
         <Tab label="Återköpshistorik" value="history" />
+        <Tab label="Återinvestering" value="returns" />
       </Tabs>
 
       {activeTab === "buyback" && (
@@ -346,7 +440,7 @@ const StockBuybackInfo = ({
             Antal aktier över tid
           </Typography>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={evolutionOwnershipData} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
+            <LineChart data={evolutionOwnershipData} margin={{ top: 20, right: "20", bottom: 20, left: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
                 <Label value="År" offset={-10} position="insideBottom" fill="#ccc" />
@@ -420,7 +514,7 @@ const StockBuybackInfo = ({
             <LineChart data={totalSharesData} margin={{ top: 20, right: 20, bottom: 20, left: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
-                <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+                <Label value="År" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
               <YAxis stroke="#ccc" domain={getYDomain(totalSharesData, "totalShares")} tickFormatter={formatYAxisTick}>
                 <Label value="Antal aktier" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
@@ -562,6 +656,116 @@ const StockBuybackInfo = ({
               </TableBody>
             </Table>
           </TableContainer>
+        </Box>
+      )}
+
+      {activeTab === "returns" && (
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Typography
+            variant="h4"
+            sx={{
+              fontWeight: "bold",
+              color: "#00e676",
+              marginBottom: "20px",
+              textAlign: "center",
+            }}
+          >
+            Återinvestering till investerare
+          </Typography>
+
+          {/* Total återinvestering och uppdelning */}
+          <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+            <Typography
+              variant="h5"
+              sx={{
+                color: "#FFCA28",
+                fontWeight: "bold",
+                fontSize: {
+                  xs: "1.2rem",
+                  sm: "1.5rem",
+                  md: "2rem",
+                },
+                textAlign: "center",
+              }}
+            >
+              Total återinvestering: {(totalReturns / 1000000).toLocaleString("sv-SE")} Mkr
+            </Typography>
+            <Typography
+              variant="body1"
+              sx={{
+                color: "#ccc",
+                marginTop: "5px",
+                textAlign: "center",
+              }}
+            >
+              (Utdelningar: {(totalDividends / 1000000).toLocaleString("sv-SE")} Mkr, Aktieåterköp: {(totalBuybacks / 1000000).toLocaleString("sv-SE")} Mkr)
+            </Typography>
+            {loadingPrice ? (
+              <Typography
+                variant="body1"
+                sx={{
+                  color: "#ccc",
+                  marginTop: "10px",
+                  textAlign: "center",
+                }}
+              >
+                Laddar direktavkastning...
+              </Typography>
+            ) : (
+              <Typography
+                variant="body1"
+                sx={{
+                  color: "#00e676",
+                  marginTop: "10px",
+                  textAlign: "center",
+                }}
+              >
+                Direktavkastning ({latestYear}): {directYieldPercentage.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% av marknadsvärdet ({(marketCap / 1000000000).toLocaleString("sv-SE")} Mdkr)
+              </Typography>
+            )}
+          </Box>
+
+          {/* Stapeldiagram för utdelningar och aktieåterköp per år */}
+          {chartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart
+                data={chartData}
+                margin={{ top: 50, right: 30, left: 40, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis
+                  dataKey="year"
+                  stroke="#ccc"
+                  tick={{ fill: "#ccc" }}
+                >
+                  <Label value="År" offset={-10} position="insideBottom" fill="#ccc" />
+                </XAxis>
+                <YAxis
+                  stroke="#ccc"
+                  tick={{ fill: "#ccc" }}
+                  tickFormatter={(value) => `${value.toLocaleString("sv-SE")} Mkr`}
+                >
+                  <Label value="Belopp (Mkr)" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+                </YAxis>
+                <Tooltip
+                  contentStyle={{ backgroundColor: "#333", border: "none" }}
+                  labelStyle={{ color: "#ccc" }}
+                  itemStyle={{ color: "#ccc" }}
+                  formatter={(value) => `${value.toLocaleString("sv-SE")} Mkr`}
+                />
+                <Legend
+                  verticalAlign="top"
+                  wrapperStyle={{ color: "#ccc", marginBottom: 20 }}
+                />
+                <Bar dataKey="dividends" fill="#00e676" name="Utdelningar" />
+                <Bar dataKey="buybacks" fill="#FFCA28" name="Aktieåterköp" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <Typography variant="body1" sx={{ color: "#ccc", textAlign: "center" }}>
+              Laddar data...
+            </Typography>
+          )}
         </Box>
       )}
     </Card>
