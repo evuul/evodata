@@ -7,7 +7,6 @@ import GraphBox from "../Components/GraphBox";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
-import StockPrice from "../Components/StockPrice";
 import { Box } from "@mui/material";
 
 // Logga dividendData och financialReports för att kontrollera att de importeras korrekt
@@ -69,16 +68,6 @@ export default async function Home() {
   return (
     <main>
       <Header />
-      {/* Centrera StockPrice */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'center', // Centrera horisontellt
-          margin: { xs: '10px 0', sm: '20px 0' }, // Lägg till marginal över och under
-        }}
-      >
-        <StockPrice />
-      </Box>
 
       {/* Container för PlayerCard och MoneyCounter */}
       <Box
@@ -87,22 +76,25 @@ export default async function Home() {
           justifyContent: "center",
           alignItems: "stretch",
           flexWrap: "wrap",
-          gap: { xs: "20px", sm: "20px", md: "30px" }, // Öka gap på större skärmar för att ge mer utrymme
+          gap: { xs: "0px", sm: "20px", md: "0px" }, // Minskat gap på mobil
           width: "100%",
-          maxWidth: "1400px", // Öka maxWidth för att ge mer utrymme på stora skärmar
+          maxWidth: "1400px",
           margin: "0 auto",
-          padding: 0,
+          padding: "0",
+          marginTop: { xs: "10px", sm: "20px" },
+          boxSizing: "border-box",
         }}
       >
         {/* PlayerCard */}
         <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" }, // Använd fast flex-basis istället för procent
-            minWidth: { xs: "100%", sm: "300px", md: "350px" }, // Minska minWidth för att undvika överlappning
-            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" }, // Justera maxWidth för att matcha GraphBox
+            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" },
+            width: { xs: "95%", sm: "auto" },
+            minWidth: { xs: "auto", sm: "300px", md: "350px" },
+            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" },
             margin: "0 auto",
             minHeight: { xs: "200px", sm: "120px", md: "150px" },
-            boxSizing: "border-box", // Säkerställ att padding och border inte påverkar bredden
+            boxSizing: "border-box",
           }}
         >
           <PlayerCard playerCount={data.playersCount} />
@@ -111,12 +103,13 @@ export default async function Home() {
         {/* MoneyCounter */}
         <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" }, // Samma flex-basis som PlayerCard
-            minWidth: { xs: "100%", sm: "300px", md: "350px" }, // Samma minWidth som PlayerCard
-            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" }, // Samma maxWidth som PlayerCard
+            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" },
+            width: { xs: "95%", sm: "auto" },
+            minWidth: { xs: "auto", sm: "300px", md: "350px" },
+            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" },
             margin: "0 auto",
             minHeight: { xs: "200px", sm: "120px", md: "150px" },
-            boxSizing: "border-box", // Säkerställ att padding och border inte påverkar bredden
+            boxSizing: "border-box",
           }}
         >
           <MoneyCounter />
@@ -124,7 +117,13 @@ export default async function Home() {
       </Box>
 
       {/* GraphBox */}
-      <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
         <GraphBox
           revenueData={formattedRevenueData}
           marginData={formattedMarginData}
@@ -137,7 +136,13 @@ export default async function Home() {
       </Box>
 
       {/* StockBuybackInfo */}
-      <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
         <StockBuybackInfo
           isActive={false}
           buybackCash={500000000}
@@ -148,7 +153,13 @@ export default async function Home() {
       </Box>
 
       {/* ComingUpdates */}
-      <Box sx={{ marginTop: { xs: 2, sm: 3 } }}>
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
         <ComingUpdates />
       </Box>
     </main>

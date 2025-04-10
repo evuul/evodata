@@ -32,7 +32,7 @@ import {
   Bar,
   Legend,
 } from "recharts";
-import { useStockPriceContext } from '../context/StockPriceContext'; // Importera den nya context-hooken
+import { useStockPriceContext } from '../context/StockPriceContext';
 
 const GraphBox = ({
   revenueData,
@@ -57,13 +57,9 @@ const GraphBox = ({
 
   const today = new Date("2025-04-07");
 
-  // Använd useStockPriceContext för att hämta aktiepriset
   const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
-
-  // Hämta det aktuella priset från useStockPriceContext, med fallback till dividendData om det blir ett fel
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
-  // Uppdatera senast uppdaterad tid när priset ändras
   React.useEffect(() => {
     if (stockPrice && !loadingPrice) {
       setLastUpdated(new Date());
@@ -87,7 +83,6 @@ const GraphBox = ({
     setSelectedGeoPeriod(newValue);
   };
 
-  // Formatera data för utdelningsgrafen
   const historical = (dividendData.historicalDividends || []).map(item => ({
     date: item.date,
     dividendPerShare: item.dividendPerShare,
@@ -117,21 +112,18 @@ const GraphBox = ({
   const plannedYield = planned[0]?.dividendYield || 0;
   const latestHistorical = historical[historical.length - 1];
 
-  // Hämta unika årtal från financialReports, bara från 2020 och framåt
   const uniqueYears = [...new Set(
     financialReports.financialReports
       .filter(report => report.year >= 2020)
       .map(report => report.year)
   )].sort();
 
-  // Sätt default selectedGeoYear till det senaste årtalet från 2020 och framåt
   React.useEffect(() => {
     if (uniqueYears.length > 0 && !uniqueYears.includes(parseInt(selectedGeoYear))) {
       setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
     }
   }, [uniqueYears, selectedGeoYear]);
 
-  // Hämta tillgängliga kvartal för det valda årtalet
   const availableQuarters = useMemo(() => {
     const quarters = financialReports.financialReports
       .filter(report => report.year.toString() === selectedGeoYear)
@@ -139,7 +131,6 @@ const GraphBox = ({
     return [...new Set(quarters)];
   }, [selectedGeoYear, financialReports]);
 
-  // Filtrera data för geografisk fördelning baserat på valt årtal och period
   const geoDataOptions = financialReports.financialReports
     .filter(report => report.year >= 2020)
     .map(report => ({
@@ -155,7 +146,6 @@ const GraphBox = ({
       ],
     }));
 
-  // Beräkna data för valt årtal och period
   const selectedGeoData = useMemo(() => {
     if (selectedGeoPeriod === "Helår") {
       const yearlyReports = geoDataOptions.filter(option => option.year.toString() === selectedGeoYear);
@@ -184,7 +174,6 @@ const GraphBox = ({
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-  // Förbered data för LiveCasino vs RNG (Stacked Bar Chart)
   const liveCasinoRngDataQuarterly = financialReports.financialReports
     .filter(report => report.year >= 2020)
     .map(report => ({
@@ -206,7 +195,6 @@ const GraphBox = ({
     });
   });
 
-  // Beräkna genomsnittligt antal spelare för de senaste 30 dagarna
   const calculateAveragePlayers = (data, days) => {
     if (!data || !Array.isArray(data) || data.length === 0) return { average: 0, daysCount: 0 };
 
@@ -230,7 +218,6 @@ const GraphBox = ({
 
   const { average: avgPlayers, daysCount } = useMemo(() => calculateAveragePlayers(playersData, 30), [playersData]);
 
-  // Formatering för Y-axeln
   const formatPlayersTick = (value) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
@@ -299,7 +286,6 @@ const GraphBox = ({
         Finansiell översikt
       </Typography>
 
-      {/* Tabs för "Finansiell översikt" */}
       {isMobile ? (
         <Select
           value={activeTab}
@@ -444,25 +430,36 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "quarterly" ? revenueData : annualRevenueData}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: isMobile ? 10 : 20, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
+              <XAxis
+                dataKey="date"
+                stroke="#ccc"
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 60 : 30}
+                interval={isMobile && viewMode === "quarterly" ? "preserveStartEnd" : 0}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+              >
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
               <YAxis
                 stroke="#ccc"
                 tickFormatter={formatRevenueTick}
                 width={isMobile ? 40 : 60}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
               >
-                <Label
-                  value="Omsättning (MEUR)"
-                  angle={-90}
-                  offset={-10}
-                  position="insideLeft"
-                  fill="#ccc"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
-                />
+                {!isMobile && (
+                  <Label
+                    value="Omsättning (MEUR)"
+                    angle={-90}
+                    offset={-10}
+                    position="insideLeft"
+                    fill="#ccc"
+                    style={{ fontSize: "14px" }}
+                  />
+                )}
               </YAxis>
               <Tooltip
                 formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
@@ -519,10 +516,18 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "quarterly" ? marginData : annualMarginData}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: isMobile ? 10 : 20, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
+              <XAxis
+                dataKey="date"
+                stroke="#ccc"
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 60 : 30}
+                interval={isMobile && viewMode === "quarterly" ? "preserveStartEnd" : 0}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+              >
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
               <YAxis
@@ -530,15 +535,18 @@ const GraphBox = ({
                 domain={[0, 100]}
                 tickFormatter={formatMarginTick}
                 width={isMobile ? 40 : 60}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
               >
-                <Label
-                  value="Marginal (%)"
-                  angle={-90}
-                  offset={-10}
-                  position="insideLeft"
-                  fill="#ccc"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
-                />
+                {!isMobile && (
+                  <Label
+                    value="Marginal (%)"
+                    angle={-90}
+                    offset={-10}
+                    position="insideLeft"
+                    fill="#ccc"
+                    style={{ fontSize: "14px" }}
+                  />
+                )}
               </YAxis>
               <Tooltip
                 formatter={(value) => `${value.toLocaleString("sv-SE")}%`}
@@ -656,10 +664,18 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={combinedDividendData}
-              margin={{ top: 20, right: isMobile ? 20 : 40, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: isMobile ? 10 : 40, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
+              <XAxis
+                dataKey="date"
+                stroke="#ccc"
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 60 : 30}
+                interval={isMobile ? "preserveStartEnd" : 0}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+              >
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
               <YAxis
@@ -667,15 +683,18 @@ const GraphBox = ({
                 stroke="#ccc"
                 tickFormatter={formatDividendTick}
                 width={isMobile ? 40 : 60}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
               >
-                <Label
-                  value="Utdelning (SEK)"
-                  angle={-90}
-                  offset={-10}
-                  position="insideLeft"
-                  fill="#ccc"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
-                />
+                {!isMobile && (
+                  <Label
+                    value="Utdelning (SEK)"
+                    angle={-90}
+                    offset={-10}
+                    position="insideLeft"
+                    fill="#ccc"
+                    style={{ fontSize: "14px" }}
+                  />
+                )}
               </YAxis>
               <YAxis
                 yAxisId="right"
@@ -683,15 +702,18 @@ const GraphBox = ({
                 stroke="#ccc"
                 tickFormatter={formatDividendYieldTick}
                 width={isMobile ? 40 : 60}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
               >
-                <Label
-                  value="Direktavkastning (%)"
-                  angle={90}
-                  offset={-10}
-                  position="insideRight"
-                  fill="#ccc"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
-                />
+                {!isMobile && (
+                  <Label
+                    value="Direktavkastning (%)"
+                    angle={90}
+                    offset={-10}
+                    position="insideRight"
+                    fill="#ccc"
+                    style={{ fontSize: "14px" }}
+                  />
+                )}
               </YAxis>
               <Tooltip
                 formatter={(value, name) => [
@@ -793,13 +815,21 @@ const GraphBox = ({
             Senaste {daysCount} dagar
           </Typography>
 
-          <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={playersData}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: isMobile ? 10 : 20, bottom: 20, left: isMobile ? 20 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="Datum" stroke="#ccc">
+              <XAxis
+                dataKey="Datum"
+                stroke="#ccc"
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 60 : 30}
+                interval={isMobile ? "preserveStartEnd" : 0}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
+              >
                 <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
               </XAxis>
               <YAxis
@@ -809,15 +839,18 @@ const GraphBox = ({
                 width={isMobile ? 40 : 60}
                 tickCount={9}
                 interval={0}
+                tick={{ fontSize: isMobile ? 10 : 12 }}
               >
-                <Label
-                  value="Antal spelare"
-                  angle={-90}
-                  offset={-10}
-                  position="insideLeft"
-                  fill="#ccc"
-                  style={{ fontSize: isMobile ? "12px" : "14px" }}
-                />
+                {!isMobile && (
+                  <Label
+                    value="Antal spelare"
+                    angle={-90}
+                    offset={-10}
+                    position="insideLeft"
+                    fill="#ccc"
+                    style={{ fontSize: "14px" }}
+                  />
+                )}
               </YAxis>
               <Tooltip
                 formatter={(value) => `Spelare: ${value.toLocaleString("sv-SE")}`}
@@ -853,7 +886,6 @@ const GraphBox = ({
             Geografisk fördelning av intäkter
           </Typography>
 
-          {/* Tabs för att välja årtal */}
           <Tabs
             value={selectedGeoYear}
             onChange={handleGeoYearChange}
@@ -876,7 +908,6 @@ const GraphBox = ({
             ))}
           </Tabs>
 
-          {/* Tabs för att välja kvartal eller helår */}
           <Tabs
             value={selectedGeoPeriod}
             onChange={handleGeoPeriodChange}
@@ -922,7 +953,7 @@ const GraphBox = ({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={isMobile ? 80 : 100}
+                  outerRadius={isMobile ? 70 : 100}
                   fill="#8884d8"
                   label={isMobile ? false : ({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
                   labelLine={isMobile ? false : true}
@@ -1003,25 +1034,36 @@ const GraphBox = ({
             <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
               <BarChart
                 data={viewMode === "quarterly" ? liveCasinoRngDataQuarterly : liveCasinoRngDataYearly}
-                margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+                margin={{ top: 20, right: isMobile ? 10 : 20, bottom: 20, left: isMobile ? 20 : 40 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis dataKey="date" stroke="#ccc">
+                <XAxis
+                  dataKey="date"
+                  stroke="#ccc"
+                  angle={isMobile ? -45 : 0}
+                  textAnchor={isMobile ? "end" : "middle"}
+                  height={isMobile ? 60 : 30}
+                  interval={isMobile && viewMode === "quarterly" ? "preserveStartEnd" : 0}
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                >
                   <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
                 </XAxis>
                 <YAxis
                   stroke="#ccc"
                   tickFormatter={formatLiveCasinoRngTick}
                   width={isMobile ? 40 : 60}
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
                 >
-                  <Label
-                    value="Intäkter (MEUR)"
-                    angle={-90}
-                    offset={-10}
-                    position="insideLeft"
-                    fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }}
-                  />
+                  {!isMobile && (
+                    <Label
+                      value="Intäkter (MEUR)"
+                      angle={-90}
+                      offset={-10}
+                      position="insideLeft"
+                      fill="#ccc"
+                      style={{ fontSize: "14px" }}
+                    />
+                  )}
                 </YAxis>
                 <Tooltip
                   formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
