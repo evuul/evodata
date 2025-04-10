@@ -1144,7 +1144,7 @@ const StockBuybackInfo = ({
 
           {/* Stapeldiagram för utdelningar och aktieåterköp per år */}
           {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+            <ResponsiveContainer width="100%" height={isMobile ? 250 : 400}>
               <BarChart
                 data={chartData}
                 margin={{
@@ -1198,7 +1198,7 @@ const StockBuybackInfo = ({
                   verticalAlign="top"
                   wrapperStyle={{ color: "#ccc", marginBottom: 20 }}
                 />
-                <Bar dataKey="dividends" fill="#00e676" name="Utdelningar" />
+                <Bar dataKey="dividends" fill="#00e676" name="UTD" />
                 <Bar dataKey="buybacks" fill="#FFCA28" name="Aktieåterköp" />
               </BarChart>
             </ResponsiveContainer>
