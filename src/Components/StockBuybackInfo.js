@@ -13,6 +13,10 @@ import {
   TableHead,
   TableRow,
   TableContainer,
+  Select,
+  MenuItem,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import {
   LineChart,
@@ -229,6 +233,10 @@ const StockBuybackInfo = ({
   const [viewMode, setViewMode] = useState("daily");
   const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" });
 
+  // Använd useMediaQuery och useTheme för att avgöra om det är mobilskärm
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   // Använd useStockPriceContext för att hämta aktiepriset och marknadsvärdet
   const { stockPrice, marketCap, loading: loadingPrice, error: priceError } = useStockPriceContext();
 
@@ -316,20 +324,106 @@ const StockBuybackInfo = ({
         width: { xs: "90%", sm: "80%", md: "70%" },
       }}
     >
-      <Tabs
-        value={activeTab}
-        onChange={handleTabChange}
-        centered
-        textColor="inherit"
-        TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-        sx={{ color: "#ccc", marginBottom: "20px" }}
-      >
-        <Tab label="Återköpsstatus" value="buyback" />
-        <Tab label="Evolutions ägande" value="ownership" />
-        <Tab label="Totala aktier" value="totalShares" />
-        <Tab label="Återköpshistorik" value="history" />
-        <Tab label="Återinvestering" value="returns" />
-      </Tabs>
+      {/* Tabs för "StockBuybackInfo" */}
+      {isMobile ? (
+        <Select
+          value={activeTab}
+          onChange={(event) => setActiveTab(event.target.value)}
+          fullWidth
+          sx={{
+            color: "#ccc",
+            backgroundColor: "#2e2e2e",
+            marginBottom: "20px",
+            borderRadius: "8px",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+            "& .MuiSelect-select": {
+              padding: "12px 32px",
+              textAlign: "center",
+              fontSize: "1rem",
+              fontWeight: "bold",
+              transition: "background-color 0.3s ease",
+            },
+            "& .MuiSelect-icon": {
+              color: "#00e676",
+            },
+            "&:hover": {
+              backgroundColor: "#3e3e3e",
+            },
+            "&.Mui-focused": {
+              backgroundColor: "#3e3e3e",
+              boxShadow: "0 0 0 2px rgba(0, 230, 118, 0.3)",
+            },
+          }}
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                backgroundColor: "#2e2e2e",
+                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.5)",
+                maxHeight: "50vh",
+                overflowY: "auto",
+                "& .MuiMenuItem-root": {
+                  color: "#ccc",
+                  textAlign: "center",
+                  justifyContent: "center",
+                  padding: "12px 16px",
+                  fontSize: "1rem",
+                  transition: "background-color 0.3s ease",
+                  "&:hover": {
+                    backgroundColor: "#00e676",
+                    color: "#1e1e1e",
+                  },
+                  "&.Mui-selected": {
+                    backgroundColor: "#00e676",
+                    color: "#1e1e1e",
+                    fontWeight: "bold",
+                    "&:hover": {
+                      backgroundColor: "#00c853",
+                    },
+                  },
+                },
+                WebkitOverflowScrolling: "touch",
+                "&::-webkit-scrollbar": {
+                  width: "6px",
+                },
+                "&::-webkit-scrollbar-track": {
+                  background: "#2e2e2e",
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  background: "#00e676",
+                  borderRadius: "3px",
+                },
+                "&::-webkit-scrollbar-thumb:hover": {
+                  background: "#00c853",
+                },
+              },
+            },
+          }}
+        >
+          <MenuItem value="buyback">Återköpsstatus</MenuItem>
+          <MenuItem value="ownership">Evolutions ägande</MenuItem>
+          <MenuItem value="totalShares">Totala aktier</MenuItem>
+          <MenuItem value="history">Återköpshistorik</MenuItem>
+          <MenuItem value="returns">Återinvestering</MenuItem>
+        </Select>
+      ) : (
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          centered
+          textColor="inherit"
+          TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+          sx={{
+            color: "#ccc",
+            marginBottom: "20px",
+          }}
+        >
+          <Tab label="Återköpsstatus" value="buyback" />
+          <Tab label="Evolutions ägande" value="ownership" />
+          <Tab label="Totala aktier" value="totalShares" />
+          <Tab label="Återköpshistorik" value="history" />
+          <Tab label="Återinvestering" value="returns" />
+        </Tabs>
+      )}
 
       {activeTab === "buyback" && (
         <Box display="flex" flexDirection="column" alignItems="center">
@@ -557,7 +651,7 @@ const StockBuybackInfo = ({
       )}
 
       {activeTab === "history" && (
-        <Box display="flex" flexDirection="column" alignItems="center">
+        <Box display="flex" flexDirection="column" alignItems="center" sx={{ overflowX: "hidden" }}>
           <Typography
             variant="h4"
             sx={{
@@ -592,17 +686,50 @@ const StockBuybackInfo = ({
           <Typography variant="h6" color="#ccc" sx={{ marginBottom: "10px", textAlign: "center" }}>
             {viewMode === "daily" ? "Dagliga återköp" : "Årliga återköp"}
           </Typography>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "daily" ? buybackDataForGraphDaily : buybackDataForGraphYearly()}
-              margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
+              margin={{
+                top: 20,
+                right: isMobile ? 10 : 20, // Minska höger marginal på mobil
+                bottom: 20,
+                left: isMobile ? 20 : 40, // Öka vänster marginal något på mobil för att rymma Y-axelns tal
+              }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="Datum" stroke="#ccc">
-                <Label value={viewMode === "daily" ? "Datum" : "År"} offset={-10} position="insideBottom" fill="#ccc" />
+              <XAxis
+                dataKey="Datum"
+                stroke="#ccc"
+                angle={isMobile ? -45 : 0} // Rotera etiketter på mobil
+                textAnchor={isMobile ? "end" : "middle"} // Justera textankare för roterade etiketter
+                height={isMobile ? 60 : 30} // Öka höjd för att rymma roterade etiketter
+                interval={isMobile && viewMode === "daily" ? "preserveStartEnd" : 0} // Visa färre etiketter i daglig vy på mobil
+                tick={{ fontSize: isMobile ? 10 : 12 }} // Minska fontstorlek på mobil
+              >
+                <Label
+                  value={viewMode === "daily" ? "Datum" : "År"}
+                  offset={-10}
+                  position="insideBottom"
+                  fill="#ccc"
+                />
               </XAxis>
-              <YAxis stroke="#ccc" domain={getYDomain(viewMode === "daily" ? buybackDataForGraphDaily : buybackDataForGraphYearly(), "Antal_aktier")} tickFormatter={formatYAxisTick}>
-                <Label value="Antal aktier" angle={-90} offset={-30} position="insideLeft" fill="#ccc" />
+              <YAxis
+                stroke="#ccc"
+                domain={getYDomain(viewMode === "daily" ? buybackDataForGraphDaily : buybackDataForGraphYearly(), "Antal_aktier")}
+                tickFormatter={formatYAxisTick}
+                width={isMobile ? 40 : 60} // Öka Y-axelns bredd något på mobil för att rymma tresiffriga tal
+                tick={{ fontSize: isMobile ? 10 : 12 }} // Minska fontstorlek på mobil
+              >
+                {/* Dölj Y-axelns etikett på mobil för att spara utrymme */}
+                {!isMobile && (
+                  <Label
+                    value="Antal aktier"
+                    angle={-90}
+                    offset={-30}
+                    position="insideLeft"
+                    fill="#ccc"
+                  />
+                )}
               </YAxis>
               <Tooltip
                 formatter={(value) => value.toLocaleString("sv-SE")}

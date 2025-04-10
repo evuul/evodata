@@ -11,10 +11,10 @@ const manrope = Manrope({ subsets: ["latin"], weight: "400" });
 
 const updates = [
   { text: "Ny design och layout", done: true },
-  { text: "Login med egen dashboard", done: true },
   { text: "Interaktiva grafer och statistik", done: true },
   { text: "Återköpsprogram & utdelningshistorik", done: true },
   { text: "Geografisk karta över intäkter", done: true },
+  { text: "Login med egen dashboard", done: false },
   { text: "Finansiella insikter & aktieanalys", done: false },
   { text: "Speltrender & framtidsprognoser", done: false },
   { text: "Mobilanpassa", done: false },
