@@ -120,7 +120,7 @@ export default async function Home() {
       <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "85%", md: "90%" },
           margin: "0 auto",
         }}
       >
@@ -139,7 +139,7 @@ export default async function Home() {
       <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "85%", md: "90%" },
           margin: "0 auto",
         }}
       >

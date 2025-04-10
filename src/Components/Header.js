@@ -137,7 +137,7 @@ const Header = () => {
           <Box
             sx={{
               display: { xs: "none", sm: "block" }, // Visa bara på sm och uppåt
-              marginBottom: "10px",
+              marginBottom: "0px",
             }}
           >
             <StockPrice />
@@ -146,7 +146,7 @@ const Header = () => {
       )}
 
       {/* Senast uppdaterad tid */}
-      {lastUpdated && !loadingPrice && !priceError && (
+      {/* {lastUpdated && !loadingPrice && !priceError && (
         <Typography
           variant="body2"
           sx={{
@@ -157,7 +157,7 @@ const Header = () => {
         >
           Senast uppdaterad: {lastUpdated.toLocaleTimeString("sv-SE")}
         </Typography>
-      )}
+      )} */}
     </Box>
   );
 };
