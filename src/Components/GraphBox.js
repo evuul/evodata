@@ -1,3 +1,4 @@
+// src/Components/GraphBox.jsx
 'use client';
 import React, { useState, useMemo } from "react";
 import {
@@ -15,6 +16,7 @@ import {
   MenuItem,
   useMediaQuery,
   useTheme,
+  IconButton,
 } from "@mui/material";
 import {
   LineChart,
@@ -32,7 +34,9 @@ import {
   Bar,
   Legend,
 } from "recharts";
-import { useStockPriceContext } from '../context/StockPriceContext'; // Importera den nya context-hooken
+import { useStockPriceContext } from '../context/StockPriceContext';
+import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 const GraphBox = ({
   revenueData,
@@ -57,18 +61,38 @@ const GraphBox = ({
 
   const today = new Date("2025-04-07");
 
-  // Använd useStockPriceContext för att hämta aktiepriset
   const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
 
-  // Hämta det aktuella priset från useStockPriceContext, med fallback till dividendData om det blir ett fel
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
-  // Uppdatera senast uppdaterad tid när priset ändras
   React.useEffect(() => {
     if (stockPrice && !loadingPrice) {
       setLastUpdated(new Date());
     }
   }, [stockPrice, loadingPrice]);
+
+  // Lista över tabbar för navigering (används endast på desktop)
+  const tabsList = [
+    "revenue",
+    "margin",
+    "dividend",
+    "players",
+    "geoDistribution",
+    "liveCasinoRng",
+  ];
+
+  // Funktioner för att navigera med pilar (används endast på desktop)
+  const handlePrevTab = () => {
+    const currentIndex = tabsList.indexOf(activeTab);
+    const prevIndex = (currentIndex - 1 + tabsList.length) % tabsList.length;
+    setActiveTab(tabsList[prevIndex]);
+  };
+
+  const handleNextTab = () => {
+    const currentIndex = tabsList.indexOf(activeTab);
+    const nextIndex = (currentIndex + 1) % tabsList.length;
+    setActiveTab(tabsList[nextIndex]);
+  };
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
@@ -87,7 +111,6 @@ const GraphBox = ({
     setSelectedGeoPeriod(newValue);
   };
 
-  // Formatera data för utdelningsgrafen
   const historical = (dividendData.historicalDividends || []).map(item => ({
     date: item.date,
     dividendPerShare: item.dividendPerShare,
@@ -117,21 +140,18 @@ const GraphBox = ({
   const plannedYield = planned[0]?.dividendYield || 0;
   const latestHistorical = historical[historical.length - 1];
 
-  // Hämta unika årtal från financialReports, bara från 2020 och framåt
   const uniqueYears = [...new Set(
     financialReports.financialReports
       .filter(report => report.year >= 2020)
       .map(report => report.year)
   )].sort();
 
-  // Sätt default selectedGeoYear till det senaste årtalet från 2020 och framåt
   React.useEffect(() => {
     if (uniqueYears.length > 0 && !uniqueYears.includes(parseInt(selectedGeoYear))) {
       setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
     }
   }, [uniqueYears, selectedGeoYear]);
 
-  // Hämta tillgängliga kvartal för det valda årtalet
   const availableQuarters = useMemo(() => {
     const quarters = financialReports.financialReports
       .filter(report => report.year.toString() === selectedGeoYear)
@@ -139,7 +159,6 @@ const GraphBox = ({
     return [...new Set(quarters)];
   }, [selectedGeoYear, financialReports]);
 
-  // Filtrera data för geografisk fördelning baserat på valt årtal och period
   const geoDataOptions = financialReports.financialReports
     .filter(report => report.year >= 2020)
     .map(report => ({
@@ -155,7 +174,6 @@ const GraphBox = ({
       ],
     }));
 
-  // Beräkna data för valt årtal och period
   const selectedGeoData = useMemo(() => {
     if (selectedGeoPeriod === "Helår") {
       const yearlyReports = geoDataOptions.filter(option => option.year.toString() === selectedGeoYear);
@@ -184,7 +202,6 @@ const GraphBox = ({
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-  // Förbered data för LiveCasino vs RNG (Stacked Bar Chart)
   const liveCasinoRngDataQuarterly = financialReports.financialReports
     .filter(report => report.year >= 2020)
     .map(report => ({
@@ -206,7 +223,6 @@ const GraphBox = ({
     });
   });
 
-  // Beräkna genomsnittligt antal spelare för de senaste 30 dagarna
   const calculateAveragePlayers = (data, days) => {
     if (!data || !Array.isArray(data) || data.length === 0) return { average: 0, daysCount: 0 };
 
@@ -230,7 +246,6 @@ const GraphBox = ({
 
   const { average: avgPlayers, daysCount } = useMemo(() => calculateAveragePlayers(playersData, 30), [playersData]);
 
-  // Formatering för Y-axeln
   const formatPlayersTick = (value) => {
     if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
@@ -382,28 +397,49 @@ const GraphBox = ({
           <MenuItem value="liveCasinoRng">LiveCasino vs RNG</MenuItem>
         </Select>
       ) : (
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-          centered
-          sx={{
-            color: "#ccc",
-            marginBottom: "20px",
-            "& .MuiTab-root": {
-              fontSize: { xs: "0.8rem", sm: "1rem" },
-              padding: { xs: "6px 8px", sm: "12px 16px" },
-            },
-          }}
-        >
-          <Tab label="Omsättning" value="revenue" />
-          <Tab label="Marginal" value="margin" />
-          <Tab label="Utdelning" value="dividend" />
-          <Tab label="AVG Spelare" value="players" />
-          <Tab label="Geografisk fördelning" value="geoDistribution" />
-          <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
-        </Tabs>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
+          <IconButton
+            onClick={handlePrevTab}
+            sx={{
+              color: "#00e676",
+              "&:hover": { backgroundColor: "rgba(0, 230, 118, 0.1)" },
+            }}
+          >
+            <ArrowBackIosIcon fontSize="small" />
+          </IconButton>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{
+              color: "#ccc",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons={false}
+            allowScrollButtonsMobile={false}
+          >
+            <Tab label="Omsättning" value="revenue" />
+            <Tab label="Marginal" value="margin" />
+            <Tab label="Utdelning" value="dividend" />
+            <Tab label="AVG Spelare" value="players" />
+            <Tab label="Geografisk fördelning" value="geoDistribution" />
+            <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
+          </Tabs>
+          <IconButton
+            onClick={handleNextTab}
+            sx={{
+              color: "#00e676",
+              "&:hover": { backgroundColor: "rgba(0, 230, 118, 0.1)" },
+            }}
+          >
+            <ArrowForwardIosIcon fontSize="small" />
+          </IconButton>
+        </Box>
       )}
 
       {/* Omsättning */}
@@ -871,7 +907,6 @@ const GraphBox = ({
             Geografisk fördelning av intäkter
           </Typography>
 
-          {/* Tabs för att välja årtal */}
           <Tabs
             value={selectedGeoYear}
             onChange={handleGeoYearChange}
@@ -894,7 +929,6 @@ const GraphBox = ({
             ))}
           </Tabs>
 
-          {/* Tabs för att välja kvartal eller helår */}
           <Tabs
             value={selectedGeoPeriod}
             onChange={handleGeoPeriodChange}

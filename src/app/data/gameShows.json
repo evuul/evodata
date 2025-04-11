@@ -1,0 +1,34 @@
+[
+    {
+      "name": "Crazy Time",
+      "playerData": [
+        { "date": "2025-04-10", "players": 15000 },
+        { "date": "2025-04-09", "players": 14500 },
+        { "date": "2025-04-08", "players": 14800 }
+      ]
+    },
+    {
+      "name": "Monopoly Big Baller",
+      "playerData": [
+        { "date": "2025-04-10", "players": 12000 },
+        { "date": "2025-04-09", "players": 11800 },
+        { "date": "2025-04-08", "players": 11500 }
+      ]
+    },
+    {
+      "name": "Funky Time",
+      "playerData": [
+        { "date": "2025-04-10", "players": 10000 },
+        { "date": "2025-04-09", "players": 9800 },
+        { "date": "2025-04-08", "players": 9500 }
+      ]
+    },
+    {
+      "name": "Lightning Storm",
+      "playerData": [
+        { "date": "2025-04-10", "players": 9000 },
+        { "date": "2025-04-09", "players": 8800 },
+        { "date": "2025-04-08", "players": 8700 }
+      ]
+    }
+  ]
