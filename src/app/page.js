@@ -7,7 +7,9 @@ import GraphBox from "../Components/GraphBox";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
+import KingsOfTheHillTeaser from "@/Components/KingsOfTheHillTeaser";
 import { Box } from "@mui/material";
+import { Kings } from "next/font/google";
 
 // Logga dividendData och financialReports för att kontrollera att de importeras korrekt
 console.log("dividendData i page.js:", dividendData);
@@ -67,6 +69,7 @@ export default async function Home() {
 
   return (
     <main>
+      <KingsOfTheHillTeaser gameShowsData={data.gameShows} />
       <Header />
 
       {/* Container för PlayerCard och MoneyCounter */}
@@ -120,7 +123,7 @@ export default async function Home() {
       <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "90%" },
+          width: { xs: "95%", sm: "85%", md: "75%" },
           margin: "0 auto",
         }}
       >
@@ -139,7 +142,7 @@ export default async function Home() {
       <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "90%" },
+          width: { xs: "95%", sm: "85%", md: "75%" },
           margin: "0 auto",
         }}
       >

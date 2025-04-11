@@ -17,6 +17,7 @@ import {
   MenuItem,
   useMediaQuery,
   useTheme,
+  IconButton,
 } from "@mui/material";
 import {
   LineChart,
@@ -34,6 +35,8 @@ import {
 import { keyframes } from "@emotion/react";
 import oldBuybackData from "../app/data/oldBuybackData.json";
 import { useStockPriceContext } from '../context/StockPriceContext';
+import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
+import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 // Växelkurs (exempelvärde)
 const exchangeRate = 10.83; // Exempel: 1 EUR = 10.83 SEK
@@ -274,11 +277,26 @@ const StockBuybackInfo = ({
     }
   });
 
-  const handleSort = (key) => {
-    setSortConfig((prevConfig) => ({
-      key,
-      direction: prevConfig.key === key && prevConfig.direction === "asc" ? "desc" : "asc",
-    }));
+  // Lista över tabbar för navigering (används för pilar på desktop)
+  const tabsList = [
+    "buyback",
+    "ownership",
+    "totalShares",
+    "history",
+    "returns",
+  ];
+
+  // Funktioner för att navigera med pilar (används endast på desktop)
+  const handlePrevTab = () => {
+    const currentIndex = tabsList.indexOf(activeTab);
+    const prevIndex = (currentIndex - 1 + tabsList.length) % tabsList.length;
+    setActiveTab(tabsList[prevIndex]);
+  };
+
+  const handleNextTab = () => {
+    const currentIndex = tabsList.indexOf(activeTab);
+    const nextIndex = (currentIndex + 1) % tabsList.length;
+    setActiveTab(tabsList[nextIndex]);
   };
 
   const handleTabChange = (event, newValue) => {
@@ -287,6 +305,13 @@ const StockBuybackInfo = ({
 
   const handleViewModeChange = (event, newValue) => {
     setViewMode(newValue);
+  };
+
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === "asc" ? "desc" : "asc",
+    }));
   };
 
   const formatYAxisTick = (value) => {
@@ -419,30 +444,48 @@ const StockBuybackInfo = ({
           <MenuItem value="returns">Återinvestering</MenuItem>
         </Select>
       ) : (
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-          centered
-          sx={{
-            color: "#ccc",
-            marginBottom: "20px",
-            "& .MuiTab-root": {
-              fontSize: { xs: "0.8rem", sm: "1rem" }, // Matchar GraphBox
-              padding: { xs: "6px 8px", sm: "12px 16px" }, // Matchar GraphBox
-            },
-          }}
-          variant="scrollable" // Matchar GraphBox
-          scrollButtons="auto" // Matchar GraphBox
-          allowScrollButtonsMobile // Matchar GraphBox
-        >
-          <Tab label="Återköpsstatus" value="buyback" />
-          <Tab label="Evolutions ägande" value="ownership" />
-          <Tab label="Totala aktier" value="totalShares" />
-          <Tab label="Återköpshistorik" value="history" />
-          <Tab label="Återinvestering" value="returns" />
-        </Tabs>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
+          <IconButton
+            onClick={handlePrevTab}
+            sx={{
+              color: "#00e676",
+              "&:hover": { backgroundColor: "rgba(0, 230, 118, 0.1)" },
+            }}
+          >
+            <ArrowBackIosIcon fontSize="small" />
+          </IconButton>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{
+              color: "#ccc",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" }, // Matchar GraphBox
+                padding: { xs: "6px 8px", sm: "12px 16px" }, // Matchar GraphBox
+              },
+            }}
+            variant="scrollable" // Matchar GraphBox
+            scrollButtons={false} // Inaktivera inbyggda scrollpilar
+            allowScrollButtonsMobile={false} // Inaktivera inbyggda scrollpilar på mobil
+          >
+            <Tab label="Återköpsstatus" value="buyback" />
+            <Tab label="Evolutions ägande" value="ownership" />
+            <Tab label="Totala aktier" value="totalShares" />
+            <Tab label="Återköpshistorik" value="history" />
+            <Tab label="Återinvestering" value="returns" />
+          </Tabs>
+          <IconButton
+            onClick={handleNextTab}
+            sx={{
+              color: "#00e676",
+              "&:hover": { backgroundColor: "rgba(0, 230, 118, 0.1)" },
+            }}
+          >
+            <ArrowForwardIosIcon fontSize="small" />
+          </IconButton>
+        </Box>
       )}
 
       {activeTab === "buyback" && (
