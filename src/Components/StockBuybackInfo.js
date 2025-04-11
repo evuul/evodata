@@ -270,8 +270,6 @@ const StockBuybackInfo = ({
 
     if (key === "Datum") {
       return direction * (new Date(a[key]) - new Date(b[key]));
-    } else if (key === "Kommentar") {
-      return direction * (a[key] || "").localeCompare(b[key] || "");
     } else {
       return direction * (a[key] - b[key]);
     }
@@ -1078,7 +1076,7 @@ const StockBuybackInfo = ({
           </Typography>
           <Box sx={{ overflowX: "auto", width: "100%" }}>
             <TableContainer sx={{ maxHeight: 400, overflow: "auto" }}>
-              <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "600px" : "auto" }}>
+              <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "450px" : "auto" }}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" }, cursor: "pointer" }} onClick={() => handleSort("Datum")}>
@@ -1089,9 +1087,6 @@ const StockBuybackInfo = ({
                     </TableCell>
                     <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" }, cursor: "pointer" }} onClick={() => handleSort("Transaktionsvärde")}>
                       Transaktionsvärde (SEK) {sortConfig.key === "Transaktionsvärde" && (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableCell>
-                    <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" }, cursor: "pointer" }} onClick={() => handleSort("Kommentar")}>
-                      Kommentar {sortConfig.key === "Kommentar" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableCell>
                   </TableRow>
                 </TableHead>
@@ -1106,9 +1101,6 @@ const StockBuybackInfo = ({
                       </TableCell>
                       <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
                         {item.Transaktionsvärde ? item.Transaktionsvärde.toLocaleString() : "-"}
-                      </TableCell>
-                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
-                        {item.Kommentar || "-"}
                       </TableCell>
                     </TableRow>
                   ))}
