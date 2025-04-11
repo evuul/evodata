@@ -1,4 +1,3 @@
-// src/Components/GraphBox.jsx
 'use client';
 import React, { useState, useMemo } from "react";
 import {
@@ -114,7 +113,6 @@ const GraphBox = ({
   const historical = (dividendData.historicalDividends || []).map(item => ({
     date: item.date,
     dividendPerShare: item.dividendPerShare,
-    type: "historical",
     dividendYield: item.sharePriceAtDividend
       ? (item.dividendPerShare / item.sharePriceAtDividend) * 100
       : 0,
@@ -124,7 +122,6 @@ const GraphBox = ({
   const planned = (dividendData.plannedDividends || []).map((item, index) => ({
     date: item.paymentDate,
     dividendPerShare: item.dividendPerShare,
-    type: "planned",
     dividendYield: currentSharePrice
       ? (item.dividendPerShare / currentSharePrice) * 100
       : 0,
@@ -787,7 +784,7 @@ const GraphBox = ({
             Historiska och planerade utdelningar
           </Typography>
           <Box sx={{ overflowX: "auto", width: "100%" }}>
-            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "600px" : "auto" }}>
+            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "450px" : "auto" }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
@@ -798,9 +795,6 @@ const GraphBox = ({
                   </TableCell>
                   <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
                     Direktavkastning (%)
-                  </TableCell>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
-                    Typ
                   </TableCell>
                 </TableRow>
               </TableHead>
@@ -815,9 +809,6 @@ const GraphBox = ({
                     </TableCell>
                     <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
                       {item.dividendYield.toFixed(2)}%
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
-                      {item.type === "historical" ? "Historisk" : "Planerad"}
                     </TableCell>
                   </TableRow>
                 ))}
