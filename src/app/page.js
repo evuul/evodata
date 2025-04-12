@@ -4,6 +4,7 @@ import StockBuybackInfo from "../Components/StockBuybackInfo";
 import MoneyCounter from "../Components/MoneyCounter";
 import ComingUpdates from "../Components/ComingUpdates";
 import GraphBox from "../Components/GraphBox";
+import LiveEarningsBox from "../Components/LiveEarningsBox"; // Redan importerad
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
@@ -79,7 +80,7 @@ export default async function Home() {
           justifyContent: "center",
           alignItems: "stretch",
           flexWrap: "wrap",
-          gap: { xs: "0px", sm: "20px", md: "0px" }, // Minskat gap på mobil
+          gap: { xs: "0px", sm: "20px", md: "0px" },
           width: "100%",
           maxWidth: "1400px",
           margin: "0 auto",
@@ -117,6 +118,16 @@ export default async function Home() {
         >
           <MoneyCounter />
         </Box>
+      </Box>
+            {/* LiveEarningsBox */}
+            <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <LiveEarningsBox playerCount={data.playersCount} />
       </Box>
 
       {/* GraphBox */}
