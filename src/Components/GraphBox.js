@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -49,11 +49,10 @@ const GraphBox = ({
 }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
-  const [selectedGeoYear, setSelectedGeoYear] = useState(
-    financialReports.financialReports[financialReports.financialReports.length - 1].year.toString()
-  );
-  const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Q4");
+  const [selectedGeoYear, setSelectedGeoYear] = useState(null); // Sätts dynamiskt
+  const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Helår");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [exchangeRate, setExchangeRate] = useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -64,23 +63,38 @@ const GraphBox = ({
 
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
+  useEffect(() => {
+    const fetchExchangeRate = async () => {
+      try {
+        const response = await fetch('https://api.exchangeratesapi.io/v1/latest?access_key=YOUR_API_KEY&symbols=SEK');
+        const data = await response.json();
+        const rate = data.rates.SEK;
+        setExchangeRate(rate);
+      } catch (error) {
+        console.error("Kunde inte hämta växelkurs:", error);
+        setExchangeRate(11.20);
+      }
+    };
+
+    fetchExchangeRate();
+  }, []);
+
   React.useEffect(() => {
     if (stockPrice && !loadingPrice) {
       setLastUpdated(new Date());
     }
   }, [stockPrice, loadingPrice]);
 
-  // Lista över tabbar för navigering (används endast på desktop)
   const tabsList = [
     "revenue",
     "margin",
+    "eps",
     "dividend",
     "players",
     "geoDistribution",
     "liveCasinoRng",
   ];
 
-  // Funktioner för att navigera med pilar (används endast på desktop)
   const handlePrevTab = () => {
     const currentIndex = tabsList.indexOf(activeTab);
     const prevIndex = (currentIndex - 1 + tabsList.length) % tabsList.length;
@@ -134,30 +148,56 @@ const GraphBox = ({
     (a, b) => new Date(a.date) - new Date(b.date)
   );
 
+  const dividendGrowth = useMemo(() => {
+    const historicalDividends = combinedDividendData.filter(item => !item.isFuture);
+    if (historicalDividends.length < 2) return null;
+
+    const latest = historicalDividends[historicalDividends.length - 1];
+    const previous = historicalDividends[historicalDividends.length - 2];
+
+    const dividendGrowth = ((latest.dividendPerShare - previous.dividendPerShare) / previous.dividendPerShare) * 100;
+    const yieldGrowth = ((latest.dividendYield - previous.dividendYield) / previous.dividendYield) * 100;
+
+    return {
+      dividendGrowth: dividendGrowth.toFixed(2),
+      yieldGrowth: yieldGrowth.toFixed(2),
+      latestDate: latest.date,
+      previousDate: previous.date,
+    };
+  }, [combinedDividendData]);
+
   const plannedYield = planned[0]?.dividendYield || 0;
   const latestHistorical = historical[historical.length - 1];
 
+  // Filtrera finansiella rapporter för att bara inkludera år och kvartal med data
+  const filteredFinancialReports = financialReports.financialReports.filter(report => {
+    const hasGeoData = (report.europe || 0) + (report.asia || 0) + (report.northAmerica || 0) + (report.latAm || 0) + (report.other || 0) > 0;
+    const hasLiveCasinoRngData = (report.liveCasino || 0) + (report.rng || 0) > 0;
+    return hasGeoData || hasLiveCasinoRngData;
+  });
+
   const uniqueYears = [...new Set(
-    financialReports.financialReports
-      .filter(report => report.year >= 2020)
+    filteredFinancialReports
+      .filter(report => report.year >= 2015)
       .map(report => report.year)
   )].sort();
 
+  // Sätt default-värde för selectedGeoYear till det senaste året med data
   React.useEffect(() => {
-    if (uniqueYears.length > 0 && !uniqueYears.includes(parseInt(selectedGeoYear))) {
+    if (uniqueYears.length > 0 && !selectedGeoYear) {
       setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
     }
   }, [uniqueYears, selectedGeoYear]);
 
   const availableQuarters = useMemo(() => {
-    const quarters = financialReports.financialReports
+    const quarters = filteredFinancialReports
       .filter(report => report.year.toString() === selectedGeoYear)
       .map(report => report.quarter);
-    return [...new Set(quarters)];
-  }, [selectedGeoYear, financialReports]);
+    return [...new Set(quarters)].sort();
+  }, [selectedGeoYear, filteredFinancialReports]);
 
-  const geoDataOptions = financialReports.financialReports
-    .filter(report => report.year >= 2020)
+  const geoDataOptions = filteredFinancialReports
+    .filter(report => report.year >= 2015)
     .map(report => ({
       label: `${report.year} ${report.quarter}`,
       year: report.year,
@@ -199,26 +239,254 @@ const GraphBox = ({
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-  const liveCasinoRngDataQuarterly = financialReports.financialReports
-    .filter(report => report.year >= 2020)
+  // Skapa en lista över alla kvartal från 2015 Q1 till 2025 Q1
+  const allQuarters = [];
+  for (let year = 2015; year <= 2025; year++) {
+    const quarters = year === 2015 ? ["Q1"] : year === 2025 ? ["Q1"] : ["Q1", "Q2", "Q3", "Q4"];
+    quarters.forEach(quarter => {
+      allQuarters.push({ year, quarter, date: `${year} ${quarter}` });
+    });
+  }
+
+  // Omsättningsdata (revenue) med tillväxt
+  const revenueDataQuarterlyRaw = revenueData.map(item => ({
+    ...item,
+    year: parseInt(item.date.split(" ")[0]),
+    quarter: item.date.split(" ")[1],
+  }));
+
+  const revenueDataQuarterly = allQuarters.map(({ date, year, quarter }) => {
+    const existing = revenueDataQuarterlyRaw.find(item => item.date === date);
+    return existing || { date, year, quarter, value: null };
+  });
+
+  const revenueDataYearly = annualRevenueData.map(item => ({
+    ...item,
+    year: parseInt(item.date.split(" ")[0]),
+  }));
+
+  const revenueQuarterlyGrowth = revenueDataQuarterly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = revenueDataQuarterly.find(
+      report => report.year === previousYear && report.quarter === current.quarter
+    );
+    if (previous && previous.value !== null && current.value !== null && previous.value !== 0) {
+      const growth = ((current.value - previous.value) / previous.value) * 100;
+      return { ...current, growth: growth.toFixed(2) };
+    }
+    return { ...current, growth: null };
+  });
+
+  const revenueYearlyGrowth = revenueDataYearly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = revenueDataYearly.find(report => report.year === previousYear);
+    if (previous && previous.value !== 0) {
+      const growth = ((current.value - previous.value) / previous.value) * 100;
+      return { ...current, growth: growth.toFixed(2) };
+    }
+    return { ...current, growth: null };
+  });
+
+  // Marginaldata med förändring
+  const marginDataQuarterlyRaw = marginData.map(item => ({
+    ...item,
+    year: parseInt(item.date.split(" ")[0]),
+    quarter: item.date.split(" ")[1],
+  }));
+
+  const marginDataQuarterly = allQuarters.map(({ date, year, quarter }) => {
+    const existing = marginDataQuarterlyRaw.find(item => item.date === date);
+    return existing || { date, year, quarter, value: null };
+  });
+
+  const marginDataYearly = annualMarginData.map(item => ({
+    ...item,
+    year: parseInt(item.date.split(" ")[0]),
+  }));
+
+  const marginQuarterlyChange = marginDataQuarterly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = marginDataQuarterly.find(
+      report => report.year === previousYear && report.quarter === current.quarter
+    );
+    if (previous && previous.value !== null && current.value !== null) {
+      const change = current.value - previous.value;
+      return { ...current, change: change.toFixed(2) };
+    }
+    return { ...current, change: null };
+  });
+
+  const marginYearlyChange = marginDataYearly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = marginDataYearly.find(report => report.year === previousYear);
+    if (previous) {
+      const change = current.value - previous.value;
+      return { ...current, change: change.toFixed(2) };
+    }
+    return { ...current, change: null };
+  });
+
+  // EPS-data (kvartalsvis) med omvandling från EUR till SEK
+  const epsDataQuarterlyRaw = financialReports.financialReports
+    .filter(report => {
+      const year = report.year;
+      const quarter = report.quarter;
+      if (year < 2015 || year > 2025) return false;
+      if (year === 2015 && quarter !== "Q1") return false;
+      if (year === 2025 && quarter !== "Q1") return false;
+      return true;
+    })
     .map(report => ({
       date: `${report.year} ${report.quarter}`,
-      liveCasino: report.liveCasino || 0,
-      rng: report.rng || 0,
+      year: report.year,
+      quarter: report.quarter,
+      value: exchangeRate ? (report.adjustedEarningsPerShare || 0) * exchangeRate : 0,
     }));
 
-  const liveCasinoRngDataYearly = [];
-  const years = [...new Set(financialReports.financialReports.map(report => report.year))].filter(year => year >= 2020);
+  const epsDataQuarterly = allQuarters.map(({ date, year, quarter }) => {
+    const existing = epsDataQuarterlyRaw.find(item => item.date === date);
+    return existing || { date, year, quarter, value: null };
+  });
+
+  const years = [...new Set(financialReports.financialReports.map(report => report.year))].filter(year => year >= 2015);
+
+  const epsDataYearly = [];
   years.forEach(year => {
     const yearlyReports = financialReports.financialReports.filter(report => report.year === year);
-    const totalLiveCasino = yearlyReports.reduce((sum, report) => sum + (report.liveCasino || 0), 0);
-    const totalRng = yearlyReports.reduce((sum, report) => sum + (report.rng || 0), 0);
-    liveCasinoRngDataYearly.push({
+    const totalEPS = yearlyReports.reduce((sum, report) => sum + (report.adjustedEarningsPerShare || 0), 0);
+    epsDataYearly.push({
       date: `${year} Helår`,
-      liveCasino: totalLiveCasino,
-      rng: totalRng,
+      year: year,
+      value: exchangeRate ? totalEPS * exchangeRate : 0,
     });
   });
+
+  const quarterlyGrowth = epsDataQuarterly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = epsDataQuarterly.find(
+      report => report.year === previousYear && report.quarter === current.quarter
+    );
+    if (previous && previous.value !== null && current.value !== null && previous.value !== 0) {
+      const growth = ((current.value - previous.value) / previous.value) * 100;
+      return { ...current, growth: growth.toFixed(2) };
+    }
+    return { ...current, growth: null };
+  });
+
+  const yearlyGrowth = epsDataYearly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = epsDataYearly.find(report => report.year === previousYear);
+    if (previous && previous.value !== 0) {
+      const growth = ((current.value - previous.value) / previous.value) * 100;
+      return { ...current, growth: growth.toFixed(2) };
+    }
+    return { ...current, growth: null };
+  });
+
+  // LiveCasino vs RNG-data med tillväxt, exkludera tomma kvartal
+  const liveCasinoRngDataQuarterlyRaw = filteredFinancialReports
+    .filter(report => report.year >= 2015)
+    .map(report => ({
+      date: `${report.year} ${report.quarter}`,
+      year: report.year,
+      quarter: report.quarter,
+      liveCasino: report.liveCasino || 0,
+      rng: report.rng || 0,
+    }))
+    .filter(item => item.liveCasino > 0 || item.rng > 0); // Filtrera bort tomma kvartal
+
+  const liveCasinoRngDataYearly = [];
+  const liveCasinoRngYears = [...new Set(liveCasinoRngDataQuarterlyRaw.map(item => item.year))];
+  liveCasinoRngYears.forEach(year => {
+    const yearlyReports = liveCasinoRngDataQuarterlyRaw.filter(report => report.year === year);
+    const totalLiveCasino = yearlyReports.reduce((sum, report) => sum + (report.liveCasino || 0), 0);
+    const totalRng = yearlyReports.reduce((sum, report) => sum + (report.rng || 0), 0);
+    if (totalLiveCasino > 0 || totalRng > 0) {
+      liveCasinoRngDataYearly.push({
+        date: `${year} Helår`,
+        year: year,
+        liveCasino: totalLiveCasino,
+        rng: totalRng,
+      });
+    }
+  });
+
+  const liveCasinoRngQuarterlyGrowth = liveCasinoRngDataQuarterlyRaw.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = liveCasinoRngDataQuarterlyRaw.find(
+      report => report.year === previousYear && report.quarter === current.quarter
+    );
+    if (previous && (current.liveCasino > 0 || current.rng > 0)) {
+      const liveCasinoGrowth = previous.liveCasino !== 0
+        ? ((current.liveCasino - previous.liveCasino) / previous.liveCasino) * 100
+        : null;
+      const rngGrowth = previous.rng !== 0
+        ? ((current.rng - previous.rng) / previous.rng) * 100
+        : null;
+      return {
+        ...current,
+        liveCasinoGrowth: liveCasinoGrowth ? liveCasinoGrowth.toFixed(2) : null,
+        rngGrowth: rngGrowth ? rngGrowth.toFixed(2) : null,
+      };
+    }
+    return { ...current, liveCasinoGrowth: null, rngGrowth: null };
+  });
+
+  const liveCasinoRngYearlyGrowth = liveCasinoRngDataYearly.map((current, index) => {
+    const previousYear = current.year - 1;
+    const previous = liveCasinoRngDataYearly.find(report => report.year === previousYear);
+    if (previous) {
+      const liveCasinoGrowth = previous.liveCasino !== 0
+        ? ((current.liveCasino - previous.liveCasino) / previous.liveCasino) * 100
+        : null;
+      const rngGrowth = previous.rng !== 0
+        ? ((current.rng - previous.rng) / previous.rng) * 100
+        : null;
+      return {
+        ...current,
+        liveCasinoGrowth: liveCasinoGrowth ? liveCasinoGrowth.toFixed(2) : null,
+        rngGrowth: rngGrowth ? rngGrowth.toFixed(2) : null,
+      };
+    }
+    return { ...current, liveCasinoGrowth: null, rngGrowth: null };
+  });
+
+  // Beräkna Y-axelns domän och tick-intervall för olika grafer
+  const getYDomainAndTicks = (data, key, minValue = 0, secondaryKey = null) => {
+    if (!data || data.length === 0) return { domain: [0, 1], ticks: [0, 1] };
+    const values = data.map(item => item[key]).filter(val => val !== null && !isNaN(val));
+    const secondaryValues = secondaryKey ? data.map(item => item[secondaryKey]).filter(val => val !== null && !isNaN(val)) : [];
+    const allValues = [...values, ...secondaryValues];
+    if (allValues.length === 0) return { domain: [0, 1], ticks: [0, 1] };
+    const minVal = Math.min(...allValues, minValue);
+    const maxVal = Math.max(...allValues);
+    const range = maxVal - minVal;
+    const tickInterval = range > 0 ? Math.ceil(range / 5) : 1;
+    const ticks = [];
+    for (let i = Math.floor(minVal); i <= Math.ceil(maxVal); i += tickInterval) {
+      ticks.push(i);
+    }
+    return { domain: [minVal, maxVal * 1.1], ticks };
+  };
+
+  const revenueQuarterlyYConfig = getYDomainAndTicks(revenueQuarterlyGrowth, 'value');
+  const revenueYearlyYConfig = getYDomainAndTicks(revenueDataYearly, 'value');
+  const marginQuarterlyYConfig = getYDomainAndTicks(marginQuarterlyChange, 'value', 0);
+  const marginYearlyYConfig = getYDomainAndTicks(marginDataYearly, 'value', 0);
+  const epsQuarterlyYConfig = getYDomainAndTicks(quarterlyGrowth, 'value');
+  const epsYearlyYConfig = getYDomainAndTicks(yearlyGrowth, 'value');
+  const liveCasinoRngQuarterlyYConfig = getYDomainAndTicks(
+    liveCasinoRngQuarterlyGrowth,
+    'liveCasino',
+    0,
+    'rng'
+  );
+  const liveCasinoRngYearlyYConfig = getYDomainAndTicks(
+    liveCasinoRngDataYearly,
+    'liveCasino',
+    0,
+    'rng'
+  );
 
   const calculateAveragePlayers = (data, days) => {
     if (!data || !Array.isArray(data) || data.length === 0) return { average: 0, daysCount: 0 };
@@ -286,6 +554,16 @@ const GraphBox = ({
   const formatLiveCasinoRngTick = (value) => {
     return `${value} MEUR`;
   };
+
+  const formatEPSTick = (value) => {
+    return `${value.toFixed(2)} SEK`;
+  };
+
+  const quarterlyTicks = liveCasinoRngQuarterlyGrowth
+    .filter((_, index) => index % 4 === 0)
+    .map(item => item.date);
+
+  const yearlyTicks = liveCasinoRngDataYearly.map(item => item.date);
 
   return (
     <Card
@@ -388,6 +666,7 @@ const GraphBox = ({
         >
           <MenuItem value="revenue">Omsättning</MenuItem>
           <MenuItem value="margin">Marginal</MenuItem>
+          <MenuItem value="eps">Intjäning per aktie</MenuItem>
           <MenuItem value="dividend">Utdelning</MenuItem>
           <MenuItem value="players">AVG Spelare</MenuItem>
           <MenuItem value="geoDistribution">Geografisk fördelning</MenuItem>
@@ -422,6 +701,7 @@ const GraphBox = ({
           >
             <Tab label="Omsättning" value="revenue" />
             <Tab label="Marginal" value="margin" />
+            <Tab label="Intjäning per aktie" value="eps" />
             <Tab label="Utdelning" value="dividend" />
             <Tab label="AVG Spelare" value="players" />
             <Tab label="Geografisk fördelning" value="geoDistribution" />
@@ -474,13 +754,57 @@ const GraphBox = ({
           >
             {viewMode === "quarterly" ? "Omsättning per kvartal" : "Omsättning per helår"}
           </Typography>
+
+          {viewMode === "quarterly" && revenueQuarterlyGrowth.length > 0 && (
+            (() => {
+              const validQuarters = revenueQuarterlyGrowth.filter(item => item.value !== null);
+              const latestQuarter = validQuarters[validQuarters.length - 1];
+              if (latestQuarter && latestQuarter.growth) {
+                return (
+                  <Typography
+                    variant="body1"
+                    color={latestQuarter.growth >= 0 ? "#00e676" : "#ff1744"}
+                    sx={{
+                      marginBottom: "10px",
+                      textAlign: "center",
+                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                    }}
+                  >
+                    Ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.growth}%
+                  </Typography>
+                );
+              }
+              return null;
+            })()
+          )}
+
+          {viewMode === "yearly" && revenueYearlyGrowth.length > 0 && revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth && (
+            <Typography
+              variant="body1"
+              color={revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth >= 0 ? "#00e676" : "#ff1744"}
+              sx={{
+                marginBottom: "10px",
+                textAlign: "center",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+              }}
+            >
+              Tillväxt jämfört med {revenueYearlyGrowth[revenueYearlyGrowth.length - 1].year - 1}: {revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth}%
+            </Typography>
+          )}
+
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
-              data={viewMode === "quarterly" ? revenueData : annualRevenueData}
+              data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth}
               margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              connectNulls={false}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
+              <XAxis
+                dataKey="date"
+                stroke="#ccc"
+                ticks={viewMode === "quarterly" ? allQuarters.filter((_, index) => index % 4 === 0).map(item => item.date) : years.map(year => `${year} Helår`)}
+                interval={0}
+              >
                 {!isMobile && (
                   <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
                 )}
@@ -489,6 +813,8 @@ const GraphBox = ({
                 stroke="#ccc"
                 tickFormatter={formatRevenueTick}
                 width={isMobile ? 40 : 60}
+                domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
+                ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
               >
                 {!isMobile && (
                   <Label
@@ -502,7 +828,15 @@ const GraphBox = ({
                 )}
               </YAxis>
               <Tooltip
-                formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                formatter={(value, name, props) => {
+                  const growth = props.payload.growth;
+                  return [
+                    value !== null
+                      ? `${value.toLocaleString("sv-SE")} MEUR`
+                      : "Ingen data",
+                    growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
+                  ];
+                }}
                 contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
               />
               <Line
@@ -553,20 +887,65 @@ const GraphBox = ({
           >
             {viewMode === "quarterly" ? "Marginal per kvartal" : "Marginal per helår"}
           </Typography>
+
+          {viewMode === "quarterly" && marginQuarterlyChange.length > 0 && (
+            (() => {
+              const validQuarters = marginQuarterlyChange.filter(item => item.value !== null);
+              const latestQuarter = validQuarters[validQuarters.length - 1];
+              if (latestQuarter && latestQuarter.change) {
+                return (
+                  <Typography
+                    variant="body1"
+                    color={latestQuarter.change >= 0 ? "#00e676" : "#ff1744"}
+                    sx={{
+                      marginBottom: "10px",
+                      textAlign: "center",
+                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                    }}
+                  >
+                    Förändring jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.change >= 0 ? "+" : ""}{latestQuarter.change} procentenheter
+                  </Typography>
+                );
+              }
+              return null;
+            })()
+          )}
+
+          {viewMode === "yearly" && marginYearlyChange.length > 0 && marginYearlyChange[marginYearlyChange.length - 1].change && (
+            <Typography
+              variant="body1"
+              color={marginYearlyChange[marginYearlyChange.length - 1].change >= 0 ? "#00e676" : "#ff1744"}
+              sx={{
+                marginBottom: "10px",
+                textAlign: "center",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+              }}
+            >
+              Förändring jämfört med {marginYearlyChange[marginYearlyChange.length - 1].year - 1}: {marginYearlyChange[marginYearlyChange.length - 1].change >= 0 ? "+" : ""}{marginYearlyChange[marginYearlyChange.length - 1].change} procentenheter
+            </Typography>
+          )}
+
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
-              data={viewMode === "quarterly" ? marginData : annualMarginData}
+              data={viewMode === "quarterly" ? marginQuarterlyChange : marginYearlyChange}
               margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              connectNulls={false}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="date" stroke="#ccc">
+              <XAxis
+                dataKey="date"
+                stroke="#ccc"
+                ticks={viewMode === "quarterly" ? allQuarters.filter((_, index) => index % 4 === 0).map(item => item.date) : years.map(year => `${year} Helår`)}
+                interval={0}
+              >
                 {!isMobile && (
                   <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
                 )}
               </XAxis>
               <YAxis
                 stroke="#ccc"
-                domain={[0, 100]}
+                domain={viewMode === "quarterly" ? marginQuarterlyYConfig.domain : marginYearlyYConfig.domain}
+                ticks={viewMode === "quarterly" ? marginQuarterlyYConfig.ticks : marginYearlyYConfig.ticks}
                 tickFormatter={formatMarginTick}
                 width={isMobile ? 40 : 60}
               >
@@ -582,7 +961,15 @@ const GraphBox = ({
                 )}
               </YAxis>
               <Tooltip
-                formatter={(value) => `${value.toLocaleString("sv-SE")}%`}
+                formatter={(value, name, props) => {
+                  const change = props.payload.change;
+                  return [
+                    value !== null
+                      ? `${value.toLocaleString("sv-SE")}%`
+                      : "Ingen data",
+                    change ? `Förändring: ${change >= 0 ? "+" : ""}${change} procentenheter` : "Ingen jämförelse tillgänglig",
+                  ];
+                }}
                 contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
               />
               <Line
@@ -595,6 +982,150 @@ const GraphBox = ({
               />
             </LineChart>
           </ResponsiveContainer>
+        </Box>
+      )}
+
+      {/* Intjäning per aktie (EPS) */}
+      {activeTab === "eps" && (
+        <Box display="flex" flexDirection="column" alignItems="center">
+          <Tabs
+            value={viewMode}
+            onChange={handleViewModeChange}
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+            sx={{
+              color: "#ccc",
+              marginBottom: "20px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label="Per kvartal" value="quarterly" />
+            <Tab label="Per helår" value="yearly" />
+          </Tabs>
+
+          <Typography
+            variant="h6"
+            color="#ccc"
+            sx={{
+              marginBottom: "10px",
+              textAlign: "center",
+              fontSize: { xs: "1rem", sm: "1.25rem" },
+            }}
+          >
+            {viewMode === "quarterly" ? "Intjäning per aktie per kvartal" : "Intjäning per aktie per helår"}
+          </Typography>
+
+          {viewMode === "quarterly" && quarterlyGrowth.length > 0 && (
+            (() => {
+              const validQuarters = quarterlyGrowth.filter(item => item.value !== null);
+              const latestQuarter = validQuarters[validQuarters.length - 1];
+              if (latestQuarter && latestQuarter.growth) {
+                return (
+                  <Typography
+                    variant="body1"
+                    color={latestQuarter.growth >= 0 ? "#00e676" : "#ff1744"}
+                    sx={{
+                      marginBottom: "10px",
+                      textAlign: "center",
+                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                    }}
+                  >
+                    Ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.growth}%
+                  </Typography>
+                );
+              }
+              return null;
+            })()
+          )}
+
+          {viewMode === "yearly" && yearlyGrowth.length > 0 && yearlyGrowth[yearlyGrowth.length - 1].growth && (
+            <Typography
+              variant="body1"
+              color={yearlyGrowth[yearlyGrowth.length - 1].growth >= 0 ? "#00e676" : "#ff1744"}
+              sx={{
+                marginBottom: "10px",
+                textAlign: "center",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+              }}
+            >
+              Tillväxt jämfört med {yearlyGrowth[yearlyGrowth.length - 1].year - 1}: {yearlyGrowth[yearlyGrowth.length - 1].growth}%
+            </Typography>
+          )}
+
+          {exchangeRate ? (
+            <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+              <LineChart
+                data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth}
+                margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+                connectNulls={false}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#ccc"
+                  ticks={viewMode === "quarterly" ? allQuarters.filter((_, index) => index % 4 === 0).map(item => item.date) : years.map(year => `${year} Helår`)}
+                  interval={0}
+                >
+                  {!isMobile && (
+                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+                  )}
+                </XAxis>
+                <YAxis
+                  stroke="#ccc"
+                  tickFormatter={formatEPSTick}
+                  width={isMobile ? 40 : 60}
+                  domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
+                  ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
+                >
+                  {!isMobile && (
+                    <Label
+                      value="Intjäning per aktie (SEK)"
+                      angle={-90}
+                      offset={-10}
+                      position="insideLeft"
+                      fill="#ccc"
+                      style={{ fontSize: isMobile ? "12px" : "14px" }}
+                    />
+                  )}
+                </YAxis>
+                <Tooltip
+                  formatter={(value, name, props) => {
+                    const growth = props.payload.growth;
+                    return [
+                      value !== null
+                        ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
+                        : "Ingen data",
+                      growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
+                    ];
+                  }}
+                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#00e676"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: "#00e676" }}
+                  activeDot={{ r: 6 }}
+                  connectNulls={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <Typography
+              variant="body1"
+              color="#ccc"
+              sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+            >
+              Laddar växelkurs...
+            </Typography>
+          )}
         </Box>
       )}
 
@@ -658,6 +1189,24 @@ const GraphBox = ({
                       sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
                     >
                       Direktavkastning: {(latestHistorical.dividendYield || 0).toFixed(2)}% (baserat på aktiekurs {latestHistorical.sharePriceAtDividend} SEK)
+                    </Typography>
+                  </>
+                )}
+                {dividendGrowth && (
+                  <>
+                    <Typography
+                      variant="body1"
+                      color={dividendGrowth.dividendGrowth >= 0 ? "#00e676" : "#ff1744"}
+                      sx={{ marginTop: "10px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
+                      Ökning av utdelning ({dividendGrowth.latestDate} vs {dividendGrowth.previousDate}): {dividendGrowth.dividendGrowth}%
+                    </Typography>
+                    <Typography
+                      variant="body1"
+                      color={dividendGrowth.yieldGrowth >= 0 ? "#00e676" : "#ff1744"}
+                      sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                    >
+                      Ökning av direktavkastning: {dividendGrowth.yieldGrowth}%
                     </Typography>
                   </>
                 )}
@@ -898,96 +1447,108 @@ const GraphBox = ({
             Geografisk fördelning av intäkter
           </Typography>
 
-          <Tabs
-            value={selectedGeoYear}
-            onChange={handleGeoYearChange}
-            textColor="inherit"
-            TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-            sx={{
-              color: "#ccc",
-              marginBottom: "10px",
-              "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
-                padding: { xs: "6px 8px", sm: "12px 16px" },
-              },
-            }}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-          >
-            {uniqueYears.map(year => (
-              <Tab key={year} label={year} value={year.toString()} />
-            ))}
-          </Tabs>
+          {uniqueYears.length > 0 ? (
+            <>
+              <Tabs
+                value={selectedGeoYear}
+                onChange={handleGeoYearChange}
+                textColor="inherit"
+                TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+                sx={{
+                  color: "#ccc",
+                  marginBottom: "10px",
+                  "& .MuiTab-root": {
+                    fontSize: { xs: "0.8rem", sm: "1rem" },
+                    padding: { xs: "6px 8px", sm: "12px 16px" },
+                  },
+                }}
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+              >
+                {uniqueYears.map(year => (
+                  <Tab key={year} label={year} value={year.toString()} />
+                ))}
+              </Tabs>
 
-          <Tabs
-            value={selectedGeoPeriod}
-            onChange={handleGeoPeriodChange}
-            textColor="inherit"
-            TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
-            sx={{
-              color: "#ccc",
-              marginBottom: "20px",
-              "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
-                padding: { xs: "6px 8px", sm: "12px 16px" },
-              },
-            }}
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-          >
-            {availableQuarters.includes("Q1") && <Tab label="Q1" value="Q1" />}
-            {availableQuarters.includes("Q2") && <Tab label="Q2" value="Q2" />}
-            {availableQuarters.includes("Q3") && <Tab label="Q3" value="Q3" />}
-            {availableQuarters.includes("Q4") && <Tab label="Q4" value="Q4" />}
-            <Tab label="Helår" value="Helår" />
-          </Tabs>
+              <Tabs
+                value={selectedGeoPeriod}
+                onChange={handleGeoPeriodChange}
+                textColor="inherit"
+                TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
+                sx={{
+                  color: "#ccc",
+                  marginBottom: "20px",
+                  "& .MuiTab-root": {
+                    fontSize: { xs: "0.8rem", sm: "1rem" },
+                    padding: { xs: "6px 8px", sm: "12px 16px" },
+                  },
+                }}
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+              >
+                {availableQuarters.includes("Q1") && <Tab label="Q1" value="Q1" />}
+                {availableQuarters.includes("Q2") && <Tab label="Q2" value="Q2" />}
+                {availableQuarters.includes("Q3") && <Tab label="Q3" value="Q3" />}
+                {availableQuarters.includes("Q4") && <Tab label="Q4" value="Q4" />}
+                <Tab label="Helår" value="Helår" />
+              </Tabs>
 
-          <Typography
-            variant="h6"
-            color="#ccc"
-            sx={{
-              marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
-            }}
-          >
-            Intäkter per region ({selectedGeoYear} {selectedGeoPeriod})
-          </Typography>
+              <Typography
+                variant="h6"
+                color="#ccc"
+                sx={{
+                  marginBottom: "10px",
+                  textAlign: "center",
+                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                }}
+              >
+                Intäkter per region ({selectedGeoYear} {selectedGeoPeriod})
+              </Typography>
 
-          {selectedGeoData.length > 0 && selectedGeoData.some(item => item.value > 0) ? (
-            <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-              <PieChart>
-                <Pie
-                  data={selectedGeoData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={isMobile ? 80 : 100}
-                  fill="#8884d8"
-                  label={isMobile ? false : ({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                  labelLine={isMobile ? false : true}
+              {selectedGeoData.length > 0 && selectedGeoData.some(item => item.value > 0) ? (
+                <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+                  <PieChart>
+                    <Pie
+                      data={selectedGeoData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={isMobile ? 80 : 100}
+                      fill="#8884d8"
+                      label={isMobile ? false : ({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                      labelLine={isMobile ? false : true}
+                    >
+                      {selectedGeoData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                      contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                    />
+                    <Legend verticalAlign="bottom" height={36} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <Typography
+                  variant="body1"
+                  color="#ccc"
+                  sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
                 >
-                  {selectedGeoData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Legend verticalAlign="bottom" height={36} />
-              </PieChart>
-            </ResponsiveContainer>
+                  Ingen data tillgänglig för detta kvartal.
+                </Typography>
+              )}
+            </>
           ) : (
             <Typography
               variant="body1"
               color="#ccc"
               sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
             >
-              Ingen data tillgänglig för detta kvartal.
+              Ingen geografisk data tillgänglig.
             </Typography>
           )}
         </Box>
@@ -1042,14 +1603,99 @@ const GraphBox = ({
           >
             {viewMode === "quarterly" ? "Intäkter per kvartal" : "Intäkter per helår"}
           </Typography>
-          {liveCasinoRngDataQuarterly.length > 0 || liveCasinoRngDataYearly.length > 0 ? (
+
+          {viewMode === "quarterly" && liveCasinoRngQuarterlyGrowth.length > 0 && (
+            (() => {
+              const validQuarters = liveCasinoRngQuarterlyGrowth.filter(item => item.liveCasino !== null && item.rng !== null);
+              const latestQuarter = validQuarters[validQuarters.length - 1];
+              if (latestQuarter) {
+                return (
+                  <>
+                    {latestQuarter.liveCasinoGrowth && (
+                      <Typography
+                        variant="body1"
+                        color={latestQuarter.liveCasinoGrowth >= 0 ? "#00e676" : "#ff1744"}
+                        sx={{
+                          marginBottom: "5px",
+                          textAlign: "center",
+                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                        }}
+                      >
+                        LiveCasino ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.liveCasinoGrowth}%
+                      </Typography>
+                    )}
+                    {latestQuarter.rngGrowth && (
+                      <Typography
+                        variant="body1"
+                        color={latestQuarter.rngGrowth >= 0 ? "#00e676" : "#ff1744"}
+                        sx={{
+                          marginBottom: "10px",
+                          textAlign: "center",
+                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                        }}
+                      >
+                        RNG ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.rngGrowth}%
+                      </Typography>
+                    )}
+                  </>
+                );
+              }
+              return null;
+            })()
+          )}
+
+          {viewMode === "yearly" && liveCasinoRngYearlyGrowth.length > 0 && (
+            (() => {
+              const latestYear = liveCasinoRngYearlyGrowth[liveCasinoRngYearlyGrowth.length - 1];
+              if (latestYear) {
+                return (
+                  <>
+                    {latestYear.liveCasinoGrowth && (
+                      <Typography
+                        variant="body1"
+                        color={latestYear.liveCasinoGrowth >= 0 ? "#00e676" : "#ff1744"}
+                        sx={{
+                          marginBottom: "5px",
+                          textAlign: "center",
+                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                        }}
+                      >
+                        LiveCasino tillväxt jämfört med {latestYear.year - 1}: {latestYear.liveCasinoGrowth}%
+                      </Typography>
+                    )}
+                    {latestYear.rngGrowth && (
+                      <Typography
+                        variant="body1"
+                        color={latestYear.rngGrowth >= 0 ? "#00e676" : "#ff1744"}
+                        sx={{
+                          marginBottom: "10px",
+                          textAlign: "center",
+                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                        }}
+                      >
+                        RNG tillväxt jämfört med {latestYear.year - 1}: {latestYear.rngGrowth}%
+                      </Typography>
+                    )}
+                  </>
+                );
+              }
+              return null;
+            })()
+          )}
+
+          {liveCasinoRngDataQuarterlyRaw.length > 0 || liveCasinoRngDataYearly.length > 0 ? (
             <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
               <BarChart
-                data={viewMode === "quarterly" ? liveCasinoRngDataQuarterly : liveCasinoRngDataYearly}
+                data={viewMode === "quarterly" ? liveCasinoRngQuarterlyGrowth : liveCasinoRngYearlyGrowth}
                 margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis dataKey="date" stroke="#ccc">
+                <XAxis
+                  dataKey="date"
+                  stroke="#ccc"
+                  ticks={viewMode === "quarterly" ? quarterlyTicks : yearlyTicks}
+                  interval={0}
+                >
                   {!isMobile && (
                     <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
                   )}
@@ -1058,6 +1704,8 @@ const GraphBox = ({
                   stroke="#ccc"
                   tickFormatter={formatLiveCasinoRngTick}
                   width={isMobile ? 40 : 60}
+                  domain={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.domain : liveCasinoRngYearlyYConfig.domain}
+                  ticks={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.ticks : liveCasinoRngYearlyYConfig.ticks}
                 >
                   {!isMobile && (
                     <Label
@@ -1071,7 +1719,20 @@ const GraphBox = ({
                   )}
                 </YAxis>
                 <Tooltip
-                  formatter={(value) => `${value.toLocaleString("sv-SE")} MEUR`}
+                  formatter={(value, name, props) => {
+                    const liveCasinoGrowth = props.payload.liveCasinoGrowth;
+                    const rngGrowth = props.payload.rngGrowth;
+                    return [
+                      value !== null
+                        ? `${value.toLocaleString("sv-SE")} MEUR`
+                        : "Ingen data",
+                      name === "LiveCasino" && liveCasinoGrowth
+                        ? `Ökning: ${liveCasinoGrowth}%`
+                        : name === "RNG" && rngGrowth
+                        ? `Ökning: ${rngGrowth}%`
+                        : "Ingen jämförelse tillgänglig",
+                    ];
+                  }}
                   contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
                 />
                 <Legend verticalAlign="top" height={36} />
