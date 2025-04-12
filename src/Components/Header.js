@@ -53,7 +53,7 @@ const Header = () => {
       </Typography>
 
       {/* Underrubrik (dold på mobil) */}
-      <Typography
+      {/* <Typography
         variant="body1"
         sx={{
           color: "#ccc",
@@ -65,7 +65,7 @@ const Header = () => {
         }}
       >
         Här håller vi koll på utvecklingen och statistik för 2025!
-      </Typography>
+      </Typography> */}
 
       {/* Aktiepris och relaterad data */}
       {loadingPrice ? (
