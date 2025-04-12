@@ -5,6 +5,7 @@ import MoneyCounter from "../Components/MoneyCounter";
 import ComingUpdates from "../Components/ComingUpdates";
 import GraphBox from "../Components/GraphBox";
 import LiveEarningsBox from "../Components/LiveEarningsBox";
+import InvestmentCalculator from "../Components/InvestmentCalculator";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
@@ -51,7 +52,8 @@ years.forEach((year) => {
 });
 
 export default async function Home() {
-  const response = await fetch(
+  // Hämta playerCount
+  const playerResponse = await fetch(
     "https://generous-shelagh-khalid-organization-eb1285b3.koyeb.app/api/players/current",
     {
       headers: {
@@ -62,16 +64,16 @@ export default async function Home() {
     }
   );
 
-  if (!response.ok) {
+  if (!playerResponse.ok) {
     return <p>Kunde inte hämta datan</p>;
   }
 
-  const data = await response.json();
+  const playerData = await playerResponse.json();
 
   return (
     <main>
-      <KingsOfTheHillTeaser gameShowsData={data.gameShows} />
-      <Header />
+      <KingsOfTheHillTeaser gameShowsData={playerData.gameShows} />
+      <Header /> {/* Om Header också kan använda StockPriceContext, ta bort stockData och stockError här */}
 
       {/* Container för PlayerCard, LiveEarningsBox och MoneyCounter */}
       <Box
@@ -99,23 +101,23 @@ export default async function Home() {
             margin: "0 auto",
             minHeight: { xs: "200px", sm: "120px", md: "150px" },
             boxSizing: "border-box",
-            order: { xs: 1, sm: 1 }, // Första på mobil och bredvid MoneyCounter på större skärmar
+            order: { xs: 1, sm: 1 },
           }}
         >
-          <PlayerCard playerCount={data.playersCount} />
+          <PlayerCard playerCount={playerData.playersCount} />
         </Box>
 
         {/* LiveEarningsBox */}
         <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 100%" }, // Full bredd på mobil, samma rad på större skärmar
+            flex: { xs: "1 1 100%", sm: "1 1 100%" },
             width: { xs: "95%", sm: "85%", md: "75%" },
             margin: "0 auto",
             boxSizing: "border-box",
-            order: { xs: 2, sm: 3 }, // Andra på mobil, efter PlayerCard och MoneyCounter på större skärmar
+            order: { xs: 2, sm: "3" },
           }}
         >
-          <LiveEarningsBox playerCount={data.playersCount} />
+          <LiveEarningsBox playerCount={playerData.playersCount} />
         </Box>
 
         {/* MoneyCounter */}
@@ -128,7 +130,7 @@ export default async function Home() {
             margin: "0 auto",
             minHeight: { xs: "200px", sm: "120px", md: "150px" },
             boxSizing: "border-box",
-            order: { xs: 3, sm: 2 }, // Tredje på mobil, bredvid PlayerCard på större skärmar
+            order: { xs: 3, sm: 2 },
           }}
         >
           <MoneyCounter />
@@ -152,6 +154,17 @@ export default async function Home() {
           dividendData={dividendData}
           financialReports={financialReports}
         />
+      </Box>
+
+      {/* InvestmentCalculator */}
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <InvestmentCalculator dividendData={dividendData} />
       </Box>
 
       {/* StockBuybackInfo */}
