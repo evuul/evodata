@@ -4,7 +4,7 @@ import StockBuybackInfo from "../Components/StockBuybackInfo";
 import MoneyCounter from "../Components/MoneyCounter";
 import ComingUpdates from "../Components/ComingUpdates";
 import GraphBox from "../Components/GraphBox";
-import LiveEarningsBox from "../Components/LiveEarningsBox"; // Redan importerad
+import LiveEarningsBox from "../Components/LiveEarningsBox";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
@@ -73,7 +73,7 @@ export default async function Home() {
       <KingsOfTheHillTeaser gameShowsData={data.gameShows} />
       <Header />
 
-      {/* Container för PlayerCard och MoneyCounter */}
+      {/* Container för PlayerCard, LiveEarningsBox och MoneyCounter */}
       <Box
         sx={{
           display: "flex",
@@ -99,9 +99,23 @@ export default async function Home() {
             margin: "0 auto",
             minHeight: { xs: "200px", sm: "120px", md: "150px" },
             boxSizing: "border-box",
+            order: { xs: 1, sm: 1 }, // Första på mobil och bredvid MoneyCounter på större skärmar
           }}
         >
           <PlayerCard playerCount={data.playersCount} />
+        </Box>
+
+        {/* LiveEarningsBox */}
+        <Box
+          sx={{
+            flex: { xs: "1 1 100%", sm: "1 1 100%" }, // Full bredd på mobil, samma rad på större skärmar
+            width: { xs: "95%", sm: "85%", md: "75%" },
+            margin: "0 auto",
+            boxSizing: "border-box",
+            order: { xs: 2, sm: 3 }, // Andra på mobil, efter PlayerCard och MoneyCounter på större skärmar
+          }}
+        >
+          <LiveEarningsBox playerCount={data.playersCount} />
         </Box>
 
         {/* MoneyCounter */}
@@ -114,20 +128,11 @@ export default async function Home() {
             margin: "0 auto",
             minHeight: { xs: "200px", sm: "120px", md: "150px" },
             boxSizing: "border-box",
+            order: { xs: 3, sm: 2 }, // Tredje på mobil, bredvid PlayerCard på större skärmar
           }}
         >
           <MoneyCounter />
         </Box>
-      </Box>
-            {/* LiveEarningsBox */}
-            <Box
-        sx={{
-          marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
-          margin: "0 auto",
-        }}
-      >
-        <LiveEarningsBox playerCount={data.playersCount} />
       </Box>
 
       {/* GraphBox */}
@@ -167,7 +172,7 @@ export default async function Home() {
       </Box>
 
       {/* ComingUpdates */}
-      <Box
+      {/* <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -175,7 +180,7 @@ export default async function Home() {
         }}
       >
         <ComingUpdates />
-      </Box>
+      </Box> */}
     </main>
   );
 }
