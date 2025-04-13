@@ -1,36 +1,67 @@
-**Aktieåterköpsanalys** 📈
-Detta projekt är en React-baserad applikation för att visualisera och analysera aktieåterköp, utdelningar och andra finansiella nyckeltal för ett företag (i detta fall Evolution). Projektet inkluderar interaktiva grafer och tabeller för att ge en tydlig överblick av historiska och planerade data.
+# 📊 Aktieåterköpsanalys
 
-**Funktioner**
-Återköpsstatus: Visar status för pågående aktieåterköpsprogram, inklusive återstående kassa och antal aktier som kan köpas.
-**Evolutions ägande:** Visualiserar hur Evolution äger aktier över tid och deras ägarandel i procent.
-Totala aktier: Visar utvecklingen av totala aktier över tid, inklusive effekter av återköp och indragningar.
-**Återköpshistorik:** Ger en detaljerad historik över aktieåterköp, både dagligen och årligen, med genomsnittlig handel och pris.
-Återinvestering till investerare: Visar totala återinvesteringar till aktieägare genom utdelningar och aktieåterköp, inklusive direktavkastning.
-**Interaktiva grafer:** Använder Recharts för att skapa linje- och stapeldiagram med responsiv design.
-**Mobilanpassning:** Optimerad för både desktop och mobila enheter med hjälp av MUI (Material-UI).
-**Teknikstack**
-React: För att bygga användargränssnittet.
-Material-UI (MUI): För responsiv design och UI-komponenter.
-Recharts: För att skapa interaktiva och responsiva grafer.
-JavaScript (ES6+): För logik och databehandling.
-JSON: För att hantera statisk data (t.ex. oldBuybackData.json).
+> ✨ *Ett personligt hobbyprojekt som växte till något större.*
 
-**Installation och körning**
-Följ dessa steg för att köra projektet lokalt:
+Jag började bygga detta som ett litet sidoprojekt för att skapa en enkel live-funktion för att följa Evolution, ett bolag jag själv är intresserad av. Tanken var bara att visualisera deras återköp i realtid – men det ena ledde till det andra. Idag har det utvecklats till ett fullt verktyg med grafer, analyser och interaktiv funktionalitet.  
+Det här projektet är både ett sätt för mig att lära mig mer om finansdata, och att utvecklas som utvecklare – och jag fortsätter bygga vidare på det löpande eftersom det är både roligt och utmanande.
 
-**Klona projektet:** git clone https://github.com/din-användare/aktieaterkopsanalys.git
+---
+
+## 🚀 Funktioner
+
+- 🔁 **Återköpsstatus**  
+  Visar aktuell status för pågående aktieåterköpsprogram, inklusive:  
+  • Återstående kassa  
+  • Antal aktier som kan köpas
+
+- 📈 **Evolutions ägande**  
+  Visualiserar hur många aktier Evolution själva äger över tid, samt ägarandel i procent.
+
+- 📊 **Totala aktier**  
+  Graf över hur antalet totala aktier förändras över tid, inklusive:  
+  • Återköp  
+  • Indragningar
+
+- 📆 **Återköpshistorik**  
+  Ger detaljerad historik för återköp, både:  
+  • Dagligen  
+  • Årligen  
+  Inkluderar genomsnittligt pris och handelsvolym.
+
+- 💸 **Återinvestering till investerare**  
+  Kombinerar utdelningar och återköp för att visa:  
+  • Total återinvestering till aktieägare  
+  • Direktavkastning i %
+
+- 📊 **Interaktiva grafer**  
+  Byggda med [Recharts](https://recharts.org) för responsiv och interaktiv datavisualisering.
+
+- 📱 **Mobilanpassning**  
+  Fullt responsiv design med [Material UI (MUI)](https://mui.com) – fungerar smidigt på både desktop och mobil.
+
+---
+
+## 🛠️ Teknikstack
+
+| Teknik        | Användning                             |
+|---------------|-----------------------------------------|
+| **React**     | UI-komponenter och routing              |
+| **MUI**       | Responsiv design och komponentbibliotek |
+| **Recharts**  | Grafer och datavisualisering            |
+| **JavaScript**| Logik och databehandling (ES6+)         |
+| **JSON**      | Hantering av statisk data               |
+
+---
+
+## ⚙️ Installation
+
+```bash
+# 1. Klona projektet
+git clone https://github.com/din-användare/aktieaterkopsanalys.git
 cd aktieaterkopsanalys
-**Installera beroenden:** Se till att du har Node.js installerat, och kör sedan: npm install
-Starta projektet: npm start
 
-**Användning**
-Navigera mellan olika flikar (t.ex. "Återköpsstatus", "Evolutions ägande", "Återinvestering") för att se olika analyser.
-Använd graferna för att zooma in på specifika datapunkter via tooltips.
-På mobila enheter kan du använda dropdown-menyn för att växla mellan flikar.
+# 2. Installera beroenden
+npm install
 
-**Förbättringsmöjligheter**
-API-integration: Hämta realtidsdata för aktiepriser och återköp istället för statisk JSON-data.
-Fler visualiseringar: Lägg till fler typer av diagram, t.ex. cirkeldiagram för ägarandelar.
-Filter och sortering: Lägg till fler filtreringsalternativ för historiska transaktioner.
-Exportfunktion: Möjlighet att exportera grafer och tabeller som PDF eller CSV.
+# 3. Starta projektet
+npm start
