@@ -452,29 +452,69 @@ const GraphBox = ({
   });
 
   // Beräkna Y-axelns domän och tick-intervall för olika grafer
-  const getYDomainAndTicks = (data, key, minValue = 0, secondaryKey = null) => {
+  const getYDomainAndTicks = (data, key, minValue = 0, secondaryKey = null, isMargin = false, isEPS = false) => {
     if (!data || data.length === 0) return { domain: [0, 1], ticks: [0, 1] };
+  
+    // Samla alla relevanta värden från datan
     const values = data.map(item => item[key]).filter(val => val !== null && !isNaN(val));
-    const secondaryValues = secondaryKey ? data.map(item => item[secondaryKey]).filter(val => val !== null && !isNaN(val)) : [];
+    const secondaryValues = secondaryKey
+      ? data.map(item => item[secondaryKey]).filter(val => val !== null && !isNaN(val))
+      : [];
     const allValues = [...values, ...secondaryValues];
     if (allValues.length === 0) return { domain: [0, 1], ticks: [0, 1] };
+  
+    // Beräkna min- och maxvärden
     const minVal = Math.min(...allValues, minValue);
     const maxVal = Math.max(...allValues);
-    const range = maxVal - minVal;
-    const tickInterval = range > 0 ? Math.ceil(range / 5) : 1;
+  
+    let roundedMin, roundedMax, tickInterval;
+  
+    if (isEPS) {
+      // För Intjäning per aktie (EPS)
+      roundedMin = Math.floor(minVal); // Startar från närmaste heltal nedåt
+      const maxWithMargin = maxVal * 1.05; // Lägg till 5% marginal över högsta värdet
+      roundedMax = Math.ceil(maxWithMargin); // Rundar upp till närmaste heltal
+  
+      const range = roundedMax - roundedMin;
+      tickInterval = range <= 5 ? 1 : range <= 10 ? 2 : Math.ceil(range / 5); // Välj ett passande intervall
+      roundedMax = Math.ceil(maxWithMargin / tickInterval) * tickInterval; // Justera max till en multipel av tickInterval
+    } else if (isMargin) {
+      // För Marginal
+      roundedMin = Math.floor(minVal / 5) * 5; // Rundar ner till närmaste 5
+      const maxWithMargin = maxVal * 1.05; // Lägg till 5% marginal över högsta värdet
+      roundedMax = Math.ceil(maxWithMargin / 5) * 5; // Rundar upp till närmaste 5
+  
+      const range = roundedMax - roundedMin;
+      tickInterval = range <= 20 ? 5 : 10; // Steg om 5 eller 10
+    } else {
+      // För Omsättning och LiveCasino vs RNG
+      roundedMin = Math.floor(minVal / 50) * 50; // Rundar ner till närmaste 50
+      const maxWithMargin = maxVal * 1.05; // Lägg till 5% marginal över högsta värdet
+      roundedMax = Math.ceil(maxWithMargin / 50) * 50; // Rundar upp till närmaste 50
+  
+      const range = roundedMax - roundedMin;
+      tickInterval = range <= 200 ? 50 : range <= 500 ? 100 : 200; // Steg om 50, 100 eller 200
+    }
+  
+    // Skapa ticks med jämna mellanrum
     const ticks = [];
-    for (let i = Math.floor(minVal); i <= Math.ceil(maxVal); i += tickInterval) {
+    for (let i = roundedMin; i <= roundedMax; i += tickInterval) {
       ticks.push(i);
     }
-    return { domain: [minVal, maxVal * 1.1], ticks };
+  
+    // Domänen sätts till exakt min och max ticks
+    return {
+      domain: [ticks[0], ticks[ticks.length - 1]],
+      ticks,
+    };
   };
 
   const revenueQuarterlyYConfig = getYDomainAndTicks(revenueQuarterlyGrowth, 'value');
   const revenueYearlyYConfig = getYDomainAndTicks(revenueDataYearly, 'value');
-  const marginQuarterlyYConfig = getYDomainAndTicks(marginQuarterlyChange, 'value', 0);
-  const marginYearlyYConfig = getYDomainAndTicks(marginDataYearly, 'value', 0);
-  const epsQuarterlyYConfig = getYDomainAndTicks(quarterlyGrowth, 'value');
-  const epsYearlyYConfig = getYDomainAndTicks(yearlyGrowth, 'value');
+  const marginQuarterlyYConfig = getYDomainAndTicks(marginQuarterlyChange, 'value', 0, null, true); // Lägg till isMargin
+  const marginYearlyYConfig = getYDomainAndTicks(marginDataYearly, 'value', 0, null, true); // Lägg till isMargin
+  const epsQuarterlyYConfig = getYDomainAndTicks(quarterlyGrowth, 'value', 0, null, false, true); // Lägg till isEPS
+  const epsYearlyYConfig = getYDomainAndTicks(yearlyGrowth, 'value', 0, null, false, true); // Lägg till isEPS
   const liveCasinoRngQuarterlyYConfig = getYDomainAndTicks(
     liveCasinoRngQuarterlyGrowth,
     'liveCasino',
