@@ -129,8 +129,9 @@ const InvestmentCalculator = ({ dividendData }) => {
     });
   };
 
-  const getYDomain = (data, isMargin = false) => {
-    if (!data || data.length === 0) return [0, isMargin ? 70 : 1000];
+  const getYDomainAndTicks = (data) => {
+    if (!data || data.length === 0) return { domain: [0, 100000], ticks: [0, 50000, 100000] };
+
     const allValues = [];
     data.forEach((entry) => {
       if (visibleLines.investmentValue && entry.investmentValue) allValues.push(entry.investmentValue);
@@ -139,22 +140,36 @@ const InvestmentCalculator = ({ dividendData }) => {
       if (visibleLines.sharePrice && entry.sharePrice) allValues.push(entry.sharePrice);
     });
 
-    if (allValues.length === 0) return [0, isMargin ? 70 : 1000];
+    if (allValues.length === 0) return { domain: [0, 100000], ticks: [0, 50000, 100000] };
+
     const minVal = Math.min(...allValues, 0);
     const maxVal = Math.max(...allValues);
-    const padding = (maxVal - minVal) * 0.1;
 
-    if (isMargin) {
-      return [0, Math.min(70, maxVal + padding)]; // Marginalgraf: max 70%
+    const roundedMin = Math.floor(minVal / 50000) * 50000;
+    const maxWithMargin = maxVal * 1.05;
+    const roundedMax = Math.ceil(maxWithMargin / 50000) * 50000;
+
+    const range = roundedMax - roundedMin;
+    const tickInterval = range <= 200000 ? 50000 : range <= 1000000 ? 100000 : 500000;
+
+    const ticks = [];
+    for (let i = roundedMin; i <= roundedMax; i += tickInterval) {
+      ticks.push(i);
     }
-    return [minVal - padding, maxVal + padding];
+
+    return {
+      domain: [ticks[0], ticks[ticks.length - 1]],
+      ticks,
+    };
   };
 
   const formatYTick = (value, isMargin = false) => {
     if (isMargin) {
-      return `${value}%`; // För marginalgrafen
+      return `${value}%`;
     }
-    return `${(value / 1000).toFixed(0)}k`; // För investeringsgrafen och omsättning
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(0)}k`;
+    return value.toLocaleString("sv-SE");
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -172,19 +187,40 @@ const InvestmentCalculator = ({ dividendData }) => {
           }}
         >
           <Typography variant="body2">År: {label}</Typography>
-          {payload.map((entry, index) => (
-            <Typography key={index} variant="body2" sx={{ color: entry.color }}>
-              {entry.name}: {entry.value.toLocaleString("sv-SE")} SEK
-            </Typography>
-          ))}
+          {payload.map((entry, index) => {
+            const isTotalDividend = entry.name === "Total utdelning";
+            const isSharePrice = entry.name === "Aktiepris";
+            return (
+              <Box key={index}>
+                <Typography variant="body2" sx={{ color: entry.color }}>
+                  {entry.name}: {entry.value.toLocaleString("sv-SE")} SEK
+                </Typography>
+                {isTotalDividend && (
+                  <Typography variant="body2" sx={{ color: "#ccc", marginLeft: "10px" }}>
+                    Utan återköp: {data.totalDividendWithoutBuyback.toLocaleString("sv-SE")} SEK
+                  </Typography>
+                )}
+                {isSharePrice && (
+                  <Typography variant="body2" sx={{ color: "#ccc", marginLeft: "10px" }}>
+                    Utan återköp: {data.sharePriceNoBuyback.toLocaleString("sv-SE")} SEK
+                  </Typography>
+                )}
+              </Box>
+            );
+          })}
           <Typography variant="body2" color="#ccc">
-            Utdelningsboost: {((data.totalDividend - data.totalDividendWithoutBuyback) / data.totalDividendWithoutBuyback * 100).toFixed(2)}%
+            Utdelningsboost för detta år (med återköp): {((data.totalDividend - data.totalDividendWithoutBuyback) / data.totalDividendWithoutBuyback * 100).toFixed(2)}%
+          </Typography>
+          <Typography variant="body2" color="#ccc">
+            Utdelningsboost (utan återköp): 0.00%
           </Typography>
         </Box>
       );
     }
     return null;
   };
+
+  const yConfig = results ? getYDomainAndTicks(results.projectionData) : { domain: [0, 100000], ticks: [0, 50000, 100000] };
 
   return (
     <Card
@@ -528,9 +564,9 @@ const InvestmentCalculator = ({ dividendData }) => {
                           setVisibleLines((prev) => ({ ...prev, sharePrice: !prev.sharePrice }))
                         }
                         sx={{
-                          "& .MuiSwitch-switchBase.Mui-checked": { color: "#00c853" },
+                          "& .MuiSwitch-switchBase.Mui-checked": { color: "#0288d1" },
                           "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                            backgroundColor: "#00c853",
+                            backgroundColor: "#0288d1",
                           },
                         }}
                       />
@@ -557,13 +593,14 @@ const InvestmentCalculator = ({ dividendData }) => {
                     stroke="#ccc"
                     tick={{ fontSize: { xs: 10, sm: 12 } }}
                     interval="preserveStartEnd"
-                    tickFormatter={(value) => value.toString()} // Bara årtal
+                    tickFormatter={(value) => value.toString()}
                   />
                   <YAxis
                     stroke="#ccc"
                     tick={{ fontSize: { xs: 10, sm: 12 } }}
                     tickFormatter={(value) => formatYTick(value)}
-                    domain={getYDomain(results.projectionData)}
+                    domain={yConfig.domain}
+                    ticks={yConfig.ticks}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend
@@ -623,7 +660,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                     <Line
                       type="monotone"
                       dataKey={showBuybacks ? "sharePrice" : "sharePriceNoBuyback"}
-                      stroke="#00c853"
+                      stroke="#0288d1"
                       dot={false}
                       strokeWidth={2}
                       animationDuration={1500}
@@ -632,6 +669,18 @@ const InvestmentCalculator = ({ dividendData }) => {
                   )}
                 </LineChart>
               </ResponsiveContainer>
+
+              {/* Förklarande text under grafen */}
+              <Box mt={1} mb={2}>
+                <Typography
+                  variant="body2"
+                  color="#ccc"
+                  fontSize={{ xs: "0.7rem", sm: "0.875rem" }}
+                  fontStyle="italic"
+                >
+                  Utdelningsboost i grafen visar ökningen för ett specifikt år, medan den totala boosten ({results.dividendBoostPercent.toFixed(2)}%) är genomsnittet över 6 år.
+                </Typography>
+              </Box>
             </Box>
 
             <Box mb={3}>
