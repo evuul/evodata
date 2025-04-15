@@ -1,3 +1,6 @@
-body{
-    background-color: rgba(0, 0, 0, 0.856);
-}
+body {
+    background-color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+  }
