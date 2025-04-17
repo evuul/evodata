@@ -72,7 +72,7 @@ const GraphBox = ({
         setExchangeRate(rate);
       } catch (error) {
         console.error("Kunde inte hämta växelkurs:", error);
-        setExchangeRate(11.20);
+        setExchangeRate(11.20); // Fallback till en standardväxelkurs
       }
     };
 
