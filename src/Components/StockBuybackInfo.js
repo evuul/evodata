@@ -72,7 +72,7 @@ const calculateEvolutionOwnershipPerYear = () => {
 
   oldBuybackData.forEach((item) => {
     const year = item.Datum.split("-")[0];
-    cumulativeShares += item.Antal_aktier; // Hanterar både positiva (återköp) och negativa (indragningar)
+    cumulativeShares += item.Antal_aktier;
 
     if (!ownershipByYear[year]) {
       ownershipByYear[year] = cumulativeShares;
@@ -91,7 +91,7 @@ const calculateEvolutionOwnershipPerYear = () => {
   return evolutionOwnershipData;
 };
 
-// Beräkna totala makulerade aktier (endast för visning som text)
+// Beräkna totala makulerade aktier
 const calculateCancelledShares = () => {
   return oldBuybackData
     .filter((item) => item.Antal_aktier < 0)
@@ -100,7 +100,6 @@ const calculateCancelledShares = () => {
 
 // Beräkna utdelningar och aktieåterköp per år för "Återinvestering till investerare"
 const calculateShareholderReturns = (dividendData) => {
-  // Beräkna utdelningar per år från historicalDividends
   const dividendsByYear = {};
   dividendData.historicalDividends.forEach((dividend) => {
     const year = new Date(dividend.date).getFullYear();
@@ -116,7 +115,6 @@ const calculateShareholderReturns = (dividendData) => {
     dividendsByYear[year] += totalDividend;
   });
 
-  // Lägg till planerade utdelningar för 2025 från plannedDividends
   if (dividendData.plannedDividends && dividendData.plannedDividends.length > 0) {
     dividendData.plannedDividends.forEach((planned) => {
       const year = new Date(planned.exDate).getFullYear();
@@ -133,10 +131,9 @@ const calculateShareholderReturns = (dividendData) => {
     });
   }
 
-  // Beräkna aktieåterköp per år
   const buybacksByYear = {};
   oldBuybackData.forEach((buyback) => {
-    if (buyback.Antal_aktier > 0) { // Endast positiva transaktioner (återköp)
+    if (buyback.Antal_aktier > 0) {
       const year = new Date(buyback.Datum).getFullYear();
       if (!buybacksByYear[year]) {
         buybacksByYear[year] = 0;
@@ -145,7 +142,6 @@ const calculateShareholderReturns = (dividendData) => {
     }
   });
 
-  // Kombinera data för varje år
   const years = new Set([
     ...Object.keys(dividendsByYear),
     ...Object.keys(buybacksByYear),
@@ -158,16 +154,13 @@ const calculateShareholderReturns = (dividendData) => {
       buybacks: buybacksByYear[year] || 0,
     }));
 
-  // Beräkna totala återinvesteringar
   const total = combinedData.reduce((sum, yearData) => {
     return sum + yearData.dividends + yearData.buybacks;
   }, 0);
 
-  // Beräkna totala utdelningar och aktieåterköp separat
   const totalDividends = combinedData.reduce((sum, yearData) => sum + yearData.dividends, 0);
   const totalBuybacks = combinedData.reduce((sum, yearData) => sum + yearData.buybacks, 0);
 
-  // Beräkna totala utdelningar och aktieåterköp för det senaste året (2025 eller senast tillgängliga år)
   const latestYear = Math.max(...combinedData.map(item => item.year));
   const latestYearData = combinedData.find(item => item.year === latestYear);
   const latestYearReturns = latestYearData ? (latestYearData.dividends + latestYearData.buybacks) : 0;
@@ -179,7 +172,6 @@ const calculateShareholderReturns = (dividendData) => {
 const evolutionOwnershipData = calculateEvolutionOwnershipPerYear();
 const cancelledShares = calculateCancelledShares();
 
-// Beräkna ägarandel baserat på totala aktier och Evolutions ägande
 const ownershipPercentageData = totalSharesData.map((item, index) => {
   const evolutionShares = evolutionOwnershipData.find((data) => data.date === item.date)?.shares || 0;
   return {
@@ -188,10 +180,8 @@ const ownershipPercentageData = totalSharesData.map((item, index) => {
   };
 });
 
-// Filtrera data för grafer (endast positiva transaktioner, dvs. återköp)
 const buybackDataForGraphDaily = oldBuybackData.filter((item) => item.Antal_aktier > 0);
 
-// Beräkna återköp per helår
 const buybackDataForGraphYearly = () => {
   const yearlyData = {};
   oldBuybackData
@@ -207,7 +197,6 @@ const buybackDataForGraphYearly = () => {
   return Object.values(yearlyData).sort((a, b) => a.Datum.localeCompare(b.Datum));
 };
 
-// Beräkna genomsnittlig handel per dag och genomsnittspris (endast positiva transaktioner)
 const calculateAverageDailyBuyback = () => {
   const positiveTransactions = oldBuybackData.filter((item) => item.Antal_aktier > 0);
   if (positiveTransactions.length === 0) return { averageDaily: 0, averagePrice: 0 };
@@ -236,20 +225,14 @@ const StockBuybackInfo = ({
   const [viewMode, setViewMode] = useState("daily");
   const [sortConfig, setSortConfig] = useState({ key: "Datum", direction: "desc" });
 
-  // Använd useMediaQuery och useTheme för att avgöra om det är mobilskärm
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Använd useStockPriceContext för att hämta aktiepriset och marknadsvärdet
   const { stockPrice, marketCap, loading: loadingPrice, error: priceError } = useStockPriceContext();
-
-  // Hämta det aktuella priset från useStockPriceContext, med fallback till dividendData om det blir ett fel
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
-  // Beräkna återinvesteringar
   const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData);
 
-  // Beräkna direktavkastning baserat på marketCap från StockPriceContext
   const directYieldPercentage = marketCap > 0 ? (latestYearReturns / marketCap) * 100 : 0;
 
   const buybackCashInSEK = buybackCash * exchangeRate;
@@ -257,6 +240,10 @@ const StockBuybackInfo = ({
   const remainingCash = buybackCashInSEK - totalBuybackValue;
   const buybackProgress = (totalBuybackValue / buybackCashInSEK) * 100;
   const remainingSharesToBuy = remainingCash > 0 && currentSharePrice > 0 ? Math.floor(remainingCash / currentSharePrice) : 0;
+
+  // Beräkna vinst/förlust för aktieåterköpen
+  const profitPerShare = currentSharePrice - averagePrice;
+  const totalProfitLoss = profitPerShare * sharesBought;
 
   const latestTotalShares = totalSharesData[totalSharesData.length - 1].totalShares;
   const latestEvolutionShares = evolutionOwnershipData[evolutionOwnershipData.length - 1]?.shares || 0;
@@ -275,7 +262,6 @@ const StockBuybackInfo = ({
     }
   });
 
-  // Lista över tabbar för navigering (används för pilar på desktop)
   const tabsList = [
     "buyback",
     "ownership",
@@ -284,7 +270,6 @@ const StockBuybackInfo = ({
     "returns",
   ];
 
-  // Funktioner för att navigera med pilar (används endast på desktop)
   const handlePrevTab = () => {
     const currentIndex = tabsList.indexOf(activeTab);
     const prevIndex = (currentIndex - 1 + tabsList.length) % tabsList.length;
@@ -329,11 +314,10 @@ const StockBuybackInfo = ({
     return [lowerBound, upperBound];
   };
 
-  // Förbered data för stapeldiagrammet
   const chartData = returnsData.map((item) => ({
     year: item.year === 2025 ? `${item.year} (pågående)` : item.year,
-    dividends: item.dividends / 1000000, // Konvertera till Mkr
-    buybacks: item.buybacks / 1000000, // Konvertera till Mkr
+    dividends: item.dividends / 1000000,
+    buybacks: item.buybacks / 1000000,
   }));
 
   return (
@@ -342,9 +326,9 @@ const StockBuybackInfo = ({
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
         borderRadius: "20px",
         boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        padding: { xs: "15px", sm: "25px" }, // Matchar GraphBox
+        padding: { xs: "15px", sm: "25px" },
         margin: "20px auto",
-        width: { xs: "95%", sm: "80%", md: "70%" }, // Matchar GraphBox
+        width: { xs: "95%", sm: "80%", md: "70%" },
       }}
     >
       <Typography
@@ -354,13 +338,12 @@ const StockBuybackInfo = ({
           color: "#00e676",
           marginBottom: "20px",
           textAlign: "center",
-          fontSize: { xs: "1.5rem", sm: "2rem" }, // Matchar GraphBox
+          fontSize: { xs: "1.5rem", sm: "2rem" },
         }}
       >
         Aktieåterköpsinformation
       </Typography>
 
-      {/* Tabs för "StockBuybackInfo" */}
       {isMobile ? (
         <Select
           value={activeTab}
@@ -460,13 +443,13 @@ const StockBuybackInfo = ({
             sx={{
               color: "#ccc",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" }, // Matchar GraphBox
-                padding: { xs: "6px 8px", sm: "12px 16px" }, // Matchar GraphBox
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
-            variant="scrollable" // Matchar GraphBox
-            scrollButtons={false} // Inaktivera inbyggda scrollpilar
-            allowScrollButtonsMobile={false} // Inaktivera inbyggda scrollpilar på mobil
+            variant="scrollable"
+            scrollButtons={false}
+            allowScrollButtonsMobile={false}
           >
             <Tab label="Återköpsstatus" value="buyback" />
             <Tab label="Evolutions ägande" value="ownership" />
@@ -493,13 +476,39 @@ const StockBuybackInfo = ({
             sx={{
               fontWeight: "bold",
               color: isActive ? "#00e676" : "#ff1744",
-              marginBottom: "20px",
+              marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" }, // Matchar GraphBox
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Status på återköp: {isActive ? "Aktivt" : "Inaktivt"}
           </Typography>
+
+          {loadingPrice ? (
+            <Typography
+              variant="body1"
+              color="#ccc"
+              sx={{
+                marginBottom: "20px",
+                textAlign: "center",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+              }}
+            >
+              Laddar vinst/förlust...
+            </Typography>
+          ) : (
+            <Typography
+              variant="body1"
+              color={totalProfitLoss >= 0 ? "#00e676" : "#ff1744"}
+              sx={{
+                marginBottom: "20px",
+                textAlign: "center",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+              }}
+            >
+              Vinst/Förlust på återköp: {totalProfitLoss.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
+            </Typography>
+          )}
 
           <Box sx={{ width: "100%", marginBottom: "20px", position: "relative" }}>
             <LinearProgress
@@ -533,7 +542,7 @@ const StockBuybackInfo = ({
               sx={{
                 marginTop: "5px",
                 textAlign: "center",
-                fontSize: { xs: "0.8rem", sm: "0.9rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.8rem", sm: "0.9rem" },
               }}
             >
               {Math.floor(buybackProgress)}% av kassan har använts för återköp
@@ -548,7 +557,7 @@ const StockBuybackInfo = ({
                 sx={{
                   marginBottom: "10px",
                   textAlign: "center",
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" }, // Matchar GraphBox
+                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
                 }}
               >
                 {priceError}
@@ -560,7 +569,7 @@ const StockBuybackInfo = ({
               sx={{
                 marginBottom: "5px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               Återköpta aktier: {sharesBought.toLocaleString()}
@@ -571,7 +580,7 @@ const StockBuybackInfo = ({
               sx={{
                 marginBottom: "5px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               Snittkurs: {averagePrice ? averagePrice.toLocaleString() : "0"} SEK
@@ -582,7 +591,7 @@ const StockBuybackInfo = ({
               sx={{
                 marginBottom: "5px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               Kassa för återköp (i SEK): {buybackCashInSEK.toLocaleString()} SEK
@@ -593,7 +602,7 @@ const StockBuybackInfo = ({
               sx={{
                 marginBottom: "5px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               Kvar av kassan: {remainingCash.toLocaleString()} SEK
@@ -605,7 +614,7 @@ const StockBuybackInfo = ({
                 sx={{
                   marginBottom: "5px",
                   textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                 }}
               >
                 Laddar aktiepris...
@@ -617,7 +626,7 @@ const StockBuybackInfo = ({
                 sx={{
                   marginBottom: "5px",
                   textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                 }}
               >
                 Kvar att köpa för: {remainingSharesToBuy.toLocaleString()} aktier (baserat på {currentSharePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK/aktie)
@@ -636,7 +645,7 @@ const StockBuybackInfo = ({
               color: "#00e676",
               marginBottom: "20px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" }, // Matchar GraphBox
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Evolutions ägande
@@ -648,7 +657,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             Evolution äger: {latestEvolutionShares.toLocaleString()} aktier
@@ -659,7 +668,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             Ägarandel: {latestOwnershipPercentage.toFixed(2)}%
@@ -671,7 +680,7 @@ const StockBuybackInfo = ({
               sx={{
                 marginBottom: "20px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               Makulerade aktier: {cancelledShares.toLocaleString()}
@@ -685,7 +694,7 @@ const StockBuybackInfo = ({
               marginTop: "20px",
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" }, // Matchar GraphBox
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             Antal aktier över tid
@@ -695,16 +704,16 @@ const StockBuybackInfo = ({
               data={evolutionOwnershipData}
               margin={{
                 top: 20,
-                right: isMobile ? 20 : 20, // Matchar GraphBox
-                bottom: isMobile ? 10 : 20, // Matchar GraphBox, minskad på mobil
-                left: isMobile ? 20 : 40, // Matchar GraphBox
+                right: isMobile ? 20 : 20,
+                bottom: isMobile ? 10 : 20,
+                left: isMobile ? 20 : 40,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="date"
                 stroke="#ccc"
-                height={isMobile ? 30 : 40} // Matchar GraphBox
+                height={isMobile ? 30 : 40}
               >
                 {!isMobile && (
                   <Label
@@ -712,7 +721,7 @@ const StockBuybackInfo = ({
                     offset={-10}
                     position="insideBottom"
                     fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
                   />
                 )}
               </XAxis>
@@ -720,16 +729,16 @@ const StockBuybackInfo = ({
                 stroke="#ccc"
                 domain={getYDomain(evolutionOwnershipData, "shares")}
                 tickFormatter={formatYAxisTick}
-                width={isMobile ? 40 : 60} // Matchar GraphBox
+                width={isMobile ? 40 : 60}
               >
                 {!isMobile && (
                   <Label
                     value="Antal aktier"
                     angle={-90}
-                    offset={-10} // Matchar GraphBox
+                    offset={-10}
                     position="insideLeft"
                     fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
                   />
                 )}
               </YAxis>
@@ -755,7 +764,7 @@ const StockBuybackInfo = ({
               marginTop: "20px",
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" }, // Matchar GraphBox
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             Historisk data
@@ -804,7 +813,7 @@ const StockBuybackInfo = ({
               color: "#00e676",
               marginBottom: "20px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" }, // Matchar GraphBox
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Totala aktier
@@ -816,7 +825,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "20px",
               textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             Totalt antal aktier: {latestTotalShares.toLocaleString()}
@@ -828,7 +837,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" }, // Matchar GraphBox
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             Totala aktier över tid
@@ -838,16 +847,16 @@ const StockBuybackInfo = ({
               data={totalSharesData}
               margin={{
                 top: 20,
-                right: isMobile ? 20 : 20, // Matchar GraphBox
-                bottom: isMobile ? 10 : 20, // Matchar GraphBox, minskad på mobil
-                left: isMobile ? 20 : 40, // Matchar GraphBox
+                right: isMobile ? 20 : 20,
+                bottom: isMobile ? 10 : 20,
+                left: isMobile ? 20 : 40,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="date"
                 stroke="#ccc"
-                height={isMobile ? 30 : 40} // Matchar GraphBox
+                height={isMobile ? 30 : 40}
               >
                 {!isMobile && (
                   <Label
@@ -855,7 +864,7 @@ const StockBuybackInfo = ({
                     offset={-10}
                     position="insideBottom"
                     fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
                   />
                 )}
               </XAxis>
@@ -863,16 +872,16 @@ const StockBuybackInfo = ({
                 stroke="#ccc"
                 domain={getYDomain(totalSharesData, "totalShares")}
                 tickFormatter={formatYAxisTick}
-                width={isMobile ? 40 : 60} // Matchar GraphBox
+                width={isMobile ? 40 : 60}
               >
                 {!isMobile && (
                   <Label
                     value="Antal aktier"
                     angle={-90}
-                    offset={-10} // Matchar GraphBox
+                    offset={-10}
                     position="insideLeft"
                     fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
                   />
                 )}
               </YAxis>
@@ -898,7 +907,7 @@ const StockBuybackInfo = ({
               marginTop: "20px",
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" }, // Matchar GraphBox
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             Historisk data
@@ -941,7 +950,7 @@ const StockBuybackInfo = ({
               color: "#00e676",
               marginBottom: "20px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" }, // Matchar GraphBox
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Återköpshistorik
@@ -953,7 +962,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             Genomsnittlig handel per dag: {Math.round(averageDailyBuyback).toLocaleString()} aktier
@@ -964,7 +973,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "20px",
               textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+              fontSize: { xs: "0.9rem", sm: "1rem" },
             }}
           >
             Genomsnittspris: {averageBuybackPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
@@ -979,13 +988,13 @@ const StockBuybackInfo = ({
               color: "#ccc",
               marginBottom: "20px",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" }, // Matchar GraphBox
-                padding: { xs: "6px 8px", sm: "12px 16px" }, // Matchar GraphBox
+                fontSize: { xs: "0.8rem", sm: "1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
-            variant="scrollable" // Matchar GraphBox
-            scrollButtons="auto" // Matchar GraphBox
-            allowScrollButtonsMobile // Matchar GraphBox
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
           >
             <Tab label="Daglig" value="daily" />
             <Tab label="Årlig" value="yearly" />
@@ -997,7 +1006,7 @@ const StockBuybackInfo = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" }, // Matchar GraphBox
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             {viewMode === "daily" ? "Dagliga återköp" : "Årliga återköp"}
@@ -1007,9 +1016,9 @@ const StockBuybackInfo = ({
               data={viewMode === "daily" ? buybackDataForGraphDaily : buybackDataForGraphYearly()}
               margin={{
                 top: 20,
-                right: isMobile ? 20 : 20, // Matchar GraphBox
-                bottom: isMobile ? 10 : 20, // Matchar GraphBox, minskad på mobil
-                left: isMobile ? 20 : 40, // Matchar GraphBox
+                right: isMobile ? 20 : 20,
+                bottom: isMobile ? 10 : 20,
+                left: isMobile ? 20 : 40,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -1018,7 +1027,7 @@ const StockBuybackInfo = ({
                 stroke="#ccc"
                 angle={isMobile ? -45 : 0}
                 textAnchor={isMobile ? "end" : "middle"}
-                height={isMobile ? 40 : 60} // Matchar GraphBox
+                height={isMobile ? 40 : 60}
               >
                 {!isMobile && (
                   <Label
@@ -1026,7 +1035,7 @@ const StockBuybackInfo = ({
                     offset={-10}
                     position="insideBottom"
                     fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
                   />
                 )}
               </XAxis>
@@ -1034,16 +1043,16 @@ const StockBuybackInfo = ({
                 stroke="#ccc"
                 domain={getYDomain(viewMode === "daily" ? buybackDataForGraphDaily : buybackDataForGraphYearly(), "Antal_aktier")}
                 tickFormatter={formatYAxisTick}
-                width={isMobile ? 40 : 60} // Matchar GraphBox
+                width={isMobile ? 40 : 60}
               >
                 {!isMobile && (
                   <Label
                     value="Antal aktier"
                     angle={-90}
-                    offset={-10} // Matchar GraphBox
+                    offset={-10}
                     position="insideLeft"
                     fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                    style={{ fontSize: isMobile ? "12px" : "14px" }}
                   />
                 )}
               </YAxis>
@@ -1069,7 +1078,7 @@ const StockBuybackInfo = ({
               marginTop: "20px",
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" }, // Matchar GraphBox
+              fontSize: { xs: "1rem", sm: "1.25rem" },
             }}
           >
             Transaktioner
@@ -1120,20 +1129,19 @@ const StockBuybackInfo = ({
               color: "#00e676",
               marginBottom: "20px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" }, // Matchar GraphBox
+              fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
             Återinvestering till investerare
           </Typography>
 
-          {/* Total återinvestering och uppdelning */}
           <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
             <Typography
               variant="h5"
               sx={{
                 color: "#FFCA28",
                 fontWeight: "bold",
-                fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" }, // Matchar GraphBox
+                fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
                 textAlign: "center",
               }}
             >
@@ -1145,7 +1153,7 @@ const StockBuybackInfo = ({
                 color: "#ccc",
                 marginTop: "5px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               (Utdelningar: {(totalDividends / 1000000).toLocaleString("sv-SE")} Mkr, Aktieåterköp: {(totalBuybacks / 1000000).toLocaleString("sv-SE")} Mkr)
@@ -1157,7 +1165,7 @@ const StockBuybackInfo = ({
                   color: "#ccc",
                   marginTop: "10px",
                   textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                 }}
               >
                 Laddar direktavkastning...
@@ -1169,7 +1177,7 @@ const StockBuybackInfo = ({
                   color: "#00e676",
                   marginTop: "10px",
                   textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                 }}
               >
                 Direktavkastning ({latestYear}): {directYieldPercentage.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% av marknadsvärdet ({(marketCap / 1000000000).toLocaleString("sv-SE")} Mdkr)
@@ -1177,16 +1185,15 @@ const StockBuybackInfo = ({
             )}
           </Box>
 
-          {/* Stapeldiagram för utdelningar och aktieåterköp per år */}
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={isMobile ? 250 : 400}>
               <BarChart
                 data={chartData}
                 margin={{
                   top: 50,
-                  right: isMobile ? 20 : 20, // Matchar GraphBox
-                  left: isMobile ? 20 : 40, // Matchar GraphBox
-                  bottom: isMobile ? 10 : 20, // Matchar GraphBox, minskad på mobil
+                  right: isMobile ? 20 : 20,
+                  left: isMobile ? 20 : 40,
+                  bottom: isMobile ? 10 : 20,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -1194,7 +1201,7 @@ const StockBuybackInfo = ({
                   dataKey="year"
                   stroke="#ccc"
                   tick={{ fill: "#ccc" }}
-                  height={isMobile ? 30 : 40} // Matchar GraphBox
+                  height={isMobile ? 30 : 40}
                 >
                   {!isMobile && (
                     <Label
@@ -1202,7 +1209,7 @@ const StockBuybackInfo = ({
                       offset={-10}
                       position="insideBottom"
                       fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                      style={{ fontSize: isMobile ? "12px" : "14px" }}
                     />
                   )}
                 </XAxis>
@@ -1210,16 +1217,16 @@ const StockBuybackInfo = ({
                   stroke="#ccc"
                   tick={{ fill: "#ccc" }}
                   tickFormatter={(value) => `${value.toLocaleString("sv-SE")} Mkr`}
-                  width={isMobile ? 40 : 60} // Matchar GraphBox
+                  width={isMobile ? 40 : 60}
                 >
                   {!isMobile && (
                     <Label
                       value="Belopp (Mkr)"
                       angle={-90}
-                      offset={-10} // Matchar GraphBox
+                      offset={-10}
                       position="insideLeft"
                       fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }} // Matchar GraphBox
+                      style={{ fontSize: isMobile ? "12px" : "14px" }}
                     />
                   )}
                 </YAxis>
@@ -1244,7 +1251,7 @@ const StockBuybackInfo = ({
                 color: "#ccc",
                 textAlign: "center",
                 marginBottom: "20px",
-                fontSize: { xs: "0.9rem", sm: "1rem" }, // Matchar GraphBox
+                fontSize: { xs: "0.9rem", sm: "1rem" },
               }}
             >
               Laddar data...
