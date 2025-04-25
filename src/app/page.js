@@ -10,6 +10,7 @@ import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
 import KingsOfTheHillTeaser from "@/Components/KingsOfTheHillTeaser";
+import CurrentCashBox from "@/Components/CurrentCashBox";
 import { Box } from "@mui/material";
 import { Kings } from "next/font/google";
 
@@ -166,6 +167,18 @@ export default async function Home() {
       >
         <InvestmentCalculator dividendData={dividendData} />
       </Box>
+
+{/* CurrentCashBox */}
+<Box
+  sx={{
+    marginTop: { xs: 2, sm: 3 },
+    width: { xs: "95%", sm: "85%", md: "75%" },
+    margin: "0 auto",
+  }}
+>
+  <CurrentCashBox financialReports={financialReports} />
+</Box>
+
 
       {/* StockBuybackInfo */}
       <Box

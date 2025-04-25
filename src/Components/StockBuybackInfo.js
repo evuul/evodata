@@ -39,7 +39,7 @@ import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 // Växelkurs (exempelvärde)
-const exchangeRate = 10.83; // Exempel: 1 EUR = 10.83 SEK
+const exchangeRate = 11.02; // Exempel: 1 EUR = 10.83 SEK
 
 // Animationer för glow-effekt
 const pulseGreen = keyframes`
