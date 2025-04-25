@@ -11,61 +11,61 @@ const mockGameShowsData = [
   {
     name: "Crazy Time",
     playerData: [
-      { date: "2025-04-01", players: 16287 },
+      { date: "2025-04-01", players: 15954 },
     ],
   },
   {
     name: "Monopoly Big Baller",
     playerData: [
-      { date: "2025-04-01", players: 8076 },
+      { date: "2025-04-01", players: 7818 },
     ],
   },
   {
     name: "Funky Time",
     playerData: [
-      { date: "2025-04-01", players: 7244 },
+      { date: "2025-04-01", players: 6905 },
     ],
   },
   {
     name: "Mega Wheel (prag)",
     playerData: [
-      { date: "2025-04-01", players: 6931 },
+      { date: "2025-04-01", players: 7271 },
     ],
   },
   {
     name: "Sweet Bonanza CandyLand (prag)",
     playerData: [
-      { date: "2025-04-01", players: 4364 },
+      { date: "2025-04-01", players: 4890 },
     ],
   },
   {
     name: "Crazy Time A",
     playerData: [
-      { date: "2025-04-01", players: 4289 },
+      { date: "2025-04-01", players: 4177 },
     ],
   },
   {
     name: "Lightning Storm",
     playerData: [
-      { date: "2025-04-01", players: 3024 },
+      { date: "2025-04-01", players: 2846 },
     ],
   },
   {
     name: "Adventures Beyond Wonderland (playtech)",
     playerData: [
-      { date: "2025-04-01", players: 2462 },
+      { date: "2025-04-01", players: 2828 },
     ],
   },
   {
     name: "Monopoly Live",
     playerData: [
-      { date: "2025-04-01", players: 2350 },
+      { date: "2025-04-01", players: 2315 },
     ],
   },
   {
     name: "Lightning Roulette",
     playerData: [
-      { date: "2025-04-01", players: 2268 },
+      { date: "2025-04-01", players: 2201 },
     ],
   },
 ];
