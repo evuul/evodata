@@ -781,6 +781,31 @@
             "other": 20.7,
             "regulatedMarket": 41,
             "Top5Customers": 46
+          },
+          {
+            "year": 2025,
+            "quarter": "Q1",
+            "operatingRevenues": 520.944,
+            "adjustedEBITDA": 341.976,
+            "adjustedEBITDAMargin": 65.6,
+            "adjustedOperatingMargin": 58.2,
+            "adjustedProfitForPeriod": 254.669,
+            "adjustedProfitMargin": 48.9,
+            "adjustedEarningsPerShare": 1.24,
+            "equityPerShare": 19.23,
+            "ocfPerShare": 1.76,
+            "averageNumberOfFTEs": 16.368,
+            "cashStart": 801.474,
+            "cashEnd": 969.208,
+            "liveCasino": 448.7,
+            "rng": 72.3,
+            "europe": 189.7,
+            "asia": 201.9,
+            "northAmerica": 71.5,
+            "latAm": 36.2,
+            "other": 21.6,
+            "regulatedMarket": 45,
+            "Top5Customers": 46
           }
     ]
   }
