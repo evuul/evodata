@@ -10,7 +10,7 @@ import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
 import KingsOfTheHillTeaser from "@/Components/KingsOfTheHillTeaser";
-import CurrentCashBox from "@/Components/CurrentCashBox";
+import CurrentCashBox from "../Components/CurrentCashBox";
 import { Box } from "@mui/material";
 import { Kings } from "next/font/google";
 
@@ -59,7 +59,7 @@ export default async function Home() {
     {
       headers: {
         authorization:
-          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJBbGV4YW5kZXIuZWtAbGl2ZS5zZSIsImlhdCI6MTc0MzM2MDk1MywiZXhwIjoxNzQ1OTUyOTUzfQ.ve8DB7ND1_4ptX0oteIzF3fbVFxr9gIEqfi2uVPPZAU",
+          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJBbGV4YW5kZXIuZWtAbGl2ZS5zZSIsImlhdCI6MTc0NTUxOTk2OCwiZXhwIjoxNzQ4MTExOTY4fQ.5cMwr6yP_0tvIkAE5w3E2E1Id3ssj3YON7jxsdMVVa4",
       },
       cache: "no-store",
     }
@@ -168,7 +168,7 @@ export default async function Home() {
         <InvestmentCalculator dividendData={dividendData} />
       </Box>
 
-{/* CurrentCashBox */}
+      {/* CurrentCashBox */}
 <Box
   sx={{
     marginTop: { xs: 2, sm: 3 },
@@ -178,7 +178,6 @@ export default async function Home() {
 >
   <CurrentCashBox financialReports={financialReports} />
 </Box>
-
 
       {/* StockBuybackInfo */}
       <Box
