@@ -15,8 +15,8 @@ const CurrentCashBox = ({ financialReports }) => {
 
   // Beräkna antalet dagar sedan 31 december 2024 (slutet på Q4 2024) till idag
   const calculateDaysSinceQ4 = () => {
-    const endOfQ4 = new Date("2024-12-31");
-    const today = new Date("2025-04-25"); // Dagens datum (25 april 2025)
+    const endOfQ4 = new Date("2025-03-30");
+    const today = new Date("2025-04-30"); // Dagens datum (25 april 2025)
     const diffInTime = today - endOfQ4;
     const diffInDays = Math.floor(diffInTime / (1000 * 60 * 60 * 24)) + 1; // +1 för att inkludera idag
     return { days: diffInDays, today };
@@ -33,7 +33,7 @@ const CurrentCashBox = ({ financialReports }) => {
 
   // Hämta den senaste kassan (Q4 2024, cashEnd)
   const latestCash = financialReports?.financialReports
-    ?.filter(item => item.year === 2024 && item.quarter === "Q4")[0]?.cashEnd || 0;
+    ?.filter(item => item.year === 2025 && item.quarter === "Q1")[0]?.cashEnd || 0;
 
   // Konvertera kassan från MEUR till BSEK
   const latestCashBSEK = (latestCash * EXCHANGE_RATE) / 1000; // MEUR till BSEK (miljoner till miljarder)
@@ -80,7 +80,7 @@ const CurrentCashBox = ({ financialReports }) => {
               fontSize: { xs: "1.2rem", sm: "1.5rem" },
             }}
           >
-            Q4 2024: {latestCashBSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
+            Q1 2025: {latestCashBSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
           </Typography>
           <Typography
             variant="h5"
@@ -107,7 +107,7 @@ const CurrentCashBox = ({ financialReports }) => {
             color="#ccc"
             sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
           >
-            Uppskattad ökning sedan Q4 2024: {estimatedIncrease.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
+            Uppskattad ökning sedan Q1 2025: {estimatedIncrease.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
             <br />
             (baserat på {days} dagar med daglig vinst på {dailyProfit.toLocaleString("sv-SE")} SEK)
             <br />
