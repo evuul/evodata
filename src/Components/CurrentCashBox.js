@@ -1,29 +1,74 @@
 'use client';
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Typography, Card } from "@mui/material";
 
 const CurrentCashBox = ({ financialReports }) => {
-  // Växelkurs SEK/EUR (från StockBuybackInfo)
   const EXCHANGE_RATE = 11.02;
+  const dailyProfit = 36374400;
 
-  // Daglig vinst i SEK (från din kod)
-  const dailyProfit = 36374400; // SEK
+  // Manuellt angivet återstående återköpsbelopp (i BSEK) för Q2 2025
+  // Uppdatera detta värde baserat på hur mycket som är kvar av återköpskassan
+  const remainingBuybackInSEK = 3.811; // Exempelvärde: 3.500 BSEK, ändra detta efter behov
 
-  // Kassa avsedd för aktieåterköp (från StockBuybackInfo, i EUR)
-  const buybackCash = 500000000; // 500 MEUR
-  const buybackCashInSEK = (buybackCash * EXCHANGE_RATE) / 1000000000; // Konvertera till BSEK
+  // State för att lagra beräknade värden
+  const [dateInfo, setDateInfo] = useState({ days: null, today: null, latestQuarter: null, latestQuarterEndDate: null });
 
-  // Beräkna antalet dagar sedan 31 december 2024 (slutet på Q4 2024) till idag
-  const calculateDaysSinceQ4 = () => {
-    const endOfQ4 = new Date("2025-03-30");
-    const today = new Date("2025-04-30"); // Dagens datum (25 april 2025)
-    const diffInTime = today - endOfQ4;
-    const diffInDays = Math.floor(diffInTime / (1000 * 60 * 60 * 24)) + 1; // +1 för att inkludera idag
-    return { days: diffInDays, today };
+  // Funktion för att hitta det senaste kvartalet
+  const getLatestQuarter = (reports) => {
+    if (!reports?.financialReports?.length) return null;
+
+    const sortedReports = [...reports.financialReports].sort((a, b) => {
+      if (a.year !== b.year) return b.year - a.year; // Sortera efter år (nyast först)
+      return parseInt(b.quarter.replace("Q", "")) - parseInt(a.quarter.replace("Q", "")); // Sortera efter kvartal
+    });
+
+    return sortedReports[0]; // Returnera det senaste kvartalet
   };
 
-  // Formatera datum till "DD MMM YYYY" (t.ex. "25 apr 2025")
+  // Funktion för att få slutdatumet för ett kvartal
+  const getQuarterEndDate = (year, quarter) => {
+    switch (quarter) {
+      case "Q1":
+        return new Date(year, 2, 31); // 31 mars
+      case "Q2":
+        return new Date(year, 5, 30); // 30 juni
+      case "Q3":
+        return new Date(year, 8, 30); // 30 september
+      case "Q4":
+        return new Date(year, 11, 31); // 31 december
+      default:
+        return null;
+    }
+  };
+
+  // Beräkna dagar mellan senaste kvartalet och idag
+  useEffect(() => {
+    const latestQuarter = getLatestQuarter(financialReports);
+    if (!latestQuarter) {
+      console.log("Inget senaste kvartal hittades");
+      return;
+    }
+
+    const quarterEndDate = getQuarterEndDate(latestQuarter.year, latestQuarter.quarter);
+    if (!quarterEndDate) {
+      console.log("Kunde inte få kvartalets slutdatum");
+      return;
+    }
+
+    const today = new Date();
+    const diffInTime = today - quarterEndDate;
+    const diffInDays = Math.floor(diffInTime / (1000 * 60 * 60 * 24)) + 1;
+
+    setDateInfo({
+      days: diffInDays,
+      today,
+      latestQuarter: `${latestQuarter.quarter} ${latestQuarter.year}`,
+      latestQuarterEndDate: quarterEndDate,
+    });
+  }, [financialReports]);
+
   const formatDate = (date) => {
+    if (!date) return "Laddar...";
     return date.toLocaleDateString("sv-SE", {
       day: "numeric",
       month: "short",
@@ -31,20 +76,13 @@ const CurrentCashBox = ({ financialReports }) => {
     });
   };
 
-  // Hämta den senaste kassan (Q4 2024, cashEnd)
-  const latestCash = financialReports?.financialReports
-    ?.filter(item => item.year === 2025 && item.quarter === "Q1")[0]?.cashEnd || 0;
+  const latestQuarterData = getLatestQuarter(financialReports);
+  const latestCash = latestQuarterData?.cashEnd || 0;
+  const latestCashBSEK = (latestCash * EXCHANGE_RATE) / 1000;
 
-  // Konvertera kassan från MEUR till BSEK
-  const latestCashBSEK = (latestCash * EXCHANGE_RATE) / 1000; // MEUR till BSEK (miljoner till miljarder)
-
-  // Beräkna uppskattad ökning sedan Q4 2024
-  const { days, today } = calculateDaysSinceQ4();
-  const estimatedIncrease = (dailyProfit * days) / 1000000000; // SEK till BSEK (miljoner till miljarder)
+  const estimatedIncrease = dateInfo.days ? (dailyProfit * dateInfo.days) / 1000000000 : 0;
   const estimatedCashBSEKBeforeBuyback = latestCashBSEK + estimatedIncrease;
-
-  // Subtrahera kassan avsedd för aktieåterköp
-  const estimatedCashBSEKAfterBuyback = estimatedCashBSEKBeforeBuyback - buybackCashInSEK;
+  const estimatedCashBSEKAfterBuyback = estimatedCashBSEKBeforeBuyback - remainingBuybackInSEK;
 
   return (
     <Card
@@ -70,7 +108,7 @@ const CurrentCashBox = ({ financialReports }) => {
         Nuvarande kassa (BSEK)
       </Typography>
 
-      {latestCash > 0 ? (
+      {latestCash > 0 && dateInfo.latestQuarter ? (
         <Box>
           <Typography
             variant="h5"
@@ -80,7 +118,7 @@ const CurrentCashBox = ({ financialReports }) => {
               fontSize: { xs: "1.2rem", sm: "1.5rem" },
             }}
           >
-            Q1 2025: {latestCashBSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
+            {dateInfo.latestQuarter}: {latestCashBSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
           </Typography>
           <Typography
             variant="h5"
@@ -90,7 +128,7 @@ const CurrentCashBox = ({ financialReports }) => {
               fontSize: { xs: "1.2rem", sm: "1.5rem" },
             }}
           >
-            Återköpsprogram -5,51 BSEK
+            Återstående återköpsprogram -{remainingBuybackInSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
           </Typography>
           <Typography
             variant="h5"
@@ -100,19 +138,21 @@ const CurrentCashBox = ({ financialReports }) => {
               fontSize: { xs: "1.2rem", sm: "1.5rem" },
             }}
           >
-            Uppskattning {formatDate(today)} (efter återköp): {estimatedCashBSEKAfterBuyback.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
+            Uppskattning {formatDate(dateInfo.today)} (efter återköp): {estimatedCashBSEKAfterBuyback.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
           </Typography>
-          <Typography
-            variant="body1"
-            color="#ccc"
-            sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
-          >
-            Uppskattad ökning sedan Q1 2025: {estimatedIncrease.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
-            <br />
-            (baserat på {days} dagar med daglig vinst på {dailyProfit.toLocaleString("sv-SE")} SEK)
-            <br />
-            Kassan har justerats för aktieåterköp på {buybackCashInSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK.
-          </Typography>
+          {dateInfo.days && (
+            <Typography
+              variant="body1"
+              color="#ccc"
+              sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+            >
+              Uppskattad ökning sedan {dateInfo.latestQuarter}: {estimatedIncrease.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK
+              <br />
+              (baserat på {dateInfo.days} dagar med daglig vinst på {dailyProfit.toLocaleString("sv-SE")} SEK)
+              <br />
+              Kassan har justerats för återstående återköp på {remainingBuybackInSEK.toLocaleString("sv-SE", { minimumFractionDigits: 3, maximumFractionDigits: 3 })} BSEK.
+            </Typography>
+          )}
         </Box>
       ) : (
         <Typography
