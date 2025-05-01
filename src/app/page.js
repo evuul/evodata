@@ -169,7 +169,7 @@ export default async function Home() {
       </Box>
 
       {/* CurrentCashBox */}
-<Box
+{/* <Box
   sx={{
     marginTop: { xs: 2, sm: 3 },
     width: { xs: "95%", sm: "85%", md: "75%" },
@@ -177,7 +177,7 @@ export default async function Home() {
   }}
 >
   <CurrentCashBox financialReports={financialReports} />
-</Box>
+</Box> */}
 
       {/* StockBuybackInfo */}
       <Box
