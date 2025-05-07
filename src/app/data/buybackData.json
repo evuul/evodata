@@ -230,5 +230,13 @@
       "Snittkurs": 790.95,
       "Dagsvolym": 2003385,
       "Procent_dagsvolym": 8.26
+    },
+    {
+      "Datum": "2025-05-05",
+      "Antal_aktier": 200000,
+      "Transaktionsvärde": 159740000,
+      "Snittkurs": 698.70,
+      "Dagsvolym": 2003385,
+      "Procent_dagsvolym": 8.26
     } 
   ]
