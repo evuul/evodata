@@ -240,12 +240,13 @@ const StockBuybackInfo = ({
   const remainingCash = buybackCashInSEK - totalBuybackValue;
   const buybackProgress = (totalBuybackValue / buybackCashInSEK) * 100;
   const remainingSharesToBuy = remainingCash > 0 && currentSharePrice > 0 ? Math.floor(remainingCash / currentSharePrice) : 0;
+  const latestTotalShares = totalSharesData[totalSharesData.length - 1].totalShares;
+  const remainingPercentage = latestTotalShares > 0 ? (remainingSharesToBuy / latestTotalShares) * 100 : 0;
 
   // Beräkna vinst/förlust för aktieåterköpen
   const profitPerShare = currentSharePrice - averagePrice;
   const totalProfitLoss = profitPerShare * sharesBought;
 
-  const latestTotalShares = totalSharesData[totalSharesData.length - 1].totalShares;
   const latestEvolutionShares = evolutionOwnershipData[evolutionOwnershipData.length - 1]?.shares || 0;
   const latestOwnershipPercentage = (latestEvolutionShares / latestTotalShares) * 100;
 
@@ -620,17 +621,29 @@ const StockBuybackInfo = ({
                 Laddar aktiepris...
               </Typography>
             ) : (
-              <Typography
-                variant="body1"
-                color="#00e676"
-                sx={{
-                  marginBottom: "5px",
-                  textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" },
-                }}
-              >
-                Kvar att köpa för: {remainingSharesToBuy.toLocaleString()} aktier (baserat på {currentSharePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK/aktie)
-              </Typography>
+              <Box>
+                <Typography
+                  variant="body1"
+                  color="#00e676"
+                  sx={{
+                    marginBottom: "5px",
+                    textAlign: "center",
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
+                  }}
+                >
+                  Kvar att köpa för: {remainingSharesToBuy.toLocaleString()} aktier (baserat på {currentSharePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK/aktie)
+                </Typography>
+                <Typography
+                  variant="body1"
+                  color="#00e676"
+                  sx={{
+                    textAlign: "center",
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
+                  }}
+                >
+                  Motsvarar {remainingPercentage.toFixed(2)}% av bolagets aktier
+                </Typography>
+              </Box>
             )}
           </Box>
         </Box>
