@@ -183,7 +183,7 @@ const InvestmentCalculator = ({ dividendData }) => {
             border: "none",
             borderRadius: "5px",
             padding: "8px",
-            fontSize: { xs: "0.7rem", sm: "0.9rem" },
+            fontSize: { xs: "0.85rem", sm: "0.95rem" },
           }}
         >
           <Typography variant="body2">År: {label}</Typography>
@@ -236,25 +236,26 @@ const InvestmentCalculator = ({ dividendData }) => {
       }}
     >
       <Typography
-        variant="h4"
+        variant="h5"
         sx={{
-          fontWeight: "bold",
+          fontWeight: 700,
           color: "#fff",
-          marginBottom: "15px",
-          fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
+          marginBottom: "12px",
+          fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+          letterSpacing: "0.5px",
         }}
       >
         Investeringskalkylator
       </Typography>
 
       {loadingPrice && (
-        <Typography variant="body1" color="#ccc" mb={2} fontSize={{ xs: "0.8rem", sm: "1rem" }}>
+        <Typography variant="body2" color="#ccc" mb={2} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
           Laddar aktiepris...
         </Typography>
       )}
 
       {priceError && (
-        <Typography variant="body1" color="#ff1744" mb={2} fontSize={{ xs: "0.8rem", sm: "1rem" }}>
+        <Typography variant="body2" color="#ff1744" mb={2} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
           Kunde inte hämta aktiepris: {priceError}. Använder fallback-värden (aktiepris: {currentSharePrice} SEK).
         </Typography>
       )}
@@ -390,7 +391,7 @@ const InvestmentCalculator = ({ dividendData }) => {
           <Box>
             {results.millionMilestoneYear && (
               <Box mb={2}>
-                <Typography variant="body1" color="#00e676" fontWeight="bold" fontSize={{ xs: "0.8rem", sm: "1rem" }}>
+                <Typography variant="body2" color="#00e676" fontWeight="bold" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
                   🎉 Grattis! Din investering når 1 miljon SEK år {results.millionMilestoneYear}!
                 </Typography>
               </Box>
@@ -400,38 +401,38 @@ const InvestmentCalculator = ({ dividendData }) => {
               <Typography
                 variant="h6"
                 color="#00e676"
-                fontSize={{ xs: "1rem", sm: "1.25rem", md: "1.5rem" }}
+                fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}
               >
                 Nuvarande värde av din investering (2025)
               </Typography>
               <Typography
                 variant="h5"
                 color="#fff"
-                fontSize={{ xs: "1.2rem", sm: "1.5rem", md: "1.75rem" }}
+                fontSize={{ xs: "1.2rem", sm: "1.5rem", md: "1.8rem" }}
               >
                 {results.currentValue.toLocaleString("sv-SE")} SEK
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
                 mt={1}
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 Initial investering: {results.initialInvestment.toLocaleString("sv-SE")} SEK
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
                 mt={1}
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 Din nuvarande utdelning (2025): {results.currentDividend.toLocaleString("sv-SE")} SEK
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color={results.currentValue >= results.initialInvestment ? "#00e676" : "#ff1744"}
                 mt={1}
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 Avkastning: {(((results.currentValue - results.initialInvestment) / results.initialInvestment) * 100).toFixed(2)}%
               </Typography>
@@ -439,16 +440,16 @@ const InvestmentCalculator = ({ dividendData }) => {
 
             <Box mb={2}>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 📊 <strong>Effekt av återköp:</strong> Du får {results.dividendBoostPercent.toFixed(2)}% mer utdelning över 6 år tack vare bolagets återköp.
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 📈 <strong>Enbart återköpseffekten:</strong> Utdelningen ökar med {results.pureBuybackBoostPercent.toFixed(2)}% enbart på grund av återköpen (exklusive utdelningstillväxt).
               </Typography>
@@ -459,24 +460,24 @@ const InvestmentCalculator = ({ dividendData }) => {
                 variant="h6"
                 color="#00e676"
                 mb={1}
-                fontSize={{ xs: "1rem", sm: "1.25rem", md: "1.5rem" }}
+                fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}
               >
                 Framtida värde och utdelningar (2026-2031)
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
                 mb={1}
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 Under dessa 6 år återköptes {results.totalSharesBoughtBack.toLocaleString("sv-SE")} aktier. 
                 Kvarstående aktier: {results.remainingShares.toLocaleString("sv-SE")}.
               </Typography>
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
                 mb={1}
-                fontSize={{ xs: "0.8rem", sm: "1rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 Din ägarandel: {results.initialOwnershipPercent}% (2025) → {results.finalOwnershipPercent}% (2031). 
                 Ökning: {results.ownershipIncreasePercent}% tack vare återköpen.
@@ -490,7 +491,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                     borderColor: "#ccc",
                     color: "#ccc",
                     "&:hover": { borderColor: "#00e676", color: "#00e676" },
-                    fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                    fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                   }}
                 >
                   {showBuybacks ? "Visa utan återköp" : "Visa med återköp"}
@@ -515,7 +516,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                       />
                     }
                     label="Investeringsvärde"
-                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.7rem", sm: "0.9rem" } } }}
+                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" } } }}
                   />
                   <FormControlLabel
                     control={
@@ -536,7 +537,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                       />
                     }
                     label="Investeringsvärde (utan återköp)"
-                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.7rem", sm: "0.9rem" } } }}
+                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" } } }}
                   />
                   <FormControlLabel
                     control={
@@ -554,7 +555,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                       />
                     }
                     label="Total utdelning"
-                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.7rem", sm: "0.9rem" } } }}
+                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" } } }}
                   />
                   <FormControlLabel
                     control={
@@ -572,7 +573,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                       />
                     }
                     label="Aktiepris"
-                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.7rem", sm: "0.9rem" } } }}
+                    sx={{ color: "#ccc", "& .MuiTypography-root": { fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" } } }}
                   />
                 </FormGroup>
               </Box>
@@ -591,13 +592,13 @@ const InvestmentCalculator = ({ dividendData }) => {
                   <XAxis
                     dataKey="year"
                     stroke="#ccc"
-                    tick={{ fontSize: { xs: 10, sm: 12 } }}
+                    tick={{ fontSize: { xs: 12, sm: 14 } }}
                     interval="preserveStartEnd"
                     tickFormatter={(value) => value.toString()}
                   />
                   <YAxis
                     stroke="#ccc"
-                    tick={{ fontSize: { xs: 10, sm: 12 } }}
+                    tick={{ fontSize: { xs: 12, sm: 14 } }}
                     tickFormatter={(value) => formatYTick(value)}
                     domain={yConfig.domain}
                     ticks={yConfig.ticks}
@@ -619,7 +620,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                       }
                     }}
                     wrapperStyle={{
-                      fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                      fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                       paddingTop: 5,
                     }}
                   />
@@ -675,7 +676,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                 <Typography
                   variant="body2"
                   color="#ccc"
-                  fontSize={{ xs: "0.7rem", sm: "0.875rem" }}
+                  fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
                   fontStyle="italic"
                 >
                   Utdelningsboost i grafen visar ökningen för ett specifikt år, medan den totala boosten ({results.dividendBoostPercent.toFixed(2)}%) är genomsnittet över 6 år.
@@ -688,7 +689,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                 variant="h6"
                 color="#00e676"
                 mb={1}
-                fontSize={{ xs: "1rem", sm: "1.25rem", md: "1.5rem" }}
+                fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}
               >
                 Projekterad utdelning och aktiepris (2026-2031)
               </Typography>
@@ -718,7 +719,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                         align="center"
                         sx={{
                           color: "#fff",
-                          fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                          fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                           padding: { xs: "4px", sm: "8px" },
                         }}
                       >
@@ -728,7 +729,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                         align="center"
                         sx={{
                           color: "#fff",
-                          fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                          fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                           padding: { xs: "4px", sm: "8px" },
                         }}
                       >
@@ -738,7 +739,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                         align="center"
                         sx={{
                           color: "#fff",
-                          fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                          fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                           padding: { xs: "4px", sm: "8px" },
                         }}
                       >
@@ -748,7 +749,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                         align="center"
                         sx={{
                           color: "#fff",
-                          fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                          fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                           padding: { xs: "4px", sm: "8px" },
                         }}
                       >
@@ -763,7 +764,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                           align="center"
                           sx={{
                             color: "#fff",
-                            fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                            fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                             padding: { xs: "4px", sm: "8px" },
                           }}
                         >
@@ -773,7 +774,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                           align="center"
                           sx={{
                             color: "#fff",
-                            fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                            fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                             padding: { xs: "4px", sm: "8px" },
                           }}
                         >
@@ -783,7 +784,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                           align="center"
                           sx={{
                             color: "#fff",
-                            fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                            fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                             padding: { xs: "4px", sm: "8px" },
                           }}
                         >
@@ -793,7 +794,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                           align="center"
                           sx={{
                             color: "#fff",
-                            fontSize: { xs: "0.7rem", sm: "0.9rem" },
+                            fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                             padding: { xs: "4px", sm: "8px" },
                           }}
                         >
@@ -810,7 +811,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                 variant="body2"
                 color="#ccc"
                 mt={2}
-                fontSize={{ xs: "0.7rem", sm: "0.875rem" }}
+                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
               >
                 <em>
                   *Antaganden: {buybackRate}% årlig återköpsrate, {growthRate}% årlig tillväxt, {dividendGrowth}% årlig utdelningstillväxt. Framtida aktiepris och utdelningar är baserade på dessa antaganden och bör inte ses som en garanti.

@@ -6,17 +6,14 @@ import { Card, CardContent, Box, Typography } from "@mui/material";
 export default function PlayerCard({ playerCount, sx = {} }) {
   const [lastUpdated, setLastUpdated] = useState("");
   const [allTimeHigh, setAllTimeHigh] = useState(() => {
-    // Hämta sparad ATH från localStorage, eller använd placeholder 124k om ingen finns
     const savedATH = localStorage.getItem("playerCountATH");
-    return savedATH ? parseInt(savedATH, 10) : 119240; // Placeholder på 124k
+    return savedATH ? parseInt(savedATH, 10) : 119240;
   });
   const [athDate, setAthDate] = useState(() => {
-    // Hämta sparat datum från localStorage, eller använd placeholder-datum om inget finns
     const savedDate = localStorage.getItem("playerCountATHDate");
-    return savedDate || "5 april 2025"; // Placeholder-datum för 124k
+    return savedDate || "5 april 2025";
   });
 
-  // Uppdatera lastUpdated varje minut
   useEffect(() => {
     const fetchTime = () => {
       const now = new Date();
@@ -28,19 +25,16 @@ export default function PlayerCard({ playerCount, sx = {} }) {
     };
 
     fetchTime();
-    const interval = setInterval(fetchTime, 300000); // Uppdatera varje minut
+    const interval = setInterval(fetchTime, 300000);
 
     return () => clearInterval(interval);
   }, []);
 
-  // Kontrollera och uppdatera ATH samt datum baserat på playerCount
   useEffect(() => {
     if (playerCount && playerCount > allTimeHigh) {
-      // Nytt rekord! Uppdatera ATH och spara i localStorage
       setAllTimeHigh(playerCount);
       localStorage.setItem("playerCountATH", playerCount.toString());
 
-      // Spara datum och tid för det nya rekordet
       const now = new Date();
       const formattedDate = now.toLocaleString("sv-SE", {
         day: "numeric",
@@ -56,18 +50,18 @@ export default function PlayerCard({ playerCount, sx = {} }) {
 
   const isHighPlayerCount = playerCount > 90000;
   const isVeryHighPlayerCount = playerCount > 100000;
-  const isNewATH = playerCount === allTimeHigh; // Kontrollera om vi precis satt ett nytt rekord
+  const isNewATH = playerCount === allTimeHigh;
 
   return (
     <Card
       sx={{
-        width: { xs: "90%", sm: "80%", md: "70%" }, // Samma bredd som GraphBox och Header
-        margin: "20px auto",
-        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)", // Samma gradient som GraphBox
-        borderRadius: "20px", // Samma rundade hörn som GraphBox
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)", // Samma skugga som GraphBox
-        border: "1px solid rgba(255, 255, 255, 0.1)", // Samma subtila kantlinje som Header
-        padding: "20px",
+        width: { xs: "92%", sm: "85%", md: "75%" },
+        margin: "16px auto",
+        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        border: "1px solid rgba(255, 255, 255, 0.05)",
+        padding: { xs: "12px", sm: "16px" },
         textAlign: "center",
         color: "#ffffff",
         ...sx,
@@ -76,122 +70,76 @@ export default function PlayerCard({ playerCount, sx = {} }) {
       <CardContent>
         <Box display="flex" justifyContent="center" alignItems="center">
           <Typography
-            variant="h4" // Ökat till h4 för mer tyngd
+            variant="h5"
             sx={{
-              fontWeight: "bold",
-              color: "#fff", // Matchar den gröna färgen från GraphBox
-              fontSize: {
-                xs: "1.5rem", // För mobil
-                sm: "2rem",   // För tablet
-                md: "2.5rem", // För desktop
-              },
+              fontWeight: 700,
+              color: "#ffffff",
+              fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+              letterSpacing: "0.5px",
             }}
           >
-            Antal spelare:
+            Antal spelare
           </Typography>
         </Box>
 
-        <Box display="flex" flexDirection="column" alignItems="center" marginTop="20px">
+        <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
           <Typography
             variant="h2"
-            fontWeight="bold"
+            fontWeight="700"
             sx={{
-              fontSize: {
-                xs: "2rem",  // För mobil
-                sm: "3rem",  // För tablet
-                md: "4rem",  // För desktop
-              },
-              color: "#00e676", // Solid grön färg för att matcha GraphBox
+              fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
+              color: "#00e676",
+              marginBottom: "8px",
             }}
           >
             {playerCount.toLocaleString()}
             {isHighPlayerCount && (
-              <span
-                style={{
-                  color: "#FFCA28", // Gul färg för att matcha andra gula element i GraphBox
-                  fontSize: "48px",
-                  marginLeft: "10px",
-                }}
-              >
-                🚀
-              </span>
+              <span style={{ color: "#FFCA28", fontSize: "32px", marginLeft: "8px" }}>🚀</span>
             )}
             {isVeryHighPlayerCount && (
-              <span
-                style={{
-                  color: "#FFD700", // Guld för att fira milstolpen
-                  fontSize: "48px",
-                  marginLeft: "10px",
-                }}
-              >
-                🏆
-              </span>
+              <span style={{ color: "#FFD700", fontSize: "32px", marginLeft: "8px" }}>🏆</span>
             )}
             {isNewATH && (
-              <span
-                style={{
-                  color: "#FFD700", // Guld för att markera nytt rekord
-                  fontSize: "48px",
-                  marginLeft: "10px",
-                }}
-              >
-                🎉
-              </span>
+              <span style={{ color: "#FFD700", fontSize: "32px", marginLeft: "8px" }}>🎉</span>
             )}
           </Typography>
 
-          {/* All-Time High */}
           <Typography
-            variant="h6" // Större text
+            variant="h6"
             sx={{
-              marginTop: "10px",
-              color: "#FFCA28", // Gul färg för att sticka ut
-              fontWeight: "bold",
-              letterSpacing: "1px",
-              fontSize: {
-                xs: "1.1rem", // För mobil
-                sm: "1.3rem", // För tablet
-                md: "1.5rem", // För desktop
-              },
-              borderBottom: "2px solid #FFD700", // Guldstreck under texten
-              paddingBottom: "4px", // Lite utrymme mellan text och streck
-              display: "inline-block", // För att strecket bara ska vara under texten
-              // textShadow: "0 0 8px rgba(255, 202, 40, 0.5)", // Gul skugga för "glöd"
+              marginTop: "8px",
+              color: "#FFCA28",
+              fontWeight: 600,
+              letterSpacing: "0.5px",
+              fontSize: { xs: "1rem", sm: "1.2rem", md: "1.4rem" },
+              borderBottom: "1px solid #FFD700",
+              paddingBottom: "2px",
+              display: "inline-block",
             }}
           >
-            All-Time High: {allTimeHigh.toLocaleString()}{" "}
-            <span
-              style={{
-                color: "#FFD700", // Guld för ikonen
-                fontSize: "24px", // Större ikon
-                marginLeft: "5px",
-              }}
-            >
-              🌟
-            </span>
+            All-Time High: {allTimeHigh.toLocaleString()}
+            <span style={{ color: "#FFD700", fontSize: "20px", marginLeft: "4px" }}>🌟</span>
           </Typography>
 
-          {/* Datum för ATH */}
           <Typography
             variant="body2"
             sx={{
-              marginTop: "5px",
-              color: "#ccc",
-              opacity: 0.8,
-              letterSpacing: "0.5px",
+              marginTop: "4px",
+              color: "#b0b0b0",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              opacity: 0.9,
             }}
           >
             Satt: {athDate}
           </Typography>
 
-          {/* Senast uppdaterad */}
           <Typography
             variant="body2"
             sx={{
-              marginTop: "15px", // Mer utrymme för luft
-              color: "#ccc", // Samma grå färg som i GraphBox
-              opacity: 0.8, // Matchar GraphBox
-              letterSpacing: "0.5px", // För bättre läsbarhet
+              marginTop: "10px",
+              color: "#b0b0b0",
+              fontSize: { xs: "0.8rem", sm: "0.9rem" },
+              opacity: 0.9,
             }}
           >
             Senast uppdaterad: {lastUpdated}

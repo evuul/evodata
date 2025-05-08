@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 
 const LiveEarningsBox = ({ playerCount }) => {
   // Beräkna inkomsten i minuten
-  const revenuePerPlayerPerSecond = 0.00742; // Från tidigare beräkning (baserat på intäkter, inte vinst)
+  const revenuePerPlayerPerSecond = 0.00742; // Från tidigare beräkning (baserat på intäkter)
   const revenuePerPlayerPerMinute = revenuePerPlayerPerSecond * 60; // 0.4452 SEK/minut per spelare
   const totalRevenuePerMinute = playerCount * revenuePerPlayerPerMinute;
 
@@ -18,21 +18,26 @@ const LiveEarningsBox = ({ playerCount }) => {
       <Card
         sx={{
           background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-          borderRadius: "20px",
-          boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-          padding: { xs: "15px", sm: "25px" },
-          margin: "20px auto",
-          width: { xs: "95%", sm: "80%", md: "70%" },
+          borderRadius: "12px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+          padding: { xs: "12px", sm: "16px" },
+          margin: "16px auto",
+          width: { xs: "92%", sm: "85%", md: "75%" },
           textAlign: "center",
+          minHeight: "200px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
         }}
       >
         <Typography
-          variant="h4"
+          variant="h5"
           sx={{
-            fontWeight: "bold",
+            fontWeight: 700,
             color: "#00e676",
-            marginBottom: "20px",
-            fontSize: { xs: "1.5rem", sm: "2rem" },
+            marginBottom: "12px",
+            fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+            letterSpacing: "0.5px",
           }}
         >
           Live-inkomst just nu (Beta)
@@ -40,10 +45,11 @@ const LiveEarningsBox = ({ playerCount }) => {
 
         {playerCount === null || playerCount === undefined ? (
           <Typography
-            variant="body1"
+            variant="body2"
             sx={{
-              color: "#ccc",
-              fontSize: { xs: "1rem", sm: "1.2rem" },
+              color: "#b0b0b0",
+              fontSize: { xs: "0.9rem", sm: "1rem" },
+              opacity: 0.9,
             }}
           >
             Kunde inte hämta spelar-data.
@@ -51,32 +57,33 @@ const LiveEarningsBox = ({ playerCount }) => {
         ) : (
           <Box>
             <Typography
-              variant="h5"
+              variant="h6"
               sx={{
-                color: "#fff",
-                fontSize: { xs: "1.2rem", sm: "1.5rem" },
-                marginBottom: "10px",
+                color: "#ffffff",
+                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
+                marginBottom: "8px",
+                fontWeight: 600,
               }}
             >
               Antal spelare just nu:{" "}
-              <span style={{ color: "#00e676", fontWeight: "bold" }}>
+              <span style={{ color: "#00e676", fontWeight: 700 }}>
                 {playerCount.toLocaleString("sv-SE")}
               </span>
             </Typography>
             <Typography
               variant="h5"
               sx={{
-                color: "#fff",
-                fontSize: { xs: "1.2rem", sm: "1.5rem" },
+                color: "#ffffff",
+                fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
+                padding: "8px 12px",
+                borderRadius: "8px",
                 background: "rgba(0, 230, 118, 0.1)",
-                padding: "10px 20px",
-                borderRadius: "10px",
-                boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
                 display: "inline-block",
+                fontWeight: 600,
               }}
             >
               Evolution genererar just nu{" "}
-              <span style={{ color: "#00e676", fontWeight: "bold" }}>
+              <span style={{ color: "#00e676", fontWeight: 700 }}>
                 {Math.round(totalRevenuePerMinute).toLocaleString("sv-SE")} SEK
               </span>{" "}
               per minut från livespel.
@@ -85,14 +92,14 @@ const LiveEarningsBox = ({ playerCount }) => {
             <Typography
               variant="body2"
               sx={{
-                color: "#ccc",
+                color: "#b0b0b0",
                 fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                marginTop: "15px",
-                opacity: 0.8,
+                marginTop: "12px",
+                opacity: 0.9,
                 fontStyle: "italic",
               }}
             >
-              *Detta är en beta-version. Uppskattningen baseras på genomsnittliga intäkter och kan vara missvisande. Verklig inkomst kan variera.
+              *Beta-version. Uppskattning baserad på genomsnittliga intäkter, verklig inkomst kan variera.
             </Typography>
           </Box>
         )}

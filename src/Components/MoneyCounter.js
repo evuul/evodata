@@ -4,21 +4,32 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, Box, Typography } from "@mui/material";
 
 const MoneyCounter = ({ sx = {} }) => {
-  const [amount, setAmount] = useState(0); // Räknare för vinsten sedan sidan öppnades
+  const [amountPerSecond, setAmountPerSecond] = useState(0); // Vinst sedan sidan laddades
   const [totalProfitYTD, setTotalProfitYTD] = useState(0); // Total vinst YTD
+  const [todayProfit, setTodayProfit] = useState(0); // Dagens vinst sedan midnatt
 
   const dailyProfit = 36374400; // Daglig vinst i SEK
+  const profitPerSecond = dailyProfit / (24 * 60 * 60); // Vinst per sekund
+
+  // Beräkna antalet sekunder sedan midnatt
+  const calculateSecondsSinceMidnight = () => {
+    const now = new Date();
+    const midnight = new Date(now);
+    midnight.setHours(0, 0, 0, 0);
+    const seconds = Math.floor((now - midnight) / 1000);
+    return seconds;
+  };
 
   // Beräkna antalet dagar sedan 1 januari 2025 och dagens datum
   const calculateDaysSinceStartOfYear = () => {
     const startOfYear = new Date("2025-01-01");
     const today = new Date();
     const diffInTime = today - startOfYear;
-    const diffInDays = Math.floor(diffInTime / (1000 * 60 * 60 * 24)) + 1; // +1 för att inkludera idag
+    const diffInDays = Math.floor(diffInTime / (1000 * 60 * 60 * 24)) + 1;
     return { days: diffInDays, today };
   };
 
-  // Formatera dagens datum till "DD MMM YYYY" (t.ex. "9 apr 2025")
+  // Formatera dagens datum till "DD MMM YYYY"
   const formatDate = (date) => {
     return date.toLocaleDateString("sv-SE", {
       day: "numeric",
@@ -29,27 +40,32 @@ const MoneyCounter = ({ sx = {} }) => {
 
   // Initial beräkning av YTD-vinst och daglig uppdatering
   useEffect(() => {
-    // Beräkna initial YTD-vinst
     const { days } = calculateDaysSinceStartOfYear();
     const initialProfitYTD = dailyProfit * days;
     setTotalProfitYTD(initialProfitYTD);
 
-    // Kontrollera om det är en ny dag och uppdatera YTD-vinst
+    // Beräkna dagens vinst sedan midnatt
+    const secondsSinceMidnight = calculateSecondsSinceMidnight();
+    const initialTodayProfit = profitPerSecond * secondsSinceMidnight;
+    setTodayProfit(initialTodayProfit);
+
     const checkForNewDay = () => {
       const now = new Date();
       const tomorrow = new Date(now);
-      tomorrow.setHours(0, 0, 0, 0); // Sätt till midnatt
-      tomorrow.setDate(tomorrow.getDate() + 1); // Nästa dag
+      tomorrow.setHours(0, 0, 0, 0);
+      tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const timeUntilTomorrow = tomorrow - now; // Tid till nästa dag i ms
+      const timeUntilTomorrow = tomorrow - now;
 
-      // När en ny dag börjar, lägg till en dags vinst
       const timeout = setTimeout(() => {
         setTotalProfitYTD((prev) => prev + dailyProfit);
-        // Sätt upp en ny timer för nästa dag
+        setAmountPerSecond(0);
+        setTodayProfit(0); // Återställ dagens vinst vid midnatt
         setInterval(() => {
           setTotalProfitYTD((prev) => prev + dailyProfit);
-        }, 24 * 60 * 60 * 1000); // Uppdatera varje dag (24h)
+          setAmountPerSecond(0);
+          setTodayProfit(0);
+        }, 24 * 60 * 60 * 1000);
       }, timeUntilTomorrow);
 
       return () => clearTimeout(timeout);
@@ -58,130 +74,143 @@ const MoneyCounter = ({ sx = {} }) => {
     checkForNewDay();
   }, []);
 
-  // Enkel animering för att räkna upp pengar sedan sidan öppnades
+  // Uppdatera vinst per sekund och dagens vinst i realtid
   useEffect(() => {
-    const targetAmount = 36374400; // Totalt mål att uppnå (daglig vinst)
-    const duration = 86400000; // Totalt antal sekunder på 24 timmar (24h * 60m * 60s)
-    const stepTime = 20; // Hur ofta vi uppdaterar (i millisekunder)
-    const steps = duration / stepTime; // Antal uppdateringar baserat på stepTime
-    const increment = targetAmount / steps; // Hur mycket vi ökar varje gång
-
-    let current = 0;
     const interval = setInterval(() => {
-      current += increment;
-      if (current >= targetAmount) {
-        current = targetAmount;
-        clearInterval(interval); // Stanna när vi når målet
-      }
-      setAmount(Math.floor(current)); // Uppdatera amount på skärmen
-    }, stepTime);
+      setAmountPerSecond((prev) => {
+        const newAmount = prev + profitPerSecond;
+        if (newAmount >= dailyProfit) {
+          return 0;
+        }
+        return newAmount;
+      });
+      setTodayProfit((prev) => {
+        const newProfit = prev + profitPerSecond;
+        if (newProfit >= dailyProfit) {
+          return dailyProfit;
+        }
+        return newProfit;
+      });
+    }, 1000);
 
-    return () => clearInterval(interval); // Rensa intervallet när komponenten tas bort
+    return () => clearInterval(interval);
   }, []);
 
   // Formatera totalProfitYTD till miljarder SEK
   const formatTotalProfit = (value) => {
-    if (!value) return 'N/A';
-    const billions = value / 1_000_000_000; // Konvertera till miljarder
-    return `${billions.toLocaleString('sv-SE', {
+    if (!value) return "N/A";
+    const billions = value / 1_000_000_000;
+    return `${billions.toLocaleString("sv-SE", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}B SEK`;
   };
 
-  // Hämta dagens datum för visning
+  // Formatera vinst per sekund
+  const formatProfitPerSecond = (value) => {
+    return `${Math.floor(value).toLocaleString("sv-SE")} SEK`;
+  };
+
+  // Formatera dagens vinst
+  const formatDailyProfit = (value) => {
+    return `${Math.floor(value).toLocaleString("sv-SE")} SEK`;
+  };
+
   const { today } = calculateDaysSinceStartOfYear();
   const formattedToday = formatDate(today);
 
   return (
     <Card
       sx={{
-        width: { xs: "90%", sm: "80%", md: "70%" },
-        margin: "20px auto",
+        width: { xs: "92%", sm: "85%", md: "75%" },
+        margin: "16px auto",
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-        borderRadius: "20px",
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-        padding: "20px",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        border: "1px solid rgba(255, 255, 255, 0.05)",
+        padding: { xs: "12px", sm: "16px" },
         textAlign: "center",
         color: "#ffffff",
+        minHeight: "200px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
         ...sx,
       }}
     >
       <CardContent>
         <Box display="flex" justifyContent="center" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
-              fontWeight: "bold",
-              color: "#fff",
-              fontSize: {
-                xs: "1.5rem",
-                sm: "2rem",
-                md: "2.5rem",
-              },
-            }}
-          >
-            Money Counter{" "}
-            <span style={{ color: "#FFCA28" }}>💰</span>
-          </Typography>
-        </Box>
-
-        <Box display="flex" flexDirection="column" alignItems="center" marginTop="20px">
-          <Typography
-            variant="body1"
-            sx={{
-              color: "#ccc",
-              opacity: 0.8,
-              marginBottom: "10px",
+              fontWeight: 700,
+              color: "#ffffff",
+              fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
               letterSpacing: "0.5px",
             }}
           >
-            Ren vinst sedan du öppnade sidan:
+            Vinstindikator
           </Typography>
+        </Box>
 
-          {/* Pengasiffra utan pulserande effekt */}
+        <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
           <Typography
-            variant="h3"
-            fontWeight="bold"
+            variant="body1"
             sx={{
-              fontSize: {
-                xs: "2rem",
-                sm: "3rem",
-                md: "4rem",
-              },
-              color: "#00e676",
+              color: "#b0b0b0",
+              fontSize: { xs: "0.9rem", sm: "1rem" },
+              opacity: 0.9,
+              marginBottom: "8px",
             }}
           >
-            {amount.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} SEK
+            Vinst i realtid (per sekund):
           </Typography>
 
-          {/* Uppskattad total vinst YTD med tydlig period */}
-          <Box display="flex" flexDirection="column" alignItems="center" marginTop="15px">
+          <Typography
+            variant="h3"
+            fontWeight="700"
+            sx={{
+              fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
+              color: "#00e676",
+              marginBottom: "12px",
+            }}
+          >
+            {formatProfitPerSecond(amountPerSecond)}
+          </Typography>
+
+          <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
             <Typography
               variant="body1"
               sx={{
-                color: "#ccc",
-                opacity: 0.8,
-                marginBottom: "5px",
-                letterSpacing: "0.5px",
+                color: "#b0b0b0",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+                opacity: 0.9,
+                marginBottom: "4px",
               }}
             >
-              Uppskattad ren vinst (1 jan 2025 - {formattedToday}):
+              Total vinst (1 jan 2025 - {formattedToday}):
             </Typography>
             <Typography
               variant="h5"
-              fontWeight="bold"
+              fontWeight="600"
               sx={{
-                fontSize: {
-                  xs: "1.2rem",
-                  sm: "1.5rem",
-                  md: "2rem",
-                },
+                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
                 color: "#FFCA28",
+                marginBottom: "4px",
               }}
             >
               {formatTotalProfit(totalProfitYTD)}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "#00e676", // Samma gröna färg som vinst per sekund
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                fontWeight: 500,
+                marginBottom: "4px",
+              }}
+            >
+              Dagens vinst (fram till nu): {formatDailyProfit(todayProfit)}
             </Typography>
           </Box>
         </Box>

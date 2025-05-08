@@ -179,23 +179,24 @@ const AveragePlayersTracker = ({ playersData }) => {
         }}
       >
         <Typography
-          variant="h6"
+          variant="h5"
           sx={{
             color: "#ffffff",
             textAlign: "center",
-            fontWeight: "bold",
-            fontSize: { xs: "1.25rem", sm: "1.5rem" },
-            marginBottom: "16px",
+            fontWeight: 700,
+            fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+            marginBottom: "12px",
+            letterSpacing: "0.5px",
           }}
         >
           Genomsnittligt antal spelare
         </Typography>
         <Typography
-          variant="body1"
+          variant="body2"
           sx={{
             color: "#fff",
             textAlign: "center",
-            fontSize: { xs: "1rem", sm: "1.25rem" },
+            fontSize: { xs: "0.85rem", sm: "0.95rem" },
             lineHeight: 1.5,
             marginBottom: "24px",
           }}
@@ -214,14 +215,14 @@ const AveragePlayersTracker = ({ playersData }) => {
             backgroundColor: "#2e2e2e",
             borderRadius: "8px",
             padding: "5px",
-            marginBottom: "20px",
+            marginBottom: "12px",
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
             "& .MuiTabs-flexContainer": {
               justifyContent: "center",
             },
             "& .MuiTab-root": {
-              color: "#ccc",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              color: "#b0b0b0",
+              fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
               padding: { xs: "8px 16px", sm: "10px 20px" },
               borderRadius: "8px",
               transition: "all 0.3s ease",
@@ -253,7 +254,7 @@ const AveragePlayersTracker = ({ playersData }) => {
                 color: "#ffffff",
                 textAlign: "center",
                 marginBottom: "10px",
-                fontSize: { xs: "1rem", sm: "1.5rem" },
+                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
               }}
             >
               Dagliga spelare
@@ -336,7 +337,7 @@ const AveragePlayersTracker = ({ playersData }) => {
                 color: "#ffffff",
                 textAlign: "center",
                 marginBottom: "10px",
-                fontSize: { xs: "1rem", sm: "1.5rem" },
+                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
               }}
             >
               Månadsvisa genomsnittliga spelare
