@@ -451,6 +451,30 @@ const GraphBox = ({
     return { ...current, liveCasinoGrowth: null, rngGrowth: null };
   });
 
+  // Beräkna dynamiska ticks för X-axeln
+  const getQuarterlyXTicks = (data) => {
+    if (data.length <= 8) return data.map(item => item.date);
+    const step = Math.floor(data.length / 6);
+    return data
+      .filter((_, index) => index % step === 0)
+      .map(item => item.date);
+  };
+
+  const getYearlyXTicks = (data) => {
+    if (data.length <= 10) return data.map(item => item.date);
+    const step = Math.floor(data.length / 8);
+    return data
+      .filter((_, index) => index % step === 0)
+      .map(item => item.date);
+  };
+
+  const revenueQuarterlyXTicks = getQuarterlyXTicks(revenueQuarterlyGrowth);
+  const revenueYearlyXTicks = getYearlyXTicks(revenueYearlyGrowth);
+  const marginQuarterlyXTicks = getQuarterlyXTicks(marginQuarterlyChange);
+  const marginYearlyXTicks = getYearlyXTicks(marginYearlyChange);
+  const epsQuarterlyXTicks = getQuarterlyXTicks(quarterlyGrowth);
+  const epsYearlyXTicks = getYearlyXTicks(yearlyGrowth);
+
   // Beräkna Y-axelns domän och tick-intervall för olika grafer
   const getYDomainAndTicks = (data, key, minValue = 0, secondaryKey = null, isMargin = false, isEPS = false) => {
     if (!data || data.length === 0) return { domain: [0, 1], ticks: [0, 1] };
@@ -511,10 +535,10 @@ const GraphBox = ({
 
   const revenueQuarterlyYConfig = getYDomainAndTicks(revenueQuarterlyGrowth, 'value');
   const revenueYearlyYConfig = getYDomainAndTicks(revenueDataYearly, 'value');
-  const marginQuarterlyYConfig = getYDomainAndTicks(marginQuarterlyChange, 'value', 0, null, true); // Lägg till isMargin
-  const marginYearlyYConfig = getYDomainAndTicks(marginDataYearly, 'value', 0, null, true); // Lägg till isMargin
-  const epsQuarterlyYConfig = getYDomainAndTicks(quarterlyGrowth, 'value', 0, null, false, true); // Lägg till isEPS
-  const epsYearlyYConfig = getYDomainAndTicks(yearlyGrowth, 'value', 0, null, false, true); // Lägg till isEPS
+  const marginQuarterlyYConfig = getYDomainAndTicks(marginQuarterlyChange, 'value', 0, null, true);
+  const marginYearlyYConfig = getYDomainAndTicks(marginDataYearly, 'value', 0, null, true);
+  const epsQuarterlyYConfig = getYDomainAndTicks(quarterlyGrowth, 'value', 0, null, false, true);
+  const epsYearlyYConfig = getYDomainAndTicks(yearlyGrowth, 'value', 0, null, false, true);
   const liveCasinoRngQuarterlyYConfig = getYDomainAndTicks(
     liveCasinoRngQuarterlyGrowth,
     'liveCasino',
@@ -576,6 +600,9 @@ const GraphBox = ({
   };
 
   const formatRevenueTick = (value) => {
+    if (isMobile && value >= 1000) {
+      return `${(value / 1000).toFixed(1)}k MEUR`; // Kompakt format för mobil
+    }
     return `${value} MEUR`;
   };
 
@@ -592,11 +619,14 @@ const GraphBox = ({
   };
 
   const formatLiveCasinoRngTick = (value) => {
+    if (isMobile && value >= 1000) {
+      return `${(value / 1000).toFixed(1)}k MEUR`; // Kompakt format för mobil
+    }
     return `${value} MEUR`;
   };
 
   const formatEPSTick = (value) => {
-    return `${value.toFixed(2)} SEK`;
+    return `${value.toFixed(1)} SEK`; // Kompakt format med 1 decimal
   };
 
   const quarterlyTicks = liveCasinoRngQuarterlyGrowth
@@ -620,7 +650,7 @@ const GraphBox = ({
         variant="h4"
         sx={{
           fontWeight: "bold",
-          color: "#00e676",
+          color: "#ffffff",
           marginBottom: "20px",
           textAlign: "center",
           fontSize: { xs: "1.5rem", sm: "2rem" },
@@ -708,7 +738,7 @@ const GraphBox = ({
           <MenuItem value="margin">Marginal</MenuItem>
           <MenuItem value="eps">Intjäning per aktie</MenuItem>
           <MenuItem value="dividend">Utdelning</MenuItem>
-          <MenuItem value="players">AVG Spelare</MenuItem>
+          {/* <MenuItem value="players">AVG Spelare</MenuItem> */}
           <MenuItem value="geoDistribution">Geografisk fördelning</MenuItem>
           <MenuItem value="liveCasinoRng">LiveCasino vs RNG</MenuItem>
         </Select>
@@ -743,7 +773,7 @@ const GraphBox = ({
             <Tab label="Marginal" value="margin" />
             <Tab label="Intjäning per aktie" value="eps" />
             <Tab label="Utdelning" value="dividend" />
-            <Tab label="AVG Spelare" value="players" />
+            {/* <Tab label="AVG Spelare" value="players" /> */}
             <Tab label="Geografisk fördelning" value="geoDistribution" />
             <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
           </Tabs>
@@ -785,7 +815,7 @@ const GraphBox = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#ffffff"
             sx={{
               marginBottom: "10px",
               textAlign: "center",
@@ -835,26 +865,31 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
               connectNulls={false}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="date"
                 stroke="#ccc"
-                ticks={viewMode === "quarterly" ? allQuarters.filter((_, index) => index % 4 === 0).map(item => item.date) : years.map(year => `${year} Helår`)}
+                ticks={viewMode === "quarterly" ? revenueQuarterlyXTicks : revenueYearlyXTicks}
                 interval={0}
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 60 : 40}
+                tick={{ fontSize: isMobile ? 12 : 14 }}
               >
                 {!isMobile && (
-                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
                 )}
               </XAxis>
               <YAxis
                 stroke="#ccc"
                 tickFormatter={formatRevenueTick}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? 30 : 60}
                 domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
                 ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
+                tick={{ fontSize: isMobile ? 10 : 14 }}
               >
                 {!isMobile && (
                   <Label
@@ -918,7 +953,7 @@ const GraphBox = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#ffffff"
             sx={{
               marginBottom: "10px",
               textAlign: "center",
@@ -968,18 +1003,22 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={viewMode === "quarterly" ? marginQuarterlyChange : marginYearlyChange}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
               connectNulls={false}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="date"
                 stroke="#ccc"
-                ticks={viewMode === "quarterly" ? allQuarters.filter((_, index) => index % 4 === 0).map(item => item.date) : years.map(year => `${year} Helår`)}
+                ticks={viewMode === "quarterly" ? marginQuarterlyXTicks : marginYearlyXTicks}
                 interval={0}
+                angle={isMobile ? -45 : 0}
+                textAnchor={isMobile ? "end" : "middle"}
+                height={isMobile ? 60 : 40}
+                tick={{ fontSize: isMobile ? 12 : 14 }}
               >
                 {!isMobile && (
-                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
                 )}
               </XAxis>
               <YAxis
@@ -987,7 +1026,8 @@ const GraphBox = ({
                 domain={viewMode === "quarterly" ? marginQuarterlyYConfig.domain : marginYearlyYConfig.domain}
                 ticks={viewMode === "quarterly" ? marginQuarterlyYConfig.ticks : marginYearlyYConfig.ticks}
                 tickFormatter={formatMarginTick}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? 30 : 60}
+                tick={{ fontSize: isMobile ? 10 : 14 }}
               >
                 {!isMobile && (
                   <Label
@@ -1051,7 +1091,7 @@ const GraphBox = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#ffffff"
             sx={{
               marginBottom: "10px",
               textAlign: "center",
@@ -1102,26 +1142,31 @@ const GraphBox = ({
             <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
               <LineChart
                 data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth}
-                margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+                margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
                 connectNulls={false}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
                 <XAxis
                   dataKey="date"
                   stroke="#ccc"
-                  ticks={viewMode === "quarterly" ? allQuarters.filter((_, index) => index % 4 === 0).map(item => item.date) : years.map(year => `${year} Helår`)}
+                  ticks={viewMode === "quarterly" ? epsQuarterlyXTicks : epsYearlyXTicks}
                   interval={0}
+                  angle={isMobile ? -45 : 0}
+                  textAnchor={isMobile ? "end" : "middle"}
+                  height={isMobile ? 60 : 40}
+                  tick={{ fontSize: isMobile ? 12 : 14 }}
                 >
                   {!isMobile && (
-                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
+                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
                   )}
                 </XAxis>
                 <YAxis
                   stroke="#ccc"
                   tickFormatter={formatEPSTick}
-                  width={isMobile ? 40 : 60}
+                  width={isMobile ? 30 : 60}
                   domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
                   ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
+                  tick={{ fontSize: isMobile ? 10 : 14 }}
                 >
                   {!isMobile && (
                     <Label
@@ -1176,7 +1221,7 @@ const GraphBox = ({
             variant="h4"
             sx={{
               fontWeight: "bold",
-              color: "#00e676",
+              color: "#ffffff",
               marginBottom: "20px",
               textAlign: "center",
               fontSize: { xs: "1.5rem", sm: "2rem" },
@@ -1274,7 +1319,7 @@ const GraphBox = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#ffffff"
             sx={{
               marginBottom: "10px",
               textAlign: "center",
@@ -1286,7 +1331,7 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <LineChart
               data={combinedDividendData}
-              margin={{ top: 20, right: isMobile ? 20 : 40, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: isMobile ? 20 : 40, bottom: 20, left: isMobile ? 10 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="date" stroke="#ccc">
@@ -1298,7 +1343,8 @@ const GraphBox = ({
                 yAxisId="left"
                 stroke="#ccc"
                 tickFormatter={formatDividendTick}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? 30 : 60}
+                tick={{ fontSize: isMobile ? 10 : 14 }}
               >
                 {!isMobile && (
                   <Label
@@ -1316,7 +1362,8 @@ const GraphBox = ({
                 orientation="right"
                 stroke="#ccc"
                 tickFormatter={formatDividendYieldTick}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? 30 : 60}
+                tick={{ fontSize: isMobile ? 10 : 14 }}
               >
                 {!isMobile && (
                   <Label
@@ -1362,7 +1409,7 @@ const GraphBox = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#ffffff"
             sx={{
               marginTop: "20px",
               marginBottom: "10px",
@@ -1407,7 +1454,7 @@ const GraphBox = ({
         </Box>
       )}
 
-      {/* AVG Spelare */}
+      {/* AVG Spelare
       {activeTab === "players" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
@@ -1426,7 +1473,7 @@ const GraphBox = ({
           <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
             <LineChart
               data={playersData}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}
+              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 10 : 40 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis dataKey="Datum" stroke="#ccc">
@@ -1438,9 +1485,10 @@ const GraphBox = ({
                 stroke="#ccc"
                 domain={getPlayersYDomain(playersData)}
                 tickFormatter={formatPlayersTick}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? 30 : 60}
                 tickCount={9}
                 interval={0}
+                tick={{ fontSize: isMobile ? 10 : 14 }}
               >
                 {!isMobile && (
                   <Label
@@ -1469,7 +1517,7 @@ const GraphBox = ({
             </LineChart>
           </ResponsiveContainer>
         </Box>
-      )}
+      )} */}
 
       {/* Geografisk fördelning (Pie Chart) */}
       {activeTab === "geoDistribution" && (
@@ -1478,7 +1526,7 @@ const GraphBox = ({
             variant="h4"
             sx={{
               fontWeight: "bold",
-              color: "#00e676",
+              color: "#ffffff",
               marginBottom: "20px",
               textAlign: "center",
               fontSize: { xs: "1.5rem", sm: "2rem" },
@@ -1537,7 +1585,7 @@ const GraphBox = ({
 
               <Typography
                 variant="h6"
-                color="#ccc"
+                color="#ffffff"
                 sx={{
                   marginBottom: "10px",
                   textAlign: "center",
@@ -1593,7 +1641,6 @@ const GraphBox = ({
           )}
         </Box>
       )}
-
       {/* LiveCasino vs RNG (Stacked Bar Chart) */}
       {activeTab === "liveCasinoRng" && (
         <Box display="flex" flexDirection="column" alignItems="center">
@@ -1606,9 +1653,9 @@ const GraphBox = ({
               fontSize: { xs: "1.5rem", sm: "2rem" },
             }}
           >
-            <span style={{ color: "#00e676" }}>LiveCasino</span>{" "}
-            <span style={{ color: "#ccc" }}>vs</span>{" "}
-            <span style={{ color: "#FFCA28" }}>RNG</span>
+            <span style={{ color: "#ffffff" }}>LiveCasino</span>{" "}
+            <span style={{ color: "#ffffff" }}>vs</span>{" "}
+            <span style={{ color: "#ffffff" }}>RNG</span>
           </Typography>
 
           <Tabs
@@ -1634,7 +1681,7 @@ const GraphBox = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#ffffff"
             sx={{
               marginBottom: "10px",
               textAlign: "center",
