@@ -639,21 +639,26 @@ const GraphBox = ({
     <Card
       sx={{
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-        borderRadius: "20px",
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        padding: { xs: "15px", sm: "25px" },
-        margin: "20px auto",
-        width: { xs: "95%", sm: "80%", md: "70%" },
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        padding: { xs: "12px", sm: "16px" },
+        margin: "16px auto",
+        width: { xs: "92%", sm: "85%", md: "75%" },
+        minHeight: "200px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
       }}
     >
       <Typography
-        variant="h4"
+        variant="h5"
         sx={{
-          fontWeight: "bold",
+          fontWeight: 700,
           color: "#ffffff",
-          marginBottom: "20px",
+          marginBottom: "12px",
           textAlign: "center",
-          fontSize: { xs: "1.5rem", sm: "2rem" },
+          fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+          letterSpacing: "0.5px",
         }}
       >
         Finansiell översikt
@@ -666,9 +671,9 @@ const GraphBox = ({
           onChange={(event) => setActiveTab(event.target.value)}
           fullWidth
           sx={{
-            color: "#ccc",
+            color: "#b0b0b0",
             backgroundColor: "#2e2e2e",
-            marginBottom: "20px",
+            marginBottom: "12px",
             borderRadius: "8px",
             boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
             "& .MuiSelect-select": {
@@ -697,7 +702,7 @@ const GraphBox = ({
                 maxHeight: "50vh",
                 overflowY: "auto",
                 "& .MuiMenuItem-root": {
-                  color: "#ccc",
+                  color: "#b0b0b0",
                   textAlign: "center",
                   justifyContent: "center",
                   padding: "12px 16px",
@@ -743,7 +748,7 @@ const GraphBox = ({
           <MenuItem value="liveCasinoRng">LiveCasino vs RNG</MenuItem>
         </Select>
       ) : (
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px" }}>
           <IconButton
             onClick={handlePrevTab}
             sx={{
@@ -759,9 +764,9 @@ const GraphBox = ({
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
             sx={{
-              color: "#ccc",
+              color: "#b0b0b0",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -798,10 +803,10 @@ const GraphBox = ({
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
             sx={{
-              color: "#ccc",
-              marginBottom: "20px",
+              color: "#b0b0b0",
+              marginBottom: "12px",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -819,7 +824,7 @@ const GraphBox = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             {viewMode === "quarterly" ? "Omsättning per kvartal" : "Omsättning per helår"}
@@ -832,12 +837,12 @@ const GraphBox = ({
               if (latestQuarter && latestQuarter.growth) {
                 return (
                   <Typography
-                    variant="body1"
+                    variant="body2"
                     color={latestQuarter.growth >= 0 ? "#00e676" : "#ff1744"}
                     sx={{
                       marginBottom: "10px",
                       textAlign: "center",
-                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                      fontSize: { xs: "0.85rem", sm: "0.95rem" },
                     }}
                   >
                     Ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.growth}%
@@ -850,12 +855,12 @@ const GraphBox = ({
 
           {viewMode === "yearly" && revenueYearlyGrowth.length > 0 && revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth && (
             <Typography
-              variant="body1"
+              variant="body2"
               color={revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth >= 0 ? "#00e676" : "#ff1744"}
               sx={{
                 marginBottom: "10px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Tillväxt jämfört med {revenueYearlyGrowth[revenueYearlyGrowth.length - 1].year - 1}: {revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth}%
@@ -936,10 +941,10 @@ const GraphBox = ({
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
             sx={{
-              color: "#ccc",
-              marginBottom: "20px",
+              color: "#b0b0b0",
+              marginBottom: "12px",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -957,7 +962,7 @@ const GraphBox = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             {viewMode === "quarterly" ? "Marginal per kvartal" : "Marginal per helår"}
@@ -970,12 +975,12 @@ const GraphBox = ({
               if (latestQuarter && latestQuarter.change) {
                 return (
                   <Typography
-                    variant="body1"
+                    variant="body2"
                     color={latestQuarter.change >= 0 ? "#00e676" : "#ff1744"}
                     sx={{
                       marginBottom: "10px",
                       textAlign: "center",
-                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                      fontSize: { xs: "0.85rem", sm: "0.95rem" },
                     }}
                   >
                     Förändring jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.change >= 0 ? "+" : ""}{latestQuarter.change} procentenheter
@@ -988,12 +993,12 @@ const GraphBox = ({
 
           {viewMode === "yearly" && marginYearlyChange.length > 0 && marginYearlyChange[marginYearlyChange.length - 1].change && (
             <Typography
-              variant="body1"
+              variant="body2"
               color={marginYearlyChange[marginYearlyChange.length - 1].change >= 0 ? "#00e676" : "#ff1744"}
               sx={{
                 marginBottom: "10px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Förändring jämfört med {marginYearlyChange[marginYearlyChange.length - 1].year - 1}: {marginYearlyChange[marginYearlyChange.length - 1].change >= 0 ? "+" : ""}{marginYearlyChange[marginYearlyChange.length - 1].change} procentenheter
@@ -1074,10 +1079,10 @@ const GraphBox = ({
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
             sx={{
-              color: "#ccc",
-              marginBottom: "20px",
+              color: "#b0b0b0",
+              marginBottom: "12px",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -1095,7 +1100,7 @@ const GraphBox = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             {viewMode === "quarterly" ? "Intjäning per aktie per kvartal" : "Intjäning per aktie per helår"}
@@ -1108,12 +1113,12 @@ const GraphBox = ({
               if (latestQuarter && latestQuarter.growth) {
                 return (
                   <Typography
-                    variant="body1"
+                    variant="body2"
                     color={latestQuarter.growth >= 0 ? "#00e676" : "#ff1744"}
                     sx={{
                       marginBottom: "10px",
                       textAlign: "center",
-                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                      fontSize: { xs: "0.85rem", sm: "0.95rem" },
                     }}
                   >
                     Ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.growth}%
@@ -1126,12 +1131,12 @@ const GraphBox = ({
 
           {viewMode === "yearly" && yearlyGrowth.length > 0 && yearlyGrowth[yearlyGrowth.length - 1].growth && (
             <Typography
-              variant="body1"
+              variant="body2"
               color={yearlyGrowth[yearlyGrowth.length - 1].growth >= 0 ? "#00e676" : "#ff1744"}
               sx={{
                 marginBottom: "10px",
                 textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Tillväxt jämfört med {yearlyGrowth[yearlyGrowth.length - 1].year - 1}: {yearlyGrowth[yearlyGrowth.length - 1].growth}%
@@ -1204,9 +1209,9 @@ const GraphBox = ({
             </ResponsiveContainer>
           ) : (
             <Typography
-              variant="body1"
-              color="#ccc"
-              sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+              variant="body2"
+              color="#b0b0b0"
+              sx={{ textAlign: "center", marginBottom: "12px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
             >
               Laddar växelkurs...
             </Typography>
@@ -1218,33 +1223,34 @@ const GraphBox = ({
       {activeTab === "dividend" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: "#ffffff",
-              marginBottom: "20px",
+              marginBottom: "12px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+              letterSpacing: "0.5px",
             }}
           >
             Utdelning
           </Typography>
 
-          <Box sx={{ textAlign: "center", marginBottom: "20px" }}>
+          <Box sx={{ textAlign: "center", marginBottom: "12px" }}>
             {priceError && (
               <Typography
                 variant="body2"
                 color="#ff1744"
-                sx={{ marginBottom: "10px", fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                sx={{ marginBottom: "8px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
               >
                 {priceError}
               </Typography>
             )}
             {loadingPrice ? (
               <Typography
-                variant="body1"
-                color="#ccc"
-                sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                variant="body2"
+                color="#b0b0b0"
+                sx={{ fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
               >
                 Laddar aktiepris...
               </Typography>
@@ -1253,8 +1259,8 @@ const GraphBox = ({
                 {lastUpdated && (
                   <Typography
                     variant="body2"
-                    color="#ccc"
-                    sx={{ marginBottom: "10px", fontSize: { xs: "0.8rem", sm: "0.9rem" } }}
+                    color="#b0b0b0"
+                    sx={{ marginBottom: "8px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
                   >
                     Senast uppdaterad: {lastUpdated.toLocaleTimeString("sv-SE")}
                   </Typography>
@@ -1263,14 +1269,14 @@ const GraphBox = ({
                   <>
                     <Typography
                       variant="body1"
-                      color="#fff"
+                      color="#ffffff"
                       sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
                     >
                       Senaste utdelning: {latestHistorical.dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
                     </Typography>
                     <Typography
                       variant="body1"
-                      color="#fff"
+                      color="#ffffff"
                       sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
                     >
                       Direktavkastning: {(latestHistorical.dividendYield || 0).toFixed(2)}% (baserat på aktiekurs {latestHistorical.sharePriceAtDividend} SEK)
@@ -1280,16 +1286,16 @@ const GraphBox = ({
                 {dividendGrowth && (
                   <>
                     <Typography
-                      variant="body1"
+                      variant="body2"
                       color={dividendGrowth.dividendGrowth >= 0 ? "#00e676" : "#ff1744"}
-                      sx={{ marginTop: "10px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                      sx={{ marginTop: "8px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
                     >
                       Ökning av utdelning ({dividendGrowth.latestDate} vs {dividendGrowth.previousDate}): {dividendGrowth.dividendGrowth}%
                     </Typography>
                     <Typography
-                      variant="body1"
+                      variant="body2"
                       color={dividendGrowth.yieldGrowth >= 0 ? "#00e676" : "#ff1744"}
-                      sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                      sx={{ fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
                     >
                       Ökning av direktavkastning: {dividendGrowth.yieldGrowth}%
                     </Typography>
@@ -1300,7 +1306,7 @@ const GraphBox = ({
                     <Typography
                       variant="body1"
                       color="#FFD700"
-                      sx={{ marginTop: "10px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                      sx={{ marginTop: "8px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
                     >
                       Kommande utdelning:
                     </Typography>
@@ -1323,7 +1329,7 @@ const GraphBox = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Utdelning över tid
@@ -1411,10 +1417,10 @@ const GraphBox = ({
             variant="h6"
             color="#ffffff"
             sx={{
-              marginTop: "20px",
+              marginTop: "12px",
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Historiska och planerade utdelningar
@@ -1423,13 +1429,13 @@ const GraphBox = ({
             <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "450px" : "auto" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#b0b0b0", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                     Datum
                   </TableCell>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#b0b0b0", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                     Utdelning per aktie (SEK)
                   </TableCell>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#b0b0b0", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                     Direktavkastning (%)
                   </TableCell>
                 </TableRow>
@@ -1437,13 +1443,13 @@ const GraphBox = ({
               <TableBody>
                 {combinedDividendData.map((item) => (
                   <TableRow key={item.date}>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#ffffff", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                       {item.date}
                     </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#ffffff", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                       {item.dividendPerShare.toLocaleString()}
                     </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#ffffff", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                       {item.dividendYield.toFixed(2)}%
                     </TableCell>
                   </TableRow>
@@ -1523,13 +1529,14 @@ const GraphBox = ({
       {activeTab === "geoDistribution" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: "#ffffff",
-              marginBottom: "20px",
+              marginBottom: "12px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+              letterSpacing: "0.5px",
             }}
           >
             Geografisk fördelning av intäkter
@@ -1543,10 +1550,10 @@ const GraphBox = ({
                 textColor="inherit"
                 TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
                 sx={{
-                  color: "#ccc",
+                  color: "#b0b0b0",
                   marginBottom: "10px",
                   "& .MuiTab-root": {
-                    fontSize: { xs: "0.8rem", sm: "1rem" },
+                    fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                     padding: { xs: "6px 8px", sm: "12px 16px" },
                   },
                 }}
@@ -1565,10 +1572,10 @@ const GraphBox = ({
                 textColor="inherit"
                 TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
                 sx={{
-                  color: "#ccc",
-                  marginBottom: "20px",
+                  color: "#b0b0b0",
+                  marginBottom: "12px",
                   "& .MuiTab-root": {
-                    fontSize: { xs: "0.8rem", sm: "1rem" },
+                    fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                     padding: { xs: "6px 8px", sm: "12px 16px" },
                   },
                 }}
@@ -1589,7 +1596,7 @@ const GraphBox = ({
                 sx={{
                   marginBottom: "10px",
                   textAlign: "center",
-                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
                 }}
               >
                 Intäkter per region ({selectedGeoYear} {selectedGeoPeriod})
@@ -1622,9 +1629,9 @@ const GraphBox = ({
                 </ResponsiveContainer>
               ) : (
                 <Typography
-                  variant="body1"
-                  color="#ccc"
-                  sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+                  variant="body2"
+                  color="#b0b0b0"
+                  sx={{ textAlign: "center", marginBottom: "12px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
                 >
                   Ingen data tillgänglig för detta kvartal.
                 </Typography>
@@ -1632,25 +1639,26 @@ const GraphBox = ({
             </>
           ) : (
             <Typography
-              variant="body1"
-              color="#ccc"
-              sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+              variant="body2"
+              color="#b0b0b0"
+              sx={{ textAlign: "center", marginBottom: "12px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
             >
               Ingen geografisk data tillgänglig.
             </Typography>
           )}
         </Box>
       )}
-      {/* LiveCasino vs RNG (Stacked Bar Chart) */}
-      {activeTab === "liveCasinoRng" && (
+{/* LiveCasino vs RNG (Stacked Bar Chart) */}
+{activeTab === "liveCasinoRng" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
-              fontWeight: "bold",
-              marginBottom: "20px",
+              fontWeight: 700,
+              marginBottom: "12px",
               textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+              letterSpacing: "0.5px",
             }}
           >
             <span style={{ color: "#ffffff" }}>LiveCasino</span>{" "}
@@ -1664,10 +1672,10 @@ const GraphBox = ({
             textColor="inherit"
             TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
             sx={{
-              color: "#ccc",
-              marginBottom: "20px",
+              color: "#b0b0b0",
+              marginBottom: "12px",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -1685,7 +1693,7 @@ const GraphBox = ({
             sx={{
               marginBottom: "10px",
               textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             {viewMode === "quarterly" ? "Intäkter per kvartal" : "Intäkter per helår"}
@@ -1700,12 +1708,12 @@ const GraphBox = ({
                   <>
                     {latestQuarter.liveCasinoGrowth && (
                       <Typography
-                        variant="body1"
+                        variant="body2"
                         color={latestQuarter.liveCasinoGrowth >= 0 ? "#00e676" : "#ff1744"}
                         sx={{
                           marginBottom: "5px",
                           textAlign: "center",
-                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                          fontSize: { xs: "0.85rem", sm: "0.95rem" },
                         }}
                       >
                         LiveCasino ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.liveCasinoGrowth}%
@@ -1713,12 +1721,12 @@ const GraphBox = ({
                     )}
                     {latestQuarter.rngGrowth && (
                       <Typography
-                        variant="body1"
+                        variant="body2"
                         color={latestQuarter.rngGrowth >= 0 ? "#00e676" : "#ff1744"}
                         sx={{
                           marginBottom: "10px",
                           textAlign: "center",
-                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                          fontSize: { xs: "0.85rem", sm: "0.95rem" },
                         }}
                       >
                         RNG ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.rngGrowth}%
@@ -1739,12 +1747,12 @@ const GraphBox = ({
                   <>
                     {latestYear.liveCasinoGrowth && (
                       <Typography
-                        variant="body1"
+                        variant="body2"
                         color={latestYear.liveCasinoGrowth >= 0 ? "#00e676" : "#ff1744"}
                         sx={{
                           marginBottom: "5px",
                           textAlign: "center",
-                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                          fontSize: { xs: "0.85rem", sm: "0.95rem" },
                         }}
                       >
                         LiveCasino tillväxt jämfört med {latestYear.year - 1}: {latestYear.liveCasinoGrowth}%
@@ -1752,12 +1760,12 @@ const GraphBox = ({
                     )}
                     {latestYear.rngGrowth && (
                       <Typography
-                        variant="body1"
+                        variant="body2"
                         color={latestYear.rngGrowth >= 0 ? "#00e676" : "#ff1744"}
                         sx={{
                           marginBottom: "10px",
                           textAlign: "center",
-                          fontSize: { xs: "0.9rem", sm: "1rem" },
+                          fontSize: { xs: "0.85rem", sm: "0.95rem" },
                         }}
                       >
                         RNG tillväxt jämfört med {latestYear.year - 1}: {latestYear.rngGrowth}%
@@ -1829,9 +1837,9 @@ const GraphBox = ({
             </ResponsiveContainer>
           ) : (
             <Typography
-              variant="body1"
-              color="#ccc"
-              sx={{ textAlign: "center", marginBottom: "20px", fontSize: { xs: "0.9rem", sm: "1rem" } }}
+              variant="body2"
+              color="#b0b0b0"
+              sx={{ textAlign: "center", marginBottom: "12px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
             >
               Ingen data tillgänglig för LiveCasino vs RNG.
             </Typography>
