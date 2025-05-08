@@ -11,6 +11,7 @@ import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
 import KingsOfTheHillTeaser from "@/Components/KingsOfTheHillTeaser";
 import CurrentCashBox from "../Components/CurrentCashBox";
+import AveragePlayersTracker from "../Components/AveragePlayersTracker";
 import { Box } from "@mui/material";
 import { Kings } from "next/font/google";
 
@@ -73,7 +74,7 @@ export default async function Home() {
 
   return (
     <main>
-      <KingsOfTheHillTeaser gameShowsData={playerData.gameShows} />
+      {/* <KingsOfTheHillTeaser gameShowsData={playerData.gameShows} /> */}
       <Header /> {/* Om Header också kan använda StockPriceContext, ta bort stockData och stockError här */}
 
       {/* Container för PlayerCard, LiveEarningsBox och MoneyCounter */}
@@ -157,6 +158,17 @@ export default async function Home() {
         />
       </Box>
 
+                  {/* AveragePlayersTracker */}
+                  <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <AveragePlayersTracker playersData={averagePlayersData} />
+      </Box>
+
       {/* InvestmentCalculator */}
       <Box
         sx={{
@@ -167,6 +179,8 @@ export default async function Home() {
       >
         <InvestmentCalculator dividendData={dividendData} />
       </Box>
+
+
 
       {/* CurrentCashBox */}
 {/* <Box

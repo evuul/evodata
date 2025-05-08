@@ -45,7 +45,7 @@ const Header = () => {
             sm: "3rem",
             md: "4rem",
           },
-          color: "#00e676",
+          color: "#fff",
           marginBottom: { xs: "5px", sm: "10px" },
         }}
       >

@@ -79,7 +79,7 @@ export default function PlayerCard({ playerCount, sx = {} }) {
             variant="h4" // Ökat till h4 för mer tyngd
             sx={{
               fontWeight: "bold",
-              color: "#00e676", // Matchar den gröna färgen från GraphBox
+              color: "#fff", // Matchar den gröna färgen från GraphBox
               fontSize: {
                 xs: "1.5rem", // För mobil
                 sm: "2rem",   // För tablet
