@@ -198,12 +198,17 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        background: "linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)",
-        borderRadius: "20px",
-        padding: { xs: "20px", sm: "30px" },
-        margin: "20px auto",
-        width: { xs: "90%", sm: "80%", md: "70%" },
+        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        border: "1px solid rgba(255, 255, 255, 0.05)",
+        padding: { xs: "12px", sm: "16px" },
+        margin: "16px auto",
+        width: { xs: "92%", sm: "85%", md: "75%" },
         maxWidth: "1200px",
+        minHeight: "200px",
+        justifyContent: "center",
+        color: "#ffffff",
         fontFamily: "'Roboto', sans-serif",
       }}
     >
@@ -341,6 +346,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
           fontSize: { xs: "1.4rem", sm: "1.8rem", md: "2rem" },
           marginBottom: "20px",
           fontFamily: "'Roboto', sans-serif",
+          textAlign: "center",
         }}
       >
         Gameshow Omsättning vs Faktiska Omsättning
