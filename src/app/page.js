@@ -203,7 +203,7 @@ export default async function Home() {
         }}
       >
         <StockBuybackInfo
-          isActive={false}
+          isActive={true}
           buybackCash={500000000}
           sharesBought={2100081}
           averagePrice={809}
