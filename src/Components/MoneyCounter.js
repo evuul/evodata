@@ -173,7 +173,7 @@ const MoneyCounter = ({ sx = {} }) => {
               fontWeight="600"
               sx={{
                 fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-                color: "#FFCA28",
+                color: "#fff",
                 marginBottom: "4px",
               }}
             >
