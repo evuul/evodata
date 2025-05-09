@@ -66,8 +66,8 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  // Aktuellt datum (8 maj 2025)
-  const currentDate = new Date("2025-05-08");
+  // Aktuellt datum (dynamiskt)
+  const currentDate = new Date();
   const q2Start = new Date("2025-04-01");
   const q2End = new Date("2025-06-30");
 
@@ -78,8 +78,8 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   // Beräkna antal dagar och procent för Q2 2025
   const getQuarterProgress = () => {
     const totalDays = 91; // Hårdkodat till 91 dagar för Q2 2025
-    const elapsedDays = Math.ceil((currentDate - q2Start) / (1000 * 60 * 60 * 24));
-    const progressPercent = Math.min(Math.max((elapsedDays / totalDays) * 100, 0), 100).toFixed(1);
+    const elapsedDays = Math.ceil((currentDate - q2Start) / (1000 * 60 * 60 * 24)); // Inkluderar startdagen
+    const progressPercent = Math.min(Math.max(Math.round((elapsedDays / totalDays) * 100), 0), 100);
     return { elapsedDays, totalDays, progressPercent };
   };
 
