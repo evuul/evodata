@@ -327,19 +327,21 @@ const StockBuybackInfo = ({
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
         borderRadius: "20px",
         boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        padding: { xs: "15px", sm: "25px" },
-        margin: "20px auto",
-        width: { xs: "95%", sm: "80%", md: "70%" },
+        padding: { xs: "10px", sm: "20px", md: "25px" },
+        margin: { xs: "10px auto", sm: "20px auto" },
+        width: { xs: "100%", sm: "80%", md: "70%" },
+        textAlign: "center",
+        boxSizing: "border-box",
       }}
     >
       <Typography
-        variant="h4"
+        variant="h5"
         sx={{
-          fontWeight: "bold",
+          fontWeight: 700,
           color: "#fff",
-          marginBottom: "20px",
-          textAlign: "center",
-          fontSize: { xs: "1.5rem", sm: "2rem" },
+          marginBottom: "12px",
+          fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
+          letterSpacing: "0.5px",
         }}
       >
         Aktieåterköpsinformation
@@ -359,7 +361,7 @@ const StockBuybackInfo = ({
             "& .MuiSelect-select": {
               padding: "12px 32px",
               textAlign: "center",
-              fontSize: "1rem",
+              fontSize: { xs: "0.9rem", sm: "1rem" },
               fontWeight: "bold",
               transition: "background-color 0.3s ease",
             },
@@ -386,7 +388,7 @@ const StockBuybackInfo = ({
                   textAlign: "center",
                   justifyContent: "center",
                   padding: "12px 16px",
-                  fontSize: "1rem",
+                  fontSize: { xs: "0.9rem", sm: "1rem" },
                   transition: "background-color 0.3s ease",
                   "&:hover": {
                     backgroundColor: "#00e676",
@@ -444,7 +446,7 @@ const StockBuybackInfo = ({
             sx={{
               color: "#ccc",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -473,13 +475,12 @@ const StockBuybackInfo = ({
       {activeTab === "buyback" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h6"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: isActive ? "#00e676" : "#ff1744",
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Status på återköp: {isActive ? "Aktivt" : "Inaktivt"}
@@ -487,24 +488,22 @@ const StockBuybackInfo = ({
 
           {loadingPrice ? (
             <Typography
-              variant="body1"
+              variant="body2"
               color="#ccc"
               sx={{
                 marginBottom: "20px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Laddar vinst/förlust...
             </Typography>
           ) : (
             <Typography
-              variant="body1"
+              variant="body2"
               color={totalProfitLoss >= 0 ? "#00e676" : "#ff1744"}
               sx={{
                 marginBottom: "20px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Vinst/Förlust på återköp: {totalProfitLoss.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
@@ -542,8 +541,7 @@ const StockBuybackInfo = ({
               align="center"
               sx={{
                 marginTop: "5px",
-                textAlign: "center",
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               {Math.floor(buybackProgress)}% av kassan har använts för återköp
@@ -557,65 +555,59 @@ const StockBuybackInfo = ({
                 color="#ff1744"
                 sx={{
                   marginBottom: "10px",
-                  textAlign: "center",
-                  fontSize: { xs: "0.8rem", sm: "0.9rem" },
+                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
                 }}
               >
                 {priceError}
               </Typography>
             )}
             <Typography
-              variant="body1"
+              variant="body2"
               color="#fff"
               sx={{
                 marginBottom: "5px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Återköpta aktier: {sharesBought.toLocaleString()}
             </Typography>
             <Typography
-              variant="body1"
+              variant="body2"
               color="#fff"
               sx={{
                 marginBottom: "5px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Snittkurs: {averagePrice ? averagePrice.toLocaleString() : "0"} SEK
             </Typography>
             <Typography
-              variant="body1"
+              variant="body2"
               color="#fff"
               sx={{
                 marginBottom: "5px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Kassa för återköp (i SEK): {buybackCashInSEK.toLocaleString()} SEK
             </Typography>
             <Typography
-              variant="body1"
+              variant="body2"
               color="#fff"
               sx={{
                 marginBottom: "5px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Kvar av kassan: {remainingCash.toLocaleString()} SEK
             </Typography>
             {loadingPrice ? (
               <Typography
-                variant="body1"
+                variant="body2"
                 color="#ccc"
                 sx={{
                   marginBottom: "5px",
-                  textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" },
+                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
                 }}
               >
                 Laddar aktiepris...
@@ -623,22 +615,20 @@ const StockBuybackInfo = ({
             ) : (
               <Box>
                 <Typography
-                  variant="body1"
+                  variant="body2"
                   color="#00e676"
                   sx={{
                     marginBottom: "5px",
-                    textAlign: "center",
-                    fontSize: { xs: "0.9rem", sm: "1rem" },
+                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
                   }}
                 >
                   Kvar att köpa för: {remainingSharesToBuy.toLocaleString()} aktier (baserat på {currentSharePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK/aktie)
                 </Typography>
                 <Typography
-                  variant="body1"
+                  variant="body2"
                   color="#00e676"
                   sx={{
-                    textAlign: "center",
-                    fontSize: { xs: "0.9rem", sm: "1rem" },
+                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
                   }}
                 >
                   Motsvarar {remainingPercentage.toFixed(2)}% av bolagets aktier
@@ -652,48 +642,44 @@ const StockBuybackInfo = ({
       {activeTab === "ownership" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h6"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: "#fff",
               marginBottom: "20px",
-              textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Evolutions ägande
           </Typography>
 
           <Typography
-            variant="body1"
+            variant="body2"
             color="#fff"
             sx={{
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
             }}
           >
             Evolution äger: {latestEvolutionShares.toLocaleString()} aktier
           </Typography>
           <Typography
-            variant="body1"
+            variant="body2"
             color="#FFCA28"
             sx={{
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
             }}
           >
             Ägarandel: {latestOwnershipPercentage.toFixed(2)}%
           </Typography>
           {cancelledShares > 0 && (
             <Typography
-              variant="body1"
+              variant="body2"
               color="#FF6F61"
               sx={{
                 marginBottom: "20px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Makulerade aktier: {cancelledShares.toLocaleString()}
@@ -702,12 +688,11 @@ const StockBuybackInfo = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#00e676"
             sx={{
               marginTop: "20px",
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Antal aktier över tid
@@ -719,13 +704,14 @@ const StockBuybackInfo = ({
                 top: 20,
                 right: isMobile ? 20 : 20,
                 bottom: isMobile ? 10 : 20,
-                left: isMobile ? 20 : 40,
+                left: isMobile ? -20 : 0,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="date"
                 stroke="#ccc"
+                tick={{ fontSize: { xs: 12, sm: 14 } }}
                 height={isMobile ? 30 : 40}
               >
                 {!isMobile && (
@@ -740,6 +726,7 @@ const StockBuybackInfo = ({
               </XAxis>
               <YAxis
                 stroke="#ccc"
+                tick={{ fontSize: { xs: 12, sm: 14 } }}
                 domain={getYDomain(evolutionOwnershipData, "shares")}
                 tickFormatter={formatYAxisTick}
                 width={isMobile ? 40 : 60}
@@ -772,27 +759,38 @@ const StockBuybackInfo = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#00e676"
             sx={{
               marginTop: "20px",
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Historisk data
           </Typography>
-          <Box sx={{ overflowX: "auto", width: "100%" }}>
-            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "600px" : "auto" }}>
+          <Box
+            sx={{
+              overflowX: "auto",
+              width: "100%",
+              "&::-webkit-scrollbar": {
+                height: "6px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#00e676",
+                borderRadius: "10px",
+              },
+            }}
+          >
+            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "10px", minWidth: isMobile ? "600px" : "auto" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                     År
                   </TableCell>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                     Evolutions aktier
                   </TableCell>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                     Ägarandel (%)
                   </TableCell>
                 </TableRow>
@@ -800,13 +798,13 @@ const StockBuybackInfo = ({
               <TableBody>
                 {evolutionOwnershipData.map((item, index) => (
                   <TableRow key={item.date}>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                       {item.date}
                     </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                       {item.shares.toLocaleString()}
                     </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                       {ownershipPercentageData.find((data) => data.date === item.date)?.percentage.toFixed(2) || "0.00"}%
                     </TableCell>
                   </TableRow>
@@ -820,25 +818,23 @@ const StockBuybackInfo = ({
       {activeTab === "totalShares" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h6"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: "#fff",
               marginBottom: "20px",
-              textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Totala aktier
           </Typography>
 
           <Typography
-            variant="body1"
+            variant="body2"
             color="#fff"
             sx={{
               marginBottom: "20px",
-              textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
             }}
           >
             Totalt antal aktier: {latestTotalShares.toLocaleString()}
@@ -846,11 +842,10 @@ const StockBuybackInfo = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#00e676"
             sx={{
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Totala aktier över tid
@@ -862,13 +857,14 @@ const StockBuybackInfo = ({
                 top: 20,
                 right: isMobile ? 20 : 20,
                 bottom: isMobile ? 10 : 20,
-                left: isMobile ? 20 : 40,
+                left: isMobile ? -20 : 0,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="date"
                 stroke="#ccc"
+                tick={{ fontSize: { xs: 12, sm: 14 } }}
                 height={isMobile ? 30 : 40}
               >
                 {!isMobile && (
@@ -883,6 +879,7 @@ const StockBuybackInfo = ({
               </XAxis>
               <YAxis
                 stroke="#ccc"
+                tick={{ fontSize: { xs: 12, sm: 14 } }}
                 domain={getYDomain(totalSharesData, "totalShares")}
                 tickFormatter={formatYAxisTick}
                 width={isMobile ? 40 : 60}
@@ -915,24 +912,35 @@ const StockBuybackInfo = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#00e676"
             sx={{
               marginTop: "20px",
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Historisk data
           </Typography>
-          <Box sx={{ overflowX: "auto", width: "100%" }}>
-            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "600px" : "auto" }}>
+          <Box
+            sx={{
+              overflowX: "auto",
+              width: "100%",
+              "&::-webkit-scrollbar": {
+                height: "6px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#00e676",
+                borderRadius: "10px",
+              },
+            }}
+          >
+            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "10px", minWidth: isMobile ? "600px" : "auto" }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                     År
                   </TableCell>
-                  <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                     Totala aktier
                   </TableCell>
                 </TableRow>
@@ -940,10 +948,10 @@ const StockBuybackInfo = ({
               <TableBody>
                 {totalSharesData.map((item) => (
                   <TableRow key={item.date}>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                       {item.date}
                     </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                       {item.totalShares.toLocaleString()}
                     </TableCell>
                   </TableRow>
@@ -957,36 +965,33 @@ const StockBuybackInfo = ({
       {activeTab === "history" && (
         <Box display="flex" flexDirection="column" alignItems="center" sx={{ overflowX: "hidden" }}>
           <Typography
-            variant="h4"
+            variant="h6"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: "#fff",
               marginBottom: "20px",
-              textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Återköpshistorik
           </Typography>
 
           <Typography
-            variant="body1"
+            variant="body2"
             color="#fff"
             sx={{
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
             }}
           >
             Genomsnittlig handel per dag: {Math.round(averageDailyBuyback).toLocaleString()} aktier
           </Typography>
           <Typography
-            variant="body1"
+            variant="body2"
             color="#fff"
             sx={{
               marginBottom: "20px",
-              textAlign: "center",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem" },
             }}
           >
             Genomsnittspris: {averageBuybackPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
@@ -1001,7 +1006,7 @@ const StockBuybackInfo = ({
               color: "#ccc",
               marginBottom: "20px",
               "& .MuiTab-root": {
-                fontSize: { xs: "0.8rem", sm: "1rem" },
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
                 padding: { xs: "6px 8px", sm: "12px 16px" },
               },
             }}
@@ -1015,11 +1020,10 @@ const StockBuybackInfo = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#00e676"
             sx={{
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             {viewMode === "daily" ? "Dagliga återköp" : "Årliga återköp"}
@@ -1031,13 +1035,14 @@ const StockBuybackInfo = ({
                 top: 20,
                 right: isMobile ? 20 : 20,
                 bottom: isMobile ? 10 : 20,
-                left: isMobile ? 20 : 40,
+                left: isMobile ? -20 : 0,
               }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#444" />
               <XAxis
                 dataKey="Datum"
                 stroke="#ccc"
+                tick={{ fontSize: { xs: 12, sm: 14 } }}
                 angle={isMobile ? -45 : 0}
                 textAnchor={isMobile ? "end" : "middle"}
                 height={isMobile ? 40 : 60}
@@ -1054,6 +1059,7 @@ const StockBuybackInfo = ({
               </XAxis>
               <YAxis
                 stroke="#ccc"
+                tick={{ fontSize: { xs: 12, sm: 14 } }}
                 domain={getYDomain(viewMode === "daily" ? buybackDataForGraphDaily : buybackDataForGraphYearly(), "Antal_aktier")}
                 tickFormatter={formatYAxisTick}
                 width={isMobile ? 40 : 60}
@@ -1086,28 +1092,39 @@ const StockBuybackInfo = ({
 
           <Typography
             variant="h6"
-            color="#ccc"
+            color="#00e676"
             sx={{
               marginTop: "20px",
               marginBottom: "10px",
-              textAlign: "center",
-              fontSize: { xs: "1rem", sm: "1.25rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Transaktioner
           </Typography>
-          <Box sx={{ overflowX: "auto", width: "100%" }}>
+          <Box
+            sx={{
+              overflowX: "auto",
+              width: "100%",
+              "&::-webkit-scrollbar": {
+                height: "6px",
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: "#00e676",
+                borderRadius: "10px",
+              },
+            }}
+          >
             <TableContainer sx={{ maxHeight: 400, overflow: "auto" }}>
-              <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "8px", minWidth: isMobile ? "450px" : "auto" }}>
+              <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "10px", minWidth: isMobile ? "450px" : "auto" }}>
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" }, cursor: "pointer" }} onClick={() => handleSort("Datum")}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" }, cursor: "pointer" }} onClick={() => handleSort("Datum")}>
                       Datum {sortConfig.key === "Datum" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableCell>
-                    <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" }, cursor: "pointer" }} onClick={() => handleSort("Antal_aktier")}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" }, cursor: "pointer" }} onClick={() => handleSort("Antal_aktier")}>
                       Antal aktier {sortConfig.key === "Antal_aktier" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableCell>
-                    <TableCell sx={{ color: "#ccc", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" }, cursor: "pointer" }} onClick={() => handleSort("Transaktionsvärde")}>
+                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" }, cursor: "pointer" }} onClick={() => handleSort("Transaktionsvärde")}>
                       Transaktionsvärde (SEK) {sortConfig.key === "Transaktionsvärde" && (sortConfig.direction === "asc" ? "↑" : "↓")}
                     </TableCell>
                   </TableRow>
@@ -1115,13 +1132,13 @@ const StockBuybackInfo = ({
                 <TableBody>
                   {sortedData.map((item, index) => (
                     <TableRow key={index}>
-                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                         {item.Datum}
                       </TableCell>
-                      <TableCell sx={{ color: item.Antal_aktier < 0 ? "#FF6F61" : "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      <TableCell sx={{ color: item.Antal_aktier < 0 ? "#FF6F61" : "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                         {item.Antal_aktier.toLocaleString()}
                       </TableCell>
-                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.8rem", sm: "1rem" } }}>
+                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
                         {item.Transaktionsvärde ? item.Transaktionsvärde.toLocaleString() : "-"}
                       </TableCell>
                     </TableRow>
@@ -1136,13 +1153,12 @@ const StockBuybackInfo = ({
       {activeTab === "returns" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
-            variant="h4"
+            variant="h6"
             sx={{
-              fontWeight: "bold",
+              fontWeight: 700,
               color: "#fff",
               marginBottom: "20px",
-              textAlign: "center",
-              fontSize: { xs: "1.5rem", sm: "2rem" },
+              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
             }}
           >
             Återinvestering till investerare
@@ -1154,43 +1170,39 @@ const StockBuybackInfo = ({
               sx={{
                 color: "#FFCA28",
                 fontWeight: "bold",
-                fontSize: { xs: "1.2rem", sm: "1.5rem", md: "2rem" },
-                textAlign: "center",
+                fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
               }}
             >
               Total återinvestering: {(totalReturns / 1000000).toLocaleString("sv-SE")} Mkr
             </Typography>
             <Typography
-              variant="body1"
+              variant="body2"
               sx={{
                 color: "#ccc",
                 marginTop: "5px",
-                textAlign: "center",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               (Utdelningar: {(totalDividends / 1000000).toLocaleString("sv-SE")} Mkr, Aktieåterköp: {(totalBuybacks / 1000000).toLocaleString("sv-SE")} Mkr)
             </Typography>
             {loadingPrice ? (
               <Typography
-                variant="body1"
+                variant="body2"
                 sx={{
                   color: "#ccc",
                   marginTop: "10px",
-                  textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" },
+                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
                 }}
               >
                 Laddar direktavkastning...
               </Typography>
             ) : (
               <Typography
-                variant="body1"
+                variant="body2"
                 sx={{
                   color: "#00e676",
                   marginTop: "10px",
-                  textAlign: "center",
-                  fontSize: { xs: "0.9rem", sm: "1rem" },
+                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
                 }}
               >
                 Direktavkastning ({latestYear}): {directYieldPercentage.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% av marknadsvärdet ({(marketCap / 1000000000).toLocaleString("sv-SE")} Mdkr)
@@ -1205,7 +1217,7 @@ const StockBuybackInfo = ({
                 margin={{
                   top: 50,
                   right: isMobile ? 20 : 20,
-                  left: isMobile ? 20 : 40,
+                  left: isMobile ? -20 : 0,
                   bottom: isMobile ? 10 : 20,
                 }}
               >
@@ -1213,7 +1225,7 @@ const StockBuybackInfo = ({
                 <XAxis
                   dataKey="year"
                   stroke="#ccc"
-                  tick={{ fill: "#ccc" }}
+                  tick={{ fontSize: { xs: 12, sm: 14 } }}
                   height={isMobile ? 30 : 40}
                 >
                   {!isMobile && (
@@ -1228,7 +1240,7 @@ const StockBuybackInfo = ({
                 </XAxis>
                 <YAxis
                   stroke="#ccc"
-                  tick={{ fill: "#ccc" }}
+                  tick={{ fontSize: { xs: 12, sm: 14 } }}
                   tickFormatter={(value) => `${value.toLocaleString("sv-SE")} Mkr`}
                   width={isMobile ? 40 : 60}
                 >
@@ -1251,7 +1263,7 @@ const StockBuybackInfo = ({
                 />
                 <Legend
                   verticalAlign="top"
-                  wrapperStyle={{ color: "#ccc", marginBottom: 20 }}
+                  wrapperStyle={{ color: "#ccc", marginBottom: 20, fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" } }}
                 />
                 <Bar dataKey="dividends" fill="#00e676" name="UTD" />
                 <Bar dataKey="buybacks" fill="#FFCA28" name="Aktieåterköp" />
@@ -1259,12 +1271,11 @@ const StockBuybackInfo = ({
             </ResponsiveContainer>
           ) : (
             <Typography
-              variant="body1"
+              variant="body2"
               sx={{
                 color: "#ccc",
-                textAlign: "center",
                 marginBottom: "20px",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
+                fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
               Laddar data...
