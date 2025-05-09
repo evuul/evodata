@@ -4,12 +4,10 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, Box, Typography } from "@mui/material";
 
 const MoneyCounter = ({ sx = {} }) => {
-  const [amountPerSecond, setAmountPerSecond] = useState(0); // Vinst sedan sidan laddades
   const [totalProfitYTD, setTotalProfitYTD] = useState(0); // Total vinst YTD
   const [todayProfit, setTodayProfit] = useState(0); // Dagens vinst sedan midnatt
 
   const dailyProfit = 36374400; // Daglig vinst i SEK
-  const profitPerSecond = dailyProfit / (24 * 60 * 60); // Vinst per sekund
 
   // Beräkna antalet sekunder sedan midnatt
   const calculateSecondsSinceMidnight = () => {
@@ -46,7 +44,7 @@ const MoneyCounter = ({ sx = {} }) => {
 
     // Beräkna dagens vinst sedan midnatt
     const secondsSinceMidnight = calculateSecondsSinceMidnight();
-    const initialTodayProfit = profitPerSecond * secondsSinceMidnight;
+    const initialTodayProfit = (dailyProfit / (24 * 60 * 60)) * secondsSinceMidnight;
     setTodayProfit(initialTodayProfit);
 
     const checkForNewDay = () => {
@@ -59,11 +57,9 @@ const MoneyCounter = ({ sx = {} }) => {
 
       const timeout = setTimeout(() => {
         setTotalProfitYTD((prev) => prev + dailyProfit);
-        setAmountPerSecond(0);
         setTodayProfit(0); // Återställ dagens vinst vid midnatt
         setInterval(() => {
           setTotalProfitYTD((prev) => prev + dailyProfit);
-          setAmountPerSecond(0);
           setTodayProfit(0);
         }, 24 * 60 * 60 * 1000);
       }, timeUntilTomorrow);
@@ -72,25 +68,12 @@ const MoneyCounter = ({ sx = {} }) => {
     };
 
     checkForNewDay();
-  }, []);
 
-  // Uppdatera vinst per sekund och dagens vinst i realtid
-  useEffect(() => {
+    // Uppdatera dagens vinst i realtid
     const interval = setInterval(() => {
-      setAmountPerSecond((prev) => {
-        const newAmount = prev + profitPerSecond;
-        if (newAmount >= dailyProfit) {
-          return 0;
-        }
-        return newAmount;
-      });
-      setTodayProfit((prev) => {
-        const newProfit = prev + profitPerSecond;
-        if (newProfit >= dailyProfit) {
-          return dailyProfit;
-        }
-        return newProfit;
-      });
+      const secondsSinceMidnight = calculateSecondsSinceMidnight();
+      const newTodayProfit = (dailyProfit / (24 * 60 * 60)) * secondsSinceMidnight;
+      setTodayProfit(newTodayProfit);
     }, 1000);
 
     return () => clearInterval(interval);
@@ -104,11 +87,6 @@ const MoneyCounter = ({ sx = {} }) => {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}B SEK`;
-  };
-
-  // Formatera vinst per sekund
-  const formatProfitPerSecond = (value) => {
-    return `${Math.floor(value).toLocaleString("sv-SE")} SEK`;
   };
 
   // Formatera dagens vinst
@@ -163,7 +141,7 @@ const MoneyCounter = ({ sx = {} }) => {
               marginBottom: "8px",
             }}
           >
-            Vinst i realtid (per sekund):
+            Dagens vinst (fram till nu):
           </Typography>
 
           <Typography
@@ -172,10 +150,10 @@ const MoneyCounter = ({ sx = {} }) => {
             sx={{
               fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
               color: "#00e676",
-              marginBottom: "12px",
+              marginBottom: "0px",
             }}
           >
-            {formatProfitPerSecond(amountPerSecond)}
+            {formatDailyProfit(todayProfit)}
           </Typography>
 
           <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
@@ -200,17 +178,6 @@ const MoneyCounter = ({ sx = {} }) => {
               }}
             >
               {formatTotalProfit(totalProfitYTD)}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#00e676", // Samma gröna färg som vinst per sekund
-                fontSize: { xs: "0.85rem", sm: "0.95rem" },
-                fontWeight: 500,
-                marginBottom: "4px",
-              }}
-            >
-              Dagens vinst (fram till nu): {formatDailyProfit(todayProfit)}
             </Typography>
           </Box>
         </Box>
