@@ -7,11 +7,11 @@ export default function PlayerCard({ playerCount, sx = {} }) {
   const [lastUpdated, setLastUpdated] = useState("");
   const [allTimeHigh, setAllTimeHigh] = useState(() => {
     const savedATH = localStorage.getItem("playerCountATH");
-    return savedATH ? parseInt(savedATH, 10) : 119240;
+    return savedATH ? parseInt(savedATH, 10) : 124707;
   });
   const [athDate, setAthDate] = useState(() => {
     const savedDate = localStorage.getItem("playerCountATHDate");
-    return savedDate || "5 april 2025";
+    return savedDate || "8 maj 2025";
   });
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export default function PlayerCard({ playerCount, sx = {} }) {
     }
   }, [playerCount, allTimeHigh]);
 
-  const isHighPlayerCount = playerCount > 90000;
+  const isHighPlayerCount = playerCount > 85000;
   const isVeryHighPlayerCount = playerCount > 100000;
   const isNewATH = playerCount === allTimeHigh;
 
@@ -108,17 +108,17 @@ export default function PlayerCard({ playerCount, sx = {} }) {
             variant="h6"
             sx={{
               marginTop: "8px",
-              color: "#FFCA28",
+              color: "#AB47BC",
               fontWeight: 600,
               letterSpacing: "0.5px",
               fontSize: { xs: "1rem", sm: "1.2rem", md: "1.4rem" },
-              borderBottom: "1px solid #FFD700",
+              borderBottom: "1px solid #AB47BC",
               paddingBottom: "2px",
               display: "inline-block",
             }}
           >
             All-Time High: {allTimeHigh.toLocaleString()}
-            <span style={{ color: "#FFD700", fontSize: "20px", marginLeft: "4px" }}>🌟</span>
+            {/* <span style={{ color: "#FFD700", fontSize: "20px", marginLeft: "4px" }}>🌟</span> */}
           </Typography>
 
           <Typography
