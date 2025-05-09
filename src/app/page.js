@@ -12,6 +12,7 @@ import dividendData from "./data/dividendData.json";
 import KingsOfTheHillTeaser from "@/Components/KingsOfTheHillTeaser";
 import CurrentCashBox from "../Components/CurrentCashBox";
 import AveragePlayersTracker from "../Components/AveragePlayersTracker";
+import IntelligenceIncomeReport from "../Components/IntelligenceIncomeReport";
 import { Box } from "@mui/material";
 import { Kings } from "next/font/google";
 
@@ -207,6 +208,20 @@ export default async function Home() {
           sharesBought={2100081}
           averagePrice={809}
           dividendData={dividendData}
+        />
+      </Box>
+
+      {/* IntelligenceIncomeReport */}
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <IntelligenceIncomeReport
+          financialReports={financialReports}
+          averagePlayersData={averagePlayersData}
         />
       </Box>
 
