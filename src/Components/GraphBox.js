@@ -49,7 +49,8 @@ const GraphBox = ({
 }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
-  const [chartType, setChartType] = useState("line"); // Ny state för graf-typ
+  const [chartType, setChartType] = useState("line"); // För omsättning
+  const [chartTypeEPS, setChartTypeEPS] = useState("line"); // För intjäning per aktie
   const [selectedGeoYear, setSelectedGeoYear] = useState(null);
   const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Helår");
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -118,6 +119,10 @@ const GraphBox = ({
 
   const handleChartTypeChange = (event, newValue) => {
     setChartType(newValue);
+  };
+
+  const handleChartTypeEPSChange = (event, newValue) => {
+    setChartTypeEPS(newValue);
   };
 
   const handleGeoYearChange = (event, newValue) => {
@@ -354,7 +359,7 @@ const GraphBox = ({
     const yearlyReports = financialReports.financialReports.filter(report => report.year === year);
     const totalEPS = yearlyReports.reduce((sum, report) => sum + (report.adjustedEarningsPerShare || 0), 0);
     epsDataYearly.push({
-      date: `${year} Helår`,
+      date: `${year}`,
       year: year,
       value: exchangeRate ? totalEPS * exchangeRate : 0,
     });
@@ -1157,6 +1162,27 @@ const GraphBox = ({
             <Tab label="Per helår" value="yearly" />
           </Tabs>
 
+          <Tabs
+            value={chartTypeEPS}
+            onChange={handleChartTypeEPSChange}
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
+            sx={{
+              color: "#b0b0b0",
+              marginBottom: "12px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label="Linje" value="line" />
+            <Tab label="Stapel" value="bar" />
+          </Tabs>
+
           <Typography
             variant="h6"
             color="#ffffff"
@@ -1208,67 +1234,126 @@ const GraphBox = ({
 
           {exchangeRate ? (
             <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-              <LineChart
-                data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth}
-                margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
-                connectNulls={false}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ccc"
-                  ticks={viewMode === "quarterly" ? epsQuarterlyXTicks : epsYearlyXTicks}
-                  interval={0}
-                  angle={isMobile ? -45 : 0}
-                  textAnchor={isMobile ? "end" : "middle"}
-                  height={isMobile ? 60 : 40}
-                  tick={{ fontSize: isMobile ? 12 : 14 }}
-                >
-                  {!isMobile && (
-                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tickFormatter={formatEPSTick}
-                  width={isMobile ? 30 : 60}
-                  domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
-                  ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
-                  tick={{ fontSize: isMobile ? 10 : 14 }}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Intjäning per aktie (SEK)"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value, name, props) => {
-                    const growth = props.payload.growth;
-                    return [
-                      value !== null
-                        ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
-                        : "Ingen data",
-                      growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
-                    ];
-                  }}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#00e676"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: "#00e676" }}
-                  activeDot={{ r: 6 }}
+              {chartTypeEPS === "line" ? (
+                <LineChart
+                  data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth}
+                  margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
                   connectNulls={false}
-                />
-              </LineChart>
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#ccc"
+                    ticks={viewMode === "quarterly" ? epsQuarterlyXTicks : epsYearlyXTicks}
+                    interval={0}
+                    angle={isMobile ? -45 : 0}
+                    textAnchor={isMobile ? "end" : "middle"}
+                    height={isMobile ? 60 : 40}
+                    tick={{ fontSize: isMobile ? 12 : 14 }}
+                  >
+                    {!isMobile && (
+                      <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                    )}
+                  </XAxis>
+                  <YAxis
+                    stroke="#ccc"
+                    tickFormatter={formatEPSTick}
+                    width={isMobile ? 30 : 60}
+                    domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
+                    ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
+                    tick={{ fontSize: isMobile ? 10 : 14 }}
+                  >
+                    {!isMobile && (
+                      <Label
+                        value="Intjäning per aktie (SEK)"
+                        angle={-90}
+                        offset={-10}
+                        position="insideLeft"
+                        fill="#ccc"
+                        style={{ fontSize: isMobile ? "12px" : "14px" }}
+                      />
+                    )}
+                  </YAxis>
+                  <Tooltip
+                    formatter={(value, name, props) => {
+                      const growth = props.payload.growth;
+                      return [
+                        value !== null
+                          ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
+                          : "Ingen data",
+                        growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
+                      ];
+                    }}
+                    contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#00e676"
+                    strokeWidth={2}
+                    dot={{ r: 4, fill: "#00e676" }}
+                    activeDot={{ r: 6 }}
+                    connectNulls={false}
+                  />
+                </LineChart>
+              ) : (
+                <BarChart
+                  data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth}
+                  margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#ccc"
+                    ticks={viewMode === "quarterly" ? epsQuarterlyXTicks : epsYearlyXTicks}
+                    interval={0}
+                    angle={isMobile ? -45 : 0}
+                    textAnchor={isMobile ? "end" : "middle"}
+                    height={isMobile ? 60 : 40}
+                    tick={{ fontSize: isMobile ? 12 : 14 }}
+                  >
+                    {!isMobile && (
+                      <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                    )}
+                  </XAxis>
+                  <YAxis
+                    stroke="#ccc"
+                    tickFormatter={formatEPSTick}
+                    width={isMobile ? 30 : 60}
+                    domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
+                    ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
+                    tick={{ fontSize: isMobile ? 10 : 14 }}
+                  >
+                    {!isMobile && (
+                      <Label
+                        value="Intjäning per aktie (SEK)"
+                        angle={-90}
+                        offset={-10}
+                        position="insideLeft"
+                        fill="#ccc"
+                        style={{ fontSize: isMobile ? "12px" : "14px" }}
+                      />
+                    )}
+                  </YAxis>
+                  <Tooltip
+                    formatter={(value, name, props) => {
+                      const growth = props.payload.growth;
+                      return [
+                        value !== null
+                          ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
+                          : "Ingen data",
+                        growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
+                      ];
+                    }}
+                    contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                  />
+                  <Bar
+                    dataKey="value"
+                    fill="#00e676"
+                    name="Intjäning per aktie"
+                  />
+                </BarChart>
+              )}
             </ResponsiveContainer>
           ) : (
             <Typography
