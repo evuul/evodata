@@ -3,9 +3,9 @@ import React, { useState, useMemo } from "react";
 import { Box, Tabs, Tab, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label, LabelList } from "recharts";
 
-// Komponent för att spåra genomsnittliga spelare dagligen och månadsvis
+// Komponent för att spåra genomsnittliga spelare dagligen, veckovis och månadsvis
 const AveragePlayersTracker = ({ playersData }) => {
-  const [viewMode, setViewMode] = useState("daily"); // Växla mellan daglig och månadsvis
+  const [viewMode, setViewMode] = useState("daily"); // Växla mellan daglig, veckovis och månadsvis
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -28,6 +28,37 @@ const AveragePlayersTracker = ({ playersData }) => {
     };
   };
 
+  // Beräkna veckovis genomsnittliga spelare
+  const calculateWeeklyPlayers = (data) => {
+    if (!data || !Array.isArray(data) || data.length === 0) return [];
+
+    const weeklyData = {};
+    data.forEach(item => {
+      const date = new Date(item.Datum);
+      if (isNaN(date)) return;
+
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay()); // Start of the week (Sunday)
+      const weekKey = weekStart.toISOString().split('T')[0];
+
+      if (!weeklyData[weekKey]) {
+        weeklyData[weekKey] = { players: [], date: weekKey };
+      }
+      weeklyData[weekKey].players.push(Number(item.Players) || 0);
+    });
+
+    return Object.keys(weeklyData)
+      .sort()
+      .map(weekKey => {
+        const players = weeklyData[weekKey].players;
+        const average = players.length > 0 ? players.reduce((sum, val) => sum + val, 0) / players.length : 0;
+        return {
+          date: weekKey,
+          Players: Math.round(average),
+        };
+      });
+  };
+
   // Beräkna månadsvis genomsnittliga spelare och procentuell utveckling
   const calculateMonthlyPlayers = (data) => {
     if (!data || !Array.isArray(data) || data.length === 0) return [];
@@ -47,34 +78,24 @@ const AveragePlayersTracker = ({ playersData }) => {
       monthlyData[monthKey].players.push(Number(item.Players) || 0);
     });
 
-    // Skapa array med genomsnitt och lägg till procentuell förändring
-    const monthlyArray = Object.keys(monthlyData)
+    return Object.keys(monthlyData)
       .sort()
-      .map(monthKey => {
+      .map((monthKey, index, array) => {
         const players = monthlyData[monthKey].players;
         const average = players.length > 0 ? players.reduce((sum, val) => sum + val, 0) / players.length : 0;
+        if (index === 0) {
+          return { date: monthKey, Players: Math.round(average), change: null };
+        }
+        const prevMonth = array[index - 1];
+        const prevValue = monthlyData[prevMonth].players.length > 0 ? monthlyData[prevMonth].players.reduce((sum, val) => sum + val, 0) / monthlyData[prevMonth].players.length : 0;
+        const currentValue = average;
+        const change = prevValue !== 0 ? ((currentValue - prevValue) / prevValue) * 100 : null;
         return {
           date: monthKey,
           Players: Math.round(average),
+          change: change !== null ? Math.round(change * 10) / 10 : null,
         };
       });
-
-    // Beräkna procentuell förändring mot föregående månad
-    return monthlyArray.map((item, index) => {
-      if (index === 0) {
-        return { ...item, change: null }; // Ingen förändring för första månaden
-      }
-
-      const prevMonth = monthlyArray[index - 1];
-      const prevValue = prevMonth.Players;
-      const currentValue = item.Players;
-      const change = prevValue !== 0 ? ((currentValue - prevValue) / prevValue) * 100 : null;
-
-      return {
-        ...item,
-        change: change !== null ? Math.round(change * 10) / 10 : null,
-      };
-    });
   };
 
   // Formatering för Y-axelns tickar
@@ -84,11 +105,12 @@ const AveragePlayersTracker = ({ playersData }) => {
     return value.toLocaleString("sv-SE");
   };
 
-  // Beräkna genomsnitt och månadsvis data
+  // Beräkna genomsnitt och veckovis/månadsvis data
   const { average: avgPlayers, daysCount } = useMemo(() => calculateAveragePlayers(playersData), [playersData]);
+  const weeklyPlayersData = useMemo(() => calculateWeeklyPlayers(playersData), [playersData]);
   const monthlyPlayersData = useMemo(() => calculateMonthlyPlayers(playersData), [playersData]);
 
-  // Beräkna Y-axelns domän och ticks för både daglig och månadsvis graf
+  // Beräkna Y-axelns domän och ticks för varje vy
   const getYDomainAndTicks = (data, key) => {
     if (!data || data.length === 0) return { domain: [0, 1], ticks: [0, 1] };
 
@@ -101,7 +123,7 @@ const AveragePlayersTracker = ({ playersData }) => {
     const roundedMax = Math.ceil(maxValue / 2000) * 2000;
 
     const range = roundedMax - roundedMin;
-    const tickInterval = range <= 10000 ? 2000 : range <= 20000 ? 4000 : 8000;
+    const tickInterval = range <= 10000 ? 2000 : range <= 20020 ? 4000 : 8000;
     const ticks = [];
     for (let i = roundedMin; i <= roundedMax; i += tickInterval) {
       ticks.push(i);
@@ -114,6 +136,7 @@ const AveragePlayersTracker = ({ playersData }) => {
   };
 
   const dailyYConfig = getYDomainAndTicks(playersData, 'Players');
+  const weeklyYConfig = getYDomainAndTicks(weeklyPlayersData, 'Players');
   const monthlyYConfig = getYDomainAndTicks(monthlyPlayersData, 'Players');
 
   // Beräkna ticks för X-axeln
@@ -124,6 +147,14 @@ const AveragePlayersTracker = ({ playersData }) => {
       .filter((_, index) => index % step === 0)
       .map(item => item.Datum);
   }, [playersData]);
+
+  const weeklyXTicks = useMemo(() => {
+    if (weeklyPlayersData.length <= 10) return weeklyPlayersData.map(item => item.date);
+    const step = Math.floor(weeklyPlayersData.length / 8);
+    return weeklyPlayersData
+      .filter((_, index) => index % step === 0)
+      .map(item => item.date);
+  }, [weeklyPlayersData]);
 
   const monthlyXTicks = useMemo(() => {
     if (monthlyPlayersData.length <= 12) return monthlyPlayersData.map(item => item.date);
@@ -205,18 +236,14 @@ const AveragePlayersTracker = ({ playersData }) => {
           (baserat på {daysCount} dagar)
         </Typography>
 
-        {/* Tabs för att växla mellan daglig och månadsvis */}
+        {/* Tabs för att växla mellan daglig, veckovis och månadsvis */}
         <Tabs
           value={viewMode}
           onChange={handleViewModeChange}
           textColor="inherit"
           TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
           sx={{
-            backgroundColor: "#2e2e2e",
-            borderRadius: "8px",
-            padding: "5px",
             marginBottom: "12px",
-            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
             "& .MuiTabs-flexContainer": {
               justifyContent: "center",
             },
@@ -226,6 +253,7 @@ const AveragePlayersTracker = ({ playersData }) => {
               padding: { xs: "8px 16px", sm: "10px 20px" },
               borderRadius: "8px",
               transition: "all 0.3s ease",
+              textAlign: "center",
               "&:hover": {
                 backgroundColor: "rgba(255, 87, 34, 0.1)",
                 color: "#fff",
@@ -242,6 +270,7 @@ const AveragePlayersTracker = ({ playersData }) => {
           allowScrollButtonsMobile
         >
           <Tab label="Daglig" value="daily" />
+          <Tab label="Veckovis" value="weekly" />
           <Tab label="Månadsvis" value="monthly" />
         </Tabs>
 
@@ -317,13 +346,94 @@ const AveragePlayersTracker = ({ playersData }) => {
                   dataKey="Players"
                   stroke="#1976d2"
                   strokeWidth={3}
-                  dot={{ r: 5, fill: "#1976d2", stroke: "#fff", strokeWidth: 2 }}
-                  activeDot={{ r: 8, fill: "#1976d2", stroke: "#fff", strokeWidth: 2 }}
+                  dot={{ r: 2, fill: "#87CEEB", stroke: "#87CEEB", strokeWidth: 1 }}
+                  activeDot={{ r: 4, fill: "#87CEEB", stroke: "#87CEEB", strokeWidth: 1 }}
                   isAnimationActive={true}
                   name="Antal spelare"
                   filter="drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.3))"
                 />
               </LineChart>
+            </ResponsiveContainer>
+          </>
+        )}
+
+        {/* Veckovis graf */}
+        {viewMode === "weekly" && (
+          <>
+            <Typography
+              variant="h6"
+              sx={{
+                color: "#ffffff",
+                textAlign: "center",
+                marginBottom: "10px",
+                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
+              }}
+            >
+              Veckovisa genomsnittliga spelare
+            </Typography>
+            <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
+              <BarChart
+                data={weeklyPlayersData}
+                margin={{ top: 40, right: isMobile ? 10 : 40, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
+              >
+                <CartesianGrid strokeDasharray="5 5" stroke="#444" opacity={0.5} />
+                <XAxis
+                  dataKey="date"
+                  stroke="#ccc"
+                  angle={isMobile ? -45 : 0}
+                  textAnchor={isMobile ? "end" : "middle"}
+                  height={isMobile ? 60 : 40}
+                  ticks={weeklyXTicks}
+                  interval={0}
+                  tick={{ fontSize: isMobile ? 12 : 14 }}
+                >
+                  {!isMobile && (
+                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                  )}
+                </XAxis>
+                <YAxis
+                  stroke="#ccc"
+                  domain={weeklyYConfig.domain}
+                  ticks={weeklyYConfig.ticks}
+                  tickFormatter={formatPlayersTick}
+                  width={isMobile ? 40 : 60}
+                  interval={0}
+                  tick={{ fontSize: isMobile ? 12 : 14 }}
+                >
+                  {!isMobile && (
+                    <Label
+                      value="Antal spelare"
+                      angle={-90}
+                      offset={-10}
+                      position="insideLeft"
+                      fill="#ccc"
+                      style={{ fontSize: isMobile ? "12px" : "14px" }}
+                    />
+                  )}
+                </YAxis>
+                <Tooltip
+                  formatter={(value) => `Spelare: ${value.toLocaleString("sv-SE")}`}
+                  contentStyle={{
+                    backgroundColor: "#2e2e2e",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "8px",
+                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+                    padding: "8px 12px",
+                  }}
+                  labelStyle={{ color: "#42a5f5" }}
+                  isAnimationActive={false}
+                />
+                <Legend verticalAlign="top" height={40} />
+                <Bar
+                  dataKey="Players"
+                  fill="#1976d2"
+                  name="Genomsnittliga spelare"
+                  barSize={isMobile ? 20 : 30}
+                  filter="drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.3))"
+                  isAnimationActive={false}
+                />
+              </BarChart>
             </ResponsiveContainer>
           </>
         )}
