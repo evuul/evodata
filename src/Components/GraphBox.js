@@ -92,7 +92,6 @@ const GraphBox = ({
     "margin",
     "eps",
     "dividend",
-    "players",
     "geoDistribution",
     "liveCasinoRng",
   ];
