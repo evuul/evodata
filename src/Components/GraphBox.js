@@ -49,7 +49,8 @@ const GraphBox = ({
 }) => {
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
-  const [selectedGeoYear, setSelectedGeoYear] = useState(null); // Sätts dynamiskt
+  const [chartType, setChartType] = useState("line"); // Ny state för graf-typ
+  const [selectedGeoYear, setSelectedGeoYear] = useState(null);
   const [selectedGeoPeriod, setSelectedGeoPeriod] = useState("Helår");
   const [lastUpdated, setLastUpdated] = useState(null);
   const [exchangeRate, setExchangeRate] = useState(null);
@@ -72,7 +73,7 @@ const GraphBox = ({
         setExchangeRate(rate);
       } catch (error) {
         console.error("Kunde inte hämta växelkurs:", error);
-        setExchangeRate(11.20); // Fallback till en standardväxelkurs
+        setExchangeRate(11.20);
       }
     };
 
@@ -113,6 +114,10 @@ const GraphBox = ({
 
   const handleViewModeChange = (event, newValue) => {
     setViewMode(newValue);
+  };
+
+  const handleChartTypeChange = (event, newValue) => {
+    setChartType(newValue);
   };
 
   const handleGeoYearChange = (event, newValue) => {
@@ -169,7 +174,6 @@ const GraphBox = ({
   const plannedYield = planned[0]?.dividendYield || 0;
   const latestHistorical = historical[historical.length - 1];
 
-  // Filtrera finansiella rapporter för att bara inkludera år och kvartal med data
   const filteredFinancialReports = financialReports.financialReports.filter(report => {
     const hasGeoData = (report.europe || 0) + (report.asia || 0) + (report.northAmerica || 0) + (report.latAm || 0) + (report.other || 0) > 0;
     const hasLiveCasinoRngData = (report.liveCasino || 0) + (report.rng || 0) > 0;
@@ -182,7 +186,6 @@ const GraphBox = ({
       .map(report => report.year)
   )].sort();
 
-  // Sätt default-värde för selectedGeoYear till det senaste året med data
   React.useEffect(() => {
     if (uniqueYears.length > 0 && !selectedGeoYear) {
       setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
@@ -239,7 +242,6 @@ const GraphBox = ({
 
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-  // Skapa en lista över alla kvartal från 2015 Q1 till 2025 Q1
   const allQuarters = [];
   for (let year = 2015; year <= 2025; year++) {
     const quarters = year === 2015 ? ["Q1"] : year === 2025 ? ["Q1"] : ["Q1", "Q2", "Q3", "Q4"];
@@ -248,7 +250,6 @@ const GraphBox = ({
     });
   }
 
-  // Omsättningsdata (revenue) med tillväxt
   const revenueDataQuarterlyRaw = revenueData.map(item => ({
     ...item,
     year: parseInt(item.date.split(" ")[0]),
@@ -287,7 +288,6 @@ const GraphBox = ({
     return { ...current, growth: null };
   });
 
-  // Marginaldata med förändring
   const marginDataQuarterlyRaw = marginData.map(item => ({
     ...item,
     year: parseInt(item.date.split(" ")[0]),
@@ -326,7 +326,6 @@ const GraphBox = ({
     return { ...current, change: null };
   });
 
-  // EPS-data (kvartalsvis) med omvandling från EUR till SEK
   const epsDataQuarterlyRaw = financialReports.financialReports
     .filter(report => {
       const year = report.year;
@@ -383,7 +382,6 @@ const GraphBox = ({
     return { ...current, growth: null };
   });
 
-  // LiveCasino vs RNG-data med tillväxt, exkludera tomma kvartal
   const liveCasinoRngDataQuarterlyRaw = filteredFinancialReports
     .filter(report => report.year >= 2015)
     .map(report => ({
@@ -393,7 +391,7 @@ const GraphBox = ({
       liveCasino: report.liveCasino || 0,
       rng: report.rng || 0,
     }))
-    .filter(item => item.liveCasino > 0 || item.rng > 0); // Filtrera bort tomma kvartal
+    .filter(item => item.liveCasino > 0 || item.rng > 0);
 
   const liveCasinoRngDataYearly = [];
   const liveCasinoRngYears = [...new Set(liveCasinoRngDataQuarterlyRaw.map(item => item.year))];
@@ -451,7 +449,6 @@ const GraphBox = ({
     return { ...current, liveCasinoGrowth: null, rngGrowth: null };
   });
 
-  // Beräkna dynamiska ticks för X-axeln
   const getQuarterlyXTicks = (data) => {
     if (data.length <= 8) return data.map(item => item.date);
     const step = Math.floor(data.length / 6);
@@ -475,11 +472,9 @@ const GraphBox = ({
   const epsQuarterlyXTicks = getQuarterlyXTicks(quarterlyGrowth);
   const epsYearlyXTicks = getYearlyXTicks(yearlyGrowth);
 
-  // Beräkna Y-axelns domän och tick-intervall för olika grafer
   const getYDomainAndTicks = (data, key, minValue = 0, secondaryKey = null, isMargin = false, isEPS = false) => {
     if (!data || data.length === 0) return { domain: [0, 1], ticks: [0, 1] };
   
-    // Samla alla relevanta värden från datan
     const values = data.map(item => item[key]).filter(val => val !== null && !isNaN(val));
     const secondaryValues = secondaryKey
       ? data.map(item => item[secondaryKey]).filter(val => val !== null && !isNaN(val))
@@ -487,46 +482,40 @@ const GraphBox = ({
     const allValues = [...values, ...secondaryValues];
     if (allValues.length === 0) return { domain: [0, 1], ticks: [0, 1] };
   
-    // Beräkna min- och maxvärden
     const minVal = Math.min(...allValues, minValue);
     const maxVal = Math.max(...allValues);
   
     let roundedMin, roundedMax, tickInterval;
   
     if (isEPS) {
-      // För Intjäning per aktie (EPS)
-      roundedMin = Math.floor(minVal); // Startar från närmaste heltal nedåt
-      const maxWithMargin = maxVal * 1.05; // Lägg till 5% marginal över högsta värdet
-      roundedMax = Math.ceil(maxWithMargin); // Rundar upp till närmaste heltal
+      roundedMin = Math.floor(minVal);
+      const maxWithMargin = maxVal * 1.05;
+      roundedMax = Math.ceil(maxWithMargin);
   
       const range = roundedMax - roundedMin;
-      tickInterval = range <= 5 ? 1 : range <= 10 ? 2 : Math.ceil(range / 5); // Välj ett passande intervall
-      roundedMax = Math.ceil(maxWithMargin / tickInterval) * tickInterval; // Justera max till en multipel av tickInterval
+      tickInterval = range <= 5 ? 1 : range <= 10 ? 2 : Math.ceil(range / 5);
+      roundedMax = Math.ceil(maxWithMargin / tickInterval) * tickInterval;
     } else if (isMargin) {
-      // För Marginal
-      roundedMin = Math.floor(minVal / 5) * 5; // Rundar ner till närmaste 5
-      const maxWithMargin = maxVal * 1.05; // Lägg till 5% marginal över högsta värdet
-      roundedMax = Math.ceil(maxWithMargin / 5) * 5; // Rundar upp till närmaste 5
+      roundedMin = Math.floor(minVal / 5) * 5;
+      const maxWithMargin = maxVal * 1.05;
+      roundedMax = Math.ceil(maxWithMargin / 5) * 5;
   
       const range = roundedMax - roundedMin;
-      tickInterval = range <= 20 ? 5 : 10; // Steg om 5 eller 10
+      tickInterval = range <= 20 ? 5 : 10;
     } else {
-      // För Omsättning och LiveCasino vs RNG
-      roundedMin = Math.floor(minVal / 50) * 50; // Rundar ner till närmaste 50
-      const maxWithMargin = maxVal * 1.05; // Lägg till 5% marginal över högsta värdet
-      roundedMax = Math.ceil(maxWithMargin / 50) * 50; // Rundar upp till närmaste 50
+      roundedMin = Math.floor(minVal / 50) * 50;
+      const maxWithMargin = maxVal * 1.05;
+      roundedMax = Math.ceil(maxWithMargin / 50) * 50;
   
       const range = roundedMax - roundedMin;
-      tickInterval = range <= 200 ? 50 : range <= 500 ? 100 : 200; // Steg om 50, 100 eller 200
+      tickInterval = range <= 200 ? 50 : range <= 500 ? 100 : 200;
     }
   
-    // Skapa ticks med jämna mellanrum
     const ticks = [];
     for (let i = roundedMin; i <= roundedMax; i += tickInterval) {
       ticks.push(i);
     }
   
-    // Domänen sätts till exakt min och max ticks
     return {
       domain: [ticks[0], ticks[ticks.length - 1]],
       ticks,
@@ -601,7 +590,7 @@ const GraphBox = ({
 
   const formatRevenueTick = (value) => {
     if (isMobile && value >= 1000) {
-      return `${(value / 1000).toFixed(1)}k MEUR`; // Kompakt format för mobil
+      return `${(value / 1000).toFixed(1)}k MEUR`;
     }
     return `${value} MEUR`;
   };
@@ -620,13 +609,13 @@ const GraphBox = ({
 
   const formatLiveCasinoRngTick = (value) => {
     if (isMobile && value >= 1000) {
-      return `${(value / 1000).toFixed(1)}k MEUR`; // Kompakt format för mobil
+      return `${(value / 1000).toFixed(1)}k MEUR`;
     }
     return `${value} MEUR`;
   };
 
   const formatEPSTick = (value) => {
-    return `${value.toFixed(1)} SEK`; // Kompakt format med 1 decimal
+    return `${value.toFixed(1)} SEK`;
   };
 
   const quarterlyTicks = liveCasinoRngQuarterlyGrowth
@@ -664,7 +653,6 @@ const GraphBox = ({
         Finansiell översikt
       </Typography>
 
-      {/* Tabs för "Finansiell översikt" */}
       {isMobile ? (
         <Select
           value={activeTab}
@@ -743,7 +731,6 @@ const GraphBox = ({
           <MenuItem value="margin">Marginal</MenuItem>
           <MenuItem value="eps">Intjäning per aktie</MenuItem>
           <MenuItem value="dividend">Utdelning</MenuItem>
-          {/* <MenuItem value="players">AVG Spelare</MenuItem> */}
           <MenuItem value="geoDistribution">Geografisk fördelning</MenuItem>
           <MenuItem value="liveCasinoRng">LiveCasino vs RNG</MenuItem>
         </Select>
@@ -778,7 +765,6 @@ const GraphBox = ({
             <Tab label="Marginal" value="margin" />
             <Tab label="Intjäning per aktie" value="eps" />
             <Tab label="Utdelning" value="dividend" />
-            {/* <Tab label="AVG Spelare" value="players" /> */}
             <Tab label="Geografisk fördelning" value="geoDistribution" />
             <Tab label="LiveCasino vs RNG" value="liveCasinoRng" />
           </Tabs>
@@ -794,7 +780,6 @@ const GraphBox = ({
         </Box>
       )}
 
-      {/* Omsättning */}
       {activeTab === "revenue" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Tabs
@@ -816,6 +801,27 @@ const GraphBox = ({
           >
             <Tab label="Per kvartal" value="quarterly" />
             <Tab label="Per helår" value="yearly" />
+          </Tabs>
+
+          <Tabs
+            value={chartType}
+            onChange={handleChartTypeChange}
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#00e676" } }}
+            sx={{
+              color: "#b0b0b0",
+              marginBottom: "12px",
+              "& .MuiTab-root": {
+                fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
+                padding: { xs: "6px 8px", sm: "12px 16px" },
+              },
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label="Linje" value="line" />
+            <Tab label="Stapel" value="bar" />
           </Tabs>
 
           <Typography
@@ -868,71 +874,129 @@ const GraphBox = ({
           )}
 
           <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-            <LineChart
-              data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth}
-              margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
-              connectNulls={false}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis
-                dataKey="date"
-                stroke="#ccc"
-                ticks={viewMode === "quarterly" ? revenueQuarterlyXTicks : revenueYearlyXTicks}
-                interval={0}
-                angle={isMobile ? -45 : 0}
-                textAnchor={isMobile ? "end" : "middle"}
-                height={isMobile ? 60 : 40}
-                tick={{ fontSize: isMobile ? 12 : 14 }}
+            {chartType === "line" ? (
+              <LineChart
+                data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth}
+                margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
+                connectNulls={false}
               >
-                {!isMobile && (
-                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
-                )}
-              </XAxis>
-              <YAxis
-                stroke="#ccc"
-                tickFormatter={formatRevenueTick}
-                width={isMobile ? 30 : 60}
-                domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
-                ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
-                tick={{ fontSize: isMobile ? 10 : 14 }}
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#ccc"
+                  ticks={viewMode === "quarterly" ? revenueQuarterlyXTicks : revenueYearlyXTicks}
+                  interval={0}
+                  angle={isMobile ? -45 : 0}
+                  textAnchor={isMobile ? "end" : "middle"}
+                  height={isMobile ? 60 : 40}
+                  tick={{ fontSize: isMobile ? 12 : 14 }}
+                >
+                  {!isMobile && (
+                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                  )}
+                </XAxis>
+                <YAxis
+                  stroke="#ccc"
+                  tickFormatter={formatRevenueTick}
+                  width={isMobile ? 30 : 60}
+                  domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
+                  ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
+                  tick={{ fontSize: isMobile ? 10 : 14 }}
+                >
+                  {!isMobile && (
+                    <Label
+                      value="Omsättning (MEUR)"
+                      angle={-90}
+                      offset={-10}
+                      position="insideLeft"
+                      fill="#ccc"
+                      style={{ fontSize: isMobile ? "12px" : "14px" }}
+                    />
+                  )}
+                </YAxis>
+                <Tooltip
+                  formatter={(value, name, props) => {
+                    const growth = props.payload.growth;
+                    return [
+                      value !== null
+                        ? `${value.toLocaleString("sv-SE")} MEUR`
+                        : "Ingen data",
+                      growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
+                    ];
+                  }}
+                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#00e676"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: "#00e676" }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            ) : (
+              <BarChart
+                data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth}
+                margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
               >
-                {!isMobile && (
-                  <Label
-                    value="Omsättning (MEUR)"
-                    angle={-90}
-                    offset={-10}
-                    position="insideLeft"
-                    fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }}
-                  />
-                )}
-              </YAxis>
-              <Tooltip
-                formatter={(value, name, props) => {
-                  const growth = props.payload.growth;
-                  return [
-                    value !== null
-                      ? `${value.toLocaleString("sv-SE")} MEUR`
-                      : "Ingen data",
-                    growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
-                  ];
-                }}
-                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="value"
-                stroke="#00e676"
-                strokeWidth={2}
-                dot={{ r: 4, fill: "#00e676" }}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
+                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#ccc"
+                  ticks={viewMode === "quarterly" ? revenueQuarterlyXTicks : revenueYearlyXTicks}
+                  interval={0}
+                  angle={isMobile ? -45 : 0}
+                  textAnchor={isMobile ? "end" : "middle"}
+                  height={isMobile ? 60 : 40}
+                  tick={{ fontSize: isMobile ? 12 : 14 }}
+                >
+                  {!isMobile && (
+                    <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                  )}
+                </XAxis>
+                <YAxis
+                  stroke="#ccc"
+                  tickFormatter={formatRevenueTick}
+                  width={isMobile ? 30 : 60}
+                  domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
+                  ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
+                  tick={{ fontSize: isMobile ? 10 : 14 }}
+                >
+                  {!isMobile && (
+                    <Label
+                      value="Omsättning (MEUR)"
+                      angle={-90}
+                      offset={-10}
+                      position="insideLeft"
+                      fill="#ccc"
+                      style={{ fontSize: isMobile ? "12px" : "14px" }}
+                    />
+                  )}
+                </YAxis>
+                <Tooltip
+                  formatter={(value, name, props) => {
+                    const growth = props.payload.growth;
+                    return [
+                      value !== null
+                        ? `${value.toLocaleString("sv-SE")} MEUR`
+                        : "Ingen data",
+                      growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig",
+                    ];
+                  }}
+                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
+                />
+                <Bar
+                  dataKey="value"
+                  fill="#00e676"
+                  name="Omsättning"
+                />
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </Box>
       )}
 
-      {/* Marginal */}
       {activeTab === "margin" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Tabs
@@ -1070,7 +1134,6 @@ const GraphBox = ({
         </Box>
       )}
 
-      {/* Intjäning per aktie (EPS) */}
       {activeTab === "eps" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Tabs
@@ -1219,7 +1282,6 @@ const GraphBox = ({
         </Box>
       )}
 
-      {/* Utdelning */}
       {activeTab === "dividend" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
@@ -1460,72 +1522,6 @@ const GraphBox = ({
         </Box>
       )}
 
-      {/* AVG Spelare
-      {activeTab === "players" && (
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <Typography
-            variant="body1"
-            sx={{
-              color: "#ccc",
-              textAlign: "center",
-              marginBottom: "20px",
-              fontSize: { xs: "0.9rem", sm: "1rem" },
-            }}
-          >
-            Genomsnitt antal: {avgPlayers.toLocaleString("sv-SE")} <br />
-            Senaste {daysCount} dagar
-          </Typography>
-
-          <ResponsiveContainer width="100%" height={isMobile ? 300 : 400}>
-            <LineChart
-              data={playersData}
-              margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 10 : 40 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-              <XAxis dataKey="Datum" stroke="#ccc">
-                {!isMobile && (
-                  <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />
-                )}
-              </XAxis>
-              <YAxis
-                stroke="#ccc"
-                domain={getPlayersYDomain(playersData)}
-                tickFormatter={formatPlayersTick}
-                width={isMobile ? 30 : 60}
-                tickCount={9}
-                interval={0}
-                tick={{ fontSize: isMobile ? 10 : 14 }}
-              >
-                {!isMobile && (
-                  <Label
-                    value="Antal spelare"
-                    angle={-90}
-                    offset={-10}
-                    position="insideLeft"
-                    fill="#ccc"
-                    style={{ fontSize: isMobile ? "12px" : "14px" }}
-                  />
-                )}
-              </YAxis>
-              <Tooltip
-                formatter={(value) => `Spelare: ${value.toLocaleString("sv-SE")}`}
-                contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-              />
-              <Line
-                type="monotone"
-                dataKey="Players"
-                stroke="#9c27b0"
-                strokeWidth={2}
-                dot={{ r: 4, fill: "#9c27b0" }}
-                activeDot={{ r: 6 }}
-                isAnimationActive={true}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </Box>
-      )} */}
-
-      {/* Geografisk fördelning (Pie Chart) */}
       {activeTab === "geoDistribution" && (
         <Box display="flex" flexDirection="column" alignItems="center">
           <Typography
