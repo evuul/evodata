@@ -303,9 +303,22 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
                 angle={isMobile ? -45 : 0}
                 textAnchor={isMobile ? "end" : "middle"}
                 height={isMobile ? 50 : 30}
-                interval="preserveStartEnd"
+                ticks={useMemo(() => {
+                  if (q2Data.length <= 4) return q2Data.map((item) => item.date);
+                  const startDate = new Date(q2Data[0].date);
+                  const endDate = new Date(q2Data[q2Data.length - 1].date);
+                  const diffTime = endDate - startDate;
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  const intervalDays = Math.max(Math.floor(diffDays / 3), 1); // Up to 4 ticks (start, 2 middle, end)
+                  const ticks = [startDate.toISOString().split('T')[0]];
+                  for (let i = intervalDays; i < diffDays; i += intervalDays) {
+                    const newDate = new Date(startDate.getTime() + i * 1000 * 60 * 60 * 24);
+                    ticks.push(newDate.toISOString().split('T')[0]);
+                  }
+                  ticks.push(endDate.toISOString().split('T')[0]);
+                  return ticks;
+                }, [q2Data])}
                 tick={{ fontSize: isMobile ? 12 : 14, fill: "#bbb", fontFamily: "'Roboto', sans-serif" }}
-                tickCount={4}
                 tickMargin={10}
               />
               <YAxis
