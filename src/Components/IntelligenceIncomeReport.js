@@ -401,6 +401,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
           ))}
         </TableBody>
       </Table>
+
       {/* Trendtext baserat på uppskattning */}
       <Typography
         sx={{
@@ -413,6 +414,22 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
         }}
       >
         {trendText}
+      </Typography>
+
+      {/* Disclaimer */}
+      <Typography
+        sx={{
+          color: "#b0b0b0",
+          fontSize: { xs: "0.75rem", sm: "0.85rem" },
+          marginTop: "20px",
+          textAlign: "center",
+          fontStyle: "italic",
+          lineHeight: 1.5,
+          fontFamily: "'Roboto', sans-serif",
+          maxWidth: "90%",
+        }}
+      >
+        Ansvarsfriskrivning: Denna rapport är baserad på uppskattningar där omsättningen för Q2 2025 beräknas proportionellt mot Q1 2025:s liveCasino-omsättning per genomsnittlig spelare. Siffrorna för genomsnittliga spelare och omsättning avser enbart gameshow-segmentet och reflekterar inte nödvändigtvis bolagets totala verksamhet eller exakta spelarantal. Rapporten är avsedd att ge en indikativ trend och bör inte betraktas som en officiell finansiell rapport.
       </Typography>
     </Box>
   );
