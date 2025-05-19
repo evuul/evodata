@@ -62,7 +62,7 @@ const totalSharesData = [
   { date: "2022", totalShares: 213771346 },
   { date: "2023", totalShares: 213566498 },
   { date: "2024", totalShares: 209562751 },
-  { date: "2025", totalShares: 209562751 },
+  { date: "2025", totalShares: 204462162 },
 ];
 
 // Beräkna Evolutions ägande per år baserat på återköp och indragningar
