@@ -61,7 +61,7 @@ export default async function Home() {
     {
       headers: {
         authorization:
-          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJBbGV4YW5kZXIuZWtAbGl2ZS5zZSIsImlhdCI6MTc0NTUxOTk2OCwiZXhwIjoxNzQ4MTExOTY4fQ.5cMwr6yP_0tvIkAE5w3E2E1Id3ssj3YON7jxsdMVVa4",
+          "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJBbGV4YW5kZXIuZWtAbGl2ZS5zZSIsImlhdCI6MTc0NzgyODM1OSwiZXhwIjoxNzUwNDIwMzU5fQ.Ks8VgjQACTRUvW2wvgr1ot4ifM3uG-dLahZa-bo7KLU",
       },
       cache: "no-store",
     }
