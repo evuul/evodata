@@ -205,8 +205,8 @@ export default async function Home() {
         <StockBuybackInfo
           isActive={true}
           buybackCash={500000000}
-          sharesBought={2235081}
-          averagePrice={801}
+          sharesBought={2494081}
+          averagePrice={786}
           dividendData={dividendData}
         />
       </Box>
