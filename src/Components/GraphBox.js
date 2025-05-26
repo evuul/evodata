@@ -74,7 +74,7 @@ const GraphBox = ({
         setExchangeRate(rate);
       } catch (error) {
         console.error("Kunde inte hämta växelkurs:", error);
-        setExchangeRate(11.20);
+        setExchangeRate(10.83);
       }
     };
 
@@ -1408,7 +1408,6 @@ const GraphBox = ({
                     color="#b0b0b0"
                     sx={{ marginBottom: "8px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
                   >
-                    Senast uppdaterad: {lastUpdated.toLocaleTimeString("sv-SE")}
                   </Typography>
                 )}
                 {latestHistorical && (
