@@ -704,16 +704,6 @@ const StockBuybackInfo = ({
                     fontSize: { xs: "0.85rem", sm: "0.95rem" },
                   }}
                 >
-                  Genomsnittlig köptakt (historisk): {Math.round(historicalAverageDailyBuyback).toLocaleString()} aktier/dag
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="#FFCA28"
-                  sx={{
-                    marginTop: "5px",
-                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
-                  }}
-                >
                   Uppskattat slutförandedatum (baserat på nuvarande program): {estimatedCompletionDate} (om {daysToCompletion} dagar)
                 </Typography>
               </>
