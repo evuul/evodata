@@ -33,13 +33,13 @@ import {
   Legend,
 } from "recharts";
 import { keyframes } from "@emotion/react";
-import oldBuybackData from "../app/data/oldBuybackData.json";
+import buybackData from "../app/data/buybackData.json"; // Importera din JSON-fil
 import { useStockPriceContext } from '../context/StockPriceContext';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 
 // Växelkurs (exempelvärde)
-const exchangeRate = 11.02; // Exempel: 1 EUR = 10.83 SEK
+const exchangeRate = 10.83; // Exempel: 1 EUR = 10.83 SEK
 
 // Animationer för glow-effekt
 const pulseGreen = keyframes`
@@ -66,11 +66,11 @@ const totalSharesData = [
 ];
 
 // Beräkna Evolutions ägande per år baserat på återköp och indragningar
-const calculateEvolutionOwnershipPerYear = () => {
+const calculateEvolutionOwnershipPerYear = (data) => {
   const ownershipByYear = {};
   let cumulativeShares = 0;
 
-  oldBuybackData.forEach((item) => {
+  data.forEach((item) => {
     const year = item.Datum.split("-")[0];
     cumulativeShares += item.Antal_aktier;
 
@@ -92,14 +92,14 @@ const calculateEvolutionOwnershipPerYear = () => {
 };
 
 // Beräkna totala makulerade aktier
-const calculateCancelledShares = () => {
-  return oldBuybackData
+const calculateCancelledShares = (data) => {
+  return data
     .filter((item) => item.Antal_aktier < 0)
     .reduce((sum, item) => sum + Math.abs(item.Antal_aktier), 0);
 };
 
 // Beräkna utdelningar och aktieåterköp per år för "Återinvestering till investerare"
-const calculateShareholderReturns = (dividendData) => {
+const calculateShareholderReturns = (dividendData, buybackData) => {
   const dividendsByYear = {};
   dividendData.historicalDividends.forEach((dividend) => {
     const year = new Date(dividend.date).getFullYear();
@@ -132,7 +132,7 @@ const calculateShareholderReturns = (dividendData) => {
   }
 
   const buybacksByYear = {};
-  oldBuybackData.forEach((buyback) => {
+  buybackData.forEach((buyback) => {
     if (buyback.Antal_aktier > 0) {
       const year = new Date(buyback.Datum).getFullYear();
       if (!buybacksByYear[year]) {
@@ -169,8 +169,8 @@ const calculateShareholderReturns = (dividendData) => {
 };
 
 // Beräkna Evolutions ägande och makulerade aktier
-const evolutionOwnershipData = calculateEvolutionOwnershipPerYear();
-const cancelledShares = calculateCancelledShares();
+const evolutionOwnershipData = calculateEvolutionOwnershipPerYear(buybackData);
+const cancelledShares = calculateCancelledShares(buybackData);
 
 const ownershipPercentageData = totalSharesData.map((item, index) => {
   const evolutionShares = evolutionOwnershipData.find((data) => data.date === item.date)?.shares || 0;
@@ -180,11 +180,11 @@ const ownershipPercentageData = totalSharesData.map((item, index) => {
   };
 });
 
-const buybackDataForGraphDaily = oldBuybackData.filter((item) => item.Antal_aktier > 0);
+const buybackDataForGraphDaily = buybackData.filter((item) => item.Antal_aktier > 0);
 
 const buybackDataForGraphYearly = () => {
   const yearlyData = {};
-  oldBuybackData
+  buybackData
     .filter((item) => item.Antal_aktier > 0)
     .forEach((item) => {
       const year = item.Datum.split("-")[0];
@@ -197,12 +197,25 @@ const buybackDataForGraphYearly = () => {
   return Object.values(yearlyData).sort((a, b) => a.Datum.localeCompare(b.Datum));
 };
 
-const calculateAverageDailyBuyback = () => {
-  const positiveTransactions = oldBuybackData.filter((item) => item.Antal_aktier > 0);
+// Funktion för att beräkna dynamiska värden från buybackData
+const calculateBuybackStats = (transactions) => {
+  const positiveTransactions = transactions.filter(item => item.Antal_aktier > 0);
+  if (positiveTransactions.length === 0) return { sharesBought: 0, averagePrice: 0 };
+
+  const totalSharesBought = positiveTransactions.reduce((sum, item) => sum + item.Antal_aktier, 0);
+  const totalTransactionValue = positiveTransactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
+  const averagePrice = totalSharesBought > 0 ? totalTransactionValue / totalSharesBought : 0;
+
+  return { sharesBought: totalSharesBought, averagePrice };
+};
+
+// Beräkna historisk genomsnittlig köptakt
+const calculateAverageDailyBuyback = (data) => {
+  const positiveTransactions = data.filter((item) => item.Antal_aktier > 0);
   if (positiveTransactions.length === 0) return { averageDaily: 0, averagePrice: 0 };
 
   const firstDate = new Date(positiveTransactions[0].Datum);
-  const today = new Date("2025-04-07");
+  const today = new Date("2025-05-26");
   const timeDifference = today - firstDate;
   const daysDifference = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
 
@@ -214,11 +227,44 @@ const calculateAverageDailyBuyback = () => {
   return { averageDaily, averagePrice };
 };
 
+// Funktion för att beräkna uppskattat slutförandedatum baserat på buybackData
+const calculateEstimatedCompletion = (remainingCash, transactions) => {
+  const totalShares = transactions.reduce((sum, item) => sum + item.Antal_aktier, 0);
+  const totalValue = transactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
+  const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
+  
+  // Beräkna handelsdagar (exkludera helger för enkelhet)
+  const firstDate = new Date(transactions[0].Datum);
+  const lastDate = new Date(Math.max(...transactions.map(item => new Date(item.Datum))));
+  let tradingDays = 0;
+  let currentDate = new Date(firstDate);
+  while (currentDate <= lastDate) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Exkludera lördagar (6) och söndagar (0)
+      tradingDays++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  const averageDailyShares = tradingDays > 0 ? totalShares / tradingDays : 0;
+
+  const remainingSharesToBuy = averagePrice > 0 ? remainingCash / averagePrice : 0;
+  const daysToCompletion = averageDailyShares > 0 ? remainingSharesToBuy / averageDailyShares : 0;
+
+  const today = new Date("2025-05-26");
+  const estimatedCompletionDate = new Date(today);
+  estimatedCompletionDate.setDate(today.getDate() + Math.ceil(daysToCompletion));
+
+  return {
+    currentProgramAverageDailyShares: averageDailyShares,
+    daysToCompletion: Math.ceil(daysToCompletion),
+    estimatedCompletionDate: estimatedCompletionDate.toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" }),
+  };
+};
+
 const StockBuybackInfo = ({
   isActive,
   buybackCash,
-  sharesBought,
-  averagePrice = 0,
   dividendData,
 }) => {
   const [activeTab, setActiveTab] = useState("buyback");
@@ -231,28 +277,30 @@ const StockBuybackInfo = ({
   const { stockPrice, marketCap, loading: loadingPrice, error: priceError } = useStockPriceContext();
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
-  const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData);
+  const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData, buybackData);
 
   const directYieldPercentage = marketCap > 0 ? (latestYearReturns / marketCap) * 100 : 0;
 
   const buybackCashInSEK = buybackCash * exchangeRate;
+  const { sharesBought, averagePrice } = calculateBuybackStats(buybackData);
   const totalBuybackValue = sharesBought * averagePrice;
   const remainingCash = buybackCashInSEK - totalBuybackValue;
-  const buybackProgress = (totalBuybackValue / buybackCashInSEK) * 100;
+  const buybackProgress = buybackCashInSEK > 0 ? (totalBuybackValue / buybackCashInSEK) * 100 : 0;
   const remainingSharesToBuy = remainingCash > 0 && currentSharePrice > 0 ? Math.floor(remainingCash / currentSharePrice) : 0;
   const latestTotalShares = totalSharesData[totalSharesData.length - 1].totalShares;
   const remainingPercentage = latestTotalShares > 0 ? (remainingSharesToBuy / latestTotalShares) * 100 : 0;
 
-  // Beräkna vinst/förlust för aktieåterköpen
   const profitPerShare = currentSharePrice - averagePrice;
   const totalProfitLoss = profitPerShare * sharesBought;
 
   const latestEvolutionShares = evolutionOwnershipData[evolutionOwnershipData.length - 1]?.shares || 0;
   const latestOwnershipPercentage = (latestEvolutionShares / latestTotalShares) * 100;
 
-  const { averageDaily: averageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback();
+  const { averageDaily: historicalAverageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback(buybackData);
 
-  const sortedData = [...oldBuybackData].sort((a, b) => {
+  const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } = calculateEstimatedCompletion(remainingCash, buybackData);
+
+  const sortedData = [...buybackData].sort((a, b) => {
     const key = sortConfig.key;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
 
@@ -579,7 +627,7 @@ const StockBuybackInfo = ({
                 fontSize: { xs: "0.85rem", sm: "0.95rem" },
               }}
             >
-              Snittkurs: {averagePrice ? averagePrice.toLocaleString() : "0"} SEK
+              Snittkurs: {averagePrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
             </Typography>
             <Typography
               variant="body2"
@@ -628,12 +676,47 @@ const StockBuybackInfo = ({
                   variant="body2"
                   color="#00e676"
                   sx={{
+                    marginBottom: "5px",
                     fontSize: { xs: "0.85rem", sm: "0.95rem" },
                   }}
                 >
                   Motsvarar {remainingPercentage.toFixed(2)}% av bolagets aktier
                 </Typography>
               </Box>
+            )}
+            {isActive && remainingCash > 0 && (
+              <>
+                <Typography
+                  variant="body2"
+                  color="#FFCA28"
+                  sx={{
+                    marginTop: "10px",
+                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                  }}
+                >
+                  Genomsnittlig köptakt (nuvarande program): {Math.round(currentProgramAverageDailyShares).toLocaleString()} aktier/dag
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="#FFCA28"
+                  sx={{
+                    marginTop: "5px",
+                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                  }}
+                >
+                  Genomsnittlig köptakt (historisk): {Math.round(historicalAverageDailyBuyback).toLocaleString()} aktier/dag
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="#FFCA28"
+                  sx={{
+                    marginTop: "5px",
+                    fontSize: { xs: "0.85rem", sm: "0.95rem" },
+                  }}
+                >
+                  Uppskattat slutförandedatum (baserat på nuvarande program): {estimatedCompletionDate} (om {daysToCompletion} dagar)
+                </Typography>
+              </>
             )}
           </Box>
         </Box>
