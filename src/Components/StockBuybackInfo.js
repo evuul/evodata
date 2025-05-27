@@ -884,9 +884,9 @@ const StockBuybackInfo = ({
                 data={evolutionOwnershipData}
                 margin={{
                   top: 20,
-                  right: isMobile ? 20 : 20,
+                  right: isMobile ? 10 : 20,
                   bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -20 : 0,
+                  left: isMobile ? -10 : 0,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -943,9 +943,9 @@ const StockBuybackInfo = ({
                 data={evolutionOwnershipData}
                 margin={{
                   top: 20,
-                  right: isMobile ? 20 : 20,
+                  right: isMobile ? 10 : 20,
                   bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -20 : 0,
+                  left: isMobile ? -10 : 0,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -1115,9 +1115,9 @@ const StockBuybackInfo = ({
                 data={totalSharesData}
                 margin={{
                   top: 20,
-                  right: isMobile ? 20 : 20,
+                  right: isMobile ? 10 : 20,
                   bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -20 : 0,
+                  left: isMobile ? -10 : 0,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -1174,9 +1174,9 @@ const StockBuybackInfo = ({
                 data={totalSharesData}
                 margin={{
                   top: 20,
-                  right: isMobile ? 20 : 20,
+                  right: isMobile ? 10 : 20,
                   bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -20 : 0,
+                  left: isMobile ? -10 : 0,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -1372,10 +1372,10 @@ const StockBuybackInfo = ({
               <LineChart
                 data={historyChartData}
                 margin={{
-                  top: 20,
-                  right: isMobile ? 20 : 20,
-                  bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -20 : 0,
+                  top: 10,
+                  right: isMobile ? 10 : 20,
+                  bottom: isMobile ? 0 : 20,
+                  left: isMobile ? 0 : 0,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -1433,10 +1433,10 @@ const StockBuybackInfo = ({
               <BarChart
                 data={historyChartData}
                 margin={{
-                  top: 20,
-                  right: isMobile ? 20 : 20,
-                  bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -20 : 0,
+                  top: 10,
+                  right: isMobile ? 10 : 20,
+                  bottom: isMobile ? 0 : 20,
+                  left: isMobile ? 0 : 0,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#444" />
