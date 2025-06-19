@@ -71,10 +71,13 @@ const InvestmentCalculator = ({ dividendData }) => {
       sharesOutstanding -= sharesBoughtBack;
       totalSharesBoughtBack += sharesBoughtBack;
 
-      const newSharePriceAfterBuyback = sharePrice * (totalSharesOutstanding / sharesOutstanding);
+      // Adjust share price based on buyback effect
+      const buybackAdjustment = 1 - (sharesBoughtBack / totalSharesOutstanding);
+      const newSharePriceAfterBuyback = sharePrice / buybackAdjustment;
       sharePrice = newSharePriceAfterBuyback * (1 + annualGrowthRate);
       sharePriceNoBuyback *= (1 + annualGrowthRate);
 
+      // Adjust dividend per share based on remaining shares
       dividendPerShare *= (1 + dividendGrowthRate) * (totalSharesOutstanding / sharesOutstanding);
 
       const investmentValue = numShares * sharePrice;
