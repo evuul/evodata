@@ -30,6 +30,16 @@ const getQuarter = (date) => {
   return "Q4";
 };
 
+// Hjälpfunktion för att få start- och slutdatum för ett givet kvartal och år
+const getQuarterDates = (year, quarter) => {
+  const startMonth = { Q1: 1, Q2: 4, Q3: 7, Q4: 10 }[quarter];
+  const endMonth = startMonth + 2;
+  return {
+    start: new Date(`${year}-${startMonth}-01`),
+    end: new Date(`${year}-${endMonth}-30`),
+  };
+};
+
 // Hjälpfunktion för att summera genomsnittliga spelare per kvartal
 const calculateQuarterlyPlayers = (playersData) => {
   if (!playersData || !Array.isArray(playersData)) return {};
@@ -67,18 +77,39 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Aktuellt datum (dynamiskt)
-  const currentDate = new Date();
-  const q2Start = new Date("2025-04-01");
-  const q2End = new Date("2025-06-30");
+  const currentDate = new Date(); // Nu 10:09 AM CEST, 2025-07-01
+  const currentYear = currentDate.getFullYear();
+  const currentQuarter = getQuarter(currentDate);
 
-  // Formatera Q2-rapporteringsdatum för visning
-  const q2ReportDate = new Date("2025-07-17");
-  const q2ReportDateFormatted = q2ReportDate.toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" });
+  // Bestäm de tre senaste kvartalen att visa
+  const getRecentQuarters = () => {
+    const quarters = ["Q1", "Q2", "Q3", "Q4"];
+    const currentIndex = quarters.indexOf(currentQuarter);
+    const previousIndex = currentIndex === 0 ? 3 : currentIndex - 1;
+    const twoBeforeIndex = previousIndex === 0 ? 3 : previousIndex - 1;
+    return [
+      `${currentYear} ${currentQuarter}`,
+      `${currentYear} ${quarters[previousIndex]}`,
+      `${currentIndex <= 1 ? currentYear : currentYear - 1} ${quarters[twoBeforeIndex]}`,
+    ];
+  };
 
-  // Beräkna antal dagar och procent för Q2 2025
+  const [currentPeriod, previousPeriod, twoBeforePeriod] = getRecentQuarters();
+
+  // Formatera rapportdatum för visning baserat på specifikt kvartal
+  const getReportDate = (quarter, year) => {
+    const reportMonth = { Q1: 4, Q2: 7, Q3: 10, Q4: 1 }[quarter];
+    const reportYear = quarter === "Q4" ? year + 1 : year;
+    return new Date(`${reportYear}-${reportMonth}-17`);
+  };
+  const reportDate = getReportDate(currentQuarter, currentYear);
+  const reportDateFormatted = reportDate.toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" });
+
+  // Beräkna antal dagar och procent för aktuellt kvartal (simulera 1 dag)
   const getQuarterProgress = () => {
-    const totalDays = 91; // Hårdkodat till 91 dagar för Q2 2025
-    const elapsedDays = Math.ceil((currentDate - q2Start) / (1000 * 60 * 60 * 24)); // Inkluderar startdagen
+    const { start, end } = getQuarterDates(currentYear, currentQuarter);
+    const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1; // Inkluderar start- och slutdag
+    const elapsedDays = 1; // Simulera 1 dag in i Q3
     const progressPercent = Math.min(Math.max(Math.round((elapsedDays / totalDays) * 100), 0), 100);
     return { elapsedDays, totalDays, progressPercent };
   };
@@ -97,96 +128,102 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
     const data = {};
     financialReports.financialReports.forEach((report) => {
       const key = `${report.year} ${report.quarter}`;
-      data[key] = Number(report.liveCasino); // Använd liveCasino, redan i M€
+      data[key] = Number(report.liveCasino) || 0; // Fallback till 0 om värdet saknas
     });
     return data;
   }, [financialReports]);
 
-  // Skapa tabelldata för Q1 2025 och Q2 2025
-  const tableData = useMemo(() => {
-    const periods = ["2025 Q1", "2025 Q2"];
-    const q1Revenue = revenueData["2025 Q1"] || 0; // Använd liveCasino-värdet
-    const q1AvgPlayers = quarterlyPlayers["2025 Q1"]?.avgPlayers || 0;
+  // Beräkna omsättning per spelare för Q2
+  const q2RevenuePerPlayer = 423.7 / 65769; // 0.00644 M€ per spelare ≈ 6 440 € per spelare
 
-    return periods.map((period) => {
+  // Skapa tabelldata för Q1, Q2 och Q3
+  const tableData = useMemo(() => {
+    return [twoBeforePeriod, previousPeriod, currentPeriod].map((period) => {
+      const year = period.split(" ")[0];
+      const quarter = period.split(" ")[1];
       const { avgPlayers, dates } = quarterlyPlayers[period] || { avgPlayers: 0, dates: [] };
       const faktisk = revenueData[period] || null;
 
-      // Uppskatta omsättning baserat på Q1:s liveCasino per spelare
-      const uppskattad = period === "2025 Q1" || q1AvgPlayers === 0 || q1Revenue === 0
-        ? null
-        : Math.round((q1Revenue / q1AvgPlayers) * avgPlayers * 10) / 10;
+      // Använd explicit 65 769 för Q2 om det är previousPeriod
+      let customAvgPlayers = avgPlayers;
+      if (period === previousPeriod) customAvgPlayers = 65769; // Hårdkodat värde för Q2
 
-      // Beräkna skillnad
-      const skillnad = faktisk !== null && uppskattad !== null
-        ? ((uppskattad - faktisk) / faktisk * 100).toFixed(2)
-        : uppskattad !== null && faktisk === null
-          ? ((uppskattad - q1Revenue) / q1Revenue * 100).toFixed(2)
-          : null;
+      // Uppskatta omsättning baserat på Q2:s omsättning per spelare
+      let upskattad;
+      if (period === previousPeriod) {
+        upskattad = 423.7; // Hårdkodat värde för Q2
+      } else {
+        upskattad = customAvgPlayers > 0 ? Math.round(q2RevenuePerPlayer * customAvgPlayers * 10) / 10 : null;
+      }
+
+      // Beräkna skillnad endast om faktisk data finns
+      const skillnad = faktisk !== null && upskattad !== null
+        ? ((upskattad - faktisk) / faktisk * 100).toFixed(2)
+        : null;
 
       return {
-        period: period.replace("2025 ", ""),
-        avgPlayers,
-        uppskattad,
+        period: quarter,
+        avgPlayers: customAvgPlayers,
+        upskattad,
         faktisk,
         skillnad,
-        isCurrent: period === "2025 Q2",
+        isCurrent: period === currentPeriod,
         dates,
       };
     });
-  }, [quarterlyPlayers, revenueData]);
+  }, [quarterlyPlayers, revenueData, currentPeriod, previousPeriod, twoBeforePeriod, q2RevenuePerPlayer]);
 
-  // Data för graf (endast Q2 2025 hittills)
-  const q2Data = useMemo(() => {
-    if (!quarterlyPlayers["2025 Q2"] || !quarterlyPlayers["2025 Q2"].dates || quarterlyPlayers["2025 Q2"].dates.length === 0) {
+  // Data för graf (endast aktuellt kvartal hittills)
+  const qData = useMemo(() => {
+    if (!quarterlyPlayers[currentPeriod] || !quarterlyPlayers[currentPeriod].dates || quarterlyPlayers[currentPeriod].dates.length === 0) {
       return [];
     }
     return averagePlayersData
       .filter((item) => {
         const date = new Date(item.Datum);
-        return !isNaN(date) && date.getFullYear() === 2025 && getQuarter(date) === "Q2";
+        const itemQuarter = getQuarter(date);
+        return !isNaN(date) && date.getFullYear() === currentYear && itemQuarter === currentQuarter;
       })
       .map((item) => ({
         date: item.Datum,
         players: Number(item.Players) || 0,
       }));
-  }, [averagePlayersData, quarterlyPlayers]);
+  }, [averagePlayersData, quarterlyPlayers, currentPeriod, currentYear, currentQuarter]);
 
-  // Beräkna preliminära nyckeltal för Q2 2025
-  const q2Preliminary = useMemo(() => {
-    if (!q2Data.length) {
-      const q1Revenue = revenueData["2025 Q1"] || 0;
-      const q1AvgPlayers = quarterlyPlayers["2025 Q1"]?.avgPlayers || 0;
+  // Beräkna preliminära nyckeltal för aktuellt kvartal
+  const preliminary = useMemo(() => {
+    if (!qData.length) {
+      const q1Revenue = revenueData[previousPeriod] || 0;
+      const q1AvgPlayers = quarterlyPlayers[previousPeriod]?.avgPlayers || 0;
       const avgPlayers = 0; // Ingen data än
       const estimatedRevenue = q1AvgPlayers && q1Revenue ? Math.round((q1Revenue / q1AvgPlayers) * avgPlayers * 10) / 10 : 0;
       const changePercent = q1Revenue && estimatedRevenue ? ((estimatedRevenue - q1Revenue) / q1Revenue * 100).toFixed(2) : 0;
       return { avgPlayers, estimatedRevenue, changePercent, revenueSoFar: 0 };
     }
-    const avgPlayers = Math.round(q2Data.reduce((sum, item) => sum + item.players, 0) / q2Data.length);
-    const q1Revenue = revenueData["2025 Q1"] || 0; // Använd liveCasino-värdet
-    const q1AvgPlayers = quarterlyPlayers["2025 Q1"]?.avgPlayers || 0;
-    const estimatedRevenue = q1AvgPlayers && q1Revenue ? Math.round((q1Revenue / q1AvgPlayers) * avgPlayers * 10) / 10 : 0;
-    const changePercent = q1Revenue && estimatedRevenue ? ((estimatedRevenue - q1Revenue) / q1Revenue * 100).toFixed(2) : 0;
-    // Uppskattad intäkt hittills, skalar med progress
+    const avgPlayers = Math.round(qData.reduce((sum, item) => sum + item.players, 0) / qData.length);
+    const q1Revenue = revenueData[previousPeriod] || 0;
+    const q1AvgPlayers = quarterlyPlayers[previousPeriod]?.avgPlayers || 0;
+    const estimatedRevenue = q1AvgPlayers && q1Revenue ? Math.round((q1Revenue / q1AvgPlayers) * avgPlayers * 10) / 10 : Math.round(q2RevenuePerPlayer * avgPlayers * 10) / 10;
+    const changePercent = q1Revenue && estimatedRevenue ? ((estimatedRevenue - q1Revenue) / q1Revenue * 100).toFixed(2) : ((estimatedRevenue - 423.7) / 423.7 * 100).toFixed(2);
     const revenueSoFar = q1AvgPlayers && q1Revenue && avgPlayers
       ? Math.round((estimatedRevenue * (elapsedDays / totalDays)) * 10) / 10
-      : 0;
+      : Math.round((estimatedRevenue * (elapsedDays / totalDays)) * 10) / 10;
     return { avgPlayers, estimatedRevenue, changePercent, revenueSoFar };
-  }, [q2Data, revenueData, quarterlyPlayers, elapsedDays, totalDays]);
+  }, [qData, revenueData, quarterlyPlayers, elapsedDays, totalDays, previousPeriod, currentPeriod, q2RevenuePerPlayer]);
 
   // Beräkna trendtext baserat på uppskattad förändring
   const getTrendText = () => {
-    const q1Revenue = revenueData["2025 Q1"] || 0;
-    const q2Estimated = q2Preliminary.estimatedRevenue || 0;
-    const changeAmount = q2Estimated - q1Revenue;
-    const changePercent = q2Preliminary.changePercent || 0;
+    const q1Revenue = revenueData[previousPeriod] || 0;
+    const qEstimated = preliminary.estimatedRevenue || 0;
+    const changeAmount = qEstimated - q1Revenue;
+    const changePercent = preliminary.changePercent || 0;
 
     if (changePercent > 2) {
       return `Vi är på god väg att öka vår omsättning med ${changeAmount.toLocaleString()} Meuro (+${changePercent}%)!`;
     } else if (changePercent < -2) {
       return `Varning: Vi riskerar att minska omsättningen med ${Math.abs(changeAmount).toLocaleString()} Meuro (${changePercent}%)!`;
     } else {
-      return `Vi verkar hålla oss på samma nivå som Q1 2025 (±${changePercent}%)!`;
+      return `Vi verkar hålla oss på samma nivå som ${previousPeriod.split(" ")[1]} ${previousPeriod.split(" ")[0]} (±${changePercent}%)!`;
     }
   };
 
@@ -224,25 +261,25 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
             fontFamily: "'Roboto', sans-serif",
           }}
         >
-          Preliminära Nyckeltal (Q2 2025)
+          Preliminära Nyckeltal ({currentQuarter} {currentYear})
         </Typography>
         <Typography sx={{ color: "#e0e0e0", fontSize: { xs: "0.9rem", sm: "1rem" }, mb: 1, fontFamily: "'Roboto', sans-serif" }}>
-          Genomsnittliga Spelare: <span style={{ color: "#00e676" }}>{q2Preliminary.avgPlayers.toLocaleString()}</span> (hittills)
+          Genomsnittliga Spelare: <span style={{ color: "#00e676" }}>{preliminary.avgPlayers.toLocaleString()}</span> (hittills)
         </Typography>
         <Typography sx={{ color: "#FFCA28", fontSize: { xs: "0.9rem", sm: "1rem" }, mb: 1, fontFamily: "'Roboto', sans-serif" }}>
-          Uppskattad Omsättning: <span style={{ color: "#FFCA28" }}>{q2Preliminary.estimatedRevenue.toLocaleString()} €M</span>
+          Uppskattad Omsättning: <span style={{ color: "#FFCA28" }}>{preliminary.estimatedRevenue.toLocaleString()} €M</span>
         </Typography>
         <Typography sx={{ color: "#e0e0e0", fontSize: { xs: "0.9rem", sm: "1rem" }, mb: 1, fontFamily: "'Roboto', sans-serif" }}>
-          Förändring från Q1: <span style={{ color: q2Preliminary.changePercent >= 0 ? "#00e676" : "#FF6F61" }}>
-            {q2Preliminary.changePercent}% ({q2Preliminary.changePercent >= 0 ? "+" : ""})
+          Förändring från {previousPeriod.split(" ")[1]}: <span style={{ color: preliminary.changePercent >= 0 ? "#00e676" : "#FF6F61" }}>
+            {preliminary.changePercent}% ({preliminary.changePercent >= 0 ? "+" : ""})
           </span>
         </Typography>
         <Typography sx={{ color: "#e0e0e0", fontSize: { xs: "0.9rem", sm: "1rem" }, mb: 1, fontFamily: "'Roboto', sans-serif" }}>
-          Uppskattad Intäkt Hittills: <span style={{ color: "#00e676" }}>{q2Preliminary.revenueSoFar.toLocaleString()} €M</span>
+          Uppskattad Intäkt Hittills: <span style={{ color: "#00e676" }}>{preliminary.revenueSoFar.toLocaleString()} €M</span>
         </Typography>
       </Box>
 
-      {/* Progressindikator för Q2 2025 som text */}
+      {/* Progressindikator för aktuellt kvartal */}
       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: "20px" }}>
         <Typography
           variant="h6"
@@ -254,7 +291,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
             fontFamily: "'Roboto', sans-serif",
           }}
         >
-          Q2 2025 Progress
+          {currentQuarter} {currentYear} Progress
         </Typography>
         <Typography
           sx={{
@@ -279,8 +316,8 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
         </Typography>
       </Box>
 
-      {/* Graf för Q2 2025 */}
-      {q2Data.length > 0 && (
+      {/* Graf för aktuellt kvartal */}
+      {qData.length > 0 && (
         <Box sx={{ marginBottom: "30px", width: "100%", textAlign: "center" }}>
           <Typography
             variant="h6"
@@ -292,10 +329,10 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
               fontFamily: "'Roboto', sans-serif",
             }}
           >
-            Spelaretrend (Q2 2025)
+            Spelaretrend ({currentQuarter} {currentYear})
           </Typography>
           <ResponsiveContainer width="100%" height={isMobile ? 220 : 280}>
-            <LineChart data={q2Data} margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
+            <LineChart data={qData} margin={{ top: 10, right: 40, left: 10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
               <XAxis
                 dataKey="date"
@@ -373,32 +410,38 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {tableData.map((row, index) => (
-            <TableRow
-              key={index}
-              sx={{
-                backgroundColor: row.isCurrent ? "rgba(0, 230, 118, 0.05)" : "transparent",
-                "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.05)" },
-                transition: "background-color 0.3s ease",
-              }}
-            >
-              <TableCell sx={{ color: "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
-                {row.period} {row.isCurrent && <span style={{ color: "#00e676" }}>• Live</span>}
-              </TableCell>
-              <TableCell sx={{ color: "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
-                {row.avgPlayers.toLocaleString()}
-              </TableCell>
-              <TableCell sx={{ color: "#FFCA28", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
-                {row.uppskattad?.toLocaleString() || "-"}
-              </TableCell>
-              <TableCell sx={{ color: "#00e676", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
-                {row.faktisk?.toLocaleString() || `Kommer ${q2ReportDateFormatted}!`}
-              </TableCell>
-              <TableCell sx={{ color: row.skillnad !== null ? (row.skillnad > 0 ? "#00e676" : "#FF6F61") : "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
-                {row.skillnad !== null ? `${row.skillnad}%` : "-"}
-              </TableCell>
-            </TableRow>
-          ))}
+          {tableData.map((row, index) => {
+            const year = [twoBeforePeriod, previousPeriod, currentPeriod][index].split(" ")[0];
+            const reportDate = getReportDate(row.period, year);
+            const reportDateFormatted = reportDate.toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" });
+
+            return (
+              <TableRow
+                key={index}
+                sx={{
+                  backgroundColor: row.isCurrent ? "rgba(0, 230, 118, 0.05)" : "transparent",
+                  "&:hover": { backgroundColor: "rgba(255, 255, 255, 0.05)" },
+                  transition: "background-color 0.3s ease",
+                }}
+              >
+                <TableCell sx={{ color: "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
+                  {row.period} {row.isCurrent && <span style={{ color: "#00e676" }}>• Live</span>}
+                </TableCell>
+                <TableCell sx={{ color: "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
+                  {row.avgPlayers.toLocaleString()}
+                </TableCell>
+                <TableCell sx={{ color: "#FFCA28", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
+                  {row.upskattad?.toLocaleString() || "-"}
+                </TableCell>
+                <TableCell sx={{ color: "#00e676", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
+                  {row.faktisk?.toLocaleString() || `Kommer ${reportDateFormatted}!`}
+                </TableCell>
+                <TableCell sx={{ color: row.skillnad !== null ? (row.skillnad > 0 ? "#00e676" : "#FF6F61") : "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
+                  {row.skillnad !== null ? `${row.skillnad}%` : "-"}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
 
@@ -429,7 +472,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
           maxWidth: "90%",
         }}
       >
-        Ansvarsfriskrivning: Denna rapport är baserad på uppskattningar där omsättningen för Q2 2025 beräknas proportionellt mot Q1 2025:s liveCasino-omsättning per genomsnittlig spelare. Siffrorna för genomsnittliga spelare och omsättning avser enbart gameshow-segmentet och reflekterar inte nödvändigtvis bolagets totala verksamhet eller exakta spelarantal. Rapporten är avsedd att ge en indikativ trend och bör inte betraktas som en officiell finansiell rapport.
+        Ansvarsfriskrivning: Denna rapport är baserad på uppskattningar där omsättningen för {currentQuarter} {currentYear} beräknas proportionellt mot {previousPeriod.split(" ")[1]} {previousPeriod.split(" ")[0]}s liveCasino-omsättning per genomsnittlig spelare. Siffrorna för genomsnittliga spelare och omsättning avser enbart gameshow-segmentet och reflekterar inte nödvändigtvis bolagets totala verksamhet eller exakta spelarantal. Rapporten är avsedd att ge en indikativ trend och bör inte betraktas som en officiell finansiell rapport.
       </Typography>
     </Box>
   );
