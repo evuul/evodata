@@ -77,7 +77,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Aktuellt datum (dynamiskt)
-  const currentDate = new Date(); // Nu 10:09 AM CEST, 2025-07-01
+  const currentDate = new Date(); // Nu 01:09 PM CEST, 2025-07-07
   const currentYear = currentDate.getFullYear();
   const currentQuarter = getQuarter(currentDate);
 
@@ -105,11 +105,14 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   const reportDate = getReportDate(currentQuarter, currentYear);
   const reportDateFormatted = reportDate.toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" });
 
-  // Beräkna antal dagar och procent för aktuellt kvartal (simulera 1 dag)
+  // Beräkna antal dagar och procent för aktuellt kvartal
   const getQuarterProgress = () => {
     const { start, end } = getQuarterDates(currentYear, currentQuarter);
     const totalDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1; // Inkluderar start- och slutdag
-    const elapsedDays = 1; // Simulera 1 dag in i Q3
+    let elapsedDays = Math.floor((currentDate - start) / (1000 * 60 * 60 * 24)); // Antal fulla dagar sedan start
+    if (currentDate > start) {
+      elapsedDays += 1; // Lägg till dagens dag som en passerad dag
+    }
     const progressPercent = Math.min(Math.max(Math.round((elapsedDays / totalDays) * 100), 0), 100);
     return { elapsedDays, totalDays, progressPercent };
   };
