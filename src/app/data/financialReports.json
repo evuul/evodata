@@ -784,7 +784,7 @@
           },
           {
             "year": 2025,
-            "quarter": "Q1",
+            "quarter": "Q2",
             "operatingRevenues": 520.944,
             "adjustedEBITDA": 341.976,
             "adjustedEBITDAMargin": 65.6,
@@ -805,6 +805,31 @@
             "latAm": 36.2,
             "other": 21.6,
             "regulatedMarket": 45,
+            "Top5Customers": 46
+          },
+          {
+            "year": 2025,
+            "quarter": "Q1",
+            "operatingRevenues": 524.269,
+            "adjustedEBITDA": 345.267,
+            "adjustedEBITDAMargin": 65.9,
+            "adjustedOperatingMargin": 58.4,
+            "adjustedProfitForPeriod": 248.317,
+            "adjustedProfitMargin": 47.4,
+            "adjustedEarningsPerShare": 1.22,
+            "equityPerShare": 18.33,
+            "ocfPerShare": 1.10,
+            "averageNumberOfFTEs": 16.311,
+            "cashStart": 969.208,
+            "cashEnd": 505.255,
+            "liveCasino": 438.1,
+            "rng": 70.3,
+            "europe": 180.2,
+            "asia": 209.1,
+            "northAmerica": 74.0,
+            "latAm": 37.6,
+            "other": 23.4,
+            "regulatedMarket": 44,
             "Top5Customers": 46
           }
     ]
