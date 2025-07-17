@@ -59,7 +59,7 @@ const GraphBox = ({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const today = new Date("2025-04-07");
+  const today = new Date("2025-07-17T10:19:00"); // Set to current date and time: July 17, 2025, 10:19 AM CEST
 
   const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
 
@@ -81,7 +81,7 @@ const GraphBox = ({
     fetchExchangeRate();
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (stockPrice && !loadingPrice) {
       setLastUpdated(new Date());
     }
@@ -190,7 +190,7 @@ const GraphBox = ({
       .map(report => report.year)
   )].sort();
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (uniqueYears.length > 0 && !selectedGeoYear) {
       setSelectedGeoYear(uniqueYears[uniqueYears.length - 1].toString());
     }
@@ -248,7 +248,7 @@ const GraphBox = ({
 
   const allQuarters = [];
   for (let year = 2015; year <= 2025; year++) {
-    const quarters = year === 2015 ? ["Q1"] : year === 2025 ? ["Q1"] : ["Q1", "Q2", "Q3", "Q4"];
+    const quarters = year === 2015 ? ["Q1"] : year === 2025 ? ["Q1", "Q2", "Q3", "Q4"] : ["Q1", "Q2", "Q3", "Q4"];
     quarters.forEach(quarter => {
       allQuarters.push({ year, quarter, date: `${year} ${quarter}` });
     });
@@ -333,11 +333,8 @@ const GraphBox = ({
   const epsDataQuarterlyRaw = financialReports.financialReports
     .filter(report => {
       const year = report.year;
-      const quarter = report.quarter;
-      if (year < 2015 || year > 2025) return false;
-      if (year === 2015 && quarter !== "Q1") return false;
-      if (year === 2025 && quarter !== "Q1") return false;
-      return true;
+      if (year < 2015) return false;
+      return year <= 2025; // Allow all quarters for 2025
     })
     .map(report => ({
       date: `${report.year} ${report.quarter}`,
