@@ -77,7 +77,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   // Aktuellt datum (dynamiskt)
-  const currentDate = new Date(); // Nu 01:09 PM CEST, 2025-07-07
+  const currentDate = new Date(); // Nu 10:27 AM CEST, 2025-07-17
   const currentYear = currentDate.getFullYear();
   const currentQuarter = getQuarter(currentDate);
 
@@ -161,7 +161,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
 
       // Beräkna skillnad endast om faktisk data finns
       const skillnad = faktisk !== null && upskattad !== null
-        ? ((upskattad - faktisk) / faktisk * 100).toFixed(2)
+        ? ((faktisk - upskattad) / upskattad * 100).toFixed(2)
         : null;
 
       return {
@@ -439,7 +439,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
                 <TableCell sx={{ color: "#00e676", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
                   {row.faktisk?.toLocaleString() || `Kommer ${reportDateFormatted}!`}
                 </TableCell>
-                <TableCell sx={{ color: row.skillnad !== null ? (row.skillnad > 0 ? "#00e676" : "#FF6F61") : "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
+                <TableCell sx={{ color: row.skillnad !== null ? (row.faktisk > row.upskattad ? "#00e676" : row.skillnad < 0 ? "#FF6F61" : "#e0e0e0") : "#e0e0e0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, borderBottom: "1px solid rgba(255, 255, 255, 0.05)", fontFamily: "'Roboto', sans-serif", padding: { xs: "6px 8px", sm: "16px" } }}>
                   {row.skillnad !== null ? `${row.skillnad}%` : "-"}
                 </TableCell>
               </TableRow>
