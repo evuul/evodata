@@ -566,5 +566,45 @@
     "Snittkurs": 774.70,
     "Dagsvolym": 2003385,
     "Procent_dagsvolym": 8.26
+  },
+  {
+    "Datum": "2025-07-21",
+    "Antal_aktier": 35000,
+    "Transaktionsvärde": 29334998,
+    "Snittkurs": 838.14,
+    "Dagsvolym": 2003385,
+    "Procent_dagsvolym": 8.26
+  },
+  {
+    "Datum": "2025-07-22",
+    "Antal_aktier": 28000,
+    "Transaktionsvärde": 23450674,
+    "Snittkurs": 837.52,
+    "Dagsvolym": 2003385,
+    "Procent_dagsvolym": 8.26
+  },
+  {
+    "Datum": "2025-07-23",
+    "Antal_aktier": 36000,
+    "Transaktionsvärde": 30476026,
+    "Snittkurs": 846.55,
+    "Dagsvolym": 2003385,
+    "Procent_dagsvolym": 8.26
+  },
+  {
+    "Datum": "2025-07-24",
+    "Antal_aktier": 35000,
+    "Transaktionsvärde": 29985123,
+    "Snittkurs": 856.71,
+    "Dagsvolym": 2003385,
+    "Procent_dagsvolym": 8.26
+  },
+  {
+    "Datum": "2025-07-25",
+    "Antal_aktier": 37000,
+    "Transaktionsvärde": 32025379,
+    "Snittkurs": 865.55,
+    "Dagsvolym": 2003385,
+    "Procent_dagsvolym": 8.26
   }
   ]
