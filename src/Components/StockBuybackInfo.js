@@ -256,7 +256,7 @@ const calculateAverageDailyBuyback = (data) => {
   if (positiveTransactions.length === 0) return { averageDaily: 0, averagePrice: 0 };
 
   const firstDate = new Date(positiveTransactions[0].Datum);
-  const today = new Date("2025-05-26");
+  const today = new Date("2025-08-14"); // Anpassad till dagens datum
   const timeDifference = today - firstDate;
   const daysDifference = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
 
@@ -274,8 +274,8 @@ const calculateEstimatedCompletion = (remainingCash, transactions) => {
   const totalValue = transactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
   const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
 
-  // Beräkna handelsdagar (exkludera helger för enkelhet)
-  const firstDate = new Date(transactions[0].Datum);
+  // Beräkna handelsdagar från historiska transaktioner
+  const firstDate = new Date(Math.min(...transactions.map(item => new Date(item.Datum))));
   const lastDate = new Date(Math.max(...transactions.map(item => new Date(item.Datum))));
   let tradingDays = 0;
   let currentDate = new Date(firstDate);
@@ -292,9 +292,19 @@ const calculateEstimatedCompletion = (remainingCash, transactions) => {
   const remainingSharesToBuy = averagePrice > 0 ? remainingCash / averagePrice : 0;
   const daysToCompletion = averageDailyShares > 0 ? remainingSharesToBuy / averageDailyShares : 0;
 
-  const today = new Date("2025-05-26");
-  const estimatedCompletionDate = new Date(today);
-  estimatedCompletionDate.setDate(today.getDate() + Math.ceil(daysToCompletion));
+  // Använd dagens datum som startpunkt
+  const today = new Date("2025-08-14"); // Anpassad till dagens datum
+  let estimatedCompletionDate = new Date(today);
+
+  // Lägg till handelsdagar och hoppa över helger
+  let remainingTradingDays = Math.ceil(daysToCompletion);
+  while (remainingTradingDays > 0) {
+    estimatedCompletionDate.setDate(estimatedCompletionDate.getDate() + 1);
+    const dayOfWeek = estimatedCompletionDate.getDay();
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Bara räkna arbetsdagar
+      remainingTradingDays--;
+    }
+  }
 
   return {
     currentProgramAverageDailyShares: averageDailyShares,
