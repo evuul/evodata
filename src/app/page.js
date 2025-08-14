@@ -133,6 +133,17 @@ export default function Home() {
         />
       </Box>
 
+            {/* StockBuybackInfo */}
+            <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <StockBuybackInfo isActive={true} buybackCash={500000000} dividendData={dividendData} />
+      </Box>
+
       {/* AveragePlayersTracker */}
       <Box
         sx={{
@@ -161,17 +172,6 @@ export default function Home() {
         <CurrentCashBox financialReports={financialReports} />
       </Box>
       */}
-
-      {/* StockBuybackInfo */}
-      <Box
-        sx={{
-          marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
-          margin: "0 auto",
-        }}
-      >
-        <StockBuybackInfo isActive={true} buybackCash={500000000} dividendData={dividendData} />
-      </Box>
 
       {/* IntelligenceIncomeReport */}
       <Box
