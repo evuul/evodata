@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -7,37 +7,40 @@ import {
   Card,
   Tabs,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableContainer,
   Select,
   MenuItem,
   useMediaQuery,
   useTheme,
   IconButton,
 } from "@mui/material";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-  Label,
-  BarChart,
-  Bar,
-  Legend,
-} from "recharts";
+// Charts are rendered inside subcomponents; no direct Recharts import needed here
 import { keyframes } from "@emotion/react";
 import buybackData from "../app/data/buybackData.json"; // Nuvarande återköp för "Återköpsstatus"-fliken
 import oldBuybackData from "../app/data/oldBuybackData.json"; // Historiska och nuvarande återköp för övriga flikar
 import { useStockPriceContext } from '../context/StockPriceContext';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { useRouter, useSearchParams } from 'next/navigation';
+import ReturnsView from './buybacks/ReturnsView';
+import WeeklyBuybacksTable from './buybacks/WeeklyBuybacksTable';
+import OwnershipView from './buybacks/OwnershipView';
+import TotalSharesView from './buybacks/TotalSharesView';
+import HistoryView from './buybacks/HistoryView';
+import {
+  totalSharesData,
+  calculateEvolutionOwnershipPerYear,
+  calculateCancelledShares,
+  calculateShareholderReturns,
+  buybackDataForGraphDaily as buildDaily,
+  buybackDataForGraphWeekly as buildWeekly,
+  buybackDataForGraphMonthly as buildMonthly,
+  buybackDataForGraphYearly as buildYearly,
+  getLastWeekBuybacks,
+  getPreviousWeekBuybacks,
+  calculateBuybackStats,
+  calculateAverageDailyBuyback,
+  calculateEstimatedCompletion,
+} from './buybacks/utils';
 
 // Växelkurs (exempelvärde)
 const exchangeRate = 11.02; // Exempel: 1 EUR = 10.83 SEK
@@ -55,120 +58,6 @@ const pulseRed = keyframes`
   100% { box-shadow: 0 0 6px rgba(255, 23, 68, 0.3); }
 `;
 
-// Totala aktier över tid (utan att ta hänsyn till indragningar)
-const totalSharesData = [
-  { date: "2019", totalShares: 181622725 },
-  { date: "2020", totalShares: 183927915 },
-  { date: "2021", totalShares: 215111115 },
-  { date: "2022", totalShares: 213771346 },
-  { date: "2023", totalShares: 213566498 },
-  { date: "2024", totalShares: 209562751 },
-  { date: "2025", totalShares: 204462162 },
-];
-
-// Beräkna Evolutions ägande per år baserat på återköp och indragningar
-const calculateEvolutionOwnershipPerYear = (data) => {
-  const ownershipByYear = {};
-  let cumulativeShares = 0;
-
-  data.forEach((item) => {
-    const year = item.Datum.split("-")[0];
-    cumulativeShares += item.Antal_aktier;
-
-    if (!ownershipByYear[year]) {
-      ownershipByYear[year] = cumulativeShares;
-    } else {
-      ownershipByYear[year] = cumulativeShares;
-    }
-  });
-
-  const evolutionOwnershipData = Object.keys(ownershipByYear)
-    .map((year) => ({
-      date: year,
-      shares: ownershipByYear[year],
-    }))
-    .sort((a, b) => a.date - b.date);
-
-  return evolutionOwnershipData;
-};
-
-// Beräkna totala makulerade aktier
-const calculateCancelledShares = (data) => {
-  return data
-    .filter((item) => item.Antal_aktier < 0)
-    .reduce((sum, item) => sum + Math.abs(item.Antal_aktier), 0);
-};
-
-// Beräkna utdelningar och aktieåterköp per år för "Återinvestering till investerare"
-const calculateShareholderReturns = (dividendData, buybackData) => {
-  const dividendsByYear = {};
-  dividendData.historicalDividends.forEach((dividend) => {
-    const year = new Date(dividend.date).getFullYear();
-    const totalSharesForYear = totalSharesData.find(
-      (share) => share.date === year.toString()
-    )?.totalShares || 0;
-
-    const totalDividend = dividend.dividendPerShare * totalSharesForYear;
-
-    if (!dividendsByYear[year]) {
-      dividendsByYear[year] = 0;
-    }
-    dividendsByYear[year] += totalDividend;
-  });
-
-  if (dividendData.plannedDividends && dividendData.plannedDividends.length > 0) {
-    dividendData.plannedDividends.forEach((planned) => {
-      const year = new Date(planned.exDate).getFullYear();
-      const totalSharesForYear = totalSharesData.find(
-        (share) => share.date === year.toString()
-      )?.totalShares || 0;
-
-      const totalDividend = planned.dividendPerShare * totalSharesForYear;
-
-      if (!dividendsByYear[year]) {
-        dividendsByYear[year] = 0;
-      }
-      dividendsByYear[year] += totalDividend;
-    });
-  }
-
-  const buybacksByYear = {};
-  buybackData.forEach((buyback) => {
-    if (buyback.Antal_aktier > 0) {
-      const year = new Date(buyback.Datum).getFullYear();
-      if (!buybacksByYear[year]) {
-        buybacksByYear[year] = 0;
-      }
-      buybacksByYear[year] += buyback.Transaktionsvärde;
-    }
-  });
-
-  const years = new Set([
-    ...Object.keys(dividendsByYear),
-    ...Object.keys(buybacksByYear),
-  ]);
-  const combinedData = Array.from(years)
-    .sort()
-    .map((year) => ({
-      year: parseInt(year),
-      dividends: dividendsByYear[year] || 0,
-      buybacks: buybacksByYear[year] || 0,
-    }));
-
-  const total = combinedData.reduce((sum, yearData) => {
-    return sum + yearData.dividends + yearData.buybacks;
-  }, 0);
-
-  const totalDividends = combinedData.reduce((sum, yearData) => sum + yearData.dividends, 0);
-  const totalBuybacks = combinedData.reduce((sum, yearData) => sum + yearData.buybacks, 0);
-
-  const latestYear = Math.max(...combinedData.map(item => item.year));
-  const latestYearData = combinedData.find(item => item.year === latestYear);
-  const latestYearReturns = latestYearData ? (latestYearData.dividends + latestYearData.buybacks) : 0;
-
-  return { combinedData, total, totalDividends, totalBuybacks, latestYearReturns, latestYear };
-};
-
 // Beräkna Evolutions ägande och makulerade aktier med oldBuybackData
 const evolutionOwnershipData = calculateEvolutionOwnershipPerYear(oldBuybackData);
 const cancelledShares = calculateCancelledShares(oldBuybackData);
@@ -181,233 +70,17 @@ const ownershipPercentageData = totalSharesData.map((item, index) => {
   };
 });
 
-const buybackDataForGraphDaily = oldBuybackData.filter((item) => item.Antal_aktier > 0);
+const buybackDataDaily = buildDaily(oldBuybackData);
 
-// ISO-vecka: få måndag (start) och söndag (slut) för en given dag
-const getIsoWeekBounds = (dateLike) => {
-  const d = new Date(dateLike);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay(); // 0=sön, 1=mån, ...
-  const monday = new Date(d);
-  const diffToMonday = (day + 6) % 7; // sön(0)->6, mån(1)->0, ...
-  monday.setDate(d.getDate() - diffToMonday);
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { monday, sunday };
-};
-
-// Arbetsvecka: måndag (start) till fredag (slut) för given dag
-const getBusinessWeekBounds = (dateLike) => {
-  const { monday } = getIsoWeekBounds(dateLike);
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  friday.setHours(23, 59, 59, 999);
-  return { monday, friday };
-};
-
-// Hämta senaste arbetsveckans återköp (mån–fre) baserat på senaste datum i buybackData
-const getLastWeekBuybacks = (data) => {
-  if (!data || data.length === 0) {
-    return { periodStart: null, periodEnd: null, entries: [], totalShares: 0, totalValue: 0 };
-  }
-
-  const positive = data.filter((d) => d.Antal_aktier > 0);
-  if (positive.length === 0) {
-    return { periodStart: null, periodEnd: null, entries: [], totalShares: 0, totalValue: 0 };
-  }
-
-  const maxTime = Math.max(...positive.map((d) => new Date(d.Datum).getTime()));
-  const { monday, friday } = getBusinessWeekBounds(maxTime);
-
-  const entries = positive
-    .filter((d) => {
-      const t = new Date(d.Datum).getTime();
-      return t >= monday.getTime() && t <= friday.getTime();
-    })
-    .sort((a, b) => new Date(a.Datum) - new Date(b.Datum));
-
-  const totalShares = entries.reduce((sum, d) => sum + (d.Antal_aktier || 0), 0);
-  const totalValue = entries.reduce((sum, d) => sum + (d.Transaktionsvärde || 0), 0);
-
-  return { periodStart: monday, periodEnd: friday, entries, totalShares, totalValue };
-};
-
-// Hämta föregående arbetsvecka (mån–fre) givet nuvarande veckans måndag
-const getPreviousWeekBuybacks = (data, currentWeekStart) => {
-  if (!data || !currentWeekStart) {
-    return {
-      periodStart: null,
-      periodEnd: null,
-      entries: [],
-      totalShares: 0,
-      totalValue: 0,
-    };
-  }
-
-  const prevStart = new Date(currentWeekStart);
-  prevStart.setHours(0, 0, 0, 0);
-  prevStart.setDate(prevStart.getDate() - 7);
-  const prevEnd = new Date(prevStart);
-  prevEnd.setDate(prevStart.getDate() + 4);
-  prevEnd.setHours(23, 59, 59, 999);
-
-  const positive = data.filter((d) => d.Antal_aktier > 0);
-  const entries = positive
-    .filter((d) => {
-      const t = new Date(d.Datum).getTime();
-      return t >= prevStart.getTime() && t <= prevEnd.getTime();
-    })
-    .sort((a, b) => new Date(a.Datum) - new Date(b.Datum));
-
-  const totalShares = entries.reduce((sum, d) => sum + (d.Antal_aktier || 0), 0);
-  const totalValue = entries.reduce((sum, d) => sum + (d.Transaktionsvärde || 0), 0);
-
-  return {
-    periodStart: prevStart,
-    periodEnd: prevEnd,
-    entries,
-    totalShares,
-    totalValue,
-  };
-};
-
-// Funktion för att gruppera data årligen
-const buybackDataForGraphYearly = () => {
-  const yearlyData = {};
-  oldBuybackData
-    .filter((item) => item.Antal_aktier > 0)
-    .forEach((item) => {
-      const year = item.Datum.split("-")[0];
-      if (!yearlyData[year]) {
-        yearlyData[year] = { Datum: year, Antal_aktier: 0 };
-      }
-      yearlyData[year].Antal_aktier += item.Antal_aktier;
-    });
-
-  return Object.values(yearlyData).sort((a, b) => a.Datum.localeCompare(b.Datum));
-};
-
-// Funktion för att gruppera data månadsvis (ÅÅÅÅ-MM)
-const buybackDataForGraphMonthly = () => {
-  const monthlyData = {};
-  oldBuybackData
-    .filter((item) => item.Antal_aktier > 0)
-    .forEach((item) => {
-      const [year, month] = item.Datum.split("-").slice(0, 2);
-      const monthKey = `${year}-${month}`;
-      if (!monthlyData[monthKey]) {
-        monthlyData[monthKey] = { Datum: monthKey, Antal_aktier: 0 };
-      }
-      monthlyData[monthKey].Antal_aktier += item.Antal_aktier;
-    });
-
-  return Object.values(monthlyData).sort((a, b) => a.Datum.localeCompare(b.Datum));
-};
-
-// Funktion för att gruppera data veckovis (baserat på ISO-veckor, ÅÅÅÅ-VW)
-const buybackDataForGraphWeekly = () => {
-  const weeklyData = {};
-  oldBuybackData
-    .filter((item) => item.Antal_aktier > 0)
-    .forEach((item) => {
-      const date = new Date(item.Datum);
-      const year = date.getFullYear();
-      const firstDayOfYear = new Date(year, 0, 1);
-      const daysOffset = (firstDayOfYear.getDay() + 6) % 7; // Justera så att måndag är veckans första dag
-      const daysSinceYearStart = Math.floor((date - firstDayOfYear) / (1000 * 60 * 60 * 24));
-      const weekNumber = Math.ceil((daysSinceYearStart + daysOffset + 1) / 7);
-      const weekKey = `${year}-V${weekNumber.toString().padStart(2, '0')}`;
-      if (!weeklyData[weekKey]) {
-        weeklyData[weekKey] = { Datum: weekKey, Antal_aktier: 0 };
-      }
-      weeklyData[weekKey].Antal_aktier += item.Antal_aktier;
-    });
-
-  return Object.values(weeklyData).sort((a, b) => a.Datum.localeCompare(b.Datum));
-};
-
-// Funktion för att beräkna dynamiska värden från buybackData (för Återköpsstatus)
-const calculateBuybackStats = (transactions) => {
-  const positiveTransactions = transactions.filter(item => item.Antal_aktier > 0);
-  if (positiveTransactions.length === 0) return { sharesBought: 0, averagePrice: 0 };
-
-  const totalSharesBought = positiveTransactions.reduce((sum, item) => sum + item.Antal_aktier, 0);
-  const totalTransactionValue = positiveTransactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
-  const averagePrice = totalSharesBought > 0 ? totalTransactionValue / totalSharesBought : 0;
-
-  return { sharesBought: totalSharesBought, averagePrice };
-};
-
-// Beräkna historisk genomsnittlig köptakt (med oldBuybackData för Återköpshistorik)
-const calculateAverageDailyBuyback = (data) => {
-  const positiveTransactions = data.filter((item) => item.Antal_aktier > 0);
-  if (positiveTransactions.length === 0) return { averageDaily: 0, averagePrice: 0 };
-
-  const firstDate = new Date(positiveTransactions[0].Datum);
-  const today = new Date("2025-08-14"); // Anpassad till dagens datum
-  const timeDifference = today - firstDate;
-  const daysDifference = Math.ceil(timeDifference / (1000 * 60 * 60 * 24));
-
-  const totalSharesBought = positiveTransactions.reduce((sum, item) => sum + item.Antal_aktier, 0);
-  const totalTransactionValue = positiveTransactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
-  const averagePrice = totalSharesBought > 0 ? totalTransactionValue / totalSharesBought : 0;
-  const averageDaily = daysDifference > 0 ? totalSharesBought / daysDifference : 0;
-
-  return { averageDaily, averagePrice };
-};
-
-// Funktion för att beräkna uppskattat slutförandedatum baserat på buybackData (för Återköpsstatus)
-const calculateEstimatedCompletion = (remainingCash, transactions) => {
-  const totalShares = transactions.reduce((sum, item) => sum + item.Antal_aktier, 0);
-  const totalValue = transactions.reduce((sum, item) => sum + item.Transaktionsvärde, 0);
-  const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
-
-  // Beräkna handelsdagar från historiska transaktioner
-  const firstDate = new Date(Math.min(...transactions.map(item => new Date(item.Datum))));
-  const lastDate = new Date(Math.max(...transactions.map(item => new Date(item.Datum))));
-  let tradingDays = 0;
-  let currentDate = new Date(firstDate);
-  while (currentDate <= lastDate) {
-    const dayOfWeek = currentDate.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Exkludera lördagar (6) och söndagar (0)
-      tradingDays++;
-    }
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  const averageDailyShares = tradingDays > 0 ? totalShares / tradingDays : 0;
-
-  const remainingSharesToBuy = averagePrice > 0 ? remainingCash / averagePrice : 0;
-  const daysToCompletion = averageDailyShares > 0 ? remainingSharesToBuy / averageDailyShares : 0;
-
-  // Använd dagens datum som startpunkt
-  const today = new Date("2025-08-14"); // Anpassad till dagens datum
-  let estimatedCompletionDate = new Date(today);
-
-  // Lägg till handelsdagar och hoppa över helger
-  let remainingTradingDays = Math.ceil(daysToCompletion);
-  while (remainingTradingDays > 0) {
-    estimatedCompletionDate.setDate(estimatedCompletionDate.getDate() + 1);
-    const dayOfWeek = estimatedCompletionDate.getDay();
-    if (dayOfWeek !== 0 && dayOfWeek !== 6) { // Bara räkna arbetsdagar
-      remainingTradingDays--;
-    }
-  }
-
-  return {
-    currentProgramAverageDailyShares: averageDailyShares,
-    daysToCompletion: Math.ceil(daysToCompletion),
-    estimatedCompletionDate: estimatedCompletionDate.toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" }),
-  };
-};
 
 const StockBuybackInfo = ({
   isActive,
   buybackCash,
   dividendData,
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState("buyback");
   const [viewMode, setViewMode] = useState("daily");
   const [chartTypeHistory, setChartTypeHistory] = useState("line"); // För Återköpshistorik
@@ -468,6 +141,24 @@ const StockBuybackInfo = ({
     "returns",
   ];
 
+  // Init from URL
+  useEffect(() => {
+    const urlTab = searchParams?.get('bbTab');
+    const urlView = searchParams?.get('bbView');
+    if (urlTab && tabsList.includes(urlTab)) setActiveTab(urlTab);
+    if (urlView && ["daily","weekly","monthly","yearly"].includes(urlView)) setViewMode(urlView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateUrlParam = (key, value) => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      sp.set(key, value);
+      const newUrl = `${window.location.pathname}?${sp.toString()}#buybacks`;
+      router.replace(newUrl);
+    } catch {}
+  };
+
   const handlePrevTab = () => {
     const currentIndex = tabsList.indexOf(activeTab);
     const prevIndex = (currentIndex - 1 + tabsList.length) % tabsList.length;
@@ -482,10 +173,12 @@ const StockBuybackInfo = ({
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    updateUrlParam('bbTab', newValue);
   };
 
   const handleViewModeChange = (event, newValue) => {
     setViewMode(newValue);
+    updateUrlParam('bbView', newValue);
   };
 
   const handleChartTypeChange = (tab) => (event, newValue) => {
@@ -543,7 +236,7 @@ const StockBuybackInfo = ({
     return ticks;
   };
 
-  let stepSize = getDynamicStep(buybackDataForGraphDaily, "Antal_aktier", viewMode);
+  let stepSize = getDynamicStep(buybackDataDaily, "Antal_aktier", viewMode);
 
   const chartData = returnsData.map((item) => ({
     year: item.year === 2025 ? `${item.year} (pågående)` : item.year,
@@ -552,12 +245,12 @@ const StockBuybackInfo = ({
   }));
 
   const historyChartData = viewMode === "daily"
-    ? buybackDataForGraphDaily
+    ? buybackDataDaily
     : viewMode === "weekly"
-    ? buybackDataForGraphWeekly()
+    ? buildWeekly(oldBuybackData)
     : viewMode === "monthly"
-    ? buybackDataForGraphMonthly()
-    : buybackDataForGraphYearly();
+    ? buildMonthly(oldBuybackData)
+    : buildYearly(oldBuybackData);
 
   return (
     <Card
@@ -912,1036 +605,76 @@ const StockBuybackInfo = ({
               >
                 Senaste veckan
               </Typography>
-              {lastWeek.entries.length > 0 ? (
-                <>
-                  <Typography
-                    variant="body2"
-                    color="#ccc"
-                    sx={{ marginBottom: "8px" }}
-                  >
-                    Period: {lastWeek.periodStart.toLocaleDateString("sv-SE")} – {lastWeek.periodEnd.toLocaleDateString("sv-SE")}
-                  </Typography>
-
-                  <Typography variant="body2" sx={{ mb: 1 }} color="#fff">
-                    Förändring mot föregående vecka:{" "}
-                    <Box component="span" sx={{ fontWeight: 700, color: deltaShares > 0 ? '#00e676' : deltaShares < 0 ? '#ff1744' : '#ccc' }}>
-                      {(deltaShares > 0 ? '+' : '') + deltaShares.toLocaleString('sv-SE')} aktier
-                    </Box>
-                  </Typography>
-
-                  <TableContainer
-                    sx={{
-                      maxHeight: { xs: "none", sm: "none" },
-                      backgroundColor: "#1f1f1f",
-                      borderRadius: "12px",
-                      border: "1px solid #2b2b2b",
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
-                      overflowX: { xs: "auto", sm: "visible" },
-                      overflowY: "visible",
-                    }}
-                  >
-                    <Table
-                      size="small"
-                      stickyHeader
-                      aria-label="Senaste veckans återköp"
-                      sx={{
-                        minWidth: { xs: 360, sm: 520 },
-                        tableLayout: { xs: 'fixed', sm: 'auto' },
-                        "& .MuiTableCell-root": {
-                          borderBottom: "1px solid #2b2b2b",
-                          padding: { xs: "8px 10px", sm: "10px 14px" },
-                        },
-                      }}
-                    >
-                      <TableHead>
-                        <TableRow>
-                          <TableCell
-                            sx={{
-                              color: "#fff",
-                              backgroundColor: "#242424",
-                              textTransform: "uppercase",
-                              fontWeight: 700,
-                              letterSpacing: ".4px",
-                              whiteSpace: { xs: "nowrap", sm: "nowrap" },
-                              width: { xs: '34%', sm: 'auto' },
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {isMobile ? 'Datum' : 'Datum'}
-                          </TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{
-                              color: "#fff",
-                              backgroundColor: "#242424",
-                              textTransform: "uppercase",
-                              fontWeight: 700,
-                              letterSpacing: ".4px",
-                              whiteSpace: { xs: "nowrap", sm: "nowrap" },
-                              width: { xs: '33%', sm: 'auto' },
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {isMobile ? 'Antal' : 'Antal aktier'}
-                          </TableCell>
-                          <TableCell
-                            align="right"
-                            sx={{
-                              color: "#fff",
-                              backgroundColor: "#242424",
-                              textTransform: "uppercase",
-                              fontWeight: 700,
-                              letterSpacing: ".4px",
-                              whiteSpace: { xs: "nowrap", sm: "nowrap" },
-                              width: { xs: '33%', sm: 'auto' },
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {isMobile ? 'Värde (SEK)' : 'Transaktionsvärde (SEK)'}
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {lastWeek.entries.map((row, idx) => (
-                          <TableRow
-                            key={`${row.Datum}-${idx}`}
-                            hover
-                            sx={{
-                              backgroundColor: idx % 2 === 0 ? "#202020" : "#1b1b1b",
-                              transition: "background-color 0.2s ease",
-                              "&:hover": { backgroundColor: "#2a2a2a" },
-                            }}
-                          >
-                            <TableCell sx={{ color: "#ddd", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {new Date(row.Datum).toLocaleDateString("sv-SE", isMobile ? { year: '2-digit', month: '2-digit', day: '2-digit' } : undefined)}
-                            </TableCell>
-                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {isMobile
-                                ? new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(row.Antal_aktier || 0)
-                                : (row.Antal_aktier || 0).toLocaleString("sv-SE")}
-                            </TableCell>
-                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {isMobile
-                                ? `${new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(row.Transaktionsvärde || 0)}`
-                                : (row.Transaktionsvärde || 0).toLocaleString("sv-SE")}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                        <TableRow
-                          sx={{
-                            background: "linear-gradient(180deg, #1f1f1f, #1b1b1b)",
-                          }}
-                        >
-                          <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Totalt</TableCell>
-                          <TableCell align="right" sx={{ color: "#00e676", fontWeight: 700 }}>
-                            {isMobile
-                              ? new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(lastWeek.totalShares)
-                              : lastWeek.totalShares.toLocaleString("sv-SE")}
-                          </TableCell>
-                          <TableCell align="right" sx={{ color: "#00e676", fontWeight: 700 }}>
-                            {isMobile
-                              ? new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(lastWeek.totalValue)
-                              : lastWeek.totalValue.toLocaleString("sv-SE")}
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </>
-              ) : (
-                <Typography variant="body2" color="#ccc">
-                  Inga återköp under den senaste veckan i datat.
-                </Typography>
-              )}
+              <WeeklyBuybacksTable lastWeek={lastWeek} prevWeek={prevWeek} deltaShares={deltaShares} isMobile={isMobile} />
             </Box>
           </Box>
         </Box>
       )}
 
       {activeTab === "ownership" && (
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: "#fff",
-              marginBottom: "20px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Evolutions ägande
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="#fff"
-            sx={{
-              marginBottom: "10px",
-              fontSize: { xs: "0.85rem", sm: "0.95rem" },
-            }}
-          >
-            Evolution äger: {latestEvolutionShares.toLocaleString()} aktier
-          </Typography>
-          <Typography
-            variant="body2"
-            color="#FFCA28"
-            sx={{
-              marginBottom: "10px",
-              fontSize: { xs: "0.85rem", sm: "0.95rem" },
-            }}
-          >
-            Ägarandel: {latestOwnershipPercentage.toFixed(2)}%
-          </Typography>
-          {cancelledShares > 0 && (
-            <Typography
-              variant="body2"
-              color="#FF6F61"
-              sx={{
-                marginBottom: "20px",
-                fontSize: { xs: "0.85rem", sm: "0.95rem" },
-              }}
-            >
-              Makulerade aktier: {cancelledShares.toLocaleString()}
-            </Typography>
-          )}
-
-          <Typography
-            variant="h6"
-            color="#00e676"
-            sx={{
-              marginTop: "20px",
-              marginBottom: "10px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Antal aktier över tid
-          </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "20px" }}>
-            <Tabs
-              value={chartTypeOwnership}
-              onChange={handleChartTypeChange("ownership")}
-              textColor="inherit"
-              TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-              sx={{
-                color: "#ccc",
-                "& .MuiTab-root": {
-                  fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
-                  padding: { xs: "6px 8px", sm: "12px 16px" },
-                },
-              }}
-              variant="scrollable"
-              scrollButtons="auto"
-              allowScrollButtonsMobile
-            >
-              <Tab label="Linje" value="line" />
-              <Tab label="Stapel" value="bar" />
-            </Tabs>
-          </Box>
-
-          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-            {chartTypeOwnership === "line" ? (
-              <LineChart
-                data={evolutionOwnershipData}
-                margin={{
-                  top: 20,
-                  right: isMobile ? 10 : 20,
-                  bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -10 : 0,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  height={isMobile ? 30 : 40}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="År"
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  domain={getYDomain(evolutionOwnershipData, "shares")}
-                  tickFormatter={formatYAxisTick}
-                  width={isMobile ? 40 : 60}
-                  ticks={getYTickValues(evolutionOwnershipData, "shares", "yearly")}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Antal aktier"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value) => value.toLocaleString("sv-SE")}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="shares"
-                  stroke="#00e676"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: "#00e676" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            ) : (
-              <BarChart
-                data={evolutionOwnershipData}
-                margin={{
-                  top: 20,
-                  right: isMobile ? 10 : 20,
-                  bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -10 : 0,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  height={isMobile ? 30 : 40}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="År"
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  domain={getYDomain(evolutionOwnershipData, "shares")}
-                  tickFormatter={formatYAxisTick}
-                  width={isMobile ? 40 : 60}
-                  ticks={getYTickValues(evolutionOwnershipData, "shares", "yearly")}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Antal aktier"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value) => value.toLocaleString("sv-SE")}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Bar dataKey="shares" fill="#00e676" name="Antal aktier" />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
-
-          <Typography
-            variant="h6"
-            color="#00e676"
-            sx={{
-              marginTop: "20px",
-              marginBottom: "10px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Historisk data
-          </Typography>
-          <Box
-            sx={{
-              overflowX: "auto",
-              width: "100%",
-              "&::-webkit-scrollbar": {
-                height: "6px",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "#00e676",
-                borderRadius: "10px",
-              },
-            }}
-          >
-            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "10px", minWidth: isMobile ? "600px" : "auto" }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                    År
-                  </TableCell>
-                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                    Evolutions aktier
-                  </TableCell>
-                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                    Ägarandel (%)
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {evolutionOwnershipData.map((item, index) => (
-                  <TableRow key={item.date}>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                      {item.date}
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                      {item.shares.toLocaleString()}
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                      {ownershipPercentageData.find((data) => data.date === item.date)?.percentage.toFixed(2) || "0.00"}%
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Box>
-        </Box>
+        <OwnershipView
+          isMobile={isMobile}
+          evolutionOwnershipData={evolutionOwnershipData}
+          ownershipPercentageData={ownershipPercentageData}
+          latestEvolutionShares={latestEvolutionShares}
+          latestOwnershipPercentage={latestOwnershipPercentage}
+          cancelledShares={cancelledShares}
+          chartTypeOwnership={chartTypeOwnership}
+          onChangeChartTypeOwnership={handleChartTypeChange("ownership")}
+          yDomain={getYDomain(evolutionOwnershipData, "shares")}
+          yTicks={getYTickValues(evolutionOwnershipData, "shares", "yearly")}
+          formatYAxisTick={formatYAxisTick}
+        />
       )}
+
+          {/* removed inline ownership UI (moved to OwnershipView) */}
+
 
       {activeTab === "totalShares" && (
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: "#fff",
-              marginBottom: "20px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Totala aktier
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="#fff"
-            sx={{
-              marginBottom: "20px",
-              fontSize: { xs: "0.85rem", sm: "0.95rem" },
-            }}
-          >
-            Totalt antal aktier: {latestTotalShares.toLocaleString()}
-          </Typography>
-
-          <Typography
-            variant="h6"
-            color="#00e676"
-            sx={{
-              marginBottom: "10px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Totala aktier över tid
-          </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "20px" }}>
-            <Tabs
-              value={chartTypeTotalShares}
-              onChange={handleChartTypeChange("totalShares")}
-              textColor="inherit"
-              TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-              sx={{
-                color: "#ccc",
-                "& .MuiTab-root": {
-                  fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
-                  padding: { xs: "6px 8px", sm: "12px 16px" },
-                },
-              }}
-              variant="scrollable"
-              scrollButtons="auto"
-              allowScrollButtonsMobile
-            >
-              <Tab label="Linje" value="line" />
-              <Tab label="Stapel" value="bar" />
-            </Tabs>
-          </Box>
-
-          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-            {chartTypeTotalShares === "line" ? (
-              <LineChart
-                data={totalSharesData}
-                margin={{
-                  top: 20,
-                  right: isMobile ? 10 : 20,
-                  bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -10 : 0,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  height={isMobile ? 30 : 40}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="År"
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  domain={getYDomain(totalSharesData, "totalShares")}
-                  tickFormatter={formatYAxisTick}
-                  width={isMobile ? 40 : 60}
-                  ticks={getYTickValues(totalSharesData, "totalShares", "yearly")}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Antal aktier"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value) => value.toLocaleString("sv-SE")}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="totalShares"
-                  stroke="#00e676"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: "#00e676" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            ) : (
-              <BarChart
-                data={totalSharesData}
-                margin={{
-                  top: 20,
-                  right: isMobile ? 10 : 20,
-                  bottom: isMobile ? 10 : 20,
-                  left: isMobile ? -10 : 0,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  height={isMobile ? 30 : 40}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="År"
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  domain={getYDomain(totalSharesData, "totalShares")}
-                  tickFormatter={formatYAxisTick}
-                  width={isMobile ? 40 : 60}
-                  ticks={getYTickValues(totalSharesData, "totalShares", "yearly")}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Antal aktier"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value) => value.toLocaleString("sv-SE")}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Bar dataKey="totalShares" fill="#00e676" name="Antal aktier" />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
-
-          <Typography
-            variant="h6"
-            color="#00e676"
-            sx={{
-              marginTop: "20px",
-              marginBottom: "10px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Historisk data
-          </Typography>
-          <Box
-            sx={{
-              overflowX: "auto",
-              width: "100%",
-              "&::-webkit-scrollbar": {
-                height: "6px",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "#00e676",
-                borderRadius: "10px",
-              },
-            }}
-          >
-            <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "10px", minWidth: isMobile ? "600px" : "auto" }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                    År
-                  </TableCell>
-                  <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                    Totala aktier
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {totalSharesData.map((item) => (
-                  <TableRow key={item.date}>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                      {item.date}
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                      {item.totalShares.toLocaleString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Box>
-        </Box>
+        <TotalSharesView
+          isMobile={isMobile}
+          totalSharesData={totalSharesData}
+          latestTotalShares={latestTotalShares}
+          chartTypeTotalShares={chartTypeTotalShares}
+          onChangeChartTypeTotalShares={handleChartTypeChange("totalShares")}
+          yDomain={getYDomain(totalSharesData, "totalShares")}
+          yTicks={getYTickValues(totalSharesData, "totalShares", "yearly")}
+          formatYAxisTick={formatYAxisTick}
+        />
       )}
+          {/* removed inline totalShares UI (moved to TotalSharesView) */}
 
       {activeTab === "history" && (
-        <Box display="flex" flexDirection="column" alignItems="center" sx={{ overflowX: "hidden" }}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: "#fff",
-              marginBottom: "20px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Återköpshistorik
-          </Typography>
-
-          <Typography
-            variant="body2"
-            color="#fff"
-            sx={{
-              marginBottom: "10px",
-              fontSize: { xs: "0.85rem", sm: "0.95rem" },
-            }}
-          >
-            Genomsnittlig handel per dag: {Math.round(historicalAverageDailyBuyback).toLocaleString()} aktier
-          </Typography>
-          <Typography
-            variant="body2"
-            color="#fff"
-            sx={{
-              marginBottom: "20px",
-              fontSize: { xs: "0.85rem", sm: "0.95rem" },
-            }}
-          >
-            Genomsnittspris: {averageBuybackPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK
-          </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "20px" }}>
-            <Tabs
-              value={viewMode}
-              onChange={handleViewModeChange}
-              textColor="inherit"
-              TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-              sx={{
-                color: "#ccc",
-                "& .MuiTab-root": {
-                  fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
-                  padding: { xs: "6px 8px", sm: "12px 16px" },
-                },
-              }}
-              variant="scrollable"
-              scrollButtons="auto"
-              allowScrollButtonsMobile
-            >
-              <Tab label="Daglig" value="daily" />
-              <Tab label="Veckovis" value="weekly" />
-              <Tab label="Månadsvis" value="monthly" />
-              <Tab label="Årlig" value="yearly" />
-            </Tabs>
-          </Box>
-
-          <Box sx={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "20px" }}>
-            <Tabs
-              value={chartTypeHistory}
-              onChange={handleChartTypeChange("history")}
-              textColor="inherit"
-              TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
-              sx={{
-                color: "#ccc",
-                "& .MuiTab-root": {
-                  fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
-                  padding: { xs: "6px 8px", sm: "12px 16px" },
-                },
-              }}
-              variant="scrollable"
-              scrollButtons="auto"
-              allowScrollButtonsMobile
-            >
-              <Tab label="Linje" value="line" />
-              <Tab label="Stapel" value="bar" />
-            </Tabs>
-          </Box>
-
-          <Typography
-            variant="h6"
-            color="#00e676"
-            sx={{
-              marginBottom: "10px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            {viewMode === "daily" ? "Dagliga återköp" : viewMode === "weekly" ? "Veckovisa återköp" : viewMode === "monthly" ? "Månadsvisa återköp" : "Årliga återköp"}
-          </Typography>
-          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-            {chartTypeHistory === "line" ? (
-              <LineChart
-                data={historyChartData}
-                margin={{
-                  top: 10,
-                  right: isMobile ? 10 : 20,
-                  bottom: isMobile ? 0 : 20,
-                  left: isMobile ? 0 : 0,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="Datum"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  angle={isMobile ? -45 : 0}
-                  textAnchor={isMobile ? "end" : "middle"}
-                  height={isMobile ? 40 : 60}
-                >
-                  {!isMobile && (
-                    <Label
-                      value={viewMode === "daily" ? "Datum" : viewMode === "weekly" ? "Vecka" : viewMode === "monthly" ? "Månad" : "År"}
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  domain={getYDomain(historyChartData, "Antal_aktier")}
-                  tickFormatter={formatYAxisTick}
-                  width={isMobile ? 40 : 60}
-                  ticks={getYTickValues(historyChartData, "Antal_aktier", viewMode)}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Antal aktier"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value) => value.toLocaleString("sv-SE")}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Antal_aktier"
-                  stroke="#00e676"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: "#00e676" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            ) : (
-              <BarChart
-                data={historyChartData}
-                margin={{
-                  top: 10,
-                  right: isMobile ? 10 : 20,
-                  bottom: isMobile ? 0 : 20,
-                  left: isMobile ? 0 : 0,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="Datum"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  angle={isMobile ? -45 : 0}
-                  textAnchor={isMobile ? "end" : "middle"}
-                  height={isMobile ? 40 : 60}
-                >
-                  {!isMobile && (
-                    <Label
-                      value={viewMode === "daily" ? "Datum" : viewMode === "weekly" ? "Vecka" : viewMode === "monthly" ? "Månad" : "År"}
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  domain={getYDomain(historyChartData, "Antal_aktier")}
-                  tickFormatter={formatYAxisTick}
-                  width={isMobile ? 40 : 60}
-                  ticks={getYTickValues(historyChartData, "Antal_aktier", viewMode)}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Antal aktier"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  formatter={(value) => value.toLocaleString("sv-SE")}
-                  contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
-                />
-                <Bar dataKey="Antal_aktier" fill="#00e676" name="Antal aktier" />
-              </BarChart>
-            )}
-          </ResponsiveContainer>
-
-          <Typography
-            variant="h6"
-            color="#00e676"
-            sx={{
-              marginTop: "20px",
-              marginBottom: "10px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Transaktioner
-          </Typography>
-          <Box
-            sx={{
-              overflowX: "auto",
-              width: "100%",
-              "&::-webkit-scrollbar": {
-                height: "6px",
-              },
-              "&::-webkit-scrollbar-thumb": {
-                backgroundColor: "#00e676",
-                borderRadius: "10px",
-              },
-            }}
-          >
-            <TableContainer sx={{ maxHeight: 400, overflow: "auto" }}>
-              <Table sx={{ backgroundColor: "#2e2e2e", borderRadius: "10px", minWidth: isMobile ? "450px" : "auto" }}>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" }, cursor: "pointer" }} onClick={() => handleSort("Datum")}>
-                      Datum {sortConfig.key === "Datum" && (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" }, cursor: "pointer" }} onClick={() => handleSort("Antal_aktier")}>
-                      Antal aktier {sortConfig.key === "Antal_aktier" && (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableCell>
-                    <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" }, cursor: "pointer" }} onClick={() => handleSort("Transaktionsvärde")}>
-                      Transaktionsvärde (SEK) {sortConfig.key === "Transaktionsvärde" && (sortConfig.direction === "asc" ? "↑" : "↓")}
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {sortedData.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                        {item.Datum}
-                      </TableCell>
-                      <TableCell sx={{ color: item.Antal_aktier < 0 ? "#FF6F61" : "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                        {item.Antal_aktier.toLocaleString()}
-                      </TableCell>
-                      <TableCell sx={{ color: "#fff", textAlign: "center", fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }, padding: { xs: "4px", sm: "8px" } }}>
-                        {item.Transaktionsvärde ? item.Transaktionsvärde.toLocaleString() : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Box>
-        </Box>
+        <HistoryView
+          isMobile={isMobile}
+          viewMode={viewMode}
+          onChangeViewMode={handleViewModeChange}
+          chartTypeHistory={chartTypeHistory}
+          onChangeChartTypeHistory={handleChartTypeChange("history")}
+          historyChartData={historyChartData}
+          yDomain={getYDomain(historyChartData, "Antal_aktier")}
+          yTicks={getYTickValues(historyChartData, "Antal_aktier", viewMode)}
+          formatYAxisTick={formatYAxisTick}
+          historicalAverageDailyBuyback={historicalAverageDailyBuyback}
+          averageBuybackPrice={averageBuybackPrice}
+          sortedData={sortedData}
+          sortConfig={sortConfig}
+          onSort={handleSort}
+        />
       )}
 
       {activeTab === "returns" && (
-        <Box display="flex" flexDirection="column" alignItems="center">
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 700,
-              color: "#fff",
-              marginBottom: "20px",
-              fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-            }}
-          >
-            Återinvestering till investerare
-          </Typography>
-
-          <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
-            <Typography
-              variant="h5"
-              sx={{
-                color: "#FFCA28",
-                fontWeight: "bold",
-                fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" },
-              }}
-            >
-              Total återinvestering: {(totalReturns / 1000000).toLocaleString("sv-SE")} Mkr
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#ccc",
-                marginTop: "5px",
-                fontSize: { xs: "0.85rem", sm: "0.95rem" },
-              }}
-            >
-              (Utdelningar: {(totalDividends / 1000000).toLocaleString("sv-SE")} Mkr, Aktieåterköp: {(totalBuybacks / 1000000).toLocaleString("sv-SE")} Mkr)
-            </Typography>
-            {loadingPrice ? (
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "#ccc",
-                  marginTop: "10px",
-                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
-                }}
-              >
-                Laddar direktavkastning...
-              </Typography>
-            ) : (
-              <Typography
-                variant="body2"
-                sx={{
-                  color: "#00e676",
-                  marginTop: "10px",
-                  fontSize: { xs: "0.85rem", sm: "0.95rem" },
-                }}
-              >
-                Direktavkastning ({latestYear}): {directYieldPercentage.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% av marknadsvärdet ({(marketCap / 1000000000).toLocaleString("sv-SE")} Mdkr)
-              </Typography>
-            )}
-          </Box>
-
-          {chartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={isMobile ? 250 : 400}>
-              <BarChart
-                data={chartData}
-                margin={{
-                  top: 50,
-                  right: isMobile ? 20 : 20,
-                  left: isMobile ? -20 : 0,
-                  bottom: isMobile ? 10 : 20,
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-                <XAxis
-                  dataKey="year"
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  height={isMobile ? 30 : 40}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="År"
-                      offset={-10}
-                      position="insideBottom"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </XAxis>
-                <YAxis
-                  stroke="#ccc"
-                  tick={{ fontSize: { xs: 12, sm: 14 } }}
-                  tickFormatter={(value) => `${value.toLocaleString("sv-SE")} Mkr`}
-                  width={isMobile ? 40 : 60}
-                >
-                  {!isMobile && (
-                    <Label
-                      value="Belopp (Mkr)"
-                      angle={-90}
-                      offset={-10}
-                      position="insideLeft"
-                      fill="#ccc"
-                      style={{ fontSize: isMobile ? "12px" : "14px" }}
-                    />
-                  )}
-                </YAxis>
-                <Tooltip
-                  contentStyle={{ backgroundColor: "#333", border: "none" }}
-                  labelStyle={{ color: "#ccc" }}
-                  itemStyle={{ color: "#ccc" }}
-                  formatter={(value) => `${value.toLocaleString("sv-SE")} Mkr`}
-                />
-                <Legend
-                  verticalAlign="top"
-                  wrapperStyle={{ color: "#ccc", marginBottom: 20, fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" } }}
-                />
-                <Bar dataKey="dividends" fill="#00e676" name="UTD" />
-                <Bar dataKey="buybacks" fill="#FFCA28" name="Aktieåterköp" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#ccc",
-                marginBottom: "20px",
-                fontSize: { xs: "0.85rem", sm: "0.95rem" },
-              }}
-            >
-              Laddar data...
-            </Typography>
-          )}
-        </Box>
+        <ReturnsView
+          isMobile={isMobile}
+          chartData={chartData}
+          totalReturns={totalReturns}
+          totalDividends={totalDividends}
+          totalBuybacks={totalBuybacks}
+          loadingPrice={loadingPrice}
+          directYieldPercentage={directYieldPercentage}
+          marketCap={marketCap}
+          latestYear={latestYear}
+        />
       )}
     </Card>
   );

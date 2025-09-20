@@ -18,6 +18,7 @@ import {
 import { useStockPriceContext } from '../context/StockPriceContext';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const GraphBox = ({
   revenueData,
@@ -30,6 +31,9 @@ const GraphBox = ({
   stockSymbol = 'EVO.ST',
   exchangeRate: exchangeRateProp = 10.83,
 }) => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
   const [chartType, setChartType] = useState("line"); // För omsättning
@@ -64,6 +68,24 @@ const GraphBox = ({
     "liveCasinoRng",
   ];
 
+  // Init from URL
+  useEffect(() => {
+    const urlTab = searchParams?.get('finTab');
+    const urlView = searchParams?.get('finView');
+    if (urlTab && tabsList.includes(urlTab)) setActiveTab(urlTab);
+    if (urlView && (urlView === 'quarterly' || urlView === 'yearly')) setViewMode(urlView);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const updateUrlParam = (key, value) => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      sp.set(key, value);
+      const newUrl = `${window.location.pathname}?${sp.toString()}#overview`;
+      router.replace(newUrl);
+    } catch {}
+  };
+
   const handlePrevTab = () => {
     const currentIndex = tabsList.indexOf(activeTab);
     const prevIndex = (currentIndex - 1 + tabsList.length) % tabsList.length;
@@ -78,10 +100,12 @@ const GraphBox = ({
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
+    updateUrlParam('finTab', newValue);
   };
 
   const handleViewModeChange = (event, newValue) => {
     setViewMode(newValue);
+    updateUrlParam('finView', newValue);
   };
 
   const handleChartTypeChange = (event, newValue) => {
@@ -724,6 +748,7 @@ const GraphBox = ({
       )}
 
       {activeTab === "revenue" && (
+        (revenueQuarterlyGrowth.some(d => d.value != null) || revenueYearlyGrowth.some(d => d.value != null)) ? (
         <RevenueSection
           isMobile={isMobile}
           viewMode={viewMode}
@@ -738,11 +763,15 @@ const GraphBox = ({
           revenueYearlyYConfig={revenueYearlyYConfig}
           formatRevenueTick={formatRevenueTick}
         />
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', color: '#b0b0b0' }}>Ingen omsättningsdata att visa.</Box>
+        )
       )}
 
       
 
       {activeTab === "margin" && (
+        (marginQuarterlyChange.some(d => d.value != null) || marginYearlyChange.some(d => d.value != null)) ? (
         <MarginSection
           isMobile={isMobile}
           viewMode={viewMode}
@@ -755,9 +784,13 @@ const GraphBox = ({
           marginYearlyYConfig={marginYearlyYConfig}
           formatMarginTick={formatMarginTick}
         />
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', color: '#b0b0b0' }}>Ingen marginaldata att visa.</Box>
+        )
       )}
 
       {activeTab === "eps" && (
+        (quarterlyGrowth.some(d => d.value != null) || yearlyGrowth.some(d => d.value != null)) ? (
         <EPSSection
           isMobile={isMobile}
           viewMode={viewMode}
@@ -772,9 +805,13 @@ const GraphBox = ({
           epsYearlyYConfig={epsYearlyYConfig}
           formatEPSTick={formatEPSTick}
         />
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', color: '#b0b0b0' }}>Ingen EPS‑data att visa.</Box>
+        )
       )}
 
       {activeTab === "dividend" && (
+        (combinedDividendData && combinedDividendData.length > 0) ? (
         <DividendSection
           isMobile={isMobile}
           priceError={priceError}
@@ -789,9 +826,13 @@ const GraphBox = ({
           formatDividendTick={formatDividendTick}
           formatDividendYieldTick={formatDividendYieldTick}
         />
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', color: '#b0b0b0' }}>Ingen utdelningsdata att visa.</Box>
+        )
       )}
 
       {activeTab === "geoDistribution" && (
+        (selectedGeoData && selectedGeoData.reduce((s, r) => s + (r.value || 0), 0) > 0) ? (
         <GeoDistributionSection
           isMobile={isMobile}
           uniqueYears={uniqueYears}
@@ -803,9 +844,13 @@ const GraphBox = ({
           selectedGeoData={selectedGeoData}
           colors={COLORS}
         />
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', color: '#b0b0b0' }}>Ingen geografisk fördelningsdata att visa.</Box>
+        )
       )}
 {/* LiveCasino vs RNG (Stacked Bar Chart) */}
 {activeTab === "liveCasinoRng" && (
+        (liveCasinoRngQuarterlyGrowth.some(d => (d.liveCasino ?? 0) > 0 || (d.rng ?? 0) > 0) || liveCasinoRngYearlyGrowth.some(d => (d.liveCasino ?? 0) > 0 || (d.rng ?? 0) > 0)) ? (
         <LiveCasinoRngSection
           isMobile={isMobile}
           viewMode={viewMode}
@@ -818,6 +863,9 @@ const GraphBox = ({
           liveCasinoRngYearlyYConfig={liveCasinoRngYearlyYConfig}
           formatLiveCasinoRngTick={formatLiveCasinoRngTick}
         />
+        ) : (
+          <Box sx={{ py: 6, textAlign: 'center', color: '#b0b0b0' }}>Ingen LiveCasino/RNG‑data att visa.</Box>
+        )
       )}
 
       
