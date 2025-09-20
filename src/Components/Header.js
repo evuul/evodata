@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Typography, Box, Chip, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
@@ -30,10 +30,9 @@ const Header = () => {
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw || "N/A";
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw || 0;
   const changeColor = changePercent > 0 ? "#00e676" : changePercent < 0 ? "#ff1744" : "#ccc";
-  const shortInterestPct = Number(process.env.NEXT_PUBLIC_SHORT_INTEREST || 0);
+  // Hardcoded short interest until API is enabled again
+  const SHORT_TOTAL = 5.15; // ändra här vid behov
   const [openShort, setOpenShort] = useState(false);
-  const [shortDetails, setShortDetails] = useState({ entries: [], source: null, updatedAt: null, shortPercent: shortInterestPct });
-  const [loadingShort, setLoadingShort] = useState(false);
 
   const fmtSEK = (v) => {
     if (v == null) return 'N/A';
@@ -42,22 +41,8 @@ const Header = () => {
     return `${v.toLocaleString('sv-SE')} SEK`;
   };
 
-  const openShortDialog = async () => {
+  const openShortDialog = () => {
     setOpenShort(true);
-    setLoadingShort(true);
-    try {
-      const res = await fetch('/api/short', { cache: 'no-store' });
-      if (res.ok) {
-        const json = await res.json();
-        setShortDetails(json);
-      } else {
-        setShortDetails((prev) => ({ ...prev }));
-      }
-    } catch (_) {
-      // keep env-based fallback already set
-    } finally {
-      setLoadingShort(false);
-    }
   };
 
   return (
@@ -85,7 +70,7 @@ const Header = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Tooltip title="Andel av utestående aktier som är blankade">
             <Chip
-              label={`Blankning: ${isFinite(shortInterestPct) ? shortInterestPct.toFixed(2) : 'N/A'}%`}
+              label={`Blankning: ${SHORT_TOTAL.toFixed(2)}%`}
               size="small"
               onClick={openShortDialog}
               sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
@@ -224,20 +209,15 @@ const Header = () => {
     <Dialog open={openShort} onClose={() => setOpenShort(false)} fullWidth maxWidth="sm">
       <DialogTitle>Blankning – publika positioner</DialogTitle>
       <DialogContent dividers>
-        {loadingShort ? (
-          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Laddar...</Typography>
-        ) : (
-          <>
-            {(() => {
-              const totalPct = Number(shortDetails.shortPercent ?? shortInterestPct) || 0;
-              // Use FI entries if available; otherwise fixed public entries per request
+        {(() => {
+              const totalPct = SHORT_TOTAL;
+              // Exempel-lista på publika positioner
               const fixedPublic = [
                 { manager: 'Marshall Wace LLP', percent: 0.6 },
                 { manager: 'Ilex Capital Partners (UK) LLP', percent: 0.6 },
                 { manager: 'GREENVALE CAPITAL LLP', percent: 0.7 },
               ];
-              const isFI = shortDetails.source === 'FI' && Array.isArray(shortDetails.entries) && shortDetails.entries.length > 0;
-              const entriesToShow = isFI ? shortDetails.entries : fixedPublic;
+              const entriesToShow = fixedPublic;
               const sumPublic = entriesToShow.reduce((s, e) => s + (Number(e.percent) || 0), 0);
               const remainder = Math.max(0, +(totalPct - sumPublic).toFixed(2));
 
@@ -271,13 +251,11 @@ const Header = () => {
                     </TableBody>
                   </Table>
                   <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1 }}>
-                    Källa: {isFI ? 'Finansinspektionen (publika >0,5%)' : 'Publika positioner (exempel) + opublika uppskattade'}{shortDetails.updatedAt ? ` • Uppdaterad ${new Date(shortDetails.updatedAt).toLocaleDateString('sv-SE')}` : ''}
+                    Källa: Publika positioner (exempel) + opublika uppskattade
                   </Typography>
                 </>
               );
-            })()}
-          </>
-        )}
+          })()}
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setOpenShort(false)} sx={{ color: '#ff6f6f' }}>Stäng</Button>
