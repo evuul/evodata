@@ -40,7 +40,7 @@ const faqs = [
   },
   {
     q: "Blankning: varifrån kommer uppgifterna?",
-    a: "Tills vidare visar vi en fast (hårdkodad) total blankning i headern. Vid klick visas en exempellista över publika positioner, och resten som opublikt. När vi kopplar på källa igen uppdateras detta.",
+    a: "Tills vidare visar vi en fast total blankning i headern. Vid klick visas publika positioner baserat på Finansinspektionens register (statisk ögonblicksbild) och resten som opublikt.",
   },
   {
     q: "Varför står det MEURO på Y‑axeln?",

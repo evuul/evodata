@@ -251,7 +251,7 @@ const Header = () => {
                     </TableBody>
                   </Table>
                   <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1 }}>
-                    Källa: Publika positioner (exempel) + opublika uppskattade
+                    Källa: Finansinspektionen (publika &gt;0,5%) + opublika uppskattade
                   </Typography>
                 </>
               );

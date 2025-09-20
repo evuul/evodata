@@ -49,7 +49,7 @@ const ShortInterestBox = ({ shortPercent: shortPercentProp, totalShares }) => {
       )}
 
       <Typography variant="caption" sx={{ color: "#808080", display: "block", mt: 1 }}>
-        Källa: Offentliga blankningsregister (exempel)
+        Källa: Finansinspektionen (publika &gt;0,5%)
       </Typography>
     </Card>
   );
