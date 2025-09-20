@@ -69,13 +69,13 @@ const LiveCasinoRngSection = ({
         </>
       )}
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-        <BarChart data={viewMode === "quarterly" ? liveCasinoRngQuarterlyGrowth : liveCasinoRngYearlyGrowth} margin={{ top: 20, right: 20, bottom: 20, left: isMobile ? 20 : 40 }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
+        <BarChart data={viewMode === "quarterly" ? liveCasinoRngQuarterlyGrowth : liveCasinoRngYearlyGrowth} margin={{ top: 16, right: 12, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#444" />
           <XAxis dataKey="date" stroke="#ccc" ticks={viewMode === "quarterly" ? quarterlyTicks : yearlyTicks} interval={0}>
             {!isMobile && <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />}
           </XAxis>
-          <YAxis stroke="#ccc" tickFormatter={formatLiveCasinoRngTick} width={isMobile ? 40 : 60} domain={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.domain : liveCasinoRngYearlyYConfig.domain} ticks={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.ticks : liveCasinoRngYearlyYConfig.ticks}>
+          <YAxis stroke="#ccc" tickFormatter={formatLiveCasinoRngTick} width={isMobile ? 56 : 72} domain={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.domain : liveCasinoRngYearlyYConfig.domain} ticks={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.ticks : liveCasinoRngYearlyYConfig.ticks}>
             {!isMobile && <Label value="Intäkter (MEUR)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
           </YAxis>
           <Tooltip
@@ -103,4 +103,3 @@ const LiveCasinoRngSection = ({
 };
 
 export default LiveCasinoRngSection;
-

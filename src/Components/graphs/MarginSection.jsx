@@ -69,8 +69,8 @@ const MarginSection = ({
         </Typography>
       )}
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-        <LineChart data={viewMode === "quarterly" ? marginQuarterlyChange : marginYearlyChange} margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }} connectNulls={false}>
+      <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
+        <LineChart data={viewMode === "quarterly" ? marginQuarterlyChange : marginYearlyChange} margin={{ top: 16, right: 12, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }} connectNulls={false}>
           <CartesianGrid strokeDasharray="3 3" stroke="#444" />
           <XAxis
             dataKey="date"
@@ -89,7 +89,7 @@ const MarginSection = ({
             domain={viewMode === "quarterly" ? marginQuarterlyYConfig.domain : marginYearlyYConfig.domain}
             ticks={viewMode === "quarterly" ? marginQuarterlyYConfig.ticks : marginYearlyYConfig.ticks}
             tickFormatter={formatMarginTick}
-            width={isMobile ? 30 : 60}
+            width={isMobile ? 48 : 64}
             tick={{ fontSize: isMobile ? 10 : 14 }}
           >
             {!isMobile && <Label value="Marginal (%)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
@@ -109,4 +109,3 @@ const MarginSection = ({
 };
 
 export default MarginSection;
-

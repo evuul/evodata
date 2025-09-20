@@ -17,6 +17,7 @@ import { Box } from "@mui/material";
 import NewsSection from "../Components/NewsSection";
 import ShortInterestBox from "../Components/ShortInterestBox";
 import FAQ from "../Components/FAQ";
+import Footer from "../Components/Footer";
 // import { Kings } from "next/font/google";
 
 // Debug
@@ -44,8 +45,8 @@ years.forEach((year) => {
   const totalRevenue = quarterly.reduce((acc, r) => acc + r.operatingRevenues, 0);
   const averageMargin = quarterly.reduce((acc, r) => acc + r.adjustedOperatingMargin, 0) / quarterly.length;
 
-  annualRevenueData.push({ date: `${year} Helår`, value: totalRevenue });
-  annualMarginData.push({ date: `${year} Helår`, value: averageMargin });
+  annualRevenueData.push({ date: `${year}`, value: totalRevenue });
+  annualMarginData.push({ date: `${year}`, value: averageMargin });
 });
 
 // SAFE DEFAULT om du ändå vill visa något i LiveEarningsBox
@@ -143,17 +144,7 @@ export default function Home() {
         <NewsSection />
       </Box>
 
-      {/* Short interest / Blankning */}
-      <Box
-        sx={{
-          marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
-          margin: "0 auto",
-        }}
-      >
-        {/* För totalShares kan du skicka in ett värde vid behov */}
-        <ShortInterestBox shortPercent={5.2} />
-      </Box>
+      {/* Short interest / Blankning temporärt dold (visas i Header med 5.15%) */}
 
             {/* StockBuybackInfo */}
             <Box
@@ -224,6 +215,8 @@ export default function Home() {
         <ComingUpdates />
       </Box>
       */}
+      {/* Footer */}
+      <Footer />
     </main>
   );
 }

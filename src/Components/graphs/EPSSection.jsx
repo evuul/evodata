@@ -84,9 +84,9 @@ const EPSSection = ({
         {viewMode === "quarterly" ? "Intjäning per aktie per kvartal" : "Intjäning per aktie per helår"}
       </Typography>
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+      <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
         {chartTypeEPS === "line" ? (
-          <LineChart data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth} margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }} connectNulls={false}>
+          <LineChart data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth} margin={{ top: 16, right: 12, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }} connectNulls={false}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis
               dataKey="date"
@@ -103,7 +103,7 @@ const EPSSection = ({
             <YAxis
               stroke="#ccc"
               tickFormatter={formatEPSTick}
-              width={isMobile ? 30 : 60}
+              width={isMobile ? 56 : 72}
               domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
               ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
               tick={{ fontSize: isMobile ? 10 : 14 }}
@@ -123,7 +123,7 @@ const EPSSection = ({
             <Line type="monotone" dataKey="value" stroke="#00e676" strokeWidth={2} dot={{ r: 4, fill: "#00e676" }} activeDot={{ r: 6 }} />
           </LineChart>
         ) : (
-          <BarChart data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth} margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}>
+          <BarChart data={viewMode === "quarterly" ? quarterlyGrowth : yearlyGrowth} margin={{ top: 16, right: 12, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis
               dataKey="date"
@@ -140,7 +140,7 @@ const EPSSection = ({
             <YAxis
               stroke="#ccc"
               tickFormatter={formatEPSTick}
-              width={isMobile ? 30 : 60}
+              width={isMobile ? 56 : 72}
               domain={viewMode === "quarterly" ? epsQuarterlyYConfig.domain : epsYearlyYConfig.domain}
               ticks={viewMode === "quarterly" ? epsQuarterlyYConfig.ticks : epsYearlyYConfig.ticks}
               tick={{ fontSize: isMobile ? 10 : 14 }}
@@ -166,4 +166,3 @@ const EPSSection = ({
 };
 
 export default EPSSection;
-

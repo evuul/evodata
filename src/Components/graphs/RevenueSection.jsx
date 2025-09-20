@@ -109,11 +109,11 @@ const RevenueSection = ({
         </Typography>
       )}
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+      <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
         {chartType === "line" ? (
           <LineChart
             data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth}
-            margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}
+            margin={{ top: 16, right: 12, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }}
             connectNulls={false}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -134,26 +134,26 @@ const RevenueSection = ({
             <YAxis
               stroke="#ccc"
               tickFormatter={formatRevenueTick}
-              width={isMobile ? 30 : 60}
+              width={isMobile ? 48 : 64}
               domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
               ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
               tick={{ fontSize: isMobile ? 10 : 14 }}
             >
               {!isMobile && (
-                <Label value="Omsättning (MEUR)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                <Label value="Omsättning (MEURO)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
               )}
             </YAxis>
             <Tooltip
               formatter={(value, name, props) => {
                 const growth = props.payload.growth;
-                return [value !== null ? `${value.toLocaleString("sv-SE")} MEUR` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig"];
+                return [value !== null ? `${value.toLocaleString("sv-SE")} MEURO` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig"];
               }}
               contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
             />
             <Line type="monotone" dataKey="value" stroke="#00e676" strokeWidth={2} dot={{ r: 4, fill: "#00e676" }} activeDot={{ r: 6 }} />
           </LineChart>
         ) : (
-          <BarChart data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth} margin={{ top: 20, right: 20, bottom: isMobile ? 40 : 20, left: isMobile ? 10 : 40 }}>
+          <BarChart data={viewMode === "quarterly" ? revenueQuarterlyGrowth : revenueYearlyGrowth} margin={{ top: 16, right: 12, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis
               dataKey="date"
@@ -172,19 +172,19 @@ const RevenueSection = ({
             <YAxis
               stroke="#ccc"
               tickFormatter={formatRevenueTick}
-              width={isMobile ? 30 : 60}
+              width={isMobile ? 48 : 64}
               domain={viewMode === "quarterly" ? revenueQuarterlyYConfig.domain : revenueYearlyYConfig.domain}
               ticks={viewMode === "quarterly" ? revenueQuarterlyYConfig.ticks : revenueYearlyYConfig.ticks}
               tick={{ fontSize: isMobile ? 10 : 14 }}
             >
               {!isMobile && (
-                <Label value="Omsättning (MEUR)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                <Label value="Omsättning (MEURO)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
               )}
             </YAxis>
             <Tooltip
               formatter={(value, name, props) => {
                 const growth = props.payload.growth;
-                return [value !== null ? `${value.toLocaleString("sv-SE")} MEUR` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig`"];
+                return [value !== null ? `${value.toLocaleString("sv-SE")} MEURO` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig`"];
               }}
               contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
             />
@@ -197,4 +197,3 @@ const RevenueSection = ({
 };
 
 export default RevenueSection;
-

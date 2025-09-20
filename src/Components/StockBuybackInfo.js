@@ -945,10 +945,11 @@ const StockBuybackInfo = ({
                       stickyHeader
                       aria-label="Senaste veckans återköp"
                       sx={{
-                        minWidth: 520,
+                        minWidth: { xs: 360, sm: 520 },
+                        tableLayout: { xs: 'fixed', sm: 'auto' },
                         "& .MuiTableCell-root": {
                           borderBottom: "1px solid #2b2b2b",
-                          padding: "10px 14px",
+                          padding: { xs: "8px 10px", sm: "10px 14px" },
                         },
                       }}
                     >
@@ -961,10 +962,13 @@ const StockBuybackInfo = ({
                               textTransform: "uppercase",
                               fontWeight: 700,
                               letterSpacing: ".4px",
-                              whiteSpace: "nowrap",
+                              whiteSpace: { xs: "nowrap", sm: "nowrap" },
+                              width: { xs: '34%', sm: 'auto' },
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
-                            Datum
+                            {isMobile ? 'Datum' : 'Datum'}
                           </TableCell>
                           <TableCell
                             align="right"
@@ -974,10 +978,13 @@ const StockBuybackInfo = ({
                               textTransform: "uppercase",
                               fontWeight: 700,
                               letterSpacing: ".4px",
-                              whiteSpace: "nowrap",
+                              whiteSpace: { xs: "nowrap", sm: "nowrap" },
+                              width: { xs: '33%', sm: 'auto' },
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
-                            Antal aktier
+                            {isMobile ? 'Antal' : 'Antal aktier'}
                           </TableCell>
                           <TableCell
                             align="right"
@@ -987,10 +994,13 @@ const StockBuybackInfo = ({
                               textTransform: "uppercase",
                               fontWeight: 700,
                               letterSpacing: ".4px",
-                              whiteSpace: "nowrap",
+                              whiteSpace: { xs: "nowrap", sm: "nowrap" },
+                              width: { xs: '33%', sm: 'auto' },
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
-                            Transaktionsvärde (SEK)
+                            {isMobile ? 'Värde (SEK)' : 'Transaktionsvärde (SEK)'}
                           </TableCell>
                         </TableRow>
                       </TableHead>
@@ -1005,14 +1015,18 @@ const StockBuybackInfo = ({
                               "&:hover": { backgroundColor: "#2a2a2a" },
                             }}
                           >
-                            <TableCell sx={{ color: "#ddd" }}>
-                              {new Date(row.Datum).toLocaleDateString("sv-SE")}
+                            <TableCell sx={{ color: "#ddd", overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {new Date(row.Datum).toLocaleDateString("sv-SE", isMobile ? { year: '2-digit', month: '2-digit', day: '2-digit' } : undefined)}
                             </TableCell>
-                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"' }}>
-                              {(row.Antal_aktier || 0).toLocaleString("sv-SE")}
+                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {isMobile
+                                ? new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(row.Antal_aktier || 0)
+                                : (row.Antal_aktier || 0).toLocaleString("sv-SE")}
                             </TableCell>
-                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"' }}>
-                              {(row.Transaktionsvärde || 0).toLocaleString("sv-SE")}
+                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {isMobile
+                                ? `${new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(row.Transaktionsvärde || 0)}`
+                                : (row.Transaktionsvärde || 0).toLocaleString("sv-SE")}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1023,10 +1037,14 @@ const StockBuybackInfo = ({
                         >
                           <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Totalt</TableCell>
                           <TableCell align="right" sx={{ color: "#00e676", fontWeight: 700 }}>
-                            {lastWeek.totalShares.toLocaleString("sv-SE")}
+                            {isMobile
+                              ? new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(lastWeek.totalShares)
+                              : lastWeek.totalShares.toLocaleString("sv-SE")}
                           </TableCell>
                           <TableCell align="right" sx={{ color: "#00e676", fontWeight: 700 }}>
-                            {lastWeek.totalValue.toLocaleString("sv-SE")}
+                            {isMobile
+                              ? new Intl.NumberFormat('sv-SE', { notation: 'compact', compactDisplay: 'short', maximumFractionDigits: 1 }).format(lastWeek.totalValue)
+                              : lastWeek.totalValue.toLocaleString("sv-SE")}
                           </TableCell>
                         </TableRow>
                       </TableBody>

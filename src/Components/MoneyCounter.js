@@ -1,11 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, Box, Typography } from "@mui/material";
+import { Card, CardContent, Box, Typography, Chip, Tooltip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { useStockPriceContext } from '../context/StockPriceContext';
 
 const MoneyCounter = ({ sx = {}, dailyProfitPerDay = 36374400 }) => {
   const [totalProfitYTD, setTotalProfitYTD] = useState(0); // Total vinst YTD (till nu)
   const [todayProfit, setTodayProfit] = useState(0); // Dagens vinst (till nu)
+  const [openInfo, setOpenInfo] = useState(false);
+  const { stockPrice, marketCap, error: priceError } = useStockPriceContext();
 
   // Start på innevarande år
   const getStartOfYear = () => {
@@ -69,6 +73,13 @@ const MoneyCounter = ({ sx = {}, dailyProfitPerDay = 36374400 }) => {
   const startOfYear = getStartOfYear();
   const formattedStart = formatDate(startOfYear);
   const formattedToday = formatDate(new Date());
+  const perSecond = Math.round(dailyProfitPerDay / 86400);
+  const currentPrice = priceError ? null : (stockPrice?.price?.regularMarketPrice?.raw || null);
+  const totalSharesOutstanding = currentPrice && marketCap ? Math.round(marketCap / currentPrice) : 212_899_919;
+  const sharesBuyable = currentPrice ? Math.floor(todayProfit / currentPrice) : null;
+  const buyablePercent = sharesBuyable && totalSharesOutstanding ? (sharesBuyable / totalSharesOutstanding) * 100 : null;
+  const perShareToday = totalSharesOutstanding ? todayProfit / totalSharesOutstanding : null;
+  const money = (v) => `${Math.round(v).toLocaleString('sv-SE')} SEK`;
 
   return (
     <Card
@@ -102,6 +113,11 @@ const MoneyCounter = ({ sx = {}, dailyProfitPerDay = 36374400 }) => {
           >
             Vinstindikator
           </Typography>
+          <Tooltip title="Vad räcker dagens vinst till?">
+            <IconButton size="small" onClick={() => setOpenInfo(true)} sx={{ ml: 1, color: '#00e676' }} aria-label="Visa exempel">
+              <InfoOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
@@ -156,9 +172,78 @@ const MoneyCounter = ({ sx = {}, dailyProfitPerDay = 36374400 }) => {
             >
               {formatTotalProfit(totalProfitYTD)}
             </Typography>
+        </Box>
+          {/* SEK per sekund */}
+          <Box sx={{ mt: 1 }}>
+            <Tooltip title="Beräknad intjäning per sekund (avrundad)">
+              <Chip
+                label={`≈ ${perSecond.toLocaleString('sv-SE')} SEK/sek`}
+                size="small"
+                onClick={() => setOpenInfo(true)}
+                sx={{ backgroundColor: '#2a2a2a', color: '#b0f5cf', border: '1px solid #355', cursor: 'pointer' }}
+              />
+            </Tooltip>
+          </Box>
+
+          {/* Återköp/Per aktie-boxar */}
+          <Box sx={{ mt: 1.5, display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+            <Tooltip title={currentPrice ? `Visuell representation • Kurs antagen: ${currentPrice.toLocaleString('sv-SE')} SEK` : 'Visuell representation • Kurs saknas'}>
+              <Chip
+                label={
+                  sharesBuyable != null
+                    ? `≈ Skulle räcka till återköp: ${sharesBuyable.toLocaleString('sv-SE')} aktier` + (buyablePercent ? ` (${buyablePercent.toFixed(2)}%)` : '')
+                    : 'Skulle räcka till återköp: kurs saknas'
+                }
+                size="small"
+                sx={{ backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #3a3a3a' }}
+              />
+            </Tooltip>
+            <Tooltip title={`Visuell representation • Antar ${totalSharesOutstanding.toLocaleString('sv-SE')} utestående aktier`}>
+              <Chip
+                label={perShareToday != null ? `≈ Skulle räcka till: ${(perShareToday).toFixed(2)} SEK per aktie` : 'Skulle räcka till per aktie: uppgift saknas'}
+                size="small"
+                sx={{ backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #3a3a3a' }}
+              />
+            </Tooltip>
           </Box>
         </Box>
       </CardContent>
+      {/* Info-dialog (förklaring) */}
+      <Dialog
+        open={openInfo}
+        onClose={() => setOpenInfo(false)}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            backgroundColor: '#1f1f1f',
+            color: '#fff',
+            border: '1px solid #2b2b2b',
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: '#fff' }}>Vad skulle dagens vinst räcka till?</DialogTitle>
+        <DialogContent dividers sx={{ borderColor: '#2b2b2b' }}>
+          <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
+            Dagens vinst hittills: <b>{money(todayProfit)}</b>
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 0.5 }}>
+            • Skulle räcka till återköp av cirka <b>{sharesBuyable != null ? sharesBuyable.toLocaleString('sv-SE') : '–'}</b> aktier
+            {buyablePercent != null ? <> ({buyablePercent.toFixed(2)}% av utestående)</> : null}
+            {currentPrice ? <> vid antagen kurs {currentPrice.toLocaleString('sv-SE')} SEK</> : null}.
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+            • Alternativt motsvarar det cirka <b>{perShareToday != null ? (perShareToday).toFixed(2) : '–'}</b> SEK per aktie
+            (antagna utestående: {totalSharesOutstanding.toLocaleString('sv-SE')}).
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1 }}>
+            Detta är en visuell representation. Beräkningarna är förenklade och bortser från avgifter, skatter och timing.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ borderTop: '1px solid #2b2b2b' }}>
+          <Button onClick={() => setOpenInfo(false)} sx={{ color: '#ff6f6f' }}>Stäng</Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 };

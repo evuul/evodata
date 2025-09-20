@@ -35,15 +35,19 @@ export const buildAllQuarters = (startYear = 2015, endYear = 2025) => {
 
 // Tick-formatters (fabriker + enkla)
 export const makeFormatRevenueTick = (isMobile) => (value) => {
-  if (isMobile && value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k MEUR`;
+  if (value == null) return '-';
+  if (isMobile) {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k MEURO`;
+    return `${value} MEURO`;
   }
-  return `${value} MEUR`;
+  return Number(value).toLocaleString('sv-SE');
 };
 
 export const makeFormatLiveCasinoRngTick = (isMobile) => (value) => {
-  if (isMobile && value >= 1000) {
-    return `${(value / 1000).toFixed(1)}k MEUR`;
+  if (value == null) return '-';
+  if (isMobile) {
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
+    return `${value}`;
   }
   return `${value} MEUR`;
 };
@@ -51,4 +55,3 @@ export const makeFormatLiveCasinoRngTick = (isMobile) => (value) => {
 export const formatMarginTickSimple = (value) => `${value}%`;
 export const formatDividendTickSimple = (value) => `${value} SEK`;
 export const formatDividendYieldTickSimple = (value) => `${value}%`;
-
