@@ -40,7 +40,7 @@ const faqs = [
   },
   {
     q: "Blankning: varifrån kommer uppgifterna?",
-    a: "Headern visar total blankning. Vid klick ser du publika positioner (FI om CSV är konfigurerad) och resten som opublikt. Totalen kan även sättas via .env (NEXT_PUBLIC_SHORT_INTEREST).",
+    a: "Tills vidare visar vi en fast (hårdkodad) total blankning i headern. Vid klick visas en exempellista över publika positioner, och resten som opublikt. När vi kopplar på källa igen uppdateras detta.",
   },
   {
     q: "Varför står det MEURO på Y‑axeln?",

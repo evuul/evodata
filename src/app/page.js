@@ -15,7 +15,6 @@ import AveragePlayersTracker from "../Components/AveragePlayersTracker";
 import IntelligenceIncomeReport from "../Components/IntelligenceIncomeReport";
 import { Box } from "@mui/material";
 import NewsSection from "../Components/NewsSection";
-import ShortInterestBox from "../Components/ShortInterestBox";
 import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
 // import { Kings } from "next/font/google";
