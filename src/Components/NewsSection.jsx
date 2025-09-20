@@ -73,14 +73,14 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
         minHeight: "200px",
       }}
     >
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff" }}>Nyheter</Typography>
+      <Box sx={{ position: 'relative', mb: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff", textAlign: 'center' }}>Nyheter</Typography>
           {isTest && (
             <Chip label="TESTNYHETER" size="small" sx={{ backgroundColor: '#402a2a', color: '#ff6f6f', border: '1px solid #5a3a3a' }} />
           )}
         </Box>
-        <IconButton aria-label="Uppdatera" onClick={fetchNews} sx={{ color: "#00e676" }}>
+        <IconButton aria-label="Uppdatera" onClick={fetchNews} sx={{ color: "#00e676", position: 'absolute', right: 0, top: 0 }}>
           <RefreshIcon />
         </IconButton>
       </Box>
