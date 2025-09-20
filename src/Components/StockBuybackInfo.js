@@ -183,6 +183,96 @@ const ownershipPercentageData = totalSharesData.map((item, index) => {
 
 const buybackDataForGraphDaily = oldBuybackData.filter((item) => item.Antal_aktier > 0);
 
+// ISO-vecka: få måndag (start) och söndag (slut) för en given dag
+const getIsoWeekBounds = (dateLike) => {
+  const d = new Date(dateLike);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0=sön, 1=mån, ...
+  const monday = new Date(d);
+  const diffToMonday = (day + 6) % 7; // sön(0)->6, mån(1)->0, ...
+  monday.setDate(d.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { monday, sunday };
+};
+
+// Arbetsvecka: måndag (start) till fredag (slut) för given dag
+const getBusinessWeekBounds = (dateLike) => {
+  const { monday } = getIsoWeekBounds(dateLike);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  friday.setHours(23, 59, 59, 999);
+  return { monday, friday };
+};
+
+// Hämta senaste arbetsveckans återköp (mån–fre) baserat på senaste datum i buybackData
+const getLastWeekBuybacks = (data) => {
+  if (!data || data.length === 0) {
+    return { periodStart: null, periodEnd: null, entries: [], totalShares: 0, totalValue: 0 };
+  }
+
+  const positive = data.filter((d) => d.Antal_aktier > 0);
+  if (positive.length === 0) {
+    return { periodStart: null, periodEnd: null, entries: [], totalShares: 0, totalValue: 0 };
+  }
+
+  const maxTime = Math.max(...positive.map((d) => new Date(d.Datum).getTime()));
+  const { monday, friday } = getBusinessWeekBounds(maxTime);
+
+  const entries = positive
+    .filter((d) => {
+      const t = new Date(d.Datum).getTime();
+      return t >= monday.getTime() && t <= friday.getTime();
+    })
+    .sort((a, b) => new Date(a.Datum) - new Date(b.Datum));
+
+  const totalShares = entries.reduce((sum, d) => sum + (d.Antal_aktier || 0), 0);
+  const totalValue = entries.reduce((sum, d) => sum + (d.Transaktionsvärde || 0), 0);
+
+  return { periodStart: monday, periodEnd: friday, entries, totalShares, totalValue };
+};
+
+// Hämta föregående arbetsvecka (mån–fre) givet nuvarande veckans måndag
+const getPreviousWeekBuybacks = (data, currentWeekStart) => {
+  if (!data || !currentWeekStart) {
+    return {
+      periodStart: null,
+      periodEnd: null,
+      entries: [],
+      totalShares: 0,
+      totalValue: 0,
+    };
+  }
+
+  const prevStart = new Date(currentWeekStart);
+  prevStart.setHours(0, 0, 0, 0);
+  prevStart.setDate(prevStart.getDate() - 7);
+  const prevEnd = new Date(prevStart);
+  prevEnd.setDate(prevStart.getDate() + 4);
+  prevEnd.setHours(23, 59, 59, 999);
+
+  const positive = data.filter((d) => d.Antal_aktier > 0);
+  const entries = positive
+    .filter((d) => {
+      const t = new Date(d.Datum).getTime();
+      return t >= prevStart.getTime() && t <= prevEnd.getTime();
+    })
+    .sort((a, b) => new Date(a.Datum) - new Date(b.Datum));
+
+  const totalShares = entries.reduce((sum, d) => sum + (d.Antal_aktier || 0), 0);
+  const totalValue = entries.reduce((sum, d) => sum + (d.Transaktionsvärde || 0), 0);
+
+  return {
+    periodStart: prevStart,
+    periodEnd: prevEnd,
+    entries,
+    totalShares,
+    totalValue,
+  };
+};
+
 // Funktion för att gruppera data årligen
 const buybackDataForGraphYearly = () => {
   const yearlyData = {};
@@ -354,6 +444,11 @@ const StockBuybackInfo = ({
 
   const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } = calculateEstimatedCompletion(remainingCash, buybackData); // Använd buybackData för Återköpsstatus
 
+  // Senaste veckans återköp baserat på buybackData
+  const lastWeek = getLastWeekBuybacks(buybackData);
+  const prevWeek = getPreviousWeekBuybacks(buybackData, lastWeek.periodStart);
+  const deltaShares = (lastWeek.totalShares || 0) - (prevWeek.totalShares || 0);
+
   const sortedData = [...oldBuybackData].sort((a, b) => {
     const key = sortConfig.key;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
@@ -468,13 +563,14 @@ const StockBuybackInfo = ({
     <Card
       sx={{
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-        borderRadius: "20px",
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        padding: { xs: "10px", sm: "20px", md: "25px" },
-        margin: { xs: "10px auto", sm: "20px auto" },
-        width: { xs: "100%", sm: "80%", md: "70%" },
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        padding: { xs: "12px", sm: "16px" },
+        margin: "16px auto",
+        width: { xs: "92%", sm: "85%", md: "75%" },
         textAlign: "center",
         boxSizing: "border-box",
+        minHeight: "200px",
       }}
     >
       <Typography
@@ -803,6 +899,146 @@ const StockBuybackInfo = ({
                 </Typography>
               </>
             )}
+            {/* Senaste veckans återköp */}
+            <Box mt={3} sx={{ width: "100%" }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  color: "#fff",
+                  marginBottom: "8px",
+                  fontSize: { xs: "1.0rem", sm: "1.2rem" },
+                }}
+              >
+                Senaste veckan
+              </Typography>
+              {lastWeek.entries.length > 0 ? (
+                <>
+                  <Typography
+                    variant="body2"
+                    color="#ccc"
+                    sx={{ marginBottom: "8px" }}
+                  >
+                    Period: {lastWeek.periodStart.toLocaleDateString("sv-SE")} – {lastWeek.periodEnd.toLocaleDateString("sv-SE")}
+                  </Typography>
+
+                  <Typography variant="body2" sx={{ mb: 1 }} color="#fff">
+                    Förändring mot föregående vecka:{" "}
+                    <Box component="span" sx={{ fontWeight: 700, color: deltaShares > 0 ? '#00e676' : deltaShares < 0 ? '#ff1744' : '#ccc' }}>
+                      {(deltaShares > 0 ? '+' : '') + deltaShares.toLocaleString('sv-SE')} aktier
+                    </Box>
+                  </Typography>
+
+                  <TableContainer
+                    sx={{
+                      maxHeight: { xs: "none", sm: "none" },
+                      backgroundColor: "#1f1f1f",
+                      borderRadius: "12px",
+                      border: "1px solid #2b2b2b",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+                      overflowX: { xs: "auto", sm: "visible" },
+                      overflowY: "visible",
+                    }}
+                  >
+                    <Table
+                      size="small"
+                      stickyHeader
+                      aria-label="Senaste veckans återköp"
+                      sx={{
+                        minWidth: 520,
+                        "& .MuiTableCell-root": {
+                          borderBottom: "1px solid #2b2b2b",
+                          padding: "10px 14px",
+                        },
+                      }}
+                    >
+                      <TableHead>
+                        <TableRow>
+                          <TableCell
+                            sx={{
+                              color: "#fff",
+                              backgroundColor: "#242424",
+                              textTransform: "uppercase",
+                              fontWeight: 700,
+                              letterSpacing: ".4px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Datum
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              color: "#fff",
+                              backgroundColor: "#242424",
+                              textTransform: "uppercase",
+                              fontWeight: 700,
+                              letterSpacing: ".4px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Antal aktier
+                          </TableCell>
+                          <TableCell
+                            align="right"
+                            sx={{
+                              color: "#fff",
+                              backgroundColor: "#242424",
+                              textTransform: "uppercase",
+                              fontWeight: 700,
+                              letterSpacing: ".4px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            Transaktionsvärde (SEK)
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {lastWeek.entries.map((row, idx) => (
+                          <TableRow
+                            key={`${row.Datum}-${idx}`}
+                            hover
+                            sx={{
+                              backgroundColor: idx % 2 === 0 ? "#202020" : "#1b1b1b",
+                              transition: "background-color 0.2s ease",
+                              "&:hover": { backgroundColor: "#2a2a2a" },
+                            }}
+                          >
+                            <TableCell sx={{ color: "#ddd" }}>
+                              {new Date(row.Datum).toLocaleDateString("sv-SE")}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"' }}>
+                              {(row.Antal_aktier || 0).toLocaleString("sv-SE")}
+                            </TableCell>
+                            <TableCell align="right" sx={{ color: "#ddd", fontFeatureSettings: '"tnum"' }}>
+                              {(row.Transaktionsvärde || 0).toLocaleString("sv-SE")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow
+                          sx={{
+                            background: "linear-gradient(180deg, #1f1f1f, #1b1b1b)",
+                          }}
+                        >
+                          <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Totalt</TableCell>
+                          <TableCell align="right" sx={{ color: "#00e676", fontWeight: 700 }}>
+                            {lastWeek.totalShares.toLocaleString("sv-SE")}
+                          </TableCell>
+                          <TableCell align="right" sx={{ color: "#00e676", fontWeight: 700 }}>
+                            {lastWeek.totalValue.toLocaleString("sv-SE")}
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </>
+              ) : (
+                <Typography variant="body2" color="#ccc">
+                  Inga återköp under den senaste veckan i datat.
+                </Typography>
+              )}
+            </Box>
           </Box>
         </Box>
       )}

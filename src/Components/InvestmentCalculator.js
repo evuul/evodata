@@ -11,6 +11,9 @@ const InvestmentCalculator = ({ dividendData }) => {
   const [growthRate, setGrowthRate] = useState(13.5);
   const [buybackRate, setBuybackRate] = useState(3);
   const [dividendGrowth, setDividendGrowth] = useState(10);
+  const [durationYears, setDurationYears] = useState(6);
+  const [monthlyContribution, setMonthlyContribution] = useState(0);
+  const [reinvestDividends, setReinvestDividends] = useState(false);
   const [visibleLines, setVisibleLines] = useState({
     investmentValue: true,
     investmentValueNoBuyback: true,
@@ -56,6 +59,8 @@ const InvestmentCalculator = ({ dividendData }) => {
     let sharePrice = currentSharePrice;
     let sharePriceNoBuyback = currentSharePrice;
     let dividendPerShare = initialDividendPerShare;
+    let currentShares = numShares;
+    let contributedCapital = initialInvestment;
     let totalSharesBoughtBack = 0;
     let totalDividendWithBuybacks = 0;
     let totalDividendWithoutBuybacks = 0;
@@ -65,8 +70,9 @@ const InvestmentCalculator = ({ dividendData }) => {
     let millionMilestoneYear = null;
 
     const initialOwnershipPercent = (numShares / totalSharesOutstanding) * 100;
+    let prevSharePrice = sharePrice;
 
-    for (let year = 1; year <= 6; year++) {
+    for (let year = 1; year <= Number(durationYears || 0); year++) {
       const sharesBoughtBack = sharesOutstanding * annualBuybackRate;
       sharesOutstanding -= sharesBoughtBack;
       totalSharesBoughtBack += sharesBoughtBack;
@@ -80,9 +86,22 @@ const InvestmentCalculator = ({ dividendData }) => {
       // Adjust dividend per share based on remaining shares
       dividendPerShare *= (1 + dividendGrowthRate) * (totalSharesOutstanding / sharesOutstanding);
 
-      const investmentValue = numShares * sharePrice;
-      const investmentValueNoBuyback = numShares * sharePriceNoBuyback;
-      const totalDividend = numShares * dividendPerShare;
+      // DCA till genomsnittligt pris under året
+      const avgPriceForYear = (prevSharePrice + sharePrice) / 2;
+      if (monthlyContribution > 0 && avgPriceForYear > 0) {
+        const addedShares = (12 * Number(monthlyContribution)) / avgPriceForYear;
+        currentShares += addedShares;
+        contributedCapital += 12 * Number(monthlyContribution);
+      }
+
+      const totalDividend = currentShares * dividendPerShare;
+      if (reinvestDividends && sharePrice > 0) {
+        const extraShares = totalDividend / sharePrice;
+        currentShares += extraShares;
+      }
+
+      const investmentValue = currentShares * sharePrice;
+      const investmentValueNoBuyback = currentShares * sharePriceNoBuyback;
 
       totalDividendWithBuybacks += totalDividend;
 
@@ -108,6 +127,7 @@ const InvestmentCalculator = ({ dividendData }) => {
         totalDividendWithoutBuyback: Math.round(totalDividendThisYear),
         totalDividendPureBuyback: Math.round(totalDividendPureBuyback),
       });
+      prevSharePrice = sharePrice;
     }
 
     const dividendBoostPercent = ((totalDividendWithBuybacks - totalDividendWithoutBuybacks) / totalDividendWithoutBuybacks) * 100;
@@ -129,6 +149,8 @@ const InvestmentCalculator = ({ dividendData }) => {
       finalOwnershipPercent: finalOwnershipPercent.toFixed(4),
       ownershipIncreasePercent: ownershipIncreasePercent.toFixed(2),
       millionMilestoneYear,
+      finalShares: Math.round(currentShares),
+      contributedCapital: Math.round(contributedCapital),
     });
   };
 
@@ -229,13 +251,14 @@ const InvestmentCalculator = ({ dividendData }) => {
     <Card
       sx={{
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-        borderRadius: "20px",
-        boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
-        padding: { xs: "10px", sm: "20px", md: "25px" },
-        margin: { xs: "10px auto", sm: "20px auto" },
-        width: { xs: "100%", sm: "80%", md: "70%" },
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        padding: { xs: "12px", sm: "16px" },
+        margin: "16px auto",
+        width: { xs: "92%", sm: "85%", md: "75%" },
         textAlign: "center",
         boxSizing: "border-box",
+        minHeight: "200px",
       }}
     >
       <Typography
@@ -387,11 +410,106 @@ const InvestmentCalculator = ({ dividendData }) => {
             },
           }}
         />
+        <TextField
+          label="Antal år"
+          type="number"
+          value={durationYears}
+          onChange={(e) => setDurationYears(parseInt(e.target.value || '0', 10))}
+          variant="outlined"
+          sx={{
+            width: { xs: "90%", sm: "auto" },
+            "& .MuiInputBase-input": { color: "#fff", fontSize: { xs: "0.9rem", sm: "1rem" } },
+            "& .MuiInputLabel-root": { color: "#ccc", fontSize: { xs: "0.9rem", sm: "1rem" } },
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": { borderColor: "#ccc" },
+              "&:hover fieldset": { borderColor: "#00e676" },
+              "&.Mui-focused fieldset": { borderColor: "#00e676" },
+            },
+          }}
+        />
+        <TextField
+          label="Månadsspar (SEK)"
+          type="number"
+          value={monthlyContribution}
+          onChange={(e) => setMonthlyContribution(parseFloat(e.target.value) || 0)}
+          variant="outlined"
+          sx={{
+            width: { xs: "90%", sm: "auto" },
+            "& .MuiInputBase-input": { color: "#fff", fontSize: { xs: "0.9rem", sm: "1rem" } },
+            "& .MuiInputLabel-root": { color: "#ccc", fontSize: { xs: "0.9rem", sm: "1rem" } },
+            "& .MuiOutlinedInput-root": {
+              "& fieldset": { borderColor: "#ccc" },
+              "&:hover fieldset": { borderColor: "#00e676" },
+              "&.Mui-focused fieldset": { borderColor: "#00e676" },
+            },
+          }}
+        />
+        <FormGroup sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={reinvestDividends}
+                onChange={() => setReinvestDividends(!reinvestDividends)}
+                sx={{
+                  "& .MuiSwitch-switchBase.Mui-checked": { color: "#00e676" },
+                  "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#00e676" },
+                }}
+              />
+            }
+            label="Återinvestera utdelningar"
+            sx={{ color: "#ccc" }}
+          />
+        </FormGroup>
       </Box>
 
       {results && (
         <Fade in={true} timeout={1000}>
           <Box>
+            {/* Sammanfattning */}
+            {(() => {
+              const last = results.projectionData[results.projectionData.length - 1];
+              const endValue = showBuybacks ? last.investmentValue : last.investmentValueNoBuyback;
+              const totalDividends = results.projectionData.reduce(
+                (sum, row) => sum + (showBuybacks ? row.totalDividend : row.totalDividendWithoutBuyback),
+                0
+              );
+              return (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1.5,
+                    justifyContent: 'center',
+                    mb: 2,
+                  }}
+                >
+                  <Box sx={{ backgroundColor: '#1f1f1f', border: '1px solid #2b2b2b', borderRadius: 2, px: 2, py: 1.5, minWidth: 220 }}>
+                    <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Slutvärde</Typography>
+                    <Typography variant="h6" sx={{ color: '#00e676', fontWeight: 700 }}>
+                      {endValue.toLocaleString('sv-SE')} SEK
+                    </Typography>
+                  </Box>
+                  <Box sx={{ backgroundColor: '#1f1f1f', border: '1px solid #2b2b2b', borderRadius: 2, px: 2, py: 1.5, minWidth: 220 }}>
+                    <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Antal aktier (slut)</Typography>
+                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>
+                      {results.finalShares.toLocaleString('sv-SE')}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ backgroundColor: '#1f1f1f', border: '1px solid #2b2b2b', borderRadius: 2, px: 2, py: 1.5, minWidth: 220 }}>
+                    <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Totalt insatt kapital</Typography>
+                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>
+                      {results.contributedCapital.toLocaleString('sv-SE')} SEK
+                    </Typography>
+                  </Box>
+                  <Box sx={{ backgroundColor: '#1f1f1f', border: '1px solid #2b2b2b', borderRadius: 2, px: 2, py: 1.5, minWidth: 220 }}>
+                    <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Utdelningar (summa)</Typography>
+                    <Typography variant="h6" sx={{ color: '#fff', fontWeight: 700 }}>
+                      {Math.round(totalDividends).toLocaleString('sv-SE')} SEK
+                    </Typography>
+                  </Box>
+                </Box>
+              );
+            })()}
             {results.millionMilestoneYear && (
               <Box mb={2}>
                 <Typography variant="body2" color="#00e676" fontWeight="bold" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
@@ -401,12 +519,8 @@ const InvestmentCalculator = ({ dividendData }) => {
             )}
 
             <Box mb={3}>
-              <Typography
-                variant="h6"
-                color="#00e676"
-                fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}
-              >
-                Nuvarande värde av din investering (2025)
+              <Typography variant="h6" color="#00e676" fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}>
+                Nuvarande läge (2025)
               </Typography>
               <Typography
                 variant="h5"
@@ -415,75 +529,35 @@ const InvestmentCalculator = ({ dividendData }) => {
               >
                 {results.currentValue.toLocaleString("sv-SE")} SEK
               </Typography>
-              <Typography
-                variant="body2"
-                color="#ccc"
-                mt={1}
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                Initial investering: {results.initialInvestment.toLocaleString("sv-SE")} SEK
+              <Typography variant="body2" color="#ccc" mt={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                Insatt kapital: {results.initialInvestment.toLocaleString("sv-SE")} SEK
               </Typography>
-              <Typography
-                variant="body2"
-                color="#ccc"
-                mt={1}
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                Din nuvarande utdelning (2025): {results.currentDividend.toLocaleString("sv-SE")} SEK
+              <Typography variant="body2" color="#ccc" mt={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                Utdelning (2025): {results.currentDividend.toLocaleString("sv-SE")} SEK
               </Typography>
-              <Typography
-                variant="body2"
-                color={results.currentValue >= results.initialInvestment ? "#00e676" : "#ff1744"}
-                mt={1}
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                Avkastning: {(((results.currentValue - results.initialInvestment) / results.initialInvestment) * 100).toFixed(2)}%
+              <Typography variant="body2" color={results.currentValue >= results.initialInvestment ? "#00e676" : "#ff1744"} mt={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                Total avkastning: {(((results.currentValue - results.initialInvestment) / results.initialInvestment) * 100).toFixed(2)}%
               </Typography>
             </Box>
 
             <Box mb={2}>
-              <Typography
-                variant="body2"
-                color="#ccc"
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                📊 <strong>Effekt av återköp:</strong> Du får {results.dividendBoostPercent.toFixed(2)}% mer utdelning över 6 år tack vare bolagets återköp.
+              <Typography variant="body2" color="#ccc" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                📊 Effekt av återköp (6 år): +{results.dividendBoostPercent.toFixed(2)}% utdelning jämfört med utan återköp.
               </Typography>
-              <Typography
-                variant="body2"
-                color="#ccc"
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                📈 <strong>Enbart återköpseffekten:</strong> Utdelningen ökar med {results.pureBuybackBoostPercent.toFixed(2)}% enbart på grund av återköpen (exklusive utdelningstillväxt).
+              <Typography variant="body2" color="#ccc" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                📈 Ren återköpseffekt: +{results.pureBuybackBoostPercent.toFixed(2)}% (exkl. utdelningstillväxt).
               </Typography>
             </Box>
 
             <Box mb={3}>
-              <Typography
-                variant="h6"
-                color="#00e676"
-                mb={1}
-                fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}
-              >
-                Framtida värde och utdelningar (2026-2031)
+              <Typography variant="h6" color="#00e676" mb={1} fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}>
+                Prognos 2026–2031
               </Typography>
-              <Typography
-                variant="body2"
-                color="#ccc"
-                mb={1}
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                Under dessa 6 år återköptes {results.totalSharesBoughtBack.toLocaleString("sv-SE")} aktier. 
-                Kvarstående aktier: {results.remainingShares.toLocaleString("sv-SE")}.
+              <Typography variant="body2" color="#ccc" mb={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                Återköp: {results.totalSharesBoughtBack.toLocaleString("sv-SE")} aktier (kvar: {results.remainingShares.toLocaleString("sv-SE")}).
               </Typography>
-              <Typography
-                variant="body2"
-                color="#ccc"
-                mb={1}
-                fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
-              >
-                Din ägarandel: {results.initialOwnershipPercent}% (2025) → {results.finalOwnershipPercent}% (2031). 
-                Ökning: {results.ownershipIncreasePercent}% tack vare återköpen.
+              <Typography variant="body2" color="#ccc" mb={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
+                Ägarandel: {results.initialOwnershipPercent}% → {results.finalOwnershipPercent}% (+{results.ownershipIncreasePercent}%).
               </Typography>
 
               <Box mb={2}>

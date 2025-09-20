@@ -14,6 +14,9 @@ import CurrentCashBox from "../Components/CurrentCashBox";
 import AveragePlayersTracker from "../Components/AveragePlayersTracker";
 import IntelligenceIncomeReport from "../Components/IntelligenceIncomeReport";
 import { Box } from "@mui/material";
+import NewsSection from "../Components/NewsSection";
+import ShortInterestBox from "../Components/ShortInterestBox";
+import FAQ from "../Components/FAQ";
 // import { Kings } from "next/font/google";
 
 // Debug
@@ -100,12 +103,8 @@ export default function Home() {
         {/* MoneyCounter */}
         <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 400px", md: "1 1 400px", lg: "1 1 600px" },
-            width: { xs: "95%", sm: "auto" },
-            minWidth: { xs: "auto", sm: "300px", md: "350px" },
-            maxWidth: { xs: "100%", sm: "500px", md: "600px", lg: "650px" },
+            width: { xs: "95%", sm: "85%", md: "75%" },
             margin: "0 auto",
-            minHeight: { xs: "200px", sm: "120px", md: "150px" },
             boxSizing: "border-box",
             order: { xs: 3, sm: 2 },
           }}
@@ -133,6 +132,29 @@ export default function Home() {
         />
       </Box>
 
+      {/* NewsSection (NYHETER) */}
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <NewsSection />
+      </Box>
+
+      {/* Short interest / Blankning */}
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        {/* För totalShares kan du skicka in ett värde vid behov */}
+        <ShortInterestBox shortPercent={5.2} />
+      </Box>
+
             {/* StockBuybackInfo */}
             <Box
         sx={{
@@ -145,7 +167,7 @@ export default function Home() {
       </Box>
 
       {/* AveragePlayersTracker */}
-      <Box
+      {/* <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -153,7 +175,7 @@ export default function Home() {
         }}
       >
         <AveragePlayersTracker playersData={averagePlayersData} />
-      </Box>
+      </Box> */}
 
       {/* InvestmentCalculator */}
       <Box
@@ -166,6 +188,18 @@ export default function Home() {
         <InvestmentCalculator dividendData={dividendData} />
       </Box>
 
+      {/* FAQ - längst ner på sidan */}
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+          mb: { xs: 4, sm: 6 },
+        }}
+      >
+        <FAQ />
+      </Box>
+
       {/* CurrentCashBox – du kan slå på när du vill */}
       {/*
       <Box sx={{ marginTop: { xs: 2, sm: 3 }, width: { xs: "95%", sm: "85%", md: "75%" }, margin: "0 auto" }}>
@@ -174,7 +208,7 @@ export default function Home() {
       */}
 
       {/* IntelligenceIncomeReport */}
-      <Box
+      {/* <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -182,7 +216,7 @@ export default function Home() {
         }}
       >
         <IntelligenceIncomeReport financialReports={financialReports} averagePlayersData={averagePlayersData} />
-      </Box>
+      </Box> */}
 
       {/* ComingUpdates */}
       {/*
