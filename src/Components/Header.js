@@ -1,18 +1,30 @@
 'use client';
 import React, { useState, useEffect } from "react";
-import { Typography, Box } from "@mui/material";
+import { Typography, Box, Chip, IconButton, Tooltip } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice'; // Importera StockPrice-komponenten
 
 const Header = () => {
-  const { stockPrice, loading: loadingPrice, error: priceError } = useStockPriceContext();
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const { stockPrice, loading: loadingPrice, error: priceError, marketCap, lastUpdated, refresh } = useStockPriceContext();
 
-  useEffect(() => {
-    if (stockPrice && !loadingPrice) {
-      setLastUpdated(new Date());
-    }
-  }, [stockPrice, loadingPrice]);
+  // Lokal helper för format
+  const fmtTime = (d) => d ? new Date(d).toLocaleTimeString("sv-SE", { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+  const fmtCap = (v) => {
+    if (!v) return 'N/A';
+    const b = v / 1_000_000_000;
+    return `${b.toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}B SEK`;
+  };
+  const isMarketOpen = () => {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun,1=Mon,...
+    if (day === 0 || day === 6) return false;
+    const h = now.getHours();
+    const m = now.getMinutes();
+    const afterOpen = h > 9 || (h === 9 && m >= 0);
+    const beforeClose = h < 17 || (h === 17 && m <= 30);
+    return afterOpen && beforeClose;
+  };
 
   // Hämta pris och procent för mobilvisning
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw || "N/A";
@@ -34,8 +46,28 @@ const Header = () => {
         width: { xs: "92%", sm: "85%", md: "75%" },
         margin: "16px auto",
         transition: "all 0.3s ease",
+        // Not sticky: allow normal scroll behavior
       }}
     >
+      {/* Top bar: source + updated + refresh */}
+      <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Chip label="EVO.ST • Nasdaq Stockholm" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Chip
+            label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
+            size="small"
+            sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
+          />
+          {lastUpdated && (
+            <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          )}
+          <Tooltip title="Uppdatera">
+            <IconButton onClick={refresh} sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera aktiedata">
+              <RefreshIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
       <Typography
         variant="h2"
         sx={{
@@ -141,6 +173,10 @@ const Header = () => {
             }}
           >
             <StockPrice />
+          </Box>
+          {/* Extra metrics under pris */}
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
+            <Chip label={`Market Cap: ${fmtCap(marketCap)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
           </Box>
         </>
       )}

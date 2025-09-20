@@ -53,6 +53,7 @@ export const StockPriceProvider = ({ children }) => {
         loading,
         error,
         lastUpdated,
+        refresh: fetchStockPrice,
       }}
     >
       {children}

@@ -3,29 +3,44 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, Box, Typography } from "@mui/material";
 
-const MoneyCounter = ({ sx = {} }) => {
-  const [totalProfitYTD, setTotalProfitYTD] = useState(0); // Total vinst YTD
-  const [todayProfit, setTodayProfit] = useState(0); // Dagens vinst sedan midnatt
+const MoneyCounter = ({ sx = {}, dailyProfitPerDay = 36374400 }) => {
+  const [totalProfitYTD, setTotalProfitYTD] = useState(0); // Total vinst YTD (till nu)
+  const [todayProfit, setTodayProfit] = useState(0); // Dagens vinst (till nu)
 
-  const dailyProfit = 36374400; // Daglig vinst i SEK
-
-  // Beräkna antalet sekunder sedan midnatt
-  const calculateSecondsSinceMidnight = () => {
+  // Start på innevarande år
+  const getStartOfYear = () => {
     const now = new Date();
-    const midnight = new Date(now);
-    midnight.setHours(0, 0, 0, 0);
-    const seconds = Math.floor((now - midnight) / 1000);
-    return seconds;
+    return new Date(now.getFullYear(), 0, 1);
   };
 
-  // Beräkna antalet dagar sedan 1 januari 2025 och dagens datum
-  const calculateDaysSinceStartOfYear = () => {
-    const startOfYear = new Date("2025-01-01");
-    const today = new Date();
-    const diffInTime = today - startOfYear;
-    const diffInDays = Math.floor(diffInTime / (1000 * 60 * 60 * 24)) + 1;
-    return { days: diffInDays, today };
-  };
+  // Beräkna realtidsvärden exakt utifrån klockan (undviker drift och extra timers)
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      const startOfYear = getStartOfYear();
+
+      // Dagar sedan årets start (hela passerade dagar)
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const wholeDaysSinceYearStart = Math.floor((now - startOfYear) / msPerDay);
+
+      // Dagens andel
+      const startOfToday = new Date(now);
+      startOfToday.setHours(0, 0, 0, 0);
+      const secondsSinceMidnight = (now - startOfToday) / 1000;
+      const fractionOfDay = secondsSinceMidnight / (24 * 60 * 60);
+
+      const todayProfitValue = dailyProfitPerDay * Math.max(0, Math.min(1, fractionOfDay));
+      const totalProfitToNow = dailyProfitPerDay * wholeDaysSinceYearStart + todayProfitValue;
+
+      setTodayProfit(todayProfitValue);
+      setTotalProfitYTD(totalProfitToNow);
+    };
+
+    // Kör direkt och sedan varje sekund
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [dailyProfitPerDay]);
 
   // Formatera dagens datum till "DD MMM YYYY"
   const formatDate = (date) => {
@@ -35,49 +50,6 @@ const MoneyCounter = ({ sx = {} }) => {
       year: "numeric",
     });
   };
-
-  // Initial beräkning av YTD-vinst och daglig uppdatering
-  useEffect(() => {
-    const { days } = calculateDaysSinceStartOfYear();
-    const initialProfitYTD = dailyProfit * days;
-    setTotalProfitYTD(initialProfitYTD);
-
-    // Beräkna dagens vinst sedan midnatt
-    const secondsSinceMidnight = calculateSecondsSinceMidnight();
-    const initialTodayProfit = (dailyProfit / (24 * 60 * 60)) * secondsSinceMidnight;
-    setTodayProfit(initialTodayProfit);
-
-    const checkForNewDay = () => {
-      const now = new Date();
-      const tomorrow = new Date(now);
-      tomorrow.setHours(0, 0, 0, 0);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const timeUntilTomorrow = tomorrow - now;
-
-      const timeout = setTimeout(() => {
-        setTotalProfitYTD((prev) => prev + dailyProfit);
-        setTodayProfit(0); // Återställ dagens vinst vid midnatt
-        setInterval(() => {
-          setTotalProfitYTD((prev) => prev + dailyProfit);
-          setTodayProfit(0);
-        }, 24 * 60 * 60 * 1000);
-      }, timeUntilTomorrow);
-
-      return () => clearTimeout(timeout);
-    };
-
-    checkForNewDay();
-
-    // Uppdatera dagens vinst i realtid
-    const interval = setInterval(() => {
-      const secondsSinceMidnight = calculateSecondsSinceMidnight();
-      const newTodayProfit = (dailyProfit / (24 * 60 * 60)) * secondsSinceMidnight;
-      setTodayProfit(newTodayProfit);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   // Formatera totalProfitYTD till miljarder SEK
   const formatTotalProfit = (value) => {
@@ -94,8 +66,9 @@ const MoneyCounter = ({ sx = {} }) => {
     return `${Math.floor(value).toLocaleString("sv-SE")} SEK`;
   };
 
-  const { today } = calculateDaysSinceStartOfYear();
-  const formattedToday = formatDate(today);
+  const startOfYear = getStartOfYear();
+  const formattedStart = formatDate(startOfYear);
+  const formattedToday = formatDate(new Date());
 
   return (
     <Card
@@ -151,7 +124,9 @@ const MoneyCounter = ({ sx = {} }) => {
               fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
               color: "#00e676",
               marginBottom: "0px",
+              fontFeatureSettings: '"tnum"',
             }}
+            aria-live="polite"
           >
             {formatDailyProfit(todayProfit)}
           </Typography>
@@ -166,7 +141,7 @@ const MoneyCounter = ({ sx = {} }) => {
                 marginBottom: "4px",
               }}
             >
-              Total vinst (1 jan 2025 - {formattedToday}):
+              Total vinst ({formattedStart} - {formattedToday}):
             </Typography>
             <Typography
               variant="h5"
@@ -175,7 +150,9 @@ const MoneyCounter = ({ sx = {} }) => {
                 fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
                 color: "#fff",
                 marginBottom: "4px",
+                fontFeatureSettings: '"tnum"',
               }}
+              aria-live="polite"
             >
               {formatTotalProfit(totalProfitYTD)}
             </Typography>
