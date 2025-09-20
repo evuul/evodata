@@ -15,6 +15,10 @@ import EmailOutlinedIcon from "@mui/icons-material/EmailOutlined";
 
 const faqs = [
   {
+    q: "Vem står bakom sidan?",
+    a: "Detta är ett hobbyprojekt som byggs av en student för att öva på kod. Feedback och idéer välkomnas!",
+  },
+  {
     q: "Hur ofta uppdateras data (pris, nyheter, grafer)?",
     a: "Aktiepris uppdateras periodiskt via vårt API. Nyheter hämtas vid sidladdning och kan uppdateras manuellt. Historiska grafer uppdateras när nya rapporter läggs in.",
   },
@@ -50,10 +54,6 @@ const faqs = [
     q: "Ansvarsfriskrivning",
     a: "Allt innehåll är för informations‑ och visualiseringsändamål. Inget ska tolkas som finansiell rådgivning.",
   },
-  {
-    q: "Vem står bakom sidan?",
-    a: "Detta är ett hobbyprojekt som byggs av en student för att öva kod. Feedback och idéer välkomnas!",
-  },
 ];
 
 const FAQ = () => {
@@ -69,13 +69,13 @@ const FAQ = () => {
         color: "#fff",
       }}
     >
-      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+      <Typography variant="h5" sx={{ fontWeight: 700, mb: 1, textAlign: 'center' }}>
         Vanliga frågor (FAQ)
       </Typography>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 1, textAlign: 'center' }}>
         <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-          Det här är ett hobbyprojekt som jag bygger för att öva kod som student.
+          Det här är ett hobbyprojekt som jag bygger för att öva på kod som student.
         </Typography>
         <Button
           variant="outlined"
@@ -88,18 +88,26 @@ const FAQ = () => {
         </Button>
       </Box>
 
-      <Box>
-        {faqs.map((item, idx) => (
-          <Accordion key={idx} sx={{ backgroundColor: "#1f1f1f", color: "#fff", mb: 1, border: "1px solid #2b2b2b" }}>
-            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "#00e676" }} />}>
-              <Typography sx={{ fontWeight: 600 }}>{item.q}</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Typography sx={{ color: "#b0b0b0" }}>{item.a}</Typography>
-            </AccordionDetails>
-          </Accordion>
-        ))}
-      </Box>
+      {/* Dropdown som kapslar alla frågor */}
+      <Accordion sx={{ backgroundColor: '#1f1f1f', color: '#fff', border: '1px solid #2b2b2b' }}>
+        <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#00e676' }} />}>
+          <Typography sx={{ fontWeight: 600, width: '100%', textAlign: 'center' }}>Visa/Hide frågor</Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box>
+            {faqs.map((item, idx) => (
+              <Accordion key={idx} sx={{ backgroundColor: "#222", color: "#fff", mb: 1, border: "1px solid #333" }}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: "#00e676" }} />}>
+                  <Typography sx={{ fontWeight: 600 }}>{item.q}</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  <Typography sx={{ color: "#b0b0b0" }}>{item.a}</Typography>
+                </AccordionDetails>
+              </Accordion>
+            ))}
+          </Box>
+        </AccordionDetails>
+      </Accordion>
     </Card>
   );
 };

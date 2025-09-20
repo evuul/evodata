@@ -33,7 +33,7 @@ const Footer = () => {
       </Box>
 
       <Typography variant="body2" sx={{ color: "#b0b0b0", mt: 1, fontStyle: 'italic' }}>
-        Hobbyprojekt av en student — byggt för att öva kod.
+        Hobbyprojekt av en student — byggt för att öva på kodning.
       </Typography>
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
@@ -42,7 +42,7 @@ const Footer = () => {
       </Box>
 
       <Typography variant="caption" sx={{ color: "#808080", display: 'block', mt: 1 }}>
-        © {year} • Kontakt: <MLink href="mailto:Alexander.ek@live.se" underline="hover" sx={{ color: '#00e676' }}>Alexander.ek@live.se</MLink>
+        © {year} • Kontakt: <MLink href="mailto:alexander.ek@live.se" underline="hover" sx={{ color: '#00e676' }}>Darkwing</MLink>
       </Typography>
     </Card>
   );
