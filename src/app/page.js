@@ -1,9 +1,11 @@
+"use client";
+
 import Header from "../Components/Header";
 // import PlayerCard from "../Components/PlayerCard";
-import StockBuybackInfo from "../Components/StockBuybackInfo";
+import dynamic from "next/dynamic";
+import { Card, CardContent, Skeleton, Typography } from "@mui/material";
 import MoneyCounter from "../Components/MoneyCounter";
 import ComingUpdates from "../Components/ComingUpdates";
-import GraphBox from "../Components/GraphBox";
 import LiveEarningsBox from "../Components/LiveEarningsBox";
 import InvestmentCalculator from "../Components/InvestmentCalculator";
 import financialReports from "./data/financialReports.json";
@@ -19,9 +21,50 @@ import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
 // import { Kings } from "next/font/google";
 
-// Debug
-console.log("dividendData i page.js:", dividendData);
-console.log("financialReports i page.js:", financialReports);
+// Laddningsskelett för tunga komponenter
+const GraphBoxSkeleton = () => (
+  <Card
+    sx={{
+      background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+      borderRadius: "12px",
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+      padding: { xs: "12px", sm: "16px" },
+      width: { xs: "92%", sm: "85%", md: "75%" },
+      margin: "16px auto",
+      minHeight: 220,
+    }}
+  >
+    <CardContent>
+      <Typography variant="h5" sx={{ color: "#fff", mb: 1 }}>Finansiell översikt</Typography>
+      <Skeleton variant="rectangular" height={28} sx={{ mb: 2, bgcolor: "#2e2e2e" }} />
+      <Skeleton variant="rectangular" height={180} sx={{ bgcolor: "#2a2a2a" }} />
+    </CardContent>
+  </Card>
+);
+
+const BuybackSkeleton = () => (
+  <Card
+    sx={{
+      background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+      borderRadius: "12px",
+      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+      padding: { xs: "12px", sm: "16px" },
+      width: { xs: "92%", sm: "85%", md: "75%" },
+      margin: "16px auto",
+      minHeight: 220,
+    }}
+  >
+    <CardContent>
+      <Typography variant="h5" sx={{ color: "#fff", mb: 1 }}>Aktieåterköpsinformation</Typography>
+      <Skeleton variant="rectangular" height={28} sx={{ mb: 2, bgcolor: "#2e2e2e" }} />
+      <Skeleton variant="rectangular" height={180} sx={{ bgcolor: "#2a2a2a" }} />
+    </CardContent>
+  </Card>
+);
+
+// Dynamiska importer för bättre prestanda
+const GraphBox = dynamic(() => import("../Components/GraphBox"), { ssr: false, loading: () => <GraphBoxSkeleton /> });
+const StockBuybackInfo = dynamic(() => import("../Components/StockBuybackInfo"), { ssr: false, loading: () => <BuybackSkeleton /> });
 
 // Kvartalsdata
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
@@ -114,7 +157,7 @@ export default function Home() {
       </Box>
 
       {/* GraphBox */}
-      <Box
+      <Box id="overview"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -133,7 +176,7 @@ export default function Home() {
       </Box>
 
       {/* NewsSection (NYHETER) */}
-      <Box
+      <Box id="news"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -146,7 +189,7 @@ export default function Home() {
       {/* Short interest / Blankning temporärt dold (visas i Header med 5.15%) */}
 
             {/* StockBuybackInfo */}
-            <Box
+            <Box id="buybacks"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -168,7 +211,7 @@ export default function Home() {
       </Box> */}
 
       {/* InvestmentCalculator */}
-      <Box
+      <Box id="calculator"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -179,7 +222,7 @@ export default function Home() {
       </Box>
 
       {/* FAQ - längst ner på sidan */}
-      <Box
+      <Box id="faq"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },

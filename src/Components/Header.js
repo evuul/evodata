@@ -93,6 +93,7 @@ const Header = () => {
       </Box>
       <Typography
         variant="h2"
+        component="h1"
         sx={{
           fontWeight: 700,
           fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
@@ -203,6 +204,15 @@ const Header = () => {
           </Box>
         </>
       )}
+    </Box>
+
+    {/* Quick anchors */}
+    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+      <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+      <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+      <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+      <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+      <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
     </Box>
 
     {/* Short details dialog */}
