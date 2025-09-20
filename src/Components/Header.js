@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from "react";
-import { Typography, Box, Chip, IconButton, Tooltip } from "@mui/material";
+import { Typography, Box, Chip, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice'; // Importera StockPrice-komponenten
@@ -30,8 +30,38 @@ const Header = () => {
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw || "N/A";
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw || 0;
   const changeColor = changePercent > 0 ? "#00e676" : changePercent < 0 ? "#ff1744" : "#ccc";
+  const shortInterestPct = Number(process.env.NEXT_PUBLIC_SHORT_INTEREST || 0);
+  const [openShort, setOpenShort] = useState(false);
+  const [shortDetails, setShortDetails] = useState({ entries: [], source: null, updatedAt: null, shortPercent: shortInterestPct });
+  const [loadingShort, setLoadingShort] = useState(false);
+
+  const fmtSEK = (v) => {
+    if (v == null) return 'N/A';
+    if (v >= 1_000_000_000) return `${(v/1_000_000_000).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mdkr`;
+    if (v >= 1_000_000) return `${(v/1_000_000).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mkr`;
+    return `${v.toLocaleString('sv-SE')} SEK`;
+  };
+
+  const openShortDialog = async () => {
+    setOpenShort(true);
+    setLoadingShort(true);
+    try {
+      const res = await fetch('/api/short', { cache: 'no-store' });
+      if (res.ok) {
+        const json = await res.json();
+        setShortDetails(json);
+      } else {
+        setShortDetails((prev) => ({ ...prev }));
+      }
+    } catch (_) {
+      // keep env-based fallback already set
+    } finally {
+      setLoadingShort(false);
+    }
+  };
 
   return (
+    <>
     <Box
       sx={{
         textAlign: "center",
@@ -53,13 +83,21 @@ const Header = () => {
       <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Chip label="EVO.ST • Nasdaq Stockholm" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Tooltip title="Andel av utestående aktier som är blankade">
+            <Chip
+              label={`Blankning: ${isFinite(shortInterestPct) ? shortInterestPct.toFixed(2) : 'N/A'}%`}
+              size="small"
+              onClick={openShortDialog}
+              sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
+            />
+          </Tooltip>
           <Chip
             label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
             size="small"
             sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
           />
           {lastUpdated && (
-            <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+            <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }} />
           )}
           <Tooltip title="Uppdatera">
             <IconButton onClick={refresh} sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera aktiedata">
@@ -181,6 +219,71 @@ const Header = () => {
         </>
       )}
     </Box>
+
+    {/* Short details dialog */}
+    <Dialog open={openShort} onClose={() => setOpenShort(false)} fullWidth maxWidth="sm">
+      <DialogTitle>Blankning – publika positioner</DialogTitle>
+      <DialogContent dividers>
+        {loadingShort ? (
+          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>Laddar...</Typography>
+        ) : (
+          <>
+            {(() => {
+              const totalPct = Number(shortDetails.shortPercent ?? shortInterestPct) || 0;
+              // Use FI entries if available; otherwise fixed public entries per request
+              const fixedPublic = [
+                { manager: 'Marshall Wace LLP', percent: 0.6 },
+                { manager: 'Ilex Capital Partners (UK) LLP', percent: 0.6 },
+                { manager: 'GREENVALE CAPITAL LLP', percent: 0.7 },
+              ];
+              const isFI = shortDetails.source === 'FI' && Array.isArray(shortDetails.entries) && shortDetails.entries.length > 0;
+              const entriesToShow = isFI ? shortDetails.entries : fixedPublic;
+              const sumPublic = entriesToShow.reduce((s, e) => s + (Number(e.percent) || 0), 0);
+              const remainder = Math.max(0, +(totalPct - sumPublic).toFixed(2));
+
+              return (
+                <>
+                  <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
+                    Totalt: {isFinite(totalPct) ? totalPct.toFixed(2) : 'N/A'}%
+                    {marketCap ? ` • ≈ ${fmtSEK((totalPct/100) * marketCap)} kort` : ''}
+                  </Typography>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Blankare</TableCell>
+                        <TableCell align="right">Andel</TableCell>
+                        <TableCell align="right">≈ Värde</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {entriesToShow.map((e, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell>{e.manager}</TableCell>
+                          <TableCell align="right">{Number(e.percent).toFixed(2)}%</TableCell>
+                          <TableCell align="right">{marketCap ? fmtSEK((Number(e.percent)/100) * marketCap) : 'N/A'}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableRow>
+                        <TableCell sx={{ fontStyle: 'italic' }}>Opublika positioner</TableCell>
+                        <TableCell align="right">{remainder.toFixed(2)}%</TableCell>
+                        <TableCell align="right">{marketCap ? fmtSEK((remainder/100) * marketCap) : 'N/A'}</TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                  <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1 }}>
+                    Källa: {isFI ? 'Finansinspektionen (publika >0,5%)' : 'Publika positioner (exempel) + opublika uppskattade'}{shortDetails.updatedAt ? ` • Uppdaterad ${new Date(shortDetails.updatedAt).toLocaleDateString('sv-SE')}` : ''}
+                  </Typography>
+                </>
+              );
+            })()}
+          </>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setOpenShort(false)} sx={{ color: '#ff6f6f' }}>Stäng</Button>
+      </DialogActions>
+    </Dialog>
+    </>
   );
 };
 

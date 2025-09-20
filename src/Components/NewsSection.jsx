@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Box, Typography, IconButton, CircularProgress, Link, Card } from "@mui/material";
+import { Box, Typography, IconButton, CircularProgress, Link, Card, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 const FAKE_NEWS = [
@@ -31,6 +31,9 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [articles, setArticles] = useState([]);
+  const [isTest, setIsTest] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(null);
 
   const fetchNews = async () => {
     try {
@@ -40,10 +43,14 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
       if (!res.ok) throw new Error("Kunde inte hämta nyheter");
       const data = await res.json();
       const list = (data.articles || []);
-      setArticles(list.length > 0 ? list : FAKE_NEWS);
+      const usingFallback = list.length === 0;
+      const finalList = usingFallback ? FAKE_NEWS : list;
+      setArticles(finalList);
+      setIsTest(usingFallback || !!data.error || finalList.every(a => (a.url || '').includes('example.com')));
     } catch (e) {
       // Fallback till fejkade nyheter om nätverk/API saknas
       setArticles(FAKE_NEWS);
+      setIsTest(true);
       setError("");
     } finally {
       setLoading(false);
@@ -67,7 +74,12 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
       }}
     >
       <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff" }}>Nyheter</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff" }}>Nyheter</Typography>
+          {isTest && (
+            <Chip label="TESTNYHETER" size="small" sx={{ backgroundColor: '#402a2a', color: '#ff6f6f', border: '1px solid #5a3a3a' }} />
+          )}
+        </Box>
         <IconButton aria-label="Uppdatera" onClick={fetchNews} sx={{ color: "#00e676" }}>
           <RefreshIcon />
         </IconButton>
@@ -91,11 +103,13 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
               borderRadius: "10px",
               p: 2,
               mb: 1.5,
-            }}>
+              cursor: 'pointer',
+              '&:hover': { backgroundColor: '#232323' },
+            }}
+            onClick={() => { setSelected(a); setOpen(true); }}
+            >
               <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 700, mb: 0.5 }}>
-                <Link href={a.url} target="_blank" rel="noopener noreferrer" underline="hover" sx={{ color: "#00e676" }}>
-                  {a.title}
-                </Link>
+                {a.title}
               </Typography>
               <Typography variant="body2" sx={{ color: "#b0b0b0", mb: 0.5 }}>
                 {a.source || "Källa okänd"}
@@ -110,6 +124,34 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
           ))
         )}
       </Box>
+
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>{selected?.title || 'Nyhet'}</Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          {selected && (
+            <Box>
+              <Typography variant="body2" sx={{ color: '#888', mb: 1 }}>
+                {(selected.source || 'Källa okänd')}{selected.publishedAt ? ` • ${new Date(selected.publishedAt).toLocaleString('sv-SE')}` : ''}
+              </Typography>
+              {selected.snippet && (
+                <Typography variant="body1" sx={{ color: '#ddd', whiteSpace: 'pre-wrap' }}>
+                  {selected.snippet}
+                </Typography>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {selected?.url && (
+            <Button component={Link} href={selected.url} target="_blank" rel="noopener noreferrer" sx={{ color: '#00e676' }}>
+              Öppna källa
+            </Button>
+          )}
+          <Button onClick={() => setOpen(false)} sx={{ color: '#ff6f6f' }}>Stäng</Button>
+        </DialogActions>
+      </Dialog>
     </Card>
   );
 };

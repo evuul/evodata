@@ -130,8 +130,13 @@ const InvestmentCalculator = ({ dividendData }) => {
       prevSharePrice = sharePrice;
     }
 
-    const dividendBoostPercent = ((totalDividendWithBuybacks - totalDividendWithoutBuybacks) / totalDividendWithoutBuybacks) * 100;
-    const pureBuybackBoostPercent = ((totalDividendPureBuybackEffect - (numShares * initialDividendPerShare * 6)) / (numShares * initialDividendPerShare * 6)) * 100;
+    const dividendBoostPercent = totalDividendWithoutBuybacks > 0
+      ? ((totalDividendWithBuybacks - totalDividendWithoutBuybacks) / totalDividendWithoutBuybacks) * 100
+      : 0;
+    const baselinePure = numShares * initialDividendPerShare * Number(durationYears || 0);
+    const pureBuybackBoostPercent = baselinePure > 0
+      ? ((totalDividendPureBuybackEffect - baselinePure) / baselinePure) * 100
+      : 0;
 
     const finalOwnershipPercent = (numShares / sharesOutstanding) * 100;
     const ownershipIncreasePercent = ((finalOwnershipPercent - initialOwnershipPercent) / initialOwnershipPercent) * 100;
@@ -542,7 +547,7 @@ const InvestmentCalculator = ({ dividendData }) => {
 
             <Box mb={2}>
               <Typography variant="body2" color="#ccc" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                📊 Effekt av återköp (6 år): +{results.dividendBoostPercent.toFixed(2)}% utdelning jämfört med utan återköp.
+                📊 Effekt av återköp ({durationYears} år): +{results.dividendBoostPercent.toFixed(2)}% utdelning jämfört med utan återköp.
               </Typography>
               <Typography variant="body2" color="#ccc" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
                 📈 Ren återköpseffekt: +{results.pureBuybackBoostPercent.toFixed(2)}% (exkl. utdelningstillväxt).
@@ -551,7 +556,11 @@ const InvestmentCalculator = ({ dividendData }) => {
 
             <Box mb={3}>
               <Typography variant="h6" color="#00e676" mb={1} fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}>
-                Prognos 2026–2031
+                {(() => {
+                  const start = 2025 + 1;
+                  const end = start + Number(durationYears || 0) - 1;
+                  return `Prognos ${start}–${end}`;
+                })()}
               </Typography>
               <Typography variant="body2" color="#ccc" mb={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
                 Återköp: {results.totalSharesBoughtBack.toLocaleString("sv-SE")} aktier (kvar: {results.remainingShares.toLocaleString("sv-SE")}).
@@ -655,14 +664,14 @@ const InvestmentCalculator = ({ dividendData }) => {
                 </FormGroup>
               </Box>
 
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={260}>
                 <LineChart
                   data={results.projectionData}
                   margin={{
-                    top: 10,
-                    right: 10,
-                    bottom: 10,
-                    left: -20,
+                    top: 12,
+                    right: 12,
+                    bottom: 12,
+                    left: 16,
                   }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#444" />
@@ -675,6 +684,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                   />
                   <YAxis
                     stroke="#ccc"
+                    width={56}
                     tick={{ fontSize: { xs: 12, sm: 14 } }}
                     tickFormatter={(value) => formatYTick(value)}
                     domain={yConfig.domain}
@@ -756,7 +766,7 @@ const InvestmentCalculator = ({ dividendData }) => {
                   fontSize={{ xs: "0.85rem", sm: "0.95rem" }}
                   fontStyle="italic"
                 >
-                  Utdelningsboost i grafen visar ökningen för ett specifikt år, medan den totala boosten ({results.dividendBoostPercent.toFixed(2)}%) är genomsnittet över 6 år.
+                  Utdelningsboost i grafen visar ökningen för ett specifikt år, medan den totala boosten ({results.dividendBoostPercent.toFixed(2)}%) är genomsnittet över {durationYears} år.
                 </Typography>
               </Box>
             </Box>
@@ -768,7 +778,11 @@ const InvestmentCalculator = ({ dividendData }) => {
                 mb={1}
                 fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}
               >
-                Projekterad utdelning och aktiepris (2026-2031)
+                {(() => {
+                  const start = new Date().getFullYear() + 1;
+                  const end = start + Number(durationYears || 0) - 1;
+                  return `Projekterad utdelning och aktiepris (${start}-${end})`;
+                })()}
               </Typography>
               <Box
                 sx={{

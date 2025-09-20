@@ -71,14 +71,14 @@ const DividendSection = ({
       <Typography variant="h6" color="#ffffff" sx={{ marginBottom: "10px", textAlign: "center", fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" } }}>
         Utdelning över tid
       </Typography>
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
-        <LineChart data={combinedDividendData} margin={{ top: 20, right: isMobile ? 20 : 40, bottom: 20, left: isMobile ? 10 : 40 }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
+        <LineChart data={combinedDividendData} margin={{ top: 16, right: isMobile ? 12 : 24, bottom: isMobile ? 48 : 24, left: isMobile ? 16 : 48 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#444" />
           <XAxis dataKey="date" stroke="#ccc"> {!isMobile && <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />} </XAxis>
-          <YAxis yAxisId="left" stroke="#ccc" tickFormatter={formatDividendTick} width={isMobile ? 30 : 60} tick={{ fontSize: isMobile ? 10 : 14 }}>
+          <YAxis yAxisId="left" stroke="#ccc" tickFormatter={formatDividendTick} width={isMobile ? 56 : 72} tick={{ fontSize: isMobile ? 10 : 14 }}>
             {!isMobile && <Label value="Utdelning (SEK)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
           </YAxis>
-          <YAxis yAxisId="right" orientation="right" stroke="#ccc" tickFormatter={formatDividendYieldTick} width={isMobile ? 30 : 60} tick={{ fontSize: isMobile ? 10 : 14 }}>
+          <YAxis yAxisId="right" orientation="right" stroke="#ccc" tickFormatter={formatDividendYieldTick} width={isMobile ? 56 : 72} tick={{ fontSize: isMobile ? 10 : 14 }}>
             {!isMobile && <Label value="Direktavkastning (%)" angle={90} offset={-10} position="insideRight" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
           </YAxis>
           <Tooltip
@@ -122,4 +122,3 @@ const DividendSection = ({
 };
 
 export default DividendSection;
-

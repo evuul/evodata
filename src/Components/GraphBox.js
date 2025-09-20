@@ -372,7 +372,7 @@ const GraphBox = ({
     const totalRng = yearlyReports.reduce((sum, report) => sum + (report.rng || 0), 0);
     if (totalLiveCasino > 0 || totalRng > 0) {
       liveCasinoRngDataYearly.push({
-        date: `${year} Helår`,
+        date: `${year}`,
         year: year,
         liveCasino: totalLiveCasino,
         rng: totalRng,
@@ -428,13 +428,7 @@ const GraphBox = ({
       .map(item => item.date);
   };
 
-  const getYearlyXTicks = (data) => {
-    if (data.length <= 10) return data.map(item => item.date);
-    const step = Math.floor(data.length / 8);
-    return data
-      .filter((_, index) => index % step === 0)
-      .map(item => item.date);
-  };
+  const getYearlyXTicks = (data) => data.map(item => item.date);
 
   const revenueQuarterlyXTicks = getQuarterlyXTicks(revenueQuarterlyGrowth);
   const revenueYearlyXTicks = getYearlyXTicks(revenueYearlyGrowth);
