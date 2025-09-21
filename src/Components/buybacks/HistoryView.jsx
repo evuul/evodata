@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { Box, Typography, Tabs, Tab, Table, TableHead, TableBody, TableRow, TableCell, TableContainer } from "@mui/material";
-import { ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Label, LineChart, Line, BarChart, Bar } from "recharts";
+import { ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Label, LineChart, Line, BarChart, Bar, Brush } from "recharts";
 
 const HistoryView = ({
   isMobile,
@@ -57,7 +57,7 @@ const HistoryView = ({
       </Typography>
       <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
         {chartTypeHistory === "line" ? (
-          <LineChart data={historyChartData} margin={{ top: 10, right: isMobile ? 10 : 20, bottom: isMobile ? 0 : 20, left: isMobile ? 0 : 0 }}>
+          <LineChart data={historyChartData} margin={{ top: 10, right: isMobile ? 10 : 20, bottom: isMobile ? 40 : 40, left: isMobile ? 0 : 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis dataKey="Datum" stroke="#ccc" tick={{ fontSize: { xs: 12, sm: 14 } }} angle={isMobile ? -45 : 0} textAnchor={isMobile ? "end" : "middle"} height={isMobile ? 40 : 60}>
               {!isMobile && <Label value={viewMode === "daily" ? "Datum" : viewMode === "weekly" ? "Vecka" : viewMode === "monthly" ? "Månad" : "År"} offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
@@ -67,9 +67,12 @@ const HistoryView = ({
             </YAxis>
             <Tooltip formatter={(value) => value.toLocaleString("sv-SE")} contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }} />
             <Line type="monotone" dataKey="Antal_aktier" stroke="#00e676" strokeWidth={2} dot={{ r: 4, fill: "#00e676" }} activeDot={{ r: 6 }} />
+            {(viewMode === 'daily' || viewMode === 'weekly') && !isMobile && (
+              <Brush dataKey="Datum" height={20} stroke="#666" travellerWidth={8} />
+            )}
           </LineChart>
         ) : (
-          <BarChart data={historyChartData} margin={{ top: 10, right: isMobile ? 10 : 20, bottom: isMobile ? 0 : 20, left: isMobile ? 0 : 0 }}>
+          <BarChart data={historyChartData} margin={{ top: 10, right: isMobile ? 10 : 20, bottom: isMobile ? 40 : 40, left: isMobile ? 0 : 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#444" />
             <XAxis dataKey="Datum" stroke="#ccc" tick={{ fontSize: { xs: 12, sm: 14 } }} angle={isMobile ? -45 : 0} textAnchor={isMobile ? "end" : "middle"} height={isMobile ? 40 : 60}>
               {!isMobile && <Label value={viewMode === "daily" ? "Datum" : viewMode === "weekly" ? "Vecka" : viewMode === "monthly" ? "Månad" : "År"} offset={-10} position="insideBottom" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
@@ -79,6 +82,9 @@ const HistoryView = ({
             </YAxis>
             <Tooltip formatter={(value) => value.toLocaleString("sv-SE")} contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }} />
             <Bar dataKey="Antal_aktier" fill="#00e676" name="Antal aktier" />
+            {(viewMode === 'daily' || viewMode === 'weekly') && !isMobile && (
+              <Brush dataKey="Datum" height={20} stroke="#666" travellerWidth={8} />
+            )}
           </BarChart>
         )}
       </ResponsiveContainer>
@@ -119,4 +125,3 @@ const HistoryView = ({
 };
 
 export default HistoryView;
-

@@ -1,8 +1,8 @@
 // Shared utilities for graph components
 export const formatNumberMEUR = (value, isMobile) => {
   if (value == null) return "-";
-  if (isMobile && value >= 1000) return `${(value / 1000).toFixed(1)}k MEUR`;
-  return `${value} MEUR`;
+  if (isMobile && value >= 1000) return `${(value / 1000).toFixed(1)}k Meuro`;
+  return `${value} Meuro`;
 };
 
 export const formatPercent = (value) => (value == null ? "-" : `${value}%`);
@@ -37,8 +37,8 @@ export const buildAllQuarters = (startYear = 2015, endYear = 2025) => {
 export const makeFormatRevenueTick = (isMobile) => (value) => {
   if (value == null) return '-';
   if (isMobile) {
-    if (value >= 1000) return `${(value / 1000).toFixed(1)}k MEURO`;
-    return `${value} MEURO`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}k Meuro`;
+    return `${value} Meuro`;
   }
   return Number(value).toLocaleString('sv-SE');
 };
@@ -49,7 +49,7 @@ export const makeFormatLiveCasinoRngTick = (isMobile) => (value) => {
     if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
     return `${value}`;
   }
-  return `${value} MEUR`;
+  return `${value} Meuro`;
 };
 
 export const formatMarginTickSimple = (value) => `${value}%`;

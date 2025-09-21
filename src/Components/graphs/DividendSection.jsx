@@ -1,7 +1,8 @@
 "use client";
-import React from "react";
+import React, { useMemo } from "react";
 import { Box, Typography, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
 import { ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Label, LineChart, Line, Legend } from "recharts";
+import { totalSharesData } from "../buybacks/utils";
 
 const DividendSection = ({
   isMobile,
@@ -17,8 +18,29 @@ const DividendSection = ({
   formatDividendTick,
   formatDividendYieldTick,
 }) => {
+  const latestTotal = useMemo(() => {
+    try {
+      if (!latestHistorical) return null;
+      const year = new Date(latestHistorical.date).getFullYear();
+      const shares = totalSharesData.find((s) => String(s.date) === String(year))?.totalShares;
+      if (!shares || !latestHistorical.dividendPerShare) return null;
+      const total = Number(latestHistorical.dividendPerShare) * Number(shares);
+      return { year, shares, total };
+    } catch {
+      return null;
+    }
+  }, [latestHistorical]);
+
+  const formatSEKCompact = (v) => {
+    if (v == null || isNaN(v)) return "-";
+    if (v >= 1e9) return `${(v / 1e9).toFixed(2)} miljarder SEK`;
+    if (v >= 1e6) return `${Math.round(v / 1e6).toLocaleString("sv-SE")} miljoner SEK`;
+    return `${Math.round(v).toLocaleString("sv-SE")} SEK`;
+  };
+
   return (
     <Box display="flex" flexDirection="column" alignItems="center">
+      {/* Total utdelning flyttas ned till infoblocket nedan */}
       <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff", marginBottom: "12px", textAlign: "center", fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.8rem" }, letterSpacing: "0.5px" }}>
         Utdelning
       </Typography>
@@ -49,10 +71,17 @@ const DividendSection = ({
                 <Typography variant="body2" color={dividendGrowth.dividendGrowth >= 0 ? "#00e676" : "#ff1744"} sx={{ marginTop: "8px", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
                   Ökning av utdelning ({dividendGrowth.latestDate} vs {dividendGrowth.previousDate}): {dividendGrowth.dividendGrowth}%
                 </Typography>
-                <Typography variant="body2" color={dividendGrowth.yieldGrowth >= 0 ? "#00e676" : "#ff1744"} sx={{ fontSize: { xs: "0.85rem", sm: "0.95rem" } }}>
-                  Ökning av direktavkastning: {dividendGrowth.yieldGrowth}%
-                </Typography>
               </>
+            )}
+            {latestTotal && (
+              <Box sx={{ textAlign: "center", mt: 1 }}>
+                <Typography variant="body2" sx={{ color: "#e0e0e0", fontWeight: 700 }}>
+                  Senaste total utdelning ({latestTotal.year}): {formatSEKCompact(latestTotal.total)}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "#b0b0b0" }}>
+                  {latestHistorical.dividendPerShare.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK per aktie × {latestTotal.shares.toLocaleString("sv-SE")} aktier
+                </Typography>
+              </Box>
             )}
             {planned.length > 0 && (
               <>

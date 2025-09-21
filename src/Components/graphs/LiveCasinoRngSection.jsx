@@ -76,14 +76,14 @@ const LiveCasinoRngSection = ({
             {!isMobile && <Label value="Datum" offset={-10} position="insideBottom" fill="#ccc" />}
           </XAxis>
           <YAxis stroke="#ccc" tickFormatter={formatLiveCasinoRngTick} width={isMobile ? 56 : 72} domain={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.domain : liveCasinoRngYearlyYConfig.domain} ticks={viewMode === "quarterly" ? liveCasinoRngQuarterlyYConfig.ticks : liveCasinoRngYearlyYConfig.ticks}>
-            {!isMobile && <Label value="Intäkter (MEUR)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
+            {!isMobile && <Label value="Intäkter (Meuro)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />}
           </YAxis>
           <Tooltip
             formatter={(value, name, props) => {
               const liveCasinoGrowth = props.payload.liveCasinoGrowth;
               const rngGrowth = props.payload.rngGrowth;
               return [
-                value !== null ? `${value.toLocaleString("sv-SE")} MEUR` : "Ingen data",
+                value !== null ? `${value.toLocaleString("sv-SE")} Meuro` : "Ingen data",
                 name === "LiveCasino" && liveCasinoGrowth
                   ? `Ökning: ${liveCasinoGrowth}%`
                   : name === "RNG" && rngGrowth
