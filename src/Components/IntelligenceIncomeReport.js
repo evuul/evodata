@@ -212,7 +212,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
       ? Math.round((estimatedRevenue * (elapsedDays / totalDays)) * 10) / 10
       : Math.round((estimatedRevenue * (elapsedDays / totalDays)) * 10) / 10;
     return { avgPlayers, estimatedRevenue, changePercent, revenueSoFar };
-  }, [qData, revenueData, quarterlyPlayers, elapsedDays, totalDays, previousPeriod, currentPeriod, q2RevenuePerPlayer]);
+  }, [qData, revenueData, quarterlyPlayers, elapsedDays, totalDays, previousPeriod, q2RevenuePerPlayer]);
 
   // Beräkna trendtext baserat på uppskattad förändring
   const getTrendText = () => {

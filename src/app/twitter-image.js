@@ -18,7 +18,7 @@ export default async function TwitterImage() {
           fontFamily: 'system-ui, Segoe UI, Roboto, Helvetica, Arial',
         }}
       >
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div
             style={{
               fontSize: 68,
@@ -44,4 +44,3 @@ export default async function TwitterImage() {
     size
   );
 }
-
