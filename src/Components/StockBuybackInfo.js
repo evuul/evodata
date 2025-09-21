@@ -159,7 +159,16 @@ const StockBuybackInfo = ({
   useEffect(() => {
     const urlTab = searchParams?.get('bbTab');
     const urlView = searchParams?.get('bbView');
-    if (urlTab && tabsList.includes(urlTab)) setActiveTab(urlTab);
+    // Always keep default first tab on refresh; ignore bbTab
+    if (urlTab) {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        sp.delete('bbTab');
+        const qs = sp.toString();
+        const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}#buybacks`;
+        router.replace(newUrl);
+      } catch {}
+    }
     if (urlView && ["daily","weekly","monthly","yearly"].includes(urlView)) setViewMode(urlView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
