@@ -3,11 +3,17 @@
 import React, { useState } from "react";
 import { Typography, Box, LinearProgress } from "@mui/material";
 import { motion } from "framer-motion";
-import { Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 
-const manrope = Manrope({ subsets: ["latin"], weight: "400" });
+const manrope = localFont({
+  variable: "--font-manrope",
+  src: [
+    { path: "../app/fonts/ManropeVF.ttf", weight: "200 800", style: "normal" },
+  ],
+  display: "swap",
+});
 
 const updates = [
   { text: "Ny design och layout", done: true },
@@ -69,7 +75,7 @@ const ComingUpdates = () => {
           <Typography
             sx={{
               mt: 1,
-              fontFamily: manrope.style.fontFamily,
+              fontFamily: 'var(--font-manrope)',
               fontSize: { xs: "0.9rem", sm: "1rem" },
               color: "#00e676",
               textAlign: "center",
@@ -96,7 +102,7 @@ const ComingUpdates = () => {
             variant="h4"
             sx={{
               fontWeight: "800",
-              fontFamily: manrope.style.fontFamily,
+              fontFamily: 'var(--font-manrope)',
               fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3rem" },
               background: "linear-gradient(90deg, #00e676, #00c853, #00e676)",
               WebkitBackgroundClip: "text",
@@ -192,7 +198,7 @@ const ComingUpdates = () => {
                 sx={{
                   fontSize: { xs: "1.2rem", sm: "1.5rem", md: "1.6rem" },
                   fontWeight: "600",
-                  fontFamily: manrope.style.fontFamily,
+                  fontFamily: 'var(--font-manrope)',
                   background: item.done
                     ? "linear-gradient(90deg, #b3ffda, #00e676)"
                     : "linear-gradient(90deg, #00e676, #00c853)",

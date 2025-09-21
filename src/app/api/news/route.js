@@ -14,14 +14,25 @@ export async function GET(request) {
   const mfnRss = process.env.MFN_RSS_URL;
   const cisionRss = process.env.CISION_RSS_URL;
   const nasdaqRss = process.env.NASDAQ_RSS_URL;
-  const rssUrls = (rssListEnv ? rssListEnv.split(',') : [])
+
+  // Bygg källista: bara MFN + Cision (ev. Nasdaq) + ev. egna via .env
+  const rssUrls = []
+    .concat(rssListEnv ? rssListEnv.split(',') : [])
     .concat([mfnRss, cisionRss, nasdaqRss].filter(Boolean))
-    .map(u => u.trim())
+    .map((u) => u && u.trim())
     .filter(Boolean);
-  // Sensible default: försök MFN Evolution om inget är konfigurerat
+  // Defaults om inget satt
   if (rssUrls.length === 0) {
-    rssUrls.push('https://mfn.se/all/a/evolution?format=rss');
+    rssUrls.push('https://mfn.se/tag/evolution?format=rss');
+    rssUrls.push('https://news.cision.com/se/evolution/rss/all/releases');
   }
+
+  // Förbered Google News RSS som fallback om ovan inte ger träffar
+  const langLower = String(lang || 'sv').toLowerCase();
+  const hl = langLower === 'sv' ? 'sv' : langLower;
+  const gl = 'SE';
+  const ceid = `${gl}:${hl}`;
+  const googleNewsRss = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=${hl}&gl=${gl}&ceid=${ceid}`;
 
   const FAKE_ARTICLES = [
     {
@@ -82,7 +93,7 @@ export async function GET(request) {
         const link = getTag(it, 'link');
         const pubDate = getTag(it, 'pubDate') || getTag(it, 'dc:date') || '';
         const desc = getTag(it, 'description') || getTag(it, 'content:encoded') || '';
-        let source = sourceHint;
+        let source = getTag(it, 'source') || sourceHint;
         try { source = source || (link ? new URL(link).hostname : ''); } catch {}
         items.push({ title, url: link, source, publishedAt: pubDate ? new Date(pubDate).toISOString() : null, snippet: desc });
       }
@@ -104,6 +115,38 @@ export async function GET(request) {
       return items.filter(a => a.title && a.url);
     };
 
+    const normalizeUrl = (url) => {
+      try {
+        const u = new URL(url);
+        // Ta bort vanliga tracking-parametrar
+        for (const key of [...u.searchParams.keys()]) {
+          if (/^utm_/i.test(key) || key === 'oc' || key === 'utm' || key === 'gclid' || key === 'fbclid') {
+            u.searchParams.delete(key);
+          }
+        }
+        return u.toString();
+      } catch {
+        return url;
+      }
+    };
+
+    const tryResolveGoogleNews = async (url) => {
+      try {
+        const u = new URL(url);
+        if (!u.hostname.includes('news.google.com')) return url;
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500);
+        const res = await fetch(url, { redirect: 'follow', signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0; +https://evodata.app)' } });
+        clearTimeout(timeout);
+        if (res && res.url && !res.url.includes('news.google.com')) {
+          return normalizeUrl(res.url);
+        }
+        return url;
+      } catch {
+        return url;
+      }
+    };
+
     // Försök RSS först om konfigurerat – prioriterar MFN/Cision/Nasdaq
     if (rssUrls.length > 0) {
       let articles = [];
@@ -114,8 +157,29 @@ export async function GET(request) {
           articles = articles.concat(parseRss(got.xml));
         } catch {}
       }
+      if (articles.length === 0) {
+        // Prova Google News som fallback för att säkerställa att något visas
+        try {
+          const got = await tryFetchRssVariants(googleNewsRss);
+          if (got) {
+            articles = parseRss(got.xml, 'Google News');
+          }
+        } catch {}
+      }
       if (articles.length === 0) articles = FAKE_ARTICLES;
-      articles = Array.from(new Map(articles.map(a => [a.url, a])).values())
+
+      // Försök översätta Google News-länkar till original för de 10 första
+      const head = await Promise.all(
+        articles.slice(0, 10).map(async (a) => ({
+          ...a,
+          url: await tryResolveGoogleNews(a.url),
+        }))
+      );
+      const tail = articles.slice(10);
+      articles = head.concat(tail);
+
+      // Deduplikera på normaliserad URL
+      articles = Array.from(new Map(articles.map(a => [normalizeUrl(a.url), { ...a, url: normalizeUrl(a.url) }])).values())
         .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
         .slice(0, 30);
       return new Response(JSON.stringify({ articles }), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
