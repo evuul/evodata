@@ -72,7 +72,16 @@ const GraphBox = ({
   useEffect(() => {
     const urlTab = searchParams?.get('finTab');
     const urlView = searchParams?.get('finView');
-    if (urlTab && tabsList.includes(urlTab)) setActiveTab(urlTab);
+    // Always start on first tab (revenue); ignore finTab from URL
+    if (urlTab) {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        sp.delete('finTab');
+        const qs = sp.toString();
+        const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}#overview`;
+        router.replace(newUrl);
+      } catch {}
+    }
     if (urlView && (urlView === 'quarterly' || urlView === 'yearly')) setViewMode(urlView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
