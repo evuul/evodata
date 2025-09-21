@@ -515,17 +515,11 @@ const InvestmentCalculator = ({ dividendData }) => {
                 </Box>
               );
             })()}
-            {results.millionMilestoneYear && (
-              <Box mb={2}>
-                <Typography variant="body2" color="#00e676" fontWeight="bold" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                  🎉 Grattis! Din investering når 1 miljon SEK år {results.millionMilestoneYear}!
-                </Typography>
-              </Box>
-            )}
+            {/* Milstolpe borttagen */}
 
             <Box mb={3}>
               <Typography variant="h6" color="#00e676" fontSize={{ xs: "1.1rem", sm: "1.4rem", md: "1.8rem" }}>
-                Nuvarande läge (2025)
+                Nuvarande läge ({new Date().getFullYear()})
               </Typography>
               <Typography
                 variant="h5"
@@ -535,22 +529,22 @@ const InvestmentCalculator = ({ dividendData }) => {
                 {results.currentValue.toLocaleString("sv-SE")} SEK
               </Typography>
               <Typography variant="body2" color="#ccc" mt={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                Insatt kapital: {results.initialInvestment.toLocaleString("sv-SE")} SEK
+                Insatt kapital totalt: {results.initialInvestment.toLocaleString("sv-SE")} SEK
               </Typography>
               <Typography variant="body2" color="#ccc" mt={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                Utdelning (2025): {results.currentDividend.toLocaleString("sv-SE")} SEK
+                Årets utdelning (prognos): {results.currentDividend.toLocaleString("sv-SE")} SEK
               </Typography>
               <Typography variant="body2" color={results.currentValue >= results.initialInvestment ? "#00e676" : "#ff1744"} mt={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                Total avkastning: {(((results.currentValue - results.initialInvestment) / results.initialInvestment) * 100).toFixed(2)}%
+                Avkastning mot insatt kapital: {(((results.currentValue - results.initialInvestment) / results.initialInvestment) * 100).toFixed(2)}%
               </Typography>
             </Box>
 
             <Box mb={2}>
               <Typography variant="body2" color="#ccc" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                📊 Effekt av återköp ({durationYears} år): +{results.dividendBoostPercent.toFixed(2)}% utdelning jämfört med utan återköp.
+                Effekt av återköp över perioden ({durationYears} år): +{results.dividendBoostPercent.toFixed(2)}% ackumulerad utdelning jämfört med utan återköp.
               </Typography>
               <Typography variant="body2" color="#ccc" fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                📈 Ren återköpseffekt: +{results.pureBuybackBoostPercent.toFixed(2)}% (exkl. utdelningstillväxt).
+                Ren återköpseffekt (endast färre aktier): +{results.pureBuybackBoostPercent.toFixed(2)}%.
               </Typography>
             </Box>
 
@@ -563,10 +557,10 @@ const InvestmentCalculator = ({ dividendData }) => {
                 })()}
               </Typography>
               <Typography variant="body2" color="#ccc" mb={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                Återköp: {results.totalSharesBoughtBack.toLocaleString("sv-SE")} aktier (kvar: {results.remainingShares.toLocaleString("sv-SE")}).
+                Återköpta aktier (perioden): {results.totalSharesBoughtBack.toLocaleString("sv-SE")} st • Utestående vid periodslut: {results.remainingShares.toLocaleString("sv-SE")} st
               </Typography>
               <Typography variant="body2" color="#ccc" mb={1} fontSize={{ xs: "0.85rem", sm: "0.95rem" }}>
-                Ägarandel: {results.initialOwnershipPercent}% → {results.finalOwnershipPercent}% (+{results.ownershipIncreasePercent}%).
+                Ägarandel: {Number(results.initialOwnershipPercent).toLocaleString('sv-SE', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}% → {Number(results.finalOwnershipPercent).toLocaleString('sv-SE', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}% (förändring: +{results.ownershipIncreasePercent}%).
               </Typography>
 
               <Box mb={2}>
