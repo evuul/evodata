@@ -3,6 +3,7 @@
 import React from "react";
 import { Box, Card, Typography, Chip, Link as MLink } from "@mui/material";
 import TwitterIcon from "@mui/icons-material/Twitter";
+import FeedbackBox from "./FeedbackBox";
 
 const Footer = () => {
   const year = new Date().getFullYear();
@@ -21,20 +22,30 @@ const Footer = () => {
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>Evolution Tracker</Typography>
-        <MLink
-          href="https://x.com/Alexand93085679"
-          target="_blank"
-          rel="noopener noreferrer"
-          sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#00e676', textDecoration: 'none', '&:hover': { color: '#00c853' } }}
-        >
-          <TwitterIcon fontSize="small" />
-          Följ mig på X
-        </MLink>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FeedbackBox />
+          <MLink
+            href="https://x.com/Alexand93085679"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#00e676', textDecoration: 'none', '&:hover': { color: '#00c853' } }}
+          >
+            <TwitterIcon fontSize="small" />
+            Följ mig på X
+          </MLink>
+        </Box>
       </Box>
 
       <Typography variant="body2" sx={{ color: "#b0b0b0", mt: 1, fontStyle: 'italic' }}>
         Hobbyprojekt av en student — byggt för att öva på kodning.
       </Typography>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+        <Chip label="Förslagslåda" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 600 }} />
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          Har du idéer eller saknar något? Klicka på "Tyck till" här ovan.
+        </Typography>
+      </Box>
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1 }}>
         <Chip label="Data: Yahoo Finance" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />

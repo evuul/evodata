@@ -43,8 +43,8 @@ const faqs = [
     a: "Tills vidare visar vi en fast total blankning i headern. Vid klick visas publika positioner baserat på Finansinspektionens register (statisk ögonblicksbild) och resten som opublikt.",
   },
   {
-    q: "Varför står det MEURO på Y‑axeln?",
-    a: "För att spara utrymme visar vi MEURO i omsättningsgrafer och förkortar etiketter på mobil. På årsvisning visas endast årtal (2015, 2016, …).",
+    q: "Varför står det Meuro på Y‑axeln?",
+    a: "För att spara utrymme visar vi Meuro i omsättningsgrafer och förkortar etiketter på mobil. På årsvisning visas endast årtal (2015, 2016, …).",
   },
   {
     q: "Kan jag exportera data?",

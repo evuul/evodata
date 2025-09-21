@@ -48,7 +48,7 @@ const GeoDistributionSection = ({
                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `${Number(value).toLocaleString("sv-SE")} MEUR`} contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }} />
+                <Tooltip formatter={(value) => `${Number(value).toLocaleString("sv-SE")} Meuro`} contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }} />
                 <Legend verticalAlign="bottom" height={36} />
               </PieChart>
             </ResponsiveContainer>
@@ -68,4 +68,3 @@ const GeoDistributionSection = ({
 };
 
 export default GeoDistributionSection;
-

@@ -12,6 +12,9 @@ import {
   useMediaQuery,
   useTheme,
   IconButton,
+  Chip,
+  Button,
+  Tooltip,
 } from "@mui/material";
 // Charts are rendered inside subcomponents; no direct Recharts import needed here
 import { keyframes } from "@emotion/react";
@@ -121,6 +124,17 @@ const StockBuybackInfo = ({
   const lastWeek = getLastWeekBuybacks(buybackData);
   const prevWeek = getPreviousWeekBuybacks(buybackData, lastWeek.periodStart);
   const deltaShares = (lastWeek.totalShares || 0) - (prevWeek.totalShares || 0);
+
+  // (rullande 4v borttagen enligt önskemål)
+
+  // Kvar-chip: matcha grön stil med "Status på återköp"
+  const kvarChipSx = {
+    backgroundColor: '#00e676',
+    color: '#1e1e1e',
+    fontWeight: 700,
+  };
+
+  const [showDetails, setShowDetails] = useState(false);
 
   const sortedData = [...oldBuybackData].sort((a, b) => {
     const key = sortConfig.key;
@@ -418,6 +432,39 @@ const StockBuybackInfo = ({
             Status på återköp: {isActive ? "Aktivt" : "Inaktivt"}
           </Typography>
 
+          {/* KPI-chips */}
+          <Box sx={{
+            display: 'flex',
+            gap: 1,
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            mb: 2,
+          }}>
+            <Tooltip title="Fastställd total kassa för programmet">
+              <Chip size="small" label={`Programstorlek: ${buybackCashInSEK.toLocaleString('sv-SE')} SEK`} sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 700 }} />
+            </Tooltip>
+            <Tooltip title="Använt belopp hittills (transaktionsvärde)">
+              <Chip size="small" label={`Använt: ${Math.round(totalBuybackValue).toLocaleString('sv-SE')} SEK`} sx={{ backgroundColor: '#263238', color: '#b2ebf2', fontWeight: 700 }} />
+            </Tooltip>
+            <Tooltip title="Kvarvarande kassa i programmet">
+              <Chip size="small" label={`Kvar: ${Math.max(0, Math.round(remainingCash)).toLocaleString('sv-SE')} SEK`} sx={kvarChipSx} />
+            </Tooltip>
+            <Tooltip title="Genomsnittligt pris per återköpt aktie">
+              <Chip size="small" label={`Snittkurs: ${averagePrice.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`} sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 700 }} />
+            </Tooltip>
+            <Tooltip title="Genomsnittlig köptakt i nuvarande program">
+              <Chip size="small" label={`Snittköp: ${Math.round(currentProgramAverageDailyShares).toLocaleString('sv-SE')} aktier/dag`} sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 700 }} />
+            </Tooltip>
+            <Tooltip title="Beräknat antal aktier som kan köpas för kvarvarande kassa till aktuell kurs (procent av bolaget inom parentes)">
+              <Chip size="small" label={`Kvar att köpa: ${Math.max(0, remainingSharesToBuy).toLocaleString('sv-SE')} aktier (${Math.max(0, remainingPercentage).toFixed(2)}%)`} sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 700 }} />
+            </Tooltip>
+            {/* Andel-chip borttaget för att undvika dubblering – procent visas i 'Kvar att köpa' */}
+            <Tooltip title="Uppskattat slutförandedatum baserat på kvarvarande kassa och nuvarande takt">
+              <Chip size="small" label={`Slutdatum: ${estimatedCompletionDate} (om ${daysToCompletion} dagar)`} sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 700 }} />
+            </Tooltip>
+          </Box>
+
+
           {loadingPrice ? (
             <Typography
               variant="body2"
@@ -480,6 +527,11 @@ const StockBuybackInfo = ({
             </Typography>
           </Box>
 
+          <Button size="small" variant="text" onClick={() => setShowDetails((s) => !s)} sx={{ color: '#00e676', mb: 1, textTransform: 'none', fontWeight: 700 }}>
+            {showDetails ? 'Dölj detaljer' : 'Visa detaljer'}
+          </Button>
+
+          {showDetails && (
           <Box display="flex" flexDirection="column" alignItems="center" mt={2}>
             {priceError && (
               <Typography
@@ -548,7 +600,7 @@ const StockBuybackInfo = ({
               <Box>
                 <Typography
                   variant="body2"
-                  color="#00e676"
+                  color="#fff"
                   sx={{
                     marginBottom: "5px",
                     fontSize: { xs: "0.85rem", sm: "0.95rem" },
@@ -558,7 +610,7 @@ const StockBuybackInfo = ({
                 </Typography>
                 <Typography
                   variant="body2"
-                  color="#00e676"
+                  color="#fff"
                   sx={{
                     marginBottom: "5px",
                     fontSize: { xs: "0.85rem", sm: "0.95rem" },
@@ -592,21 +644,23 @@ const StockBuybackInfo = ({
                 </Typography>
               </>
             )}
-            {/* Senaste veckans återköp */}
-            <Box mt={3} sx={{ width: "100%" }}>
-              <Typography
-                variant="h6"
-                sx={{
-                  fontWeight: 700,
-                  color: "#fff",
-                  marginBottom: "8px",
-                  fontSize: { xs: "1.0rem", sm: "1.2rem" },
-                }}
-              >
-                Senaste veckan
-              </Typography>
-              <WeeklyBuybacksTable lastWeek={lastWeek} prevWeek={prevWeek} deltaShares={deltaShares} isMobile={isMobile} />
-            </Box>
+          </Box>
+          )}
+
+          {/* Senaste veckans återköp – alltid synlig */}
+          <Box mt={3} sx={{ width: "100%" }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 700,
+                color: "#fff",
+                marginBottom: "8px",
+                fontSize: { xs: "1.0rem", sm: "1.2rem" },
+              }}
+            >
+              Senaste veckan
+            </Typography>
+            <WeeklyBuybacksTable lastWeek={lastWeek} prevWeek={prevWeek} deltaShares={deltaShares} isMobile={isMobile} />
           </Box>
         </Box>
       )}

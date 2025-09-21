@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { Box, Tabs, Tab, Typography } from "@mui/material";
+import { Box, Tabs, Tab, Typography, Chip } from "@mui/material";
 import {
   ResponsiveContainer,
   CartesianGrid,
@@ -31,6 +31,35 @@ const RevenueSection = ({
   const latestQuarter = (() => {
     const valid = (revenueQuarterlyGrowth || []).filter((i) => i.value !== null);
     return valid[valid.length - 1];
+  })();
+
+  // YoY för senaste kvartal (används även i helårsvy för tydlighet)
+  const latestQuarterYoY = latestQuarter?.growth != null ? Number(latestQuarter.growth) : null;
+
+  // YTD-jämförelse: summera innevarande års rapporterade kvartal och jämför med samma kvartal föregående år
+  const ytdCompare = (() => {
+    const qOrder = ["Q1", "Q2", "Q3", "Q4"];
+    const valid = (revenueQuarterlyGrowth || []).filter((i) => i.value != null);
+    if (valid.length === 0) return null;
+    const currentYear = Math.max(...valid.map((d) => d.year));
+    const currentYearPoints = valid.filter((d) => d.year === currentYear);
+    if (currentYearPoints.length === 0) return null;
+    // Hitta senaste kvartal rapporterat i innevarande år
+    let latestIdx = -1;
+    for (let i = qOrder.length - 1; i >= 0; i--) {
+      if (currentYearPoints.some((d) => d.quarter === qOrder[i])) { latestIdx = i; break; }
+    }
+    if (latestIdx < 0) return null;
+    const upto = qOrder.slice(0, latestIdx + 1);
+    const curYTD = valid
+      .filter((d) => d.year === currentYear && upto.includes(d.quarter))
+      .reduce((s, d) => s + (Number(d.value) || 0), 0);
+    const prevYTD = valid
+      .filter((d) => d.year === currentYear - 1 && upto.includes(d.quarter))
+      .reduce((s, d) => s + (Number(d.value) || 0), 0);
+    if (!(prevYTD > 0)) return { label: `YTD ${currentYear} ${upto[0]}–${upto[upto.length-1]}`, curYTD, prevYTD: null, growth: null };
+    const growth = ((curYTD - prevYTD) / prevYTD) * 100;
+    return { label: `YTD ${currentYear} ${upto[0]}–${upto[upto.length-1]}`, curYTD, prevYTD, growth };
   })();
 
   return (
@@ -89,23 +118,58 @@ const RevenueSection = ({
         {viewMode === "quarterly" ? "Omsättning per kvartal" : "Omsättning per helår"}
       </Typography>
 
-      {viewMode === "quarterly" && latestQuarter?.growth && (
-        <Typography
-          variant="body2"
-          color={latestQuarter.growth >= 0 ? "#00e676" : "#ff1744"}
-          sx={{ marginBottom: "10px", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
-        >
-          Ökning jämfört med {latestQuarter.year - 1} {latestQuarter.quarter}: {latestQuarter.growth}%
-        </Typography>
+      {viewMode === "quarterly" && latestQuarter?.growth != null && (
+        <>
+          <Typography
+            variant="body2"
+            color={Number(latestQuarter.growth) > 0 ? "#00e676" : Number(latestQuarter.growth) < 0 ? "#ff1744" : "#b0b0b0"}
+            sx={{ marginBottom: "6px", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+          >
+            {Number(latestQuarter.growth) > 0 ? "Ökning" : Number(latestQuarter.growth) < 0 ? "Minskning" : "Oförändrat"}
+            {` jämfört med ${latestQuarter.year - 1} ${latestQuarter.quarter}: ${latestQuarter.growth}%`}
+          </Typography>
+          {latestQuarter?.value != null && (
+            <Typography
+              variant="body2"
+              sx={{ marginBottom: "10px", textAlign: "center", color: "#b0b0b0", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+            >
+              {`Senaste omsättning: ${Math.round(Number(latestQuarter.value)).toLocaleString('sv-SE')} Meuro`}
+            </Typography>
+          )}
+        </>
       )}
 
-      {viewMode === "yearly" && (revenueYearlyGrowth?.length || 0) > 0 && revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth && (
-        <Typography
-          variant="body2"
-          color={revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth >= 0 ? "#00e676" : "#ff1744"}
-          sx={{ marginBottom: "10px", textAlign: "center", fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
-        >
-          Tillväxt jämfört med {revenueYearlyGrowth[revenueYearlyGrowth.length - 1].year - 1}: {revenueYearlyGrowth[revenueYearlyGrowth.length - 1].growth}%
+      {/* YTD endast i helårsvy – samma stil som kvartal (centrerad text) */}
+      {viewMode === "yearly" && ytdCompare && (
+        <Box sx={{ mb: 1.5, textAlign: 'center' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: (ytdCompare.growth ?? 0) >= 0 ? '#00e676' : '#ff1744',
+              fontSize: { xs: '0.85rem', sm: '0.95rem' },
+              fontWeight: 600,
+            }}
+          >
+            {ytdCompare.label}: {ytdCompare.growth == null ? '—' : (ytdCompare.growth >= 0 ? '+' : '') + ytdCompare.growth.toFixed(1) + '%'}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: '#b0b0b0', mt: 0.5, fontSize: { xs: '0.85rem', sm: '0.95rem' } }}
+          >
+            {(() => {
+              const fmt = (v) => v.toLocaleString('sv-SE');
+              return ytdCompare.prevYTD != null
+                ? `${fmt(Math.round(ytdCompare.curYTD))} Meuro vs ${fmt(Math.round(ytdCompare.prevYTD))} Meuro`
+                : `${fmt(Math.round(ytdCompare.curYTD))} Meuro`;
+            })()}
+          </Typography>
+        </Box>
+      )}
+
+      {/* Visa YoY senaste kvartal som sekundär info, mindre framträdande */}
+      {viewMode === "quarterly" && latestQuarterYoY != null && (
+        <Typography variant="caption" sx={{ color: latestQuarterYoY >= 0 ? '#9be7a7' : '#ff8a80', mb: 1, display: 'block', fontWeight: 600 }}>
+          YoY senaste kvartal: {(latestQuarterYoY >= 0 ? '+' : '') + Number(latestQuarterYoY).toFixed(1)}%
         </Typography>
       )}
 
@@ -140,13 +204,13 @@ const RevenueSection = ({
               tick={{ fontSize: isMobile ? 10 : 14 }}
             >
               {!isMobile && (
-                <Label value="Omsättning (MEURO)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                <Label value="Omsättning (Meuro)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
               )}
             </YAxis>
             <Tooltip
               formatter={(value, name, props) => {
                 const growth = props.payload.growth;
-                return [value !== null ? `${value.toLocaleString("sv-SE")} MEURO` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig"];
+                return [value !== null ? `${value.toLocaleString("sv-SE")} Meuro` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig"];
               }}
               contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
             />
@@ -178,13 +242,13 @@ const RevenueSection = ({
               tick={{ fontSize: isMobile ? 10 : 14 }}
             >
               {!isMobile && (
-                <Label value="Omsättning (MEURO)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
+                <Label value="Omsättning (Meuro)" angle={-90} offset={-10} position="insideLeft" fill="#ccc" style={{ fontSize: isMobile ? "12px" : "14px" }} />
               )}
             </YAxis>
             <Tooltip
               formatter={(value, name, props) => {
                 const growth = props.payload.growth;
-                return [value !== null ? `${value.toLocaleString("sv-SE")} MEURO` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig`"];
+                return [value !== null ? `${value.toLocaleString("sv-SE")} Meuro` : "Ingen data", growth ? `Ökning: ${growth}%` : "Ingen jämförelse tillgänglig"];
               }}
               contentStyle={{ backgroundColor: "#2e2e2e", color: "#fff", border: "none", borderRadius: "5px" }}
             />
