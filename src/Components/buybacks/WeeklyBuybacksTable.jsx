@@ -64,14 +64,14 @@ const WeeklyBuybacksTable = ({ lastWeek, prevWeek, deltaShares, isMobile }) => {
                 {lastWeek.entries.map((row, idx) => (
                   <TableRow key={idx}>
                     <TableCell sx={{ color: "#fff" }}>{new Date(row.Datum).toLocaleDateString("sv-SE")}</TableCell>
-                    <TableCell align="right" sx={{ color: "#fff" }}>{(row.Antal_aktier || 0).toLocaleString("sv-SE")}</TableCell>
-                    <TableCell align="right" sx={{ color: "#fff" }}>{(row.Transaktionsvärde || 0).toLocaleString("sv-SE")}</TableCell>
+                    <TableCell align="right" sx={{ color: "#fff" }}>{(row.Antal_aktier || 0).toLocaleString("sv-SE")} st</TableCell>
+                    <TableCell align="right" sx={{ color: "#fff" }}>{(row.Transaktionsvärde || 0).toLocaleString("sv-SE")} SEK</TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
                   <TableCell sx={{ color: "#fff", fontWeight: 700 }}>Summa</TableCell>
-                  <TableCell align="right" sx={{ color: "#fff", fontWeight: 700 }}>{(lastWeek.totalShares || 0).toLocaleString("sv-SE")}</TableCell>
-                  <TableCell align="right" sx={{ color: "#fff", fontWeight: 700 }}>{(lastWeek.totalValue || 0).toLocaleString("sv-SE")}</TableCell>
+                  <TableCell align="right" sx={{ color: "#fff", fontWeight: 700 }}>{(lastWeek.totalShares || 0).toLocaleString("sv-SE")} st</TableCell>
+                  <TableCell align="right" sx={{ color: "#fff", fontWeight: 700 }}>{(lastWeek.totalValue || 0).toLocaleString("sv-SE")} SEK</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -85,4 +85,3 @@ const WeeklyBuybacksTable = ({ lastWeek, prevWeek, deltaShares, isMobile }) => {
 };
 
 export default WeeklyBuybacksTable;
-
