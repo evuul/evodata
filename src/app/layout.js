@@ -1,25 +1,33 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 // import Sidebar from "../Components/Sidebar"; // Importera Sidebar
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { Box } from "@mui/material";
 import { StockPriceProvider } from "../context/StockPriceContext"; // Importera StockPriceProvider
 
-const geistSans = Geist({
+const geistSans = localFont({
   variable: "--font-geist-sans",
-  subsets: ["latin"],
+  src: [
+    { path: "./fonts/Geist-Variable.woff2", weight: "100 900", style: "normal" },
+  ],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const geistMono = localFont({
   variable: "--font-geist-mono",
-  subsets: ["latin"],
+  src: [
+    { path: "./fonts/GeistMono-Variable.woff2", weight: "100 900", style: "normal" },
+  ],
+  display: "swap",
 });
+
+const site = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export const metadata = {
   title: "EVOLUTION TRACKER",
   description: "Följer Evolution Gaming",
   applicationName: "Evolution Tracker",
-  metadataBase: undefined, // sätt en full URL vid deployment, t.ex. new URL('https://evo.example.com')
+  metadataBase: new URL(site),
   openGraph: {
     title: "Evolution Tracker",
     description: "Finansiell översikt, återköp, utdelning och nyheter om Evolution (EVO.ST)",
