@@ -30,7 +30,7 @@ export default async function OpengraphImage() {
         >
           EVO.ST • Nasdaq Stockholm
         </div>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div
             style={{
               fontSize: 72,
@@ -62,4 +62,3 @@ export default async function OpengraphImage() {
     size
   );
 }
-
