@@ -16,16 +16,30 @@ export async function GET(request) {
   const nasdaqRss = process.env.NASDAQ_RSS_URL;
 
   // Bygg källista: bara MFN + Cision (ev. Nasdaq) + ev. egna via .env
-  const rssUrls = []
+  let rssUrls = []
     .concat(rssListEnv ? rssListEnv.split(',') : [])
     .concat([mfnRss, cisionRss, nasdaqRss].filter(Boolean))
     .map((u) => u && u.trim())
     .filter(Boolean);
   // Defaults om inget satt
   if (rssUrls.length === 0) {
+    // MFN feed for Evolution
     rssUrls.push('https://mfn.se/tag/evolution?format=rss');
-    rssUrls.push('https://news.cision.com/se/evolution/rss/all/releases');
+    // Cision official press release feeds (English + Swedish)
+    // Using /rss/latest which is stable and contains latest releases including buyback notices
+    rssUrls.push('https://news.cision.com/evolution/rss/latest');
+    rssUrls.push('https://news.cision.com/se/evolution/rss/latest');
   }
+
+  // Ensure Cision press releases are included even if env only sets MFN
+  const hasCision = rssUrls.some(u => /news\.cision\.com\//.test(String(u)));
+  if (!hasCision) {
+    rssUrls.push('https://news.cision.com/evolution/rss/latest');
+    rssUrls.push('https://news.cision.com/se/evolution/rss/latest');
+  }
+
+  // Dedupe final RSS list
+  rssUrls = Array.from(new Set(rssUrls));
 
   // Förbered Google News RSS som fallback om ovan inte ger träffar
   const langLower = String(lang || 'sv').toLowerCase();
@@ -59,6 +73,29 @@ export async function GET(request) {
   ];
 
   try {
+    // Enkel HTML-parser för MFN-listor (fallback när RSS ej fungerar)
+    const parseMfnList = (html, base = 'https://mfn.se') => {
+      const out = [];
+      const blocks = Array.from(html.matchAll(/<div class=\"short-item[\s\S]*?>([\s\S]*?)<\/div>\s*<\/div>/g)).map(m => m[1]);
+      const strip = (s) => (s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+      for (const b of blocks) {
+        const dateM = /<span class=\"compressed-date\">([^<]+)<\/span>/.exec(b);
+        const timeM = /<span class=\"compressed-time\">([^<]+)<\/span>/.exec(b);
+        const titleM = /<a[^>]*class=\"title-link item-link\"[^>]*href=\"([^\"]+)\"[^>]*>([\s\S]*?)<\/a>/.exec(b);
+        if (!titleM) continue;
+        const href = titleM[1];
+        const title = strip(titleM[2]);
+        const url = href.startsWith('http') ? href : base + href;
+        let publishedAt = null;
+        if (dateM && timeM) {
+          const iso = `${dateM[1]}T${timeM[1]}Z`;
+          const dt = new Date(iso);
+          if (!isNaN(dt.getTime())) publishedAt = dt.toISOString();
+        }
+        out.push({ title, url, source: 'MFN', publishedAt, snippet: '' });
+      }
+      return out;
+    };
     const tryFetchRssVariants = async (baseUrl) => {
       const variants = [
         baseUrl,
@@ -150,22 +187,31 @@ export async function GET(request) {
     // Försök RSS först om konfigurerat – prioriterar MFN/Cision/Nasdaq
     if (rssUrls.length > 0) {
       let articles = [];
+      // Hämta pressflöden (MFN/Cision/Nasdaq)
       for (const u of rssUrls) {
         try {
           const got = await tryFetchRssVariants(u);
-          if (!got) continue;
-          articles = articles.concat(parseRss(got.xml));
-        } catch {}
-      }
-      if (articles.length === 0) {
-        // Prova Google News som fallback för att säkerställa att något visas
-        try {
-          const got = await tryFetchRssVariants(googleNewsRss);
           if (got) {
-            articles = parseRss(got.xml, 'Google News');
+            articles = articles.concat(parseRss(got.xml));
+          } else {
+            // MFN saknar ibland RSS – parsa HTML-listan
+            if (/mfn\.se\//.test(String(u))) {
+              const r = await fetch(u, { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0)' } });
+              if (r.ok) {
+                const html = await r.text();
+                articles = articles.concat(parseMfnList(html));
+              }
+            }
           }
         } catch {}
       }
+      // Hämta även Google News och kombinera för bredare täckning (analys/media)
+      try {
+        const got = await tryFetchRssVariants(googleNewsRss);
+        if (got) {
+          articles = articles.concat(parseRss(got.xml, 'Google News'));
+        }
+      } catch {}
       if (articles.length === 0) articles = FAKE_ARTICLES;
 
       // Försök översätta Google News-länkar till original för de 10 första
@@ -177,6 +223,20 @@ export async function GET(request) {
       );
       const tail = articles.slice(10);
       articles = head.concat(tail);
+
+      // Visa endast svenska versioner av återköps-press (droppa engelska "Acquisitions of own shares")
+      articles = articles.filter(a => !/Acquisitions of own shares/i.test(a.title || ''));
+      // Droppa återköps-nyheter från Cision (behåll MFN:s version)
+      const isBuyback = (t) => /Återköp av aktier i Evolution AB|Acquisitions of own shares/i.test(t || '');
+      const isFromCision = (a) => {
+        try {
+          const src = (a.source || '').toLowerCase();
+          if (src.includes('cision')) return true;
+          const host = new URL(a.url).hostname.toLowerCase();
+          return host.includes('cision');
+        } catch { return false; }
+      };
+      articles = articles.filter(a => !(isBuyback(a.title) && isFromCision(a)));
 
       // Deduplikera på normaliserad URL
       articles = Array.from(new Map(articles.map(a => [normalizeUrl(a.url), { ...a, url: normalizeUrl(a.url) }])).values())
@@ -221,6 +281,13 @@ export async function GET(request) {
           rs = rs.concat(parseRss(got.xml));
         }
         if (rs.length > 0) {
+          // Samma filtrering i fallback: ta bort engelska buybacks och Cision-buybacks
+          rs = rs.filter(a => !/Acquisitions of own shares/i.test(a.title || ''));
+          rs = rs.filter(a => {
+            const isBuyback = /Återköp av aktier i Evolution AB|Acquisitions of own shares/i.test(a.title || '');
+            const isCision = (() => { try { const h = new URL(a.url).hostname.toLowerCase(); return h.includes('cision'); } catch { return (a.source||'').toLowerCase().includes('cision'); } })();
+            return !(isBuyback && isCision);
+          });
           rs = Array.from(new Map(rs.map(a => [a.url, a])).values())
             .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
             .slice(0, 30);

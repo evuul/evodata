@@ -18,8 +18,8 @@ import {
 } from "@mui/material";
 // Charts are rendered inside subcomponents; no direct Recharts import needed here
 import { keyframes } from "@emotion/react";
-import buybackData from "../app/data/buybackData.json"; // Nuvarande återköp för "Återköpsstatus"-fliken
-import oldBuybackData from "../app/data/oldBuybackData.json"; // Historiska och nuvarande återköp för övriga flikar
+import buybackDataDefault from "../app/data/buybackData.json"; // Fallback vid initial render
+import oldBuybackDataDefault from "../app/data/oldBuybackData.json"; // Fallback vid initial render
 import { useStockPriceContext } from '../context/StockPriceContext';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
@@ -61,19 +61,7 @@ const pulseRed = keyframes`
   100% { box-shadow: 0 0 6px rgba(255, 23, 68, 0.3); }
 `;
 
-// Beräkna Evolutions ägande och makulerade aktier med oldBuybackData
-const evolutionOwnershipData = calculateEvolutionOwnershipPerYear(oldBuybackData);
-const cancelledShares = calculateCancelledShares(oldBuybackData);
-
-const ownershipPercentageData = totalSharesData.map((item, index) => {
-  const evolutionShares = evolutionOwnershipData.find((data) => data.date === item.date)?.shares || 0;
-  return {
-    date: item.date,
-    percentage: evolutionShares > 0 && item.totalShares > 0 ? (evolutionShares / item.totalShares) * 100 : 0,
-  };
-});
-
-const buybackDataDaily = buildDaily(oldBuybackData);
+// Dynamiska data hämtas från API, men ha fallback tills fetch är klar
 
 
 const StockBuybackInfo = ({
@@ -81,6 +69,55 @@ const StockBuybackInfo = ({
   buybackCash,
   dividendData,
 }) => {
+  const [oldData, setOldData] = useState(oldBuybackDataDefault);
+  const [curData, setCurData] = useState(buybackDataDefault);
+  const [loadingData, setLoadingData] = useState(false);
+  const [dataError, setDataError] = useState("");
+
+  const fetchBuybacks = async () => {
+    try {
+      setLoadingData(true);
+      setDataError("");
+      const res = await fetch('/api/buybacks/data', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Kunde inte hämta återköpsdata');
+      const data = await res.json();
+      if (Array.isArray(data.old)) setOldData(data.old);
+      if (Array.isArray(data.current)) setCurData(data.current);
+    } catch (e) {
+      setDataError('');
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  useEffect(() => { fetchBuybacks(); }, []);
+  useEffect(() => {
+    const handler = () => { fetchBuybacks(); };
+    try { window.addEventListener('buybacksSynced', handler); } catch {}
+    return () => { try { window.removeEventListener('buybacksSynced', handler); } catch {} };
+  }, []);
+
+  // Måndagsfönster (08:00–10:00 Europe/Stockholm): polla buyback‑data var 5:e minut
+  useEffect(() => {
+    const inStockholmWindow = () => {
+      try {
+        const parts = new Intl.DateTimeFormat('sv-SE', {
+          timeZone: 'Europe/Stockholm',
+          weekday: 'short',
+          hour: '2-digit',
+          hour12: false,
+        }).formatToParts(new Date());
+        const wd = (parts.find(p => p.type === 'weekday')?.value || '').toLowerCase();
+        const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
+        const isMonday = wd.startsWith('mån');
+        return isMonday && hour >= 8 && hour < 10;
+      } catch { return false; }
+    };
+    const id = setInterval(() => {
+      if (inStockholmWindow()) fetchBuybacks();
+    }, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -97,12 +134,12 @@ const StockBuybackInfo = ({
   const { stockPrice, marketCap, loading: loadingPrice, error: priceError } = useStockPriceContext();
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
 
-  const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData, oldBuybackData);
+  const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData, oldData);
 
   const directYieldPercentage = marketCap > 0 ? (latestYearReturns / marketCap) * 100 : 0;
 
   const buybackCashInSEK = buybackCash * exchangeRate;
-  const { sharesBought, averagePrice } = calculateBuybackStats(buybackData); // Använd buybackData för Återköpsstatus
+  const { sharesBought, averagePrice } = calculateBuybackStats(curData); // Använd nuvarande data för Återköpsstatus
   const totalBuybackValue = sharesBought * averagePrice;
   const remainingCash = buybackCashInSEK - totalBuybackValue;
   const buybackProgress = buybackCashInSEK > 0 ? (totalBuybackValue / buybackCashInSEK) * 100 : 0;
@@ -113,16 +150,27 @@ const StockBuybackInfo = ({
   const profitPerShare = currentSharePrice - averagePrice;
   const totalProfitLoss = profitPerShare * sharesBought;
 
-  const latestEvolutionShares = evolutionOwnershipData[evolutionOwnershipData.length - 1]?.shares || 0;
+  const evolutionOwnershipDataMemo = React.useMemo(() => calculateEvolutionOwnershipPerYear(oldData), [oldData]);
+  const cancelledShares = React.useMemo(() => calculateCancelledShares(oldData), [oldData]);
+  const ownershipPercentageData = React.useMemo(() => totalSharesData.map((item) => {
+    const evolutionShares = evolutionOwnershipDataMemo.find((data) => data.date === item.date)?.shares || 0;
+    return {
+      date: item.date,
+      percentage: evolutionShares > 0 && item.totalShares > 0 ? (evolutionShares / item.totalShares) * 100 : 0,
+    };
+  }), [evolutionOwnershipDataMemo]);
+  const buybackDataDaily = React.useMemo(() => buildDaily(oldData), [oldData]);
+
+  const latestEvolutionShares = evolutionOwnershipDataMemo[evolutionOwnershipDataMemo.length - 1]?.shares || 0;
   const latestOwnershipPercentage = (latestEvolutionShares / latestTotalShares) * 100;
 
-  const { averageDaily: historicalAverageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback(oldBuybackData); // Använd oldBuybackData för historik
+  const { averageDaily: historicalAverageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback(oldData); // Använd dynamiska data för historik
 
-  const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } = calculateEstimatedCompletion(remainingCash, buybackData); // Använd buybackData för Återköpsstatus
+  const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } = calculateEstimatedCompletion(remainingCash, curData); // Använd dynamiska buybackData för Återköpsstatus
 
   // Senaste veckans återköp baserat på buybackData
-  const lastWeek = getLastWeekBuybacks(buybackData);
-  const prevWeek = getPreviousWeekBuybacks(buybackData, lastWeek.periodStart);
+  const lastWeek = getLastWeekBuybacks(curData);
+  const prevWeek = getPreviousWeekBuybacks(curData, lastWeek.periodStart);
   const deltaShares = (lastWeek.totalShares || 0) - (prevWeek.totalShares || 0);
 
   // (rullande 4v borttagen enligt önskemål)
@@ -136,7 +184,7 @@ const StockBuybackInfo = ({
 
   const [showDetails, setShowDetails] = useState(false);
 
-  const sortedData = [...oldBuybackData].sort((a, b) => {
+  const sortedData = [...oldData].sort((a, b) => {
     const key = sortConfig.key;
     const direction = sortConfig.direction === "asc" ? 1 : -1;
 
@@ -270,10 +318,10 @@ const StockBuybackInfo = ({
   const historyChartData = viewMode === "daily"
     ? buybackDataDaily
     : viewMode === "weekly"
-    ? buildWeekly(oldBuybackData)
+    ? buildWeekly(oldData)
     : viewMode === "monthly"
-    ? buildMonthly(oldBuybackData)
-    : buildYearly(oldBuybackData);
+    ? buildMonthly(oldData)
+    : buildYearly(oldData);
 
   return (
     <Card
