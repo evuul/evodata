@@ -340,12 +340,16 @@ const InvestmentCalculator = ({ dividendData }) => {
           variant="contained"
           onClick={calculateInvestment}
           sx={{
-            backgroundColor: "#00e676",
-            "&:hover": { backgroundColor: "#00c853" },
-            color: "#fff",
-            fontWeight: "bold",
+            backgroundColor: "#2a2a2a",
+            border: '1px solid #3a3a3a',
+            "&:hover": { backgroundColor: "#333", borderColor: '#444' },
+            color: "#ffffff",
+            fontWeight: 700,
+            textTransform: 'none',
+            letterSpacing: '0.2px',
             fontSize: { xs: "0.9rem", sm: "1rem" },
             padding: { xs: "6px 12px", sm: "8px 16px" },
+            boxShadow: 'none',
           }}
           disabled={loadingPrice}
         >
