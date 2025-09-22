@@ -725,15 +725,15 @@ const StockBuybackInfo = ({
       {activeTab === "ownership" && (
         <OwnershipView
           isMobile={isMobile}
-          evolutionOwnershipData={evolutionOwnershipData}
+          evolutionOwnershipData={evolutionOwnershipDataMemo}
           ownershipPercentageData={ownershipPercentageData}
           latestEvolutionShares={latestEvolutionShares}
           latestOwnershipPercentage={latestOwnershipPercentage}
           cancelledShares={cancelledShares}
           chartTypeOwnership={chartTypeOwnership}
           onChangeChartTypeOwnership={handleChartTypeChange("ownership")}
-          yDomain={getYDomain(evolutionOwnershipData, "shares")}
-          yTicks={getYTickValues(evolutionOwnershipData, "shares", "yearly")}
+          yDomain={getYDomain(evolutionOwnershipDataMemo, "shares")}
+          yTicks={getYTickValues(evolutionOwnershipDataMemo, "shares", "yearly")}
           formatYAxisTick={formatYAxisTick}
         />
       )}
