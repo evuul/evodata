@@ -82,7 +82,14 @@ const FAQ = () => {
           size="small"
           startIcon={<EmailOutlinedIcon />}
           href="mailto:Alexander.ek@live.se"
-          sx={{ borderColor: '#00e676', color: '#00e676', '&:hover': { borderColor: '#00c853', color: '#00c853' } }}
+          sx={{
+            borderColor: '#3a3a3a',
+            color: '#b0b0b0',
+            backgroundColor: 'transparent',
+            textTransform: 'none',
+            fontWeight: 600,
+            '&:hover': { borderColor: '#444', backgroundColor: '#232323', color: '#ffffff' },
+          }}
         >
           Maila mig
         </Button>
@@ -91,7 +98,7 @@ const FAQ = () => {
       {/* Dropdown som kapslar alla frågor */}
       <Accordion sx={{ backgroundColor: '#1f1f1f', color: '#fff', border: '1px solid #2b2b2b' }}>
         <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#00e676' }} />}>
-          <Typography sx={{ fontWeight: 600, width: '100%', textAlign: 'center' }}>Visa/Hide frågor</Typography>
+          <Typography sx={{ fontWeight: 600, width: '100%', textAlign: 'center' }}>Visa/Dölj frågor</Typography>
         </AccordionSummary>
         <AccordionDetails>
           <Box>

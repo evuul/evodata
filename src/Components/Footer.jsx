@@ -28,7 +28,19 @@ const Footer = () => {
             href="https://x.com/Alexand93085679"
             target="_blank"
             rel="noopener noreferrer"
-            sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#00e676', textDecoration: 'none', '&:hover': { color: '#00c853' } }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.5,
+              color: '#b0b0b0',
+              textDecoration: 'none',
+              backgroundColor: 'transparent',
+              border: '1px solid #3a3a3a',
+              borderRadius: '8px',
+              px: 1.25,
+              py: 0.5,
+              '&:hover': { backgroundColor: '#232323', color: '#ffffff', borderColor: '#444' },
+            }}
           >
             <TwitterIcon fontSize="small" />
             Följ mig på X
@@ -53,7 +65,7 @@ const Footer = () => {
       </Box>
 
       <Typography variant="caption" sx={{ color: "#808080", display: 'block', mt: 1 }}>
-        © {year} • Kontakt: <MLink href="mailto:alexander.ek@live.se" underline="hover" sx={{ color: '#00e676' }}>Darkwing</MLink>
+        © {year} • <span style={{ color: '#7E57C2', fontWeight: 600 }}>Darkwing</span> — <MLink href="mailto:alexander.ek@live.se" underline="hover" sx={{ color: '#b0b0b0', '&:hover': { color: '#ffffff' } }}>Maila mig</MLink>
       </Typography>
     </Card>
   );
