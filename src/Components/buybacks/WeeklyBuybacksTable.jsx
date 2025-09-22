@@ -2,7 +2,7 @@
 import React from "react";
 import { Box, Typography, Table, TableBody, TableCell, TableHead, TableRow, TableContainer } from "@mui/material";
 
-const WeeklyBuybacksTable = ({ lastWeek, prevWeek, deltaShares, isMobile }) => {
+const WeeklyBuybacksTable = ({ lastWeek, prevWeek, deltaShares, isMobile, totalSharesOutstanding }) => {
   if (!lastWeek || !lastWeek.entries) {
     return (
       <Typography variant="body2" color="#b0b0b0">
@@ -36,8 +36,8 @@ const WeeklyBuybacksTable = ({ lastWeek, prevWeek, deltaShares, isMobile }) => {
               overflowX: { xs: "auto", sm: "visible" },
               overflowY: "visible",
             }}
-          >
-            <Table size="small" stickyHeader aria-label="Senaste veckans återköp"
+            >
+              <Table size="small" stickyHeader aria-label="Senaste veckans återköp"
               sx={{
                 minWidth: { xs: 360, sm: 520 },
                 tableLayout: { xs: 'fixed', sm: 'auto' },
@@ -74,8 +74,17 @@ const WeeklyBuybacksTable = ({ lastWeek, prevWeek, deltaShares, isMobile }) => {
                   <TableCell align="right" sx={{ color: "#fff", fontWeight: 700 }}>{(lastWeek.totalValue || 0).toLocaleString("sv-SE")} SEK</TableCell>
                 </TableRow>
               </TableBody>
-            </Table>
+              </Table>
           </TableContainer>
+
+          {/* Andel av bolaget för veckans summa */}
+          {totalSharesOutstanding ? (
+            <Typography variant="body2" sx={{ mt: 1 }} color="#b0b0b0">
+              Andel av bolaget återköpt denna veckan: <Box component="span" sx={{ fontWeight: 700, color: '#FFCA28' }}>
+                {(((lastWeek.totalShares || 0) / totalSharesOutstanding) * 100).toFixed(4)}%
+              </Box>
+            </Typography>
+          ) : null}
         </>
       ) : (
         <Typography variant="body2" color="#b0b0b0">Inga transaktioner denna vecka.</Typography>

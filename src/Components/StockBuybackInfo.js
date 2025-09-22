@@ -213,22 +213,15 @@ const StockBuybackInfo = ({
         const sp = new URLSearchParams(window.location.search);
         sp.delete('bbTab');
         const qs = sp.toString();
-        const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}#buybacks`;
-        router.replace(newUrl);
+        const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
+        router.replace(newUrl, { scroll: false });
       } catch {}
     }
     if (urlView && ["daily","weekly","monthly","yearly"].includes(urlView)) setViewMode(urlView);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const updateUrlParam = (key, value) => {
-    try {
-      const sp = new URLSearchParams(window.location.search);
-      sp.set(key, value);
-      const newUrl = `${window.location.pathname}?${sp.toString()}#buybacks`;
-      router.replace(newUrl);
-    } catch {}
-  };
+  const updateUrlParam = () => {};
 
   const handlePrevTab = () => {
     const currentIndex = tabsList.indexOf(activeTab);
@@ -244,12 +237,12 @@ const StockBuybackInfo = ({
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-    updateUrlParam('bbTab', newValue);
+    // no URL updates to prevent scroll jumps
   };
 
   const handleViewModeChange = (event, newValue) => {
     setViewMode(newValue);
-    updateUrlParam('bbView', newValue);
+    // no URL updates to prevent scroll jumps
   };
 
   const handleChartTypeChange = (tab) => (event, newValue) => {
@@ -717,7 +710,7 @@ const StockBuybackInfo = ({
             >
               Senaste veckan
             </Typography>
-            <WeeklyBuybacksTable lastWeek={lastWeek} prevWeek={prevWeek} deltaShares={deltaShares} isMobile={isMobile} />
+            <WeeklyBuybacksTable lastWeek={lastWeek} prevWeek={prevWeek} deltaShares={deltaShares} isMobile={isMobile} totalSharesOutstanding={latestTotalShares} />
           </Box>
         </Box>
       )}

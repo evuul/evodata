@@ -198,9 +198,9 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
         </IconButton>
       </Box>
 
-      {/* Filter & statusrad */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+      {/* Filter & statusrad (centrerade chips) */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
             { key: 'ALL', label: 'Alla' },
             { key: 'PRESS', label: 'Pressmeddelanden' },
@@ -220,7 +220,7 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
             />
           ))}
         </Box>
-        <Typography variant="caption" sx={{ color: '#b0b0b0' }}>
+        <Typography variant="caption" sx={{ color: '#b0b0b0', textAlign: 'center' }}>
           {lastUpdated ? `Senast uppdaterad: ${new Date(lastUpdated).toLocaleString('sv-SE')}` : '—'}
         </Typography>
       </Box>
