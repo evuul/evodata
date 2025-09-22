@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, Box, Typography, Chip, CircularProgress } from "@mui/material";
+import { Card, Box, Typography, Chip, CircularProgress, Link } from "@mui/material";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const ShortTrend = () => {
@@ -120,16 +120,18 @@ const ShortTrend = () => {
       margin: "16px auto",
       minHeight: 260,
     }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: '#fff' }}>Blankning – trend</Typography>
-          {latest != null && (
-            <Chip size="small"
-              label={`Senaste: ${latest.toFixed(2)}%${delta!=null && delta!==0 ? (delta>0?` (↑ ${delta.toFixed(2)}pp)`:` (↓ ${Math.abs(delta).toFixed(2)}pp)`) : ''}`}
-              sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }}
-            />
-          )}
-        </Box>
+      {/* Header: centered title with latest chip */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, mb: 1 }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, color: '#fff', textAlign: 'center' }}>
+          Blankning – trend
+        </Typography>
+        {latest != null && (
+          <Chip
+            size="small"
+            label={`Senaste: ${latest.toFixed(2)}%${delta!=null && delta!==0 ? (delta>0?` (↑ ${delta.toFixed(2)}pp)`:` (↓ ${Math.abs(delta).toFixed(2)}pp)`) : ''}`}
+            sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }}
+          />
+        )}
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Chip size="small" label="7D" clickable onClick={() => setRange('7')} sx={{ backgroundColor: range==='7' ? '#00e676' : '#2a2a2a', color: range==='7' ? '#0b0b0b' : '#b0b0b0' }} />
           <Chip size="small" label="30D" clickable onClick={() => setRange('30')} sx={{ backgroundColor: range==='30' ? '#00e676' : '#2a2a2a', color: range==='30' ? '#0b0b0b' : '#b0b0b0' }} />
@@ -157,8 +159,12 @@ const ShortTrend = () => {
           </ResponsiveContainer>
         </Box>
       )}
+      {/* Source and updated info */}
+      <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1, textAlign: 'center' }}>
+        Källa: <Link href="https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88" target="_blank" rel="noopener" underline="hover" sx={{ color: '#FFCA28' }}>Finansinspektionen (FI) – blankningsregistret</Link>
+      </Typography>
       {updatedAt && (
-        <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1 }}>
+        <Typography variant="caption" sx={{ color: '#808080', display: 'block', textAlign: 'center' }}>
           Senast uppdaterad: {new Date(updatedAt).toLocaleString('sv-SE')}
         </Typography>
       )}

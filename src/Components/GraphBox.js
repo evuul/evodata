@@ -78,8 +78,8 @@ const GraphBox = ({
         const sp = new URLSearchParams(window.location.search);
         sp.delete('finTab');
         const qs = sp.toString();
-        const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}#overview`;
-        router.replace(newUrl);
+        const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ''}`;
+        router.replace(newUrl, { scroll: false });
       } catch {}
     }
     if (urlView && (urlView === 'quarterly' || urlView === 'yearly')) setViewMode(urlView);
@@ -90,8 +90,8 @@ const GraphBox = ({
     try {
       const sp = new URLSearchParams(window.location.search);
       sp.set(key, value);
-      const newUrl = `${window.location.pathname}?${sp.toString()}#overview`;
-      router.replace(newUrl);
+      const newUrl = `${window.location.pathname}?${sp.toString()}`;
+      router.replace(newUrl, { scroll: false });
     } catch {}
   };
 
@@ -109,12 +109,12 @@ const GraphBox = ({
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
-    updateUrlParam('finTab', newValue);
+    // intentionally not updating URL to avoid scroll jumps
   };
 
   const handleViewModeChange = (event, newValue) => {
     setViewMode(newValue);
-    updateUrlParam('finView', newValue);
+    // intentionally not updating URL to avoid scroll jumps
   };
 
   const handleChartTypeChange = (event, newValue) => {
