@@ -65,6 +65,7 @@ const BuybackSkeleton = () => (
 // Dynamiska importer för bättre prestanda
 const GraphBox = dynamic(() => import("../Components/GraphBox"), { ssr: false, loading: () => <GraphBoxSkeleton /> });
 const StockBuybackInfo = dynamic(() => import("../Components/StockBuybackInfo"), { ssr: false, loading: () => <BuybackSkeleton /> });
+const ShortTrend = dynamic(() => import("../Components/ShortTrend"), { ssr: false });
 
 // Kvartalsdata
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
@@ -184,6 +185,17 @@ export default function Home() {
         }}
       >
         <NewsSection />
+      </Box>
+
+      {/* Short interest trend */}
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "85%", md: "75%" },
+          margin: "0 auto",
+        }}
+      >
+        <ShortTrend />
       </Box>
 
       {/* Short interest / Blankning temporärt dold (visas i Header med 5.15%) */}

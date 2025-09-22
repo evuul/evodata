@@ -58,12 +58,51 @@ const Header = () => {
   };
 
   useEffect(() => { fetchShort(); }, []);
-
+  
   // Auto-uppdatera blankning var 30:e minut
   useEffect(() => {
     const id = setInterval(() => {
       fetchShort();
     }, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Ta daglig snapshot mellan 09:00–10:00 Stockholm, max en gång per dag (client‑side)
+  useEffect(() => {
+    const getStockholmParts = () => {
+      try {
+        return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date());
+      } catch { return []; }
+    };
+    const todayKey = () => {
+      const parts = getStockholmParts();
+      const y = parts.find(p=>p.type==='year')?.value || '0000';
+      const m = parts.find(p=>p.type==='month')?.value || '00';
+      const d = parts.find(p=>p.type==='day')?.value || '00';
+      return `${y}-${m}-${d}`;
+    };
+    const inWindow = () => {
+      const parts = getStockholmParts();
+      const wd = (parts.find(p=>p.type==='weekday')?.value || '').toLowerCase();
+      const h = parseInt(parts.find(p=>p.type==='hour')?.value || '0', 10);
+      // Snapshot varje dag, men oftast relevant vardagar. Vi kör alla dagar för enkelhet.
+      return h >= 9 && h < 10;
+    };
+    const tick = () => {
+      try {
+        const key = 'short_snapshot_date';
+        const today = todayKey();
+        const last = localStorage.getItem(key);
+        if (inWindow() && last !== today) {
+          fetch('/api/short/snapshot', { method: 'POST' })
+            .then(()=>{ try { window.dispatchEvent(new CustomEvent('shortSnapshot')); } catch {} })
+            .catch(()=>{})
+            .finally(()=> localStorage.setItem(key, today));
+        }
+      } catch {}
+    };
+    const id = setInterval(tick, 5 * 60 * 1000);
+    tick();
     return () => clearInterval(id);
   }, []);
 
