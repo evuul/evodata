@@ -23,8 +23,8 @@ export async function GET(request) {
     .filter(Boolean);
   // Defaults om inget satt
   if (rssUrls.length === 0) {
-    // MFN feed for Evolution
-    rssUrls.push('https://mfn.se/tag/evolution?format=rss');
+    // MFN listing (HTML) for Evolution — more reliable than tag RSS
+    rssUrls.push('https://mfn.se/all/a/evolution');
     // Cision official press release feeds (English + Swedish)
     // Using /rss/latest which is stable and contains latest releases including buyback notices
     rssUrls.push('https://news.cision.com/evolution/rss/latest');
@@ -196,10 +196,15 @@ export async function GET(request) {
           } else {
             // MFN saknar ibland RSS – parsa HTML-listan
             if (/mfn\.se\//.test(String(u))) {
-              const r = await fetch(u, { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0)' } });
-              if (r.ok) {
-                const html = await r.text();
-                articles = articles.concat(parseMfnList(html));
+              const tryUrls = [String(u), 'https://mfn.se/all/a/evolution', 'https://www.mfn.se/all/a/evolution'];
+              for (const mu of tryUrls) {
+                try {
+                  const r = await fetch(mu, { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0)' } });
+                  if (!r.ok) continue;
+                  const html = await r.text();
+                  const items = parseMfnList(html);
+                  if (items.length) { articles = articles.concat(items); break; }
+                } catch {}
               }
             }
           }
