@@ -64,8 +64,8 @@ const Footer = () => {
         <Chip label="Ej finansiell rådgivning" size="small" sx={{ backgroundColor: '#402a2a', color: '#ff6f6f' }} />
       </Box>
 
-      <Typography variant="caption" sx={{ color: "#808080", display: 'block', mt: 1 }}>
-        © {year} • <span style={{ color: '#7E57C2', fontWeight: 600 }}>Darkwing</span> — <MLink href="mailto:alexander.ek@live.se" underline="hover" sx={{ color: '#b0b0b0', '&:hover': { color: '#ffffff' } }}>Maila mig</MLink>
+      <Typography variant="caption" sx={{ color: "#808080", display: 'block', mt: 1, textAlign: 'center' }}>
+        © {year} • <span style={{ color: '#7E57C2', fontWeight: 600 }}>Darkwing</span>
       </Typography>
     </Card>
   );
