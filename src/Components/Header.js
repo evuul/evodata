@@ -1,6 +1,6 @@
 'use client';
-import React, { useState } from "react";
-import { Typography, Box, Chip, IconButton, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions, Button, Table, TableHead, TableRow, TableCell, TableBody } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import { Typography, Box, Chip, IconButton, Tooltip } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice'; // Importera StockPrice-komponenten
@@ -30,9 +30,42 @@ const Header = () => {
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw || "N/A";
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw || 0;
   const changeColor = changePercent > 0 ? "#00e676" : changePercent < 0 ? "#ff1744" : "#ccc";
-  // Hardcoded short interest until API is enabled again
-  const SHORT_TOTAL = 5.15; // ändra här vid behov
-  const [openShort, setOpenShort] = useState(false);
+  // Dynamisk blankning från FI
+  const [shortData, setShortData] = useState({ totalPercent: null, publicPositions: [], publicPercent: 0, nonPublicPercent: null });
+  const [loadingShort, setLoadingShort] = useState(false);
+  const [shortError, setShortError] = useState("");
+  const SHORT_TOTAL = Number.isFinite(shortData.totalPercent) ? shortData.totalPercent : (Number(process.env.NEXT_PUBLIC_SHORT_INTEREST) || 5.15);
+
+  const fetchShort = async () => {
+    try {
+      setLoadingShort(true);
+      setShortError("");
+      const res = await fetch('/api/short?lei=549300SUH6ZR1RF6TA88', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Kunde inte hämta blankningsdata');
+      const data = await res.json();
+      setShortData({
+        totalPercent: data.totalPercent ?? null,
+        publicPositions: Array.isArray(data.publicPositions) ? data.publicPositions : [],
+        publicPercent: Number.isFinite(data.publicPercent) ? data.publicPercent : 0,
+        nonPublicPercent: data.nonPublicPercent ?? null,
+        publicPositionsError: data.publicPositionsError || '',
+      });
+    } catch (e) {
+      setShortError('');
+    } finally {
+      setLoadingShort(false);
+    }
+  };
+
+  useEffect(() => { fetchShort(); }, []);
+
+  // Auto-uppdatera blankning var 30:e minut
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchShort();
+    }, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const fmtSEK = (v) => {
     if (v == null) return 'N/A';
@@ -41,8 +74,10 @@ const Header = () => {
     return `${v.toLocaleString('sv-SE')} SEK`;
   };
 
-  const openShortDialog = () => {
-    setOpenShort(true);
+  const openFiPage = () => {
+    if (typeof window !== 'undefined') {
+      window.open('https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88', '_blank', 'noopener');
+    }
   };
 
   return (
@@ -68,11 +103,11 @@ const Header = () => {
       <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Chip label="EVO.ST • Nasdaq Stockholm" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title="Andel av utestående aktier som är blankade">
+          <Tooltip title={loadingShort ? 'Hämtar…' : 'Källa: FI. Klick öppnar FI-sidan'}>
             <Chip
-              label={`Blankning: ${SHORT_TOTAL.toFixed(2)}%`}
+              label={`Blankning: ${Number(SHORT_TOTAL).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
               size="small"
-              onClick={openShortDialog}
+              onClick={openFiPage}
               sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
             />
           </Tooltip>
@@ -215,62 +250,7 @@ const Header = () => {
       <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
     </Box>
 
-    {/* Short details dialog */}
-    <Dialog open={openShort} onClose={() => setOpenShort(false)} fullWidth maxWidth="sm">
-      <DialogTitle>Blankning – publika positioner</DialogTitle>
-      <DialogContent dividers>
-        {(() => {
-              const totalPct = SHORT_TOTAL;
-              // Exempel-lista på publika positioner
-              const fixedPublic = [
-                { manager: 'Marshall Wace LLP', percent: 0.6 },
-                { manager: 'Ilex Capital Partners (UK) LLP', percent: 0.6 },
-                { manager: 'GREENVALE CAPITAL LLP', percent: 0.7 },
-              ];
-              const entriesToShow = fixedPublic;
-              const sumPublic = entriesToShow.reduce((s, e) => s + (Number(e.percent) || 0), 0);
-              const remainder = Math.max(0, +(totalPct - sumPublic).toFixed(2));
-
-              return (
-                <>
-                  <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 1 }}>
-                    Totalt: {isFinite(totalPct) ? totalPct.toFixed(2) : 'N/A'}%
-                    {marketCap ? ` • ≈ ${fmtSEK((totalPct/100) * marketCap)} kort` : ''}
-                  </Typography>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Blankare</TableCell>
-                        <TableCell align="right">Andel</TableCell>
-                        <TableCell align="right">≈ Värde</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {entriesToShow.map((e, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{e.manager}</TableCell>
-                          <TableCell align="right">{Number(e.percent).toFixed(2)}%</TableCell>
-                          <TableCell align="right">{marketCap ? fmtSEK((Number(e.percent)/100) * marketCap) : 'N/A'}</TableCell>
-                        </TableRow>
-                      ))}
-                      <TableRow>
-                        <TableCell sx={{ fontStyle: 'italic' }}>Opublika positioner</TableCell>
-                        <TableCell align="right">{remainder.toFixed(2)}%</TableCell>
-                        <TableCell align="right">{marketCap ? fmtSEK((remainder/100) * marketCap) : 'N/A'}</TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                  <Typography variant="caption" sx={{ color: '#808080', display: 'block', mt: 1 }}>
-                    Källa: Finansinspektionen (publika &gt;0,5%) + opublika uppskattade
-                  </Typography>
-                </>
-              );
-          })()}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpenShort(false)} sx={{ color: '#ff6f6f' }}>Stäng</Button>
-      </DialogActions>
-    </Dialog>
+    {/* FI-länk istället för dialog, endast totalsiffra visas i chippen */}
     </>
   );
 };
