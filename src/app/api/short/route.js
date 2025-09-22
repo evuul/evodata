@@ -23,18 +23,7 @@ async function fetchText(url) {
   return await res.text();
 }
 
-async function fetchArrayBuffer(url) {
-  const res = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0; +https://evodata.app)',
-      'Accept-Language': 'sv-SE,sv;q=0.9,en;q=0.8',
-      'Referer': 'https://www.fi.se/sv/vara-register/blankningsregistret/',
-    },
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`Fetch failed ${res.status}`);
-  return await res.arrayBuffer();
-}
+// ODS-hämtning borttagen – vi visar endast totalsumma och länkar till FI
 
 function extractTotalPercentFromHtml(html, lei) {
   try {
@@ -65,38 +54,10 @@ export async function GET(request) {
     const listHtml = await fetchText('https://www.fi.se/sv/vara-register/blankningsregistret/');
     const totalPercent = extractTotalPercentFromHtml(listHtml, lei);
 
-    // 2) Hämta publika positioner (>0,5%) från ODS (Aktuella positioner)
+    // 2) Publika positioner (>0,5%) – inte inkluderade längre i API:t
     let publicPositions = [];
     let publicSum = 0;
     let publicPositionsError = '';
-    try {
-      const buf = await fetchArrayBuffer('https://www.fi.se/sv/vara-register/blankningsregistret/GetAktuellFile/');
-      // Dynamisk import för att undvika tyngd vid edge (hantera både default- och named-export)
-      const XLSXmod = await import('xlsx');
-      const XLSX = XLSXmod && XLSXmod.default ? XLSXmod.default : XLSXmod;
-      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
-      if (Array.isArray(rows) && rows.length > 0) {
-        const keys = Object.keys(rows[0] || {});
-        const keyLei = pickColumnKey(keys, ['lei']);
-        const keyPct = pickColumnKey(keys, ['blankning', 'procent', '%', 'netto']);
-        const keyMgr = pickColumnKey(keys, ['innehavare', 'manager', 'positionsinnehavare', 'positionsinnehavarens', 'position holder']);
-        const keyDate = pickColumnKey(keys, ['datum', 'date']);
-        for (const r of rows) {
-          const vLei = (r[keyLei] || '').toString().trim();
-          if (!vLei || vLei !== lei) continue;
-          const pct = parseSwedishNumber(r[keyPct]);
-          if (pct == null) continue;
-          const manager = (r[keyMgr] || '').toString().trim();
-          const dateStr = (r[keyDate] || '').toString().trim();
-          publicPositions.push({ manager, percent: pct, date: dateStr });
-          publicSum += pct;
-        }
-      }
-    } catch (e) {
-      publicPositionsError = 'Kunde inte läsa publika positioner (ODS)';
-    }
 
     const total = typeof totalPercent === 'number' ? totalPercent : null;
     const pub = Number.isFinite(publicSum) ? +(publicSum.toFixed(2)) : 0;

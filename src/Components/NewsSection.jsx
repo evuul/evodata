@@ -75,25 +75,41 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
       setIsTest(usingFallback || !!data.error || finalList.every(a => (a.url || '').includes('example.com')));
       setLastUpdated(new Date());
 
-      // Försök automatiskt synka buybacks från MFN (svenska) en gång per länk
+      // Försök automatiskt synka buybacks från MFN (svenska) – med throttling och dedupe
       try {
-        const keySeen = 'synced_buybacks_urls';
-        const seenRaw = typeof window !== 'undefined' ? localStorage.getItem(keySeen) : null;
-        const seen = seenRaw ? new Set(JSON.parse(seenRaw)) : new Set();
-        const candidates = finalList.filter(a => a.type === 'PRESS' && /mfn\.se/.test(a.domain || '') && /Återköp av aktier i Evolution AB \(publ\)/i.test(a.title || ''));
-        for (const c of candidates) {
-          if (seen.has(c.url)) continue;
-          // Fire-and-forget sync call
-          fetch('/api/buybacks/sync', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url: c.url })
-          })
-            .then(() => { try { window.dispatchEvent(new CustomEvent('buybacksSynced')); } catch {} })
-            .catch(()=>{});
-          seen.add(c.url);
+        if (typeof window !== 'undefined') {
+          const now = Date.now();
+          const lastKey = 'buybacks_sync_last';
+          const urlsKey = 'synced_buybacks_urls';
+          const lastTs = Number(localStorage.getItem(lastKey) || 0);
+          // Throttle: max en sync per 15 min
+          if (now - lastTs > 15 * 60 * 1000) {
+            const normalize = (u) => {
+              try { const { hostname, pathname } = new URL(u); return (hostname.replace(/^www\./,'') + pathname).toLowerCase(); } catch { return String(u).toLowerCase(); }
+            };
+            const seenRaw = localStorage.getItem(urlsKey);
+            const seen = new Set(seenRaw ? JSON.parse(seenRaw) : []);
+            const candidates = finalList
+              .filter(a => a.type === 'PRESS' && /mfn\.se/.test(a.domain || '') && /Återköp av aktier i Evolution AB \(publ\)/i.test(a.title || ''))
+              .sort((a,b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0));
+            const top = candidates[0];
+            if (top) {
+              const key = normalize(top.url);
+              if (!seen.has(key)) {
+                fetch('/api/buybacks/sync', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ url: top.url })
+                })
+                  .then(() => { try { window.dispatchEvent(new CustomEvent('buybacksSynced')); } catch {} })
+                  .catch(()=>{});
+                seen.add(key);
+                localStorage.setItem(urlsKey, JSON.stringify(Array.from(seen)));
+                localStorage.setItem(lastKey, String(now));
+              }
+            }
+          }
         }
-        if (typeof window !== 'undefined') localStorage.setItem(keySeen, JSON.stringify(Array.from(seen)));
       } catch {}
     } catch (e) {
       // Fallback till fejkade nyheter om nätverk/API saknas

@@ -179,7 +179,8 @@ export const calculateAverageDailyBuyback = (data) => {
   const positive = (data || []).filter((i) => i.Antal_aktier > 0);
   if (!positive.length) return { averageDaily: 0, averagePrice: 0 };
   const firstDate = new Date(positive[0].Datum);
-  const today = new Date('2025-08-14'); // Anpassat datum
+  // Använd dagens datum för beräkning
+  const today = new Date();
   const daysDifference = Math.ceil((today - firstDate) / (1000 * 60 * 60 * 24));
   const totalSharesBought = positive.reduce((s, i) => s + (i.Antal_aktier || 0), 0);
   const totalTransactionValue = positive.reduce((s, i) => s + (i.Transaktionsvärde || 0), 0);
@@ -204,7 +205,8 @@ export const calculateEstimatedCompletion = (remainingCash, transactions) => {
   const averageDailyShares = tradingDays > 0 ? totalShares / tradingDays : 0;
   const remainingSharesToBuy = averagePrice > 0 ? remainingCash / averagePrice : 0;
   const daysToCompletion = averageDailyShares > 0 ? remainingSharesToBuy / averageDailyShares : 0;
-  const today = new Date('2025-08-14');
+  // Starta från dagens datum
+  const today = new Date();
   let estimatedCompletionDate = new Date(today);
   let remainingTradingDays = Math.ceil(daysToCompletion);
   while (remainingTradingDays > 0) {
@@ -218,4 +220,3 @@ export const calculateEstimatedCompletion = (remainingCash, transactions) => {
     estimatedCompletionDate: estimatedCompletionDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' }),
   };
 };
-
