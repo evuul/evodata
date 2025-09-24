@@ -146,16 +146,18 @@ export default function Header() {
             {lastUpdated && (
               <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }} />
             )}
-            <Tooltip title="Uppdatera aktiedata">
-              <IconButton onClick={refresh} sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera aktiedata">
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Uppdatera blankning">
-              <IconButton onClick={fetchShortFromHistory} sx={{ color: '#FFCA28', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera blankning">
-                <RefreshIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
+<Tooltip title="Uppdatera aktie- och blankningsdata">
+  <IconButton
+    onClick={() => {
+      refresh();              // uppdatera aktiedata
+      fetchShortFromHistory(); // uppdatera blankning
+    }}
+    sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }}
+    aria-label="Uppdatera data"
+  >
+    <RefreshIcon fontSize="small" />
+  </IconButton>
+</Tooltip>
           </Box>
         </Box>
 
