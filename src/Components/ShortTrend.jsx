@@ -118,9 +118,10 @@ export default function ShortTrend() {
   };
 
   const latest = data.length ? data[data.length - 1].percent : null;
-  const prev = data.length > 1 ? data[data.length - 2].percent : null;
-  const delta = latest != null && prev != null ? +(latest - prev).toFixed(2) : null;
+  const prev   = data.length > 1 ? data[data.length - 2].percent : null;
+  const deltaPP = (latest != null && prev != null) ? +(latest - prev).toFixed(2) : null;
 
+  // ----- Tooltip med pp och färger -----
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     const val = Number(payload[0].value || 0);
@@ -130,18 +131,21 @@ export default function ShortTrend() {
     })();
     const idx = data.findIndex(p => p.date === label);
     const prevVal = idx > 0 ? data[idx - 1].percent : null;
-    const d = prevVal != null ? +(val - prevVal).toFixed(2) : null;
-    const sign = d != null && d !== 0 ? (d > 0 ? "+" : "") : "";
-    const color = d == null ? "#b0b0b0" : d > 0 ? "#00e676" : d < 0 ? "#ff6f6f" : "#b0b0b0";
+    const dPP = prevVal != null ? +(val - prevVal).toFixed(2) : null;
+
+    const isUp = dPP != null && dPP > 0;     // blankning ökar → röd
+    const isDown = dPP != null && dPP < 0;   // blankning minskar → grön
+    const color = isDown ? "#00e676" : isUp ? "#ff6f6f" : "#b0b0b0";
+
     return (
       <Box sx={{ p: 1, backgroundColor: "#1f1f1f", border: "1px solid #2b2b2b", borderRadius: 1 }}>
         <Typography variant="caption" sx={{ color: "#b0b0b0" }}>{dStr}</Typography>
         <Typography variant="subtitle2" sx={{ color: "#FFCA28", fontWeight: 700 }}>
           {val.toFixed(2)}%
         </Typography>
-        {d != null && (
+        {dPP != null && (
           <Typography variant="caption" sx={{ color, display: "block" }}>
-            {sign}{d.toFixed(2)}pp sedan föregående
+            {isUp ? "↑" : isDown ? "↓" : ""} {Math.abs(dPP).toFixed(2)}pp sedan föregående
           </Typography>
         )}
       </Box>
@@ -174,8 +178,18 @@ export default function ShortTrend() {
         {latest != null && (
           <Chip
             size="small"
-            label={`Senaste: ${latest.toFixed(2)}%${delta!=null && delta!==0 ? (delta>0?` (↑ ${delta.toFixed(2)}pp)`:` (↓ ${Math.abs(delta).toFixed(2)}pp)`) : ""}`}
-            sx={{ backgroundColor: "#2a2a2a", color: "#b0b0b0" }}
+            label={
+              <span>
+                Senaste: {latest.toFixed(2)}%{" "}
+                {deltaPP != null && deltaPP !== 0 && (
+                  <span style={{ color: deltaPP < 0 ? "#00e676" : "#ff6f6f" }}>
+                    {deltaPP > 0 ? "↑" : "↓"} {Math.abs(deltaPP).toFixed(2)}pp
+                  </span>
+                )}
+              </span>
+            }
+            sx={{ backgroundColor: "#2a2a2a", color: "#b0b0b0",
+                  "& .MuiChip-label": { display: "flex", alignItems: "center", gap: 4 } }}
           />
         )}
         <Box sx={{ display: "flex", gap: 1 }}>
