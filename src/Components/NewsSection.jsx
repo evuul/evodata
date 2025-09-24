@@ -1,6 +1,14 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Typography, IconButton, CircularProgress, Link, Card, Chip, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  CircularProgress,
+  Link,
+  Card,
+  Chip,
+} from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 
 const FAKE_NEWS = [
@@ -9,111 +17,123 @@ const FAKE_NEWS = [
     url: "https://example.com/nyhet/evolution-nytt-spel",
     source: "ExempelMedia",
     publishedAt: new Date().toISOString(),
-    snippet: "Det nya spelet breddar bolagets erbjudande och förstärker positionen på marknaden.",
+    snippet:
+      "Det nya spelet breddar bolagets erbjudande och förstärker positionen på marknaden.",
   },
   {
     title: "Analytiker höjer riktkursen för Evolution",
     url: "https://example.com/nyhet/evolution-riktkurs",
     source: "AnalysHuset",
     publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    snippet: "Stark tillväxt och robust marginalutveckling anges som skäl till höjningen.",
+    snippet:
+      "Stark tillväxt och robust marginalutveckling anges som skäl till höjningen.",
   },
   {
     title: "Evolution tecknar avtal med stor operatör i Nordamerika",
     url: "https://example.com/nyhet/evolution-nordamerika",
     source: "Spelbranschen Idag",
     publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-    snippet: "Avtalet stärker närvaron på den nordamerikanska marknaden och öppnar för nya intäktsströmmar.",
+    snippet:
+      "Avtalet stärker närvaron på den nordamerikanska marknaden och öppnar för nya intäktsströmmar.",
   },
 ];
 
-const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lang = "sv" }) => {
+const NewsSection = ({
+  query = "Evolution AB OR Evolution Gaming OR EVO.ST",
+  lang = "sv",
+}) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [articles, setArticles] = useState([]);
   const [isTest, setIsTest] = useState(false);
-  const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [filter, setFilter] = useState("ALL"); // ALL | PRESS | ANALYS | MEDIA
 
   const getDomain = (u) => {
-    try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; }
+    try {
+      return new URL(u).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
   };
-  const getFavicon = (domain) => domain ? `https://icons.duckduckgo.com/ip3/${domain}.ico` : "";
   const classifyArticle = (a) => {
     const domain = getDomain(a.url || "");
     const title = (a.title || "").toLowerCase();
-    // Pressmeddelanden: Cision/MFN, presspr./ir, releases
     const pressDomains = [
-      "news.cision.com", "cision.com", "mfn.se", "globenewswire.com", "prnewswire.com", "bequoted.com",
+      "news.cision.com",
+      "cision.com",
+      "mfn.se",
+      "globenewswire.com",
+      "prnewswire.com",
+      "bequoted.com",
     ];
-    if (pressDomains.some(d => domain.endsWith(d)) || /press|release|mfn|ir\b/.test(title)) return "PRESS";
-    // Analys: finansmedia och forum
+    if (
+      pressDomains.some((d) => domain.endsWith(d)) ||
+      /press|release|mfn|ir\b/.test(title)
+    )
+      return "PRESS";
     const analysisDomains = [
-      "di.se", "placera.se", "seekingalpha.com", "borskollen.se", "affarsvarlden.se", "introduce.se", "marketscreener.com",
+      "di.se",
+      "placera.se",
+      "seekingalpha.com",
+      "borskollen.se",
+      "affarsvarlden.se",
+      "introduce.se",
+      "marketscreener.com",
     ];
-    if (analysisDomains.some(d => domain.endsWith(d)) || /analys|riktkurs|rekommendation/.test(title)) return "ANALYS";
+    if (
+      analysisDomains.some((d) => domain.endsWith(d)) ||
+      /analys|riktkurs|rekommendation/.test(title)
+    )
+      return "ANALYS";
     return "MEDIA";
   };
+
+  const byDateDesc = (a, b) =>
+    new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0);
 
   const fetchNews = async () => {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`/api/news?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(lang)}`, { cache: "no-store" });
+      const res = await fetch(
+        `/api/news?q=${encodeURIComponent(query)}&lang=${encodeURIComponent(
+          lang
+        )}`,
+        { cache: "no-store" }
+      );
       if (!res.ok) throw new Error("Kunde inte hämta nyheter");
       const data = await res.json();
-      const list = (data.articles || []).map(a => {
+      const list = (data.articles || []).map((a) => {
         const domain = getDomain(a.url);
         const type = classifyArticle(a);
         return { ...a, domain, type };
       });
       const usingFallback = list.length === 0;
-      const finalList = usingFallback ? FAKE_NEWS.map(a => ({ ...a, domain: getDomain(a.url), type: classifyArticle(a) })) : list;
-      setArticles(finalList);
-      setIsTest(usingFallback || !!data.error || finalList.every(a => (a.url || '').includes('example.com')));
-      setLastUpdated(new Date());
+      const finalList = usingFallback
+        ? FAKE_NEWS.map((a) => ({
+            ...a,
+            domain: getDomain(a.url),
+            type: classifyArticle(a),
+          }))
+        : list;
 
-      // Försök automatiskt synka buybacks från MFN (svenska) – med throttling och dedupe
-      try {
-        if (typeof window !== 'undefined') {
-          const now = Date.now();
-          const lastKey = 'buybacks_sync_last';
-          const urlsKey = 'synced_buybacks_urls';
-          const lastTs = Number(localStorage.getItem(lastKey) || 0);
-          // Throttle: max en sync per 15 min
-          if (now - lastTs > 15 * 60 * 1000) {
-            const normalize = (u) => {
-              try { const { hostname, pathname } = new URL(u); return (hostname.replace(/^www\./,'') + pathname).toLowerCase(); } catch { return String(u).toLowerCase(); }
-            };
-            const seenRaw = localStorage.getItem(urlsKey);
-            const seen = new Set(seenRaw ? JSON.parse(seenRaw) : []);
-            const candidates = finalList
-              .filter(a => a.type === 'PRESS' && /mfn\.se/.test(a.domain || '') && /Återköp av aktier i Evolution AB \(publ\)/i.test(a.title || ''))
-              .sort((a,b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0));
-            const top = candidates[0];
-            if (top) {
-              const key = normalize(top.url);
-              if (!seen.has(key)) {
-                fetch('/api/buybacks/sync', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ url: top.url })
-                })
-                  .then(() => { try { window.dispatchEvent(new CustomEvent('buybacksSynced')); } catch {} })
-                  .catch(()=>{});
-                seen.add(key);
-                localStorage.setItem(urlsKey, JSON.stringify(Array.from(seen)));
-                localStorage.setItem(lastKey, String(now));
-              }
-            }
-          }
-        }
-      } catch {}
+      const sorted = [...finalList].sort(byDateDesc);
+      setArticles(sorted);
+      setIsTest(
+        usingFallback ||
+          !!data.error ||
+          sorted.every((a) => (a.url || "").includes("example.com"))
+      );
+      setLastUpdated(new Date());
     } catch (e) {
-      // Fallback till fejkade nyheter om nätverk/API saknas
-      setArticles(FAKE_NEWS.map(a => ({ ...a, domain: getDomain(a.url), type: classifyArticle(a) })));
+      setArticles(
+        FAKE_NEWS.map((a) => ({
+          ...a,
+          domain: getDomain(a.url),
+          type: classifyArticle(a),
+        }))
+      );
       setIsTest(true);
       setError("");
       setLastUpdated(new Date());
@@ -126,50 +146,11 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
     fetchNews();
   }, [query, lang]);
 
-  // Måndagsfönster (08:00–10:00 Europe/Stockholm): polla nyheter var 5:e minut
-  useEffect(() => {
-    const inStockholmWindow = () => {
-      try {
-        const parts = new Intl.DateTimeFormat('sv-SE', {
-          timeZone: 'Europe/Stockholm',
-          weekday: 'short',
-          hour: '2-digit',
-          hour12: false,
-        }).formatToParts(new Date());
-        const wd = (parts.find(p => p.type === 'weekday')?.value || '').toLowerCase();
-        const hour = parseInt(parts.find(p => p.type === 'hour')?.value || '0', 10);
-        const isMonday = wd.startsWith('mån');
-        return isMonday && hour >= 8 && hour < 10;
-      } catch {
-        return false;
-      }
-    };
-    const id = setInterval(() => {
-      if (inStockholmWindow()) {
-        fetchNews(); // detta triggar även buyback‑sync från MFN
-      }
-    }, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
-
   const displayed = useMemo(() => {
-    if (filter !== "ALL") {
-      return articles.filter(a => a.type === filter).slice(0, 5);
-    }
-    // Blanda för att undvika att ALL domineras av återköps-press
-    const byType = { PRESS: [], ANALYS: [], MEDIA: [] };
-    for (const a of articles) {
-      (byType[a.type] || byType.MEDIA).push(a);
-    }
-    const mixed = [];
-    const order = ["PRESS", "ANALYS", "MEDIA"];
-    while (mixed.length < 5 && (byType.PRESS.length || byType.ANALYS.length || byType.MEDIA.length)) {
-      for (const t of order) {
-        if (mixed.length >= 5) break;
-        if (byType[t].length) mixed.push(byType[t].shift());
-      }
-    }
-    return mixed;
+    const byDate = [...articles].sort(byDateDesc);
+    const filtered =
+      filter === "ALL" ? byDate : byDate.filter((a) => a.type === filter);
+    return filtered.slice(0, 5);
   }, [articles, filter]);
 
   return (
@@ -183,49 +164,108 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
         maxWidth: "1100px",
         margin: "16px auto",
         minHeight: "200px",
-        overflow: 'hidden',
+        overflow: "hidden",
       }}
     >
-      <Box sx={{ position: 'relative', mb: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 1 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff", textAlign: 'center' }}>Nyheter</Typography>
+      <Box sx={{ position: "relative", mb: 1 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, color: "#ffffff", textAlign: "center" }}
+          >
+            Nyheter
+          </Typography>
           {isTest && (
-            <Chip label="TESTNYHETER" size="small" sx={{ backgroundColor: '#402a2a', color: '#ff6f6f', border: '1px solid #5a3a3a' }} />
+            <Chip
+              label="TESTNYHETER"
+              size="small"
+              sx={{
+                backgroundColor: "#402a2a",
+                color: "#ff6f6f",
+                border: "1px solid #5a3a3a",
+              }}
+            />
           )}
         </Box>
-        <IconButton aria-label="Uppdatera" onClick={fetchNews} sx={{ color: "#00e676", position: 'absolute', right: 0, top: 0, animation: loading ? 'spin 1s linear infinite' : 'none', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } }}>
+        <IconButton
+          aria-label="Uppdatera"
+          onClick={fetchNews}
+          sx={{
+            color: "#00e676",
+            position: "absolute",
+            right: 0,
+            top: 0,
+            animation: loading ? "spin 1s linear infinite" : "none",
+            "@keyframes spin": {
+              "0%": { transform: "rotate(0deg)" },
+              "100%": { transform: "rotate(360deg)" },
+            },
+          }}
+        >
           <RefreshIcon />
         </IconButton>
       </Box>
 
-      {/* Filter & statusrad (centrerade chips) */}
-      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
+      {/* Filter & statusrad */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 1,
+          mb: 2,
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            flexWrap: "wrap",
+            justifyContent: "center",
+          }}
+        >
           {[
-            { key: 'ALL', label: 'Alla' },
-            { key: 'PRESS', label: 'Pressmeddelanden' },
-            { key: 'ANALYS', label: 'Analys' },
-            { key: 'MEDIA', label: 'Media' },
-          ].map(f => (
+            { key: "ALL", label: "Alla" },
+            { key: "PRESS", label: "Pressmeddelanden" },
+            { key: "ANALYS", label: "Analys" },
+            { key: "MEDIA", label: "Media" },
+          ].map((f) => (
             <Chip
               key={f.key}
               label={f.label}
               clickable
               onClick={() => setFilter(f.key)}
               sx={{
-                backgroundColor: filter === f.key ? '#00e676' : '#2a2a2a',
-                color: filter === f.key ? '#0b0b0b' : '#b0b0b0',
-                border: '1px solid rgba(255,255,255,0.1)'
+                backgroundColor: filter === f.key ? "#00e676" : "#2a2a2a",
+                color: filter === f.key ? "#0b0b0b" : "#b0b0b0",
+                border: "1px solid rgba(255,255,255,0.1)",
               }}
             />
           ))}
         </Box>
-        <Typography variant="caption" sx={{ color: '#b0b0b0', textAlign: 'center' }}>
-          {lastUpdated ? `Senast uppdaterad: ${new Date(lastUpdated).toLocaleString('sv-SE')}` : '—'}
+        <Typography
+          variant="caption"
+          sx={{ color: "#b0b0b0", textAlign: "center" }}
+        >
+          {lastUpdated
+            ? `Senast uppdaterad: ${new Date(
+                lastUpdated
+              ).toLocaleString("sv-SE")}`
+            : "—"}
         </Typography>
       </Box>
 
-      {loading && <CircularProgress size={24} sx={{ color: "#00e676", my: 2 }} />}
+      {loading && (
+        <CircularProgress size={24} sx={{ color: "#00e676", my: 2 }} />
+      )}
       {error && (
         <Typography variant="body2" color="#ff1744" sx={{ mb: 2 }}>
           {error}
@@ -234,37 +274,68 @@ const NewsSection = ({ query = "Evolution AB OR Evolution Gaming OR EVO.ST", lan
 
       <Box sx={{ width: "100%" }}>
         {displayed.length === 0 && !loading ? (
-          <Typography variant="body2" color="#b0b0b0">Inga nyheter hittades just nu.</Typography>
+          <Typography variant="body2" color="#b0b0b0">
+            Inga nyheter hittades just nu.
+          </Typography>
         ) : (
           displayed.map((a, idx) => (
-            <Box key={`${a.url}-${idx}`} component={Link} href={a.url} target="_blank" rel="noopener noreferrer" sx={{
-              backgroundColor: "#1f1f1f",
-              border: "1px solid #2b2b2b",
-              borderRadius: "10px",
-              p: 2,
-              mb: 1.5,
-              cursor: 'pointer',
-              '&:hover': { backgroundColor: '#232323' },
-              width: '100%',
-              overflow: 'hidden',
-              textDecoration: 'none',
-              display: 'block',
-              boxSizing: 'border-box',
-            }}
+            <Box
+              key={`${a.url}-${idx}`}
+              component={Link}
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                backgroundColor: "#1f1f1f",
+                border: "1px solid #2b2b2b",
+                borderRadius: "10px",
+                p: 2,
+                mb: 1.5,
+                cursor: "pointer",
+                "&:hover": { backgroundColor: "#232323" },
+                width: "100%",
+                overflow: "hidden",
+                textDecoration: "none",
+                display: "block",
+                boxSizing: "border-box",
+              }}
             >
-              <Typography variant="subtitle1" sx={{ color: "#fff", fontWeight: 700, mb: 0.5, textAlign: 'center', wordBreak: 'break-word', overflowWrap: 'anywhere', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  color: "#fff",
+                  fontWeight: 700,
+                  mb: 0.5,
+                  textAlign: "center",
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                }}
+              >
                 {a.title}
               </Typography>
               {a.publishedAt && (
-                <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', color: '#b0b0b0' }}>
-                  {new Date(a.publishedAt).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    textAlign: "center",
+                    color: "#b0b0b0",
+                  }}
+                >
+                  {new Date(a.publishedAt).toLocaleDateString("sv-SE", {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
                 </Typography>
               )}
             </Box>
           ))
         )}
       </Box>
-
     </Card>
   );
 };
