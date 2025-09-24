@@ -1,14 +1,15 @@
 'use client';
-import React, { useEffect, useState } from "react";
-import { Typography, Box, Chip, IconButton, Tooltip } from "@mui/material";
+import React, { useEffect, useState, useCallback } from "react";
+import { Typography, Box, Chip, IconButton, Tooltip, CircularProgress } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
-import StockPrice from './StockPrice'; // Importera StockPrice-komponenten
+import StockPrice from './StockPrice';
 
-const Header = () => {
+const EVO_LEI = '549300SUH6ZR1RF6TA88';
+
+export default function Header() {
   const { stockPrice, loading: loadingPrice, error: priceError, marketCap, lastUpdated, refresh } = useStockPriceContext();
 
-  // Lokal helper för format
   const fmtTime = (d) => d ? new Date(d).toLocaleTimeString("sv-SE", { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
   const fmtCap = (v) => {
     if (!v) return 'N/A';
@@ -17,94 +18,70 @@ const Header = () => {
   };
   const isMarketOpen = () => {
     const now = new Date();
-    const day = now.getDay(); // 0=Sun,1=Mon,...
-    if (day === 0 || day === 6) return false;
-    const h = now.getHours();
-    const m = now.getMinutes();
+    const day = now.getDay(); if (day === 0 || day === 6) return false;
+    const h = now.getHours(), m = now.getMinutes();
     const afterOpen = h > 9 || (h === 9 && m >= 0);
     const beforeClose = h < 17 || (h === 17 && m <= 30);
     return afterOpen && beforeClose;
   };
 
-  // Hämta pris och procent för mobilvisning
-  const currentPrice = stockPrice?.price?.regularMarketPrice?.raw || "N/A";
-  const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw || 0;
-  const changeColor = changePercent > 0 ? "#00e676" : changePercent < 0 ? "#ff1744" : "#ccc";
-  // Dynamisk blankning från FI
-  const [shortData, setShortData] = useState({ totalPercent: null, publicPositions: [], publicPercent: 0, nonPublicPercent: null });
+  // ---- Blankning i headern ----
+  const [shortPercent, setShortPercent] = useState(null);
   const [loadingShort, setLoadingShort] = useState(false);
-  const [shortError, setShortError] = useState("");
-  const SHORT_TOTAL = Number.isFinite(shortData.totalPercent) ? shortData.totalPercent : (Number(process.env.NEXT_PUBLIC_SHORT_INTEREST) || 5.15);
 
-  const fetchShort = async () => {
+  // 1) Läs senaste datapunkt från historik (samma källa som grafen)
+  const fetchShortFromHistory = useCallback(async () => {
     try {
       setLoadingShort(true);
-      setShortError("");
-      const res = await fetch('/api/short?lei=549300SUH6ZR1RF6TA88', { cache: 'no-store' });
-      if (!res.ok) throw new Error('Kunde inte hämta blankningsdata');
+      const res = await fetch('/api/short/history', { cache: 'no-store' });
+      if (!res.ok) throw new Error('history failed');
       const data = await res.json();
-      setShortData({
-        totalPercent: data.totalPercent ?? null,
-        publicPositions: Array.isArray(data.publicPositions) ? data.publicPositions : [],
-        publicPercent: Number.isFinite(data.publicPercent) ? data.publicPercent : 0,
-        nonPublicPercent: data.nonPublicPercent ?? null,
-        publicPositionsError: data.publicPositionsError || '',
-      });
-    } catch (e) {
-      setShortError('');
+      const arr = Array.isArray(data.items) ? data.items : [];
+      if (arr.length) {
+        const last = arr[arr.length - 1];
+        const v = Number(last.percent);
+        if (Number.isFinite(v)) setShortPercent(v);
+      }
+    } catch {
+      // fall back to live endpoint if you keep it
+      try {
+        const res = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: 'no-store' });
+        if (res.ok) {
+          const j = await res.json();
+          if (Number.isFinite(j.totalPercent)) setShortPercent(Number(j.totalPercent));
+        }
+      } catch {}
     } finally {
       setLoadingShort(false);
     }
-  };
-
-  useEffect(() => { fetchShort(); }, []);
-  
-  // Auto-uppdatera blankning var 30:e minut
-  useEffect(() => {
-    const id = setInterval(() => {
-      fetchShort();
-    }, 30 * 60 * 1000);
-    return () => clearInterval(id);
   }, []);
 
-  // Ta daglig snapshot mellan 09:00–10:00 Stockholm, max en gång per dag (client‑side)
+  // 2) Första hämtning
+  useEffect(() => { fetchShortFromHistory(); }, [fetchShortFromHistory]);
+
+  // 3) Lyssna på snapshot-event från ShortTrend/schemat
   useEffect(() => {
-    const getStockholmParts = () => {
-      try {
-        return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Stockholm', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date());
-      } catch { return []; }
+    const handler = () => fetchShortFromHistory();
+    try { window.addEventListener('shortSnapshot', handler); } catch {}
+    return () => { try { window.removeEventListener('shortSnapshot', handler); } catch {} };
+  }, [fetchShortFromHistory]);
+
+  // 4) Re-fetcha vid fokus / synlighet
+  useEffect(() => {
+    const onFocus = () => fetchShortFromHistory();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('visibilitychange', onFocus);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('visibilitychange', onFocus);
     };
-    const todayKey = () => {
-      const parts = getStockholmParts();
-      const y = parts.find(p=>p.type==='year')?.value || '0000';
-      const m = parts.find(p=>p.type==='month')?.value || '00';
-      const d = parts.find(p=>p.type==='day')?.value || '00';
-      return `${y}-${m}-${d}`;
-    };
-    const inWindow = () => {
-      const parts = getStockholmParts();
-      const wd = (parts.find(p=>p.type==='weekday')?.value || '').toLowerCase();
-      const h = parseInt(parts.find(p=>p.type==='hour')?.value || '0', 10);
-      // Snapshot varje dag, men oftast relevant vardagar. Vi kör alla dagar för enkelhet.
-      return h >= 9 && h < 10;
-    };
-    const tick = () => {
-      try {
-        const key = 'short_snapshot_date';
-        const today = todayKey();
-        const last = localStorage.getItem(key);
-        if (inWindow() && last !== today) {
-          fetch('/api/short/snapshot', { method: 'POST' })
-            .then(()=>{ try { window.dispatchEvent(new CustomEvent('shortSnapshot')); } catch {} })
-            .catch(()=>{})
-            .finally(()=> localStorage.setItem(key, today));
-        }
-      } catch {}
-    };
-    const id = setInterval(tick, 5 * 60 * 1000);
-    tick();
+  }, [fetchShortFromHistory]);
+
+  // 5) Intervall (var 30:e min)
+  useEffect(() => {
+    const id = setInterval(fetchShortFromHistory, 30 * 60 * 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [fetchShortFromHistory]);
 
   const fmtSEK = (v) => {
     if (v == null) return 'N/A';
@@ -119,179 +96,143 @@ const Header = () => {
     }
   };
 
+  const currentPrice = stockPrice?.price?.regularMarketPrice?.raw ?? "N/A";
+  const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw ?? 0;
+  const changeColor = changePercent > 0 ? "#00e676" : changePercent < 0 ? "#ff1744" : "#ccc";
+
   return (
     <>
-    <Box
-      sx={{
-        textAlign: "center",
-        padding: { xs: "12px", sm: "16px" },
-        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-        borderRadius: "12px",
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
-        border: "1px solid rgba(255, 255, 255, 0.05)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        width: { xs: "92%", sm: "85%", md: "75%" },
-        margin: "16px auto",
-        transition: "all 0.3s ease",
-        // Not sticky: allow normal scroll behavior
-      }}
-    >
-      {/* Top bar: source + updated + refresh */}
-      <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Chip label="EVO.ST • Nasdaq Stockholm" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title={loadingShort ? 'Hämtar…' : 'Källa: FI. Klick öppnar FI-sidan'}>
+      <Box
+        sx={{
+          textAlign: "center",
+          padding: { xs: "12px", sm: "16px" },
+          background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+          borderRadius: "12px",
+          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+          border: "1px solid rgba(255, 255, 255, 0.05)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          width: { xs: "92%", sm: "85%", md: "75%" },
+          margin: "16px auto",
+          transition: "all 0.3s ease",
+        }}
+      >
+        {/* Top bar: source + updated + refresh */}
+        <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Chip label="EVO.ST • Nasdaq Stockholm" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Tooltip title="Källa: FI. Klick öppnar FI-sidan">
+              <Chip
+                label={
+                  loadingShort
+                    ? <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                        <CircularProgress size={12} sx={{ color:'#FFCA28' }} /> <span>Blankning…</span>
+                      </Box>
+                    : `Blankning: ${
+                        Number(shortPercent ?? NaN).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                      }%`
+                }
+                size="small"
+                onClick={openFiPage}
+                sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
+              />
+            </Tooltip>
             <Chip
-              label={`Blankning: ${Number(SHORT_TOTAL).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`}
+              label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
               size="small"
-              onClick={openFiPage}
-              sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
+              sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
             />
-          </Tooltip>
-          <Chip
-            label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
-            size="small"
-            sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
-          />
-          {lastUpdated && (
-            <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }} />
-          )}
-          <Tooltip title="Uppdatera">
-            <IconButton onClick={refresh} sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera aktiedata">
-              <RefreshIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+            {lastUpdated && (
+              <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }} />
+            )}
+            <Tooltip title="Uppdatera aktiedata">
+              <IconButton onClick={refresh} sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera aktiedata">
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Uppdatera blankning">
+              <IconButton onClick={fetchShortFromHistory} sx={{ color: '#FFCA28', display: { xs: 'none', sm: 'inline-flex' } }} aria-label="Uppdatera blankning">
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
-      </Box>
-      <Typography
-        variant="h2"
-        component="h1"
-        sx={{
-          fontWeight: 700,
-          fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
-          color: "#ffffff",
-          marginBottom: { xs: "8px", sm: "12px" },
-          letterSpacing: "0.5px",
-          textTransform: "uppercase",
-        }}
-      >
-        Evolution Tracker
-      </Typography>
 
-      <Typography
-        variant="body1"
-        sx={{
-          color: "#b0b0b0",
-          fontSize: { xs: "0.9rem", sm: "1rem" },
-          opacity: 0.9,
-          marginBottom: { xs: "8px", sm: "12px" },
-          display: { xs: "none", sm: "block" },
-          fontWeight: 500,
-        }}
-      >
-        Spåra utvecklingen och statistik för 2025
-      </Typography>
-
-      {/* Aktiepris och relaterad data */}
-      {loadingPrice ? (
         <Typography
-          variant="body2"
+          variant="h2"
+          component="h1"
+          sx={{
+            fontWeight: 700,
+            fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
+            color: "#ffffff",
+            marginBottom: { xs: "8px", sm: "12px" },
+            letterSpacing: "0.5px",
+            textTransform: "uppercase",
+          }}
+        >
+          Evolution Tracker
+        </Typography>
+
+        <Typography
+          variant="body1"
           sx={{
             color: "#b0b0b0",
-            fontSize: { xs: "0.85rem", sm: "0.95rem" },
+            fontSize: { xs: "0.9rem", sm: "1rem" },
+            opacity: 0.9,
+            marginBottom: { xs: "8px", sm: "12px" },
+            display: { xs: "none", sm: "block" },
             fontWeight: 500,
           }}
         >
-          Laddar aktiepris...
+          Spåra utvecklingen och statistik för 2025
         </Typography>
-      ) : priceError ? (
-        <Typography
-          variant="body2"
-          sx={{
-            color: "#ff1744",
-            fontSize: { xs: "0.85rem", sm: "0.95rem" },
-            fontWeight: 500,
-          }}
-        >
-          Kunde inte hämta aktiepris
-        </Typography>
-      ) : (
-        <>
-          {/* Kompakt layout för mobil (bara pris och procent) */}
-          <Box
-            sx={{
-              display: { xs: "flex", sm: "none" },
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "6px",
-              marginBottom: "8px",
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{
-                color: "#ffffff",
-                fontSize: "1.1rem",
-                fontWeight: 600,
-              }}
-            >
-              {currentPrice !== "N/A"
-                ? `${currentPrice.toLocaleString("sv-SE", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })} SEK`
-                : "N/A"}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: changeColor,
-                fontSize: "0.85rem",
-                display: "flex",
-                alignItems: "center",
-                gap: "4px",
-                fontWeight: 500,
-              }}
-            >
-              {changePercent !== 0
-                ? `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%`
-                : "0.00%"}
-              {changePercent > 0 && <span style={{ fontSize: "0.9rem" }}>↑</span>}
-              {changePercent < 0 && <span style={{ fontSize: "0.9rem" }}>↓</span>}
-            </Typography>
-          </Box>
 
-          {/* Full StockPrice-komponent på större skärmar */}
-          <Box
-            sx={{
-              display: { xs: "none", sm: "block" },
-              marginBottom: "0px",
-            }}
-          >
-            <StockPrice />
-          </Box>
-          {/* Extra metrics under pris */}
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
-            <Chip label={`Market Cap: ${fmtCap(marketCap)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-          </Box>
-        </>
-      )}
-    </Box>
+        {/* Aktiepris */}
+        {loadingPrice ? (
+          <Typography variant="body2" sx={{ color: "#b0b0b0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, fontWeight: 500 }}>
+            Laddar aktiepris...
+          </Typography>
+        ) : priceError ? (
+          <Typography variant="body2" sx={{ color: "#ff1744", fontSize: { xs: "0.85rem", sm: "0.95rem" }, fontWeight: 500 }}>
+            Kunde inte hämta aktiepris
+          </Typography>
+        ) : (
+          <>
+            {/* Mobil: pris + % */}
+            <Box sx={{ display: { xs: "flex", sm: "none" }, flexDirection: "column", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
+              <Typography variant="h6" sx={{ color: "#ffffff", fontSize: "1.1rem", fontWeight: 600 }}>
+                {currentPrice !== "N/A"
+                  ? `${currentPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
+                  : "N/A"}
+              </Typography>
+              <Typography variant="body2" sx={{ color: changeColor, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "4px", fontWeight: 500 }}>
+                {changePercent !== 0 ? `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%` : "0.00%"}
+                {changePercent > 0 && <span style={{ fontSize: "0.9rem" }}>↑</span>}
+                {changePercent < 0 && <span style={{ fontSize: "0.9rem" }}>↓</span>}
+              </Typography>
+            </Box>
 
-    {/* Quick anchors */}
-    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-      <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-      <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-      <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-      <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-      <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-    </Box>
+            {/* Desktop: full komponent */}
+            <Box sx={{ display: { xs: "none", sm: "block" }, marginBottom: 0 }}>
+              <StockPrice />
+            </Box>
 
-    {/* FI-länk istället för dialog, endast totalsiffra visas i chippen */}
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
+              <Chip label={`Market Cap: ${fmtCap(marketCap)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+            </Box>
+          </>
+        )}
+      </Box>
+
+      {/* Quick anchors */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+        <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+      </Box>
     </>
   );
-};
-
-export default Header;
+}
