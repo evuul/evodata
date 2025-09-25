@@ -87,35 +87,61 @@ async function plainFetch(url) {
   return await r.text();
 }
 
-// ---------- Playwright (behövs för variant=a) ----------
-async function tryPlaywright({ url, variant }) {
-  // Kör inte Playwright i Vercel
-  if (process.env.VERCEL) return { players: null, via: "playwright-skip-vercel" };
-
+/**
+ * Headless fetch via puppeteer-core + @sparticuz/chromium
+ * - Fungerar på Vercel (serverless)
+ * - Fungerar lokalt om du sätter PUPPETEER_EXECUTABLE_PATH till din Chrome
+ *   (t.ex. /Applications/Google Chrome.app/Contents/MacOS/Google Chrome)
+ */
+async function tryHeadless({ url, variant }) {
   try {
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
+    // Ladda chromium helper och puppeteer-core dynamiskt (tree-shake vänligt)
+    const chromium = await import("@sparticuz/chromium");
+    const puppeteer = await import("puppeteer-core");
+
+    // Vercel/Serverless: använd chromium.executablePath()
+    // Lokalt: använd PUPPETEER_EXECUTABLE_PATH om satt, annars försök chromium.executablePath()
+    let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || null;
+    if (!executablePath) {
+      executablePath = await chromium.executablePath(); // fungerar i Vercel
+    }
+
+    const isServerless = !!process.env.VERCEL;
+    const browser = await puppeteer.default.launch({
+      args: isServerless ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
+      defaultViewport: chromium.defaultViewport,
+      executablePath,
+      headless: chromium.headless, // true i Vercel
+    });
+
     const page = await browser.newPage();
 
     // Trimma nätverk
-    await page.route("**/*", (route) => {
-      const t = route.request().resourceType();
-      if (["image", "media", "font", "stylesheet"].includes(t)) return route.abort();
-      route.continue();
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      const type = req.resourceType();
+      if (["image", "media", "font", "stylesheet"].includes(type)) req.abort();
+      else req.continue();
     });
+
     await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
+    await page.setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari"
+    );
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
-    // Cookie-knapp ibland
+    // Cookie-knapp (bästa försök)
     try {
-      const btn = page.getByRole("button", { name: /allow|accept/i });
-      if (await btn.isVisible({ timeout: 1500 })) await btn.click({ timeout: 1500 });
+      const btns = await page.$x(
+        `//*[self::button or self::a][contains(translate(., 'ACEPTLLOW', 'aceptllow'),'accept') or contains(translate(., 'ACEPTLLOW', 'aceptllow'),'allow')]`
+      );
+      if (btns[0]) await btns[0].click().catch(() => {});
     } catch {}
 
-    // Hjälpare: hämta nuvarande players
     const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
-    async function getCount() {
+
+    async function readCounter() {
       try {
         const txt = await page.$eval(SELECTOR, (el) => (el.textContent || "").trim());
         const n = parseInt((txt || "").replace(/[^\d]/g, ""), 10);
@@ -125,35 +151,33 @@ async function tryPlaywright({ url, variant }) {
       }
     }
 
-    // Om A-variant: klicka på fliken/knappen och vänta på ändring
+    // Variant A kräver klick på ”Crazy Time A”
     if (variant === "a") {
-      const before = await getCount();
+      const before = await readCounter();
 
-      // 1) Klick-försök med flera selektorer
-      const tries = [
+      // Prova flera selectors
+      const selectors = [
         'button:has-text("Crazy Time A")',
         'a:has-text("Crazy Time A")',
         '[role="tab"]:has-text("Crazy Time A")',
-        '//*[self::button or self::a or @role="tab" or @role="button"][contains(normalize-space(.), "Crazy Time A")]',
-        'text=/^\\s*Crazy\\s*Time\\s*A\\s*$/i',
       ];
 
       let clicked = false;
-      for (const sel of tries) {
+      for (const sel of selectors) {
         try {
-          const loc = sel.startsWith("//") ? page.locator(`xpath=${sel}`) : page.locator(sel);
-          if (await loc.first().isVisible({ timeout: 1500 })) {
-            await loc.first().click({ timeout: 2000 });
+          const loc = await page.$(sel);
+          if (loc) {
+            await loc.click({ delay: 15 });
             clicked = true;
             break;
           }
         } catch {}
       }
 
-      // 2) Sista utväg: hitta textnod och klicka närmsta klickbara förälder
+      // Fallback: hitta textnod och klicka närmsta klickbara
       if (!clicked) {
         try {
-          const handle = await page.evaluateHandle(() => {
+          await page.evaluate(() => {
             const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
             let node;
             while ((node = walker.nextNode())) {
@@ -164,56 +188,43 @@ async function tryPlaywright({ url, variant }) {
                     el.matches(
                       'button,a,[role="button"],[role="tab"],.MuiTab-root,.tab,[class*="tab"],[class*="TwTab"]'
                     )
-                  )
-                    return el;
+                  ) {
+                    el.click();
+                    return;
+                  }
                   el = el.parentElement;
                 }
               }
             }
-            return null;
           });
-          if (handle) {
-            await handle.asElement().click();
-            clicked = true;
-          }
+          clicked = true;
         } catch {}
       }
 
-      // 3) Vänta på att fliken faktiskt blir aktiv eller att räknaren ändras
+      // Vänta kort och/eller tills siffran ändrats
       if (clicked) {
-        // Liten paus så UI hinner byta
         await page.waitForTimeout(500);
-
-        // vänta på aria-selected eller class=.active nära “Crazy Time A”
-        await Promise.race([
-          page
-            .locator(':is([aria-selected="true"], .active):has-text("Crazy Time A")')
-            .first()
-            .waitFor({ timeout: 2000 })
-            .catch(() => {}),
-          (async () => {
-            // vänta på att siffra byts
-            const target = await getCount();
-            if (target !== null && before !== null && target === before) {
-              await page.waitForTimeout(1000);
-            }
-          })(),
-        ]);
+        const after = await readCounter();
+        if (before !== null && after !== null && after === before) {
+          await page.waitForTimeout(1200);
+        }
       }
     }
 
     // Läs räknaren (oavsett variant)
     await page.waitForSelector(SELECTOR, { timeout: 8000 });
-    const afterTxt = await page.$eval(SELECTOR, (el) => (el.textContent || "").trim());
-    const players = parseInt((afterTxt || "").replace(/[^\d]/g, ""), 10);
+    const players = await readCounter();
 
+    await page.close();
     await browser.close();
+
     return {
       players: Number.isFinite(players) ? players : null,
-      via: variant === "a" ? "playwright:a" : "playwright",
+      via: variant === "a" ? "puppeteer:a" : "puppeteer",
     };
   } catch (e) {
-    return { players: null, via: "playwright-failed" };
+    console.warn("[CS] puppeteer failed:", e?.message || e);
+    return { players: null, via: "puppeteer-failed" };
   }
 }
 
@@ -246,6 +257,7 @@ export async function GET(req, ctx) {
       return resJSON({ ok: true, source: "cache", ...entry.data }, 200, { ETag: entry.etag });
     }
 
+    // Hämta players
     let players = null;
     let via = "unknown";
 
@@ -260,15 +272,15 @@ export async function GET(req, ctx) {
         via = "plain:error";
       }
       if (!Number.isFinite(players)) {
-        const pw = await tryPlaywright({ url, variant });
-        players = pw.players;
-        via = pw.via;
+        const head = await tryHeadless({ url, variant });
+        players = head.players;
+        via = head.via;
       }
     } else {
-      // För A-variant: gå direkt på Playwright (måste klicka)
-      const pw = await tryPlaywright({ url, variant: "a" });
-      players = pw.players;
-      via = pw.via;
+      // Variant A måste klickas fram → headless direkt
+      const head = await tryHeadless({ url, variant: "a" });
+      players = head.players;
+      via = head.via;
     }
 
     if (debug) {
