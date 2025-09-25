@@ -2,7 +2,7 @@ import localFont from "next/font/local";
 // import Sidebar from "../Components/Sidebar"; // Importera Sidebar
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
-import { Box } from "@mui/material";
+import Box from "@mui/material/Box";
 import { StockPriceProvider } from "../context/StockPriceContext"; // Importera StockPriceProvider
 
 const geistSans = localFont({

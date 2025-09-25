@@ -9,13 +9,13 @@ import {
   Tab,
   Select,
   MenuItem,
-  useMediaQuery,
   useTheme,
   IconButton,
   Chip,
   Button,
   Tooltip,
 } from "@mui/material";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 // Charts are rendered inside subcomponents; no direct Recharts import needed here
 import { keyframes } from "@emotion/react";
 import buybackDataDefault from "../app/data/buybackData.json"; // Fallback vid initial render

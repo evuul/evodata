@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo, useEffect } from "react";
-import { Box, Typography, Card, Tabs, Tab, Select, MenuItem, useMediaQuery, useTheme, IconButton } from "@mui/material";
+import { Box, Typography, Card, Tabs, Tab, Select, MenuItem, useTheme, IconButton } from "@mui/material";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 import RevenueSection from "./graphs/RevenueSection";
 import EPSSection from "./graphs/EPSSection";
 import MarginSection from "./graphs/MarginSection";
