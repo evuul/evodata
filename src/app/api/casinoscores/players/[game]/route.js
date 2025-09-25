@@ -48,8 +48,9 @@ function makeEtag(obj) {
   return `W/"${h.toString(16)}"`;
 }
 
-// ---------- Plain fetch (för default-varianten) ----------
+// ---------- Plain fetch ----------
 function extractPlayersFromHTML(html) {
+  // 1) Exakta element
   const idMatch = html.match(/id=["']playersCounter["'][^>]*>([\s\S]*?)<\/\s*div\s*>/i);
   if (idMatch) {
     const n = parseInt(idMatch[1].replace(/[^\d]/g, ""), 10);
@@ -60,6 +61,7 @@ function extractPlayersFromHTML(html) {
     const n = parseInt(dtidMatch[1].replace(/[^\d]/g, ""), 10);
     if (Number.isFinite(n)) return { players: n, via: "plain:data-testid" };
   }
+  // 2) Rensa och leta efter “NNN players”
   const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -78,8 +80,8 @@ async function plainFetch(url) {
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
       "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-      Accept: "text/html,application/xhtml+xml",
-      Referer: "https://www.google.com/",
+      "Accept": "text/html,application/xhtml+xml",
+      "Referer": "https://www.google.com/",
     },
     cache: "no-store",
   });
@@ -87,141 +89,85 @@ async function plainFetch(url) {
   return await r.text();
 }
 
-/**
- * Headless fetch via puppeteer-core + @sparticuz/chromium
- * - Fungerar på Vercel (serverless)
- * - Fungerar lokalt om du sätter PUPPETEER_EXECUTABLE_PATH till din Chrome
- *   (t.ex. /Applications/Google Chrome.app/Contents/MacOS/Google Chrome)
- */
-async function tryHeadless({ url, variant }) {
+// ---------- Puppeteer fallback (fungerar på Vercel) ----------
+async function tryPuppeteer({ url, variant }) {
   try {
-    // Ladda chromium helper och puppeteer-core dynamiskt (tree-shake vänligt)
     const chromium = await import("@sparticuz/chromium");
     const puppeteer = await import("puppeteer-core");
 
-    // Vercel/Serverless: använd chromium.executablePath()
-    // Lokalt: använd PUPPETEER_EXECUTABLE_PATH om satt, annars försök chromium.executablePath()
-    let executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || null;
-    if (!executablePath) {
-      executablePath = await chromium.executablePath(); // fungerar i Vercel
-    }
+    const execPath = await chromium.executablePath();
 
-    const isServerless = !!process.env.VERCEL;
-    const browser = await puppeteer.default.launch({
-      args: isServerless ? chromium.args : ["--no-sandbox", "--disable-setuid-sandbox"],
+    const browser = await puppeteer.launch({
+      args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: chromium.headless, // true i Vercel
+      executablePath: execPath,
+      headless: chromium.headless, // true på Vercel
     });
 
     const page = await browser.newPage();
 
-    // Trimma nätverk
+    // Trimma bandbredd: blocka tunga resurser
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const type = req.resourceType();
-      if (["image", "media", "font", "stylesheet"].includes(type)) req.abort();
-      else req.continue();
+      if (["image", "media", "font", "stylesheet"].includes(type)) return req.abort();
+      req.continue();
     });
 
     await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
-    await page.setUserAgent(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari"
-    );
-
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
-    // Cookie-knapp (bästa försök)
+    // Stäng eventuella cookie/popups snabbt (best-effort)
     try {
-      const btns = await page.$x(
-        `//*[self::button or self::a][contains(translate(., 'ACEPTLLOW', 'aceptllow'),'accept') or contains(translate(., 'ACEPTLLOW', 'aceptllow'),'allow')]`
-      );
-      if (btns[0]) await btns[0].click().catch(() => {});
+      const allowBtn = await page.$('button:has-text("Allow"), button:has-text("Accept")');
+      if (allowBtn) await allowBtn.click({ delay: 10 }).catch(() => {});
     } catch {}
 
     const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
 
-    async function readCounter() {
-      try {
-        const txt = await page.$eval(SELECTOR, (el) => (el.textContent || "").trim());
-        const n = parseInt((txt || "").replace(/[^\d]/g, ""), 10);
-        return Number.isFinite(n) ? n : null;
-      } catch {
-        return null;
-      }
-    }
-
-    // Variant A kräver klick på ”Crazy Time A”
+    // Crazy Time A kräver klick på variant
     if (variant === "a") {
-      const before = await readCounter();
-
-      // Prova flera selectors
-      const selectors = [
+      // Försök klicka på “Crazy Time A”
+      const clicks = [
         'button:has-text("Crazy Time A")',
         'a:has-text("Crazy Time A")',
         '[role="tab"]:has-text("Crazy Time A")',
+        'text/Crazy\\s*Time\\s*A/i',
       ];
-
-      let clicked = false;
-      for (const sel of selectors) {
+      let done = false;
+      for (const sel of clicks) {
         try {
-          const loc = await page.$(sel);
-          if (loc) {
-            await loc.click({ delay: 15 });
-            clicked = true;
+          const locator = await page.$(sel);
+          if (locator) {
+            await locator.click({ delay: 10 });
+            done = true;
             break;
           }
         } catch {}
       }
+      // liten väntan så siffran hinner ändras
+      await page.waitForTimeout(600);
+    }
 
-      // Fallback: hitta textnod och klicka närmsta klickbara
-      if (!clicked) {
-        try {
-          await page.evaluate(() => {
-            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-            let node;
-            while ((node = walker.nextNode())) {
-              if (node.nodeValue && /crazy\s*time\s*a/i.test(node.nodeValue)) {
-                let el = node.parentElement;
-                while (el && el !== document.body) {
-                  if (
-                    el.matches(
-                      'button,a,[role="button"],[role="tab"],.MuiTab-root,.tab,[class*="tab"],[class*="TwTab"]'
-                    )
-                  ) {
-                    el.click();
-                    return;
-                  }
-                  el = el.parentElement;
-                }
-              }
-            }
-          });
-          clicked = true;
-        } catch {}
-      }
+    // Läs counter
+    await page.waitForSelector(SELECTOR, { timeout: 8000 }).catch(() => {});
+    const txt =
+      (await page.$eval(SELECTOR, (el) => (el.textContent || "").trim()).catch(() => "")) || "";
 
-      // Vänta kort och/eller tills siffran ändrats
-      if (clicked) {
-        await page.waitForTimeout(500);
-        const after = await readCounter();
-        if (before !== null && after !== null && after === before) {
-          await page.waitForTimeout(1200);
-        }
+    let players = parseInt(txt.replace(/[^\d]/g, ""), 10);
+
+    // Om fortfarande NaN → försök från bodyText
+    if (!Number.isFinite(players)) {
+      const bodyText = await page.evaluate(() => document.body?.innerText || "");
+      const m = bodyText.match(/([\d][\d\s,.]{2,})\s*players/i);
+      if (m) {
+        const n = parseInt(m[1].replace(/[^\d]/g, ""), 10);
+        if (Number.isFinite(n)) players = n;
       }
     }
 
-    // Läs räknaren (oavsett variant)
-    await page.waitForSelector(SELECTOR, { timeout: 8000 });
-    const players = await readCounter();
-
-    await page.close();
     await browser.close();
-
-    return {
-      players: Number.isFinite(players) ? players : null,
-      via: variant === "a" ? "puppeteer:a" : "puppeteer",
-    };
+    return { players: Number.isFinite(players) ? players : null, via: `puppeteer${variant === "a" ? ":a" : ""}` };
   } catch (e) {
     console.warn("[CS] puppeteer failed:", e?.message || e);
     return { players: null, via: "puppeteer-failed" };
@@ -231,7 +177,7 @@ async function tryHeadless({ url, variant }) {
 // ---------- Route ----------
 export async function GET(req, ctx) {
   try {
-    // Vänta in params i dynamiska API:er
+    // Vänta in params för Next 15
     const paramsMaybe = ctx?.params;
     const params =
       paramsMaybe && typeof paramsMaybe.then === "function" ? await paramsMaybe : paramsMaybe || {};
@@ -257,30 +203,24 @@ export async function GET(req, ctx) {
       return resJSON({ ok: true, source: "cache", ...entry.data }, 200, { ETag: entry.etag });
     }
 
-    // Hämta players
     let players = null;
     let via = "unknown";
 
-    if (variant === "default") {
-      // För standard-varianten: försök plain först (billigt)
-      try {
-        const html = await plainFetch(url);
-        const plain = extractPlayersFromHTML(html);
-        players = plain.players;
-        via = plain.via;
-      } catch {
-        via = "plain:error";
-      }
-      if (!Number.isFinite(players)) {
-        const head = await tryHeadless({ url, variant });
-        players = head.players;
-        via = head.via;
-      }
-    } else {
-      // Variant A måste klickas fram → headless direkt
-      const head = await tryHeadless({ url, variant: "a" });
-      players = head.players;
-      via = head.via;
+    // 1) Försök billig plain fetch först (gäller även ice-fishing m.fl.)
+    try {
+      const html = await plainFetch(url);
+      const plain = extractPlayersFromHTML(html);
+      players = plain.players;
+      via = plain.via;
+    } catch {
+      via = "plain:error";
+    }
+
+    // 2) Om vi inte hittade siffra – kör puppeteer (funkar på Vercel)
+    if (!Number.isFinite(players)) {
+      const pp = await tryPuppeteer({ url, variant });
+      players = pp.players;
+      via = pp.via;
     }
 
     if (debug) {
@@ -294,6 +234,7 @@ export async function GET(req, ctx) {
     }
 
     if (!Number.isFinite(players)) {
+      // 503 om vi fortfarande inte får fram något
       return resJSON({ ok: false, error: "Hittade inte players", slug, variant, via }, 503, {
         "Retry-After": "60",
       });
@@ -306,7 +247,7 @@ export async function GET(req, ctx) {
       fetchedAt: new Date().toISOString(),
     };
 
-    // Persist: spara under "crazy-time" resp. "crazy-time:a"
+    // Persist i timeseries: “crazy-time” resp. “crazy-time:a”
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
     try {
       await saveSample(seriesKey, data.fetchedAt, players);
@@ -317,6 +258,7 @@ export async function GET(req, ctx) {
 
     return resJSON({ ok: true, ...data }, 200, { ETag: etag });
   } catch (err) {
+    console.error("[CS] 500:", err?.message || err);
     return resJSON({ ok: false, error: err?.message || String(err) }, 500);
   }
 }
