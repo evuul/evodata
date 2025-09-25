@@ -4,19 +4,21 @@ import { Typography, Box, Chip, IconButton, Tooltip, CircularProgress } from "@m
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice';
+import CasinoScoresBadge from "./CasinoScoresBadge";
 
 // ---- Spel (samma som i GamePlayersLiveList) ----
 const GAMES = [
-  { slug: "crazy-time",                  label: "Crazy Time" },
-  { slug: "monopoly-big-baller",         label: "Big Baller" },
-  { slug: "funky-time",                  label: "Funky Time" },
-  { slug: "lightning-storm",             label: "Lightning Storm" },
-  { slug: "crazy-balls",                 label: "Crazy Balls" },
-  { slug: "ice-fishing",                 label: "Ice Fishing" },
-  { slug: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette" },
-  { slug: "monopoly-live",               label: "Monopoly Live" },
-  { slug: "red-door-roulette",           label: "Red Door Roulette" },
-  { slug: "auto-roulette",               label: "Auto Roulette" },
+  { id: "crazy-time", slug: "crazy-time", label: "Crazy Time" },
+  { id: "crazy-time:a", slug: "crazy-time", label: "Crazy Time A", variant: "a" },
+  { id: "monopoly-big-baller", slug: "monopoly-big-baller", label: "Big Baller" },
+  { id: "funky-time", slug: "funky-time", label: "Funky Time" },
+  { id: "lightning-storm", slug: "lightning-storm", label: "Lightning Storm" },
+  { id: "crazy-balls", slug: "crazy-balls", label: "Crazy Balls" },
+  { id: "ice-fishing", slug: "ice-fishing", label: "Ice Fishing" },
+  { id: "xxxtreme-lightning-roulette", slug: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette" },
+  { id: "monopoly-live", slug: "monopoly-live", label: "Monopoly Live" },
+  { id: "red-door-roulette", slug: "red-door-roulette", label: "Red Door Roulette" },
+  { id: "auto-roulette", slug: "auto-roulette", label: "Auto Roulette" },
 ];
 
 // Delad färgpalett
@@ -116,15 +118,19 @@ export default function Header() {
     await Promise.all(
       GAMES.map(async (g) => {
         try {
-          const res = await fetch(`/api/casinoscores/players/${g.slug}${force ? "?force=1" : ""}`, { cache: 'no-store' });
+          const params = new URLSearchParams();
+          if (g.variant) params.set('variant', g.variant);
+          if (force) params.set('force', '1');
+          const qs = params.toString();
+          const res = await fetch(`/api/casinoscores/players/${g.slug}${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
           const j = await res.json();
           if (j?.ok) {
-            out[g.slug] = { players: Number(j.players), updated: j.fetchedAt };
+            out[g.id] = { players: Number(j.players), updated: j.fetchedAt };
           } else {
-            out[g.slug] = { players: null, updated: null };
+            out[g.id] = { players: null, updated: null };
           }
         } catch {
-          out[g.slug] = { players: null, updated: null };
+          out[g.id] = { players: null, updated: null };
         }
       })
     );
@@ -150,9 +156,9 @@ export default function Header() {
   const top3 = useMemo(() => {
     const rows = GAMES.map(g => ({
       ...g,
-      players: liveGames[g.slug]?.players ?? null,
-      updated: liveGames[g.slug]?.updated ?? null,
-      color: COLORS[g.slug] || '#fff',
+      players: liveGames[g.id]?.players ?? null,
+      updated: liveGames[g.id]?.updated ?? null,
+      color: COLORS[g.id] || '#fff',
     }));
     rows.sort((a, b) => {
       const av = a.players, bv = b.players;
@@ -210,7 +216,7 @@ export default function Header() {
                   ? new Date(item.updated).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
                   : null;
                 return (
-                  <Tooltip key={item.slug} title={time ? `Uppdaterad ${time}` : item.label}>
+                  <Tooltip key={item.id} title={time ? `Uppdaterad ${time}` : item.label}>
                     <Chip
                       size="small"
                       label={label}
@@ -282,6 +288,22 @@ export default function Header() {
               </IconButton>
             </Tooltip>
           </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, mt: 1 }}>
+          <CasinoScoresBadge
+            slug="crazy-time"
+            label="Crazy Time"
+            color={COLORS['crazy-time']}
+            showRefresh
+          />
+          <CasinoScoresBadge
+            slug="crazy-time"
+            variant="a"
+            label="Crazy Time A"
+            color={COLORS['crazy-time:a']}
+            showRefresh
+          />
         </Box>
 
         <Typography
