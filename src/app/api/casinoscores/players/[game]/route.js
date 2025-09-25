@@ -125,80 +125,112 @@ async function tryPlaywright({ url, variant }) {
       }
     }
 
-    // Om A-variant: klicka på fliken/knappen och vänta på ändring
+    async function clickCrazyTimeASwitch() {
+      try {
+        const clicked = await page.evaluate(() => {
+          const switcher = document.querySelector('[data-testid="crazytime-a-switch"]');
+          if (!switcher) return false;
+          const second = switcher.querySelector(':scope > div:nth-child(2)');
+          if (!second) return false;
+          second.click();
+          return true;
+        });
+        return !!clicked;
+      } catch {
+        return false;
+      }
+    }
+
+    async function waitForCrazyTimeAActive() {
+      await page
+        .waitForFunction(
+          () => {
+            const switcher = document.querySelector('[data-testid="crazytime-a-switch"]');
+            if (!switcher) return false;
+            const second = switcher.querySelector(':scope > div:nth-child(2)');
+            if (!second) return false;
+            return second.classList.contains('tw:bg-cornflower');
+          },
+          undefined,
+          { timeout: 3000 }
+        )
+        .catch(() => {});
+    }
+
+    // Om A-variant: toggla till Crazy Time A och vänta på att siffran uppdateras
     if (variant === "a") {
       const before = await getCount();
+      let clicked = await clickCrazyTimeASwitch();
 
-      // 1) Klick-försök med flera selektorer
-      const tries = [
-        'button:has-text("Crazy Time A")',
-        'a:has-text("Crazy Time A")',
-        '[role="tab"]:has-text("Crazy Time A")',
-        '//*[self::button or self::a or @role="tab" or @role="button"][contains(normalize-space(.), "Crazy Time A")]',
-        'text=/^\\s*Crazy\\s*Time\\s*A\\s*$/i',
-      ];
-
-      let clicked = false;
-      for (const sel of tries) {
-        try {
-          const loc = sel.startsWith("//") ? page.locator(`xpath=${sel}`) : page.locator(sel);
-          if (await loc.first().isVisible({ timeout: 1500 })) {
-            await loc.first().click({ timeout: 2000 });
-            clicked = true;
-            break;
-          }
-        } catch {}
-      }
-
-      // 2) Sista utväg: hitta textnod och klicka närmsta klickbara förälder
       if (!clicked) {
-        try {
-          const handle = await page.evaluateHandle(() => {
-            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-            let node;
-            while ((node = walker.nextNode())) {
-              if (node.nodeValue && /crazy\s*time\s*a/i.test(node.nodeValue)) {
-                let el = node.parentElement;
-                while (el && el !== document.body) {
-                  if (
-                    el.matches(
-                      'button,a,[role="button"],[role="tab"],.MuiTab-root,.tab,[class*="tab"],[class*="TwTab"]'
+        // Fallback – försök gamla selektorer
+        const tries = [
+          'button:has-text("Crazy Time A")',
+          'a:has-text("Crazy Time A")',
+          '[role="tab"]:has-text("Crazy Time A")',
+          '//*[self::button or self::a or @role="tab" or @role="button"][contains(normalize-space(.), "Crazy Time A")]',
+          'text=/^\\s*Crazy\\s*Time\\s*A\\s*$/i',
+        ];
+
+        for (const sel of tries) {
+          try {
+            const loc = sel.startsWith("//") ? page.locator(`xpath=${sel}`) : page.locator(sel);
+            if (await loc.first().isVisible({ timeout: 1500 })) {
+              await loc.first().click({ timeout: 2000 });
+              clicked = true;
+              break;
+            }
+          } catch {}
+        }
+
+        if (!clicked) {
+          try {
+            const handle = await page.evaluateHandle(() => {
+              const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+              let node;
+              while ((node = walker.nextNode())) {
+                if (node.nodeValue && /crazy\s*time\s*a/i.test(node.nodeValue)) {
+                  let el = node.parentElement;
+                  while (el && el !== document.body) {
+                    if (
+                      el.matches(
+                        'button,a,[role="button"],[role="tab"],.MuiTab-root,.tab,[class*="tab"],[class*="TwTab"]'
+                      )
                     )
-                  )
-                    return el;
-                  el = el.parentElement;
+                      return el;
+                    el = el.parentElement;
+                  }
                 }
               }
+              return null;
+            });
+            if (handle) {
+              await handle.asElement().click();
+              clicked = true;
             }
-            return null;
-          });
-          if (handle) {
-            await handle.asElement().click();
-            clicked = true;
-          }
-        } catch {}
+          } catch {}
+        }
       }
 
-      // 3) Vänta på att fliken faktiskt blir aktiv eller att räknaren ändras
       if (clicked) {
-        // Liten paus så UI hinner byta
-        await page.waitForTimeout(500);
-
-        // vänta på aria-selected eller class=.active nära “Crazy Time A”
-        await Promise.race([
-          page
-            .locator(':is([aria-selected="true"], .active):has-text("Crazy Time A")')
-            .first()
-            .waitFor({ timeout: 2000 })
-            .catch(() => {}),
-          (async () => {
-            // vänta på att siffra byts
-            const target = await getCount();
-            if (target !== null && before !== null && target === before) {
-              await page.waitForTimeout(1000);
-            }
-          })(),
-        ]);
+        await waitForCrazyTimeAActive();
+        if (Number.isFinite(before)) {
+          await page
+            .waitForFunction(
+              ({ selector, prev }) => {
+                const el = document.querySelector(selector);
+                if (!el) return false;
+                const txt = (el.textContent || '').replace(/[^\d]/g, '');
+                const val = parseInt(txt, 10);
+                return Number.isFinite(val) && val !== prev;
+              },
+              { selector: SELECTOR, prev: before },
+              { timeout: 4000 }
+            )
+            .catch(() => {});
+        } else {
+          await page.waitForTimeout(500);
+        }
       }
     }
 
@@ -273,7 +305,19 @@ async function tryPuppeteer({ url, variant }) {
       }
     }
 
-    async function clickCrazyTimeA() {
+    async function clickCrazyTimeASwitch() {
+      try {
+        const clicked = await page.evaluate(() => {
+          const switcher = document.querySelector('[data-testid="crazytime-a-switch"]');
+          if (!switcher) return false;
+          const second = switcher.querySelector(':scope > div:nth-child(2)');
+          if (!second) return false;
+          second.click();
+          return true;
+        });
+        if (clicked) return true;
+      } catch {}
+
       const selectors = [
         "button.MuiTab-root",
         "a.MuiTab-root",
@@ -334,24 +378,26 @@ async function tryPuppeteer({ url, variant }) {
       });
     }
 
+    async function waitForCrazyTimeAActive() {
+      await page
+        .waitForFunction(() => {
+          const switcher = document.querySelector('[data-testid="crazytime-a-switch"]');
+          if (!switcher) return false;
+          const second = switcher.querySelector(':scope > div:nth-child(2)');
+          if (!second) return false;
+          return second.classList.contains('tw:bg-cornflower');
+        }, { timeout: 3000 })
+        .catch(() => {});
+    }
+
     if (variant === "a") {
       const before = await getCount();
-      const clicked = await clickCrazyTimeA();
+      const clicked = await clickCrazyTimeASwitch();
       if (clicked) {
-        await page.waitForTimeout(500);
-        try {
-          await page.waitForFunction(
-            () =>
-              Array.from(
-                document.querySelectorAll('[aria-selected="true"], .active')
-              ).some((el) => /crazy\s*time\s*a/i.test((el.textContent || "").trim())),
-            { timeout: 2000 }
-          );
-        } catch {}
-
+        await waitForCrazyTimeAActive();
         if (before != null) {
-          try {
-            await page.waitForFunction(
+          await page
+            .waitForFunction(
               (selector, prev) => {
                 const el = document.querySelector(selector);
                 if (!el) return false;
@@ -359,11 +405,13 @@ async function tryPuppeteer({ url, variant }) {
                 const val = parseInt(txt, 10);
                 return Number.isFinite(val) && val !== prev;
               },
-              { timeout: 1500 },
+              { timeout: 4000 },
               SELECTOR,
               before
-            );
-          } catch {}
+            )
+            .catch(() => {});
+        } else {
+          await page.waitForTimeout(500);
         }
       }
     }
