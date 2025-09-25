@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useCasinoScoresPlayers(slug, { pollMs = 60_000 } = {}) {
+export function useCasinoScoresPlayers(slug, { pollMs = 60_000, variant } = {}) {
   const [players, setPlayers] = useState(null);
   const [fetchedAt, setFetchedAt] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -9,11 +9,15 @@ export function useCasinoScoresPlayers(slug, { pollMs = 60_000 } = {}) {
   const timerRef = useRef(null);
 
   const fetchNow = useCallback(async (force = false) => {
+    if (!slug) return;
     try {
       setLoading(true);
       setErr("");
-      const q = force ? "?force=1" : "";
-      const res = await fetch(`/api/casinoscores/players/${slug}${q}`, { cache: "no-cache" });
+      const params = new URLSearchParams();
+      if (variant) params.set("variant", variant);
+      if (force) params.set("force", "1");
+      const qs = params.toString();
+      const res = await fetch(`/api/casinoscores/players/${slug}${qs ? `?${qs}` : ""}`, { cache: "no-cache" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const j = await res.json();
       const n = Number(j?.players);
@@ -24,7 +28,7 @@ export function useCasinoScoresPlayers(slug, { pollMs = 60_000 } = {}) {
     } finally {
       setLoading(false);
     }
-  }, [slug]);
+  }, [slug, variant]);
 
   useEffect(() => {
     if (!slug) return;
@@ -43,7 +47,7 @@ export function useCasinoScoresPlayers(slug, { pollMs = 60_000 } = {}) {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("visibilitychange", onFocus);
     };
-  }, [slug, pollMs, fetchNow]);
+  }, [slug, pollMs, variant, fetchNow]);
 
   return { players, fetchedAt, loading, error, refresh: fetchNow };
 }

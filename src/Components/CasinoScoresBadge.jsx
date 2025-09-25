@@ -4,8 +4,8 @@ import { Chip, Tooltip, Box, CircularProgress, IconButton } from "@mui/material"
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useCasinoScoresPlayers } from "./useCasinoScoresPlayers";
 
-export default function CasinoScoresBadge({ slug, label = "Game", pollMs = 60_000, showRefresh = false, color = "#ffffff" }) {
-  const { players, fetchedAt, loading, error, refresh } = useCasinoScoresPlayers(slug, { pollMs });
+export default function CasinoScoresBadge({ slug, label = "Game", pollMs = 60_000, showRefresh = false, color = "#ffffff", variant }) {
+  const { players, fetchedAt, loading, error, refresh } = useCasinoScoresPlayers(slug, { pollMs, variant });
 
   const chipLabel = loading
     ? (

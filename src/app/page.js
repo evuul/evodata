@@ -20,6 +20,7 @@ import NewsSection from "../Components/NewsSection";
 import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
 import GamePlayersBox from "../Components/GamePlayersBox"; // 👈 NY
+import CrazyTimeLiveStats from "../Components/CrazyTimeLiveStats";
 
 // Laddningsskelett för tunga komponenter
 const GraphBoxSkeleton = () => (
@@ -140,6 +141,8 @@ export default function Home() {
           <MoneyCounter />
         </Box>
       </Box>
+
+      <CrazyTimeLiveStats />
 
       {/* GraphBox */}
       <Box id="overview"
