@@ -1,23 +1,9 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Typography, Box, Chip, IconButton, Tooltip, CircularProgress } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import { Typography, Box, Chip, Tooltip, CircularProgress } from "@mui/material";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice';
-
-// ---- Spel (samma som i GamePlayersLiveList) ----
-const GAMES = [
-  { id: "crazy-time", slug: "crazy-time", label: "Crazy Time" },
-  { id: "monopoly-big-baller", slug: "monopoly-big-baller", label: "Big Baller" },
-  { id: "funky-time", slug: "funky-time", label: "Funky Time" },
-  { id: "lightning-storm", slug: "lightning-storm", label: "Lightning Storm" },
-  { id: "crazy-balls", slug: "crazy-balls", label: "Crazy Balls" },
-  { id: "ice-fishing", slug: "ice-fishing", label: "Ice Fishing" },
-  { id: "xxxtreme-lightning-roulette", slug: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette" },
-  { id: "monopoly-live", slug: "monopoly-live", label: "Monopoly Live" },
-  { id: "red-door-roulette", slug: "red-door-roulette", label: "Red Door Roulette" },
-  { id: "auto-roulette", slug: "auto-roulette", label: "Auto Roulette" },
-];
+import { usePlayersLive, PLAYERS_POLL_INTERVAL_MS } from "../context/PlayersLiveContext";
 
 // Delad färgpalett
 export const COLORS = {
@@ -43,9 +29,6 @@ const EVO_LEI = '549300SUH6ZR1RF6TA88';
 
 export default function Header() {
   const { stockPrice, loading: loadingPrice, error: priceError, marketCap, lastUpdated, refresh } = useStockPriceContext();
-
-  const fmtTime = (d) =>
-    d ? new Date(d).toLocaleTimeString("sv-SE", { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Stockholm' }) : '';
 
   const fmtCap = (v) => {
     if (!v) return 'N/A';
@@ -106,58 +89,56 @@ export default function Header() {
     return () => clearInterval(id);
   }, [fetchShortFromHistory]);
 
-  // ---- Top 3 spel-chips (dynamiskt) ----
-  const [liveGames, setLiveGames] = useState({}); // {slug: {players, updated}}
-  const [loadingGames, setLoadingGames] = useState(false);
+  const {
+    data: liveGames,
+    loading: loadingPlayers,
+    refresh: refreshPlayers,
+    GAMES: playerGames,
+    lastUpdated: playersLastUpdated,
+  } = usePlayersLive();
 
-  const fetchAllGames = useCallback(async (force = false) => {
-    setLoadingGames(true);
-    const out = {};
-    await Promise.all(
-      GAMES.map(async (g) => {
-        try {
-          const params = new URLSearchParams();
-          if (g.variant) params.set('variant', g.variant);
-          if (force) params.set('force', '1');
-          const qs = params.toString();
-          const res = await fetch(`/api/casinoscores/players/${g.slug}${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
-          const j = await res.json();
-          if (j?.ok) {
-            out[g.id] = { players: Number(j.players), updated: j.fetchedAt };
-          } else {
-            out[g.id] = { players: null, updated: null };
-          }
-        } catch {
-          out[g.id] = { players: null, updated: null };
-        }
-      })
-    );
-    setLiveGames(out);
-    setLoadingGames(false);
-  }, []);
+  const [countdownLabel, setCountdownLabel] = useState(null);
 
-  useEffect(() => { fetchAllGames(); }, [fetchAllGames]);
   useEffect(() => {
-    const onFocus = () => fetchAllGames();
-    window.addEventListener('focus', onFocus);
-    window.addEventListener('visibilitychange', onFocus);
-    const id = setInterval(() => {
-      if (document.visibilityState === 'visible' && navigator.onLine) fetchAllGames();
-    }, 10 * 60 * 1000); // samma 10-min intervall
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('visibilitychange', onFocus);
-      clearInterval(id);
+    if (!playersLastUpdated) {
+      setCountdownLabel(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const updatedTs = new Date(playersLastUpdated).getTime();
+      if (!Number.isFinite(updatedTs)) {
+        setCountdownLabel(null);
+        return;
+      }
+      const remaining = PLAYERS_POLL_INTERVAL_MS - (Date.now() - updatedTs);
+      if (remaining <= 0) {
+        setCountdownLabel("00:00");
+        return;
+      }
+      const totalSeconds = Math.ceil(remaining / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      setCountdownLabel(`${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
     };
-  }, [fetchAllGames]);
+
+    updateCountdown();
+    const id = setInterval(updateCountdown, 1000);
+    return () => clearInterval(id);
+  }, [playersLastUpdated]);
 
   const top3 = useMemo(() => {
-    const rows = GAMES.map(g => ({
-      ...g,
-      players: liveGames[g.id]?.players ?? null,
-      updated: liveGames[g.id]?.updated ?? null,
-      color: COLORS[g.id] || '#fff',
-    }));
+    const sourceGames = playerGames ?? [];
+    const rows = sourceGames.map((g) => {
+      const entry = liveGames?.[g.id] || {};
+      const players = typeof entry.players === "number" ? entry.players : null;
+      return {
+        ...g,
+        players,
+        updated: entry.updated ?? null,
+        color: COLORS[g.id] || '#fff',
+      };
+    });
     rows.sort((a, b) => {
       const av = a.players, bv = b.players;
       if (av == null && bv == null) return 0;
@@ -166,7 +147,7 @@ export default function Header() {
       return bv - av;
     });
     return rows.slice(0, 3);
-  }, [liveGames]);
+  }, [playerGames, liveGames]);
 
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw ?? "N/A";
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw ?? 0;
@@ -196,7 +177,7 @@ export default function Header() {
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             {/* Dynamisk Top 3 av spel */}
-            {loadingGames ? (
+            {loadingPlayers ? (
               <Chip
                 size="small"
                 label={
@@ -210,11 +191,14 @@ export default function Header() {
               top3.map(item => {
                 const label =
                   `${item.label}: ${Number.isFinite(item.players) ? item.players.toLocaleString('sv-SE') : "—"}`;
-                const time = item.updated
+                const fallbackTime = item.updated
                   ? new Date(item.updated).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
                   : null;
+                const tooltipText = countdownLabel
+                  ? (countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`)
+                  : (fallbackTime ? `Senast uppdaterad ${fallbackTime}` : item.label);
                 return (
-                  <Tooltip key={item.id} title={time ? `Uppdaterad ${time}` : item.label}>
+                  <Tooltip key={item.id} title={tooltipText}>
                     <Chip
                       size="small"
                       label={label}
@@ -263,28 +247,19 @@ export default function Header() {
               sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
             />
 
-            {lastUpdated && (
+            <Tooltip title={countdownLabel === null ? 'Beräknar nästa uppdatering' : countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`}>
               <Chip
-                label={`Uppdaterad ${fmtTime(lastUpdated)}`}
+                label={countdownLabel === null
+                  ? 'Beräknar nästa uppdatering…'
+                  : countdownLabel === '00:00'
+                    ? 'Uppdaterar nu'
+                    : `Nästa uppdatering om ${countdownLabel}`}
                 size="small"
-                sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }}
+                sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }}
               />
-            )}
-
-            {/* Gemensam uppdatera-knapp */}
-            <Tooltip title="Uppdatera alla badges">
-              <IconButton
-                onClick={() => {
-                  refresh();               // aktiedata
-                  fetchShortFromHistory(); // blankning
-                  fetchAllGames(true);     // top3-spel (tvinga scrape vid klick)
-                }}
-                sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }}
-                aria-label="Uppdatera data"
-              >
-                <RefreshIcon fontSize="small" />
-              </IconButton>
             </Tooltip>
+
+            {/* Uppdateras automatiskt via PlayersLiveContext */}
           </Box>
         </Box>
 

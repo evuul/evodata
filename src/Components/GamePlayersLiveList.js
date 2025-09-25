@@ -1,33 +1,17 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Box, Typography, Chip, Tooltip, CircularProgress, IconButton, Collapse, Button, Divider
+  Box, Typography, Chip, Tooltip, CircularProgress, Collapse, Button, Divider
 } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { usePlayersLive, GAMES as CONTEXT_GAMES, PLAYERS_POLL_INTERVAL_MS } from "../context/PlayersLiveContext";
 
 /**
  * Viktigt:
  *  - id används som primär nyckel (även för /series-id som kan vara "crazy-time:a")
  *  - apiSlug används för /players, och apiVariant="a" lägger till ?variant=a
  */
-export const GAMES = [
-  { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
-  { id: "monopoly-big-baller",         label: "Big Baller",  apiSlug: "monopoly-big-baller" },
-  { id: "funky-time",                  label: "Funky Time",  apiSlug: "funky-time" },
-  { id: "lightning-storm",             label: "Lightning Storm", apiSlug: "lightning-storm" },
-  { id: "crazy-balls",                 label: "Crazy Balls", apiSlug: "crazy-balls" },
-  { id: "ice-fishing",                 label: "Ice Fishing", apiSlug: "ice-fishing" },
-  { id: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette", apiSlug: "xxxtreme-lightning-roulette" },
-  { id: "monopoly-live",               label: "Monopoly Live", apiSlug: "monopoly-live" },
-  { id: "red-door-roulette",           label: "Red Door Roulette", apiSlug: "red-door-roulette" },
-  { id: "auto-roulette",               label: "Auto Roulette", apiSlug: "auto-roulette" },
-  { id: "speed-baccarat-a",            label: "Speed Baccarat A", apiSlug: "speed-baccarat-a" },
-  { id: "super-andar-bahar",           label: "Super Andar Bahar", apiSlug: "super-andar-bahar" },
-  { id: "lightning-dice",              label: "Lightning Dice", apiSlug: "lightning-dice" },
-  { id: "lightning-roulette",          label: "Lightning Roulette", apiSlug: "lightning-roulette" },
-  { id: "bac-bo",                      label: "Bac Bo", apiSlug: "bac-bo" },
-];
+export const GAMES = CONTEXT_GAMES;
 
 // Delad färgpalett – egen färg för A-varianten
 export const COLORS = {
@@ -52,47 +36,58 @@ export const COLORS = {
 const TOP_N = 3;
 
 export default function GamePlayersLiveList() {
-  const [live, setLive] = useState({});
-  const [loading, setLoading] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const {
+    data: liveGames,
+    loading: loadingPlayers,
+    refresh: refreshPlayers,
+    GAMES: playerGames,
+    lastUpdated,
+  } = usePlayersLive();
 
-  async function fetchAll(force = false) {
-    setLoading(true);
-    const results = {};
-    await Promise.all(
-      GAMES.map(async (g) => {
-        const qs = g.apiVariant
-          ? `?variant=${g.apiVariant}${force ? "&force=1" : ""}`
-          : (force ? "?force=1" : "");
-        try {
-          const res = await fetch(`/api/casinoscores/players/${g.apiSlug}${qs}`, { cache: "no-store" });
-          const j = await res.json();
-          results[g.id] = j.ok
-            ? { players: Number(j.players), updated: j.fetchedAt }
-            : { players: null, error: j.error || "error" };
-        } catch (e) {
-          results[g.id] = { players: null, error: e.message };
-        }
-      })
-    );
-    setLive(results);
-    setLoading(false);
-  }
+  const [countdownLabel, setCountdownLabel] = useState(null);
 
   useEffect(() => {
-    fetchAll();
-    const id = setInterval(fetchAll, 10 * 60 * 1000);
+    if (!lastUpdated) {
+      setCountdownLabel(null);
+      return;
+    }
+
+    const updateCountdown = () => {
+      const updatedTs = new Date(lastUpdated).getTime();
+      if (!Number.isFinite(updatedTs)) {
+        setCountdownLabel(null);
+        return;
+      }
+      const remaining = PLAYERS_POLL_INTERVAL_MS - (Date.now() - updatedTs);
+      if (remaining <= 0) {
+        setCountdownLabel("00:00");
+        return;
+      }
+      const totalSeconds = Math.ceil(remaining / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      setCountdownLabel(`${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`);
+    };
+
+    updateCountdown();
+    const id = setInterval(updateCountdown, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [lastUpdated]);
 
   // Sortera fallande (null sist)
   const rows = useMemo(() => {
-    const list = GAMES.map((g) => ({
-      ...g,
-      players: live[g.id]?.players ?? null,
-      updated: live[g.id]?.updated ?? null,
-      color: COLORS[g.id] || "#fff",
-    }));
+    const games = playerGames ?? GAMES;
+    const list = games.map((g) => {
+      const entry = liveGames?.[g.id] || {};
+      const players = typeof entry.players === "number" ? entry.players : null;
+      return {
+        ...g,
+        players,
+        updated: entry.updated ?? null,
+        color: COLORS[g.id] || "#fff",
+      };
+    });
     list.sort((a, b) => {
       const av = a.players, bv = b.players;
       if (av == null && bv == null) return 0;
@@ -101,7 +96,7 @@ export default function GamePlayersLiveList() {
       return bv - av;
     });
     return list;
-  }, [live]);
+  }, [playerGames, liveGames]);
 
   const total = useMemo(
     () => rows.filter(r => Number.isFinite(r.players)).reduce((s, r) => s + r.players, 0),
@@ -177,19 +172,20 @@ export default function GamePlayersLiveList() {
           mb: 1
         }}
       >
-        <Typography variant="h6" sx={{ color:"#fff", fontWeight:700, textAlign:"center" }}>
-          {titleText}
-        </Typography>
-
-        <Box sx={{ position:"absolute", right: 0, top: "50%", transform: "translateY(-50%)" }}>
-          <Tooltip title="Uppdatera (bypass cache)">
-            <span>
-              <IconButton onClick={() => fetchAll(true)} disabled={loading} sx={{ color:"#00e676" }}>
-                {loading ? <CircularProgress size={18} sx={{ color:"#00e676" }}/> : <RefreshIcon fontSize="small" /> }
-              </IconButton>
-            </span>
-          </Tooltip>
+        <Box sx={{ textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:0.25 }}>
+          <Typography variant="h6" sx={{ color:"#fff", fontWeight:700, textAlign:"center" }}>
+            {titleText}
+          </Typography>
+          <Typography variant="caption" sx={{ color:"#b0b0b0" }}>
+            {countdownLabel === null
+              ? 'Beräknar nästa uppdatering…'
+              : countdownLabel === '00:00'
+                ? 'Uppdaterar nu'
+                : `Nästa uppdatering om ${countdownLabel}`}
+          </Typography>
         </Box>
+
+        {/* Uppdateras automatiskt via kontexten */}
       </Box>
 
       {/* Top 3 */}
