@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo } from "react";
-import { Box, Tabs, Tab, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { Box, Tabs, Tab, Typography, useTheme } from "@mui/material";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label, LabelList } from "recharts";
 
 // Komponent för att spåra genomsnittliga spelare dagligen, veckovis och månadsvis

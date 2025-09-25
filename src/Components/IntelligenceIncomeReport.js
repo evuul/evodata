@@ -8,9 +8,9 @@ import {
   TableCell,
   TableHead,
   TableRow,
-  useMediaQuery,
   useTheme,
 } from "@mui/material";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 import {
   LineChart,
   Line,
