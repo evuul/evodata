@@ -5,22 +5,15 @@ import Header from "../Components/Header";
 import dynamic from "next/dynamic";
 import { Card, CardContent, Skeleton, Typography } from "@mui/material";
 import MoneyCounter from "../Components/MoneyCounter";
-import ComingUpdates from "../Components/ComingUpdates";
-import LiveEarningsBox from "../Components/LiveEarningsBox";
 import InvestmentCalculator from "../Components/InvestmentCalculator";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
-// import KingsOfTheHillTeaser from "@/Components/KingsOfTheHillTeaser";
-import CurrentCashBox from "../Components/CurrentCashBox";
-import AveragePlayersTracker from "../Components/AveragePlayersTracker";
-import IntelligenceIncomeReport from "../Components/IntelligenceIncomeReport";
 import { Box } from "@mui/material";
 import NewsSection from "../Components/NewsSection";
 import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
 import GamePlayersBox from "../Components/GamePlayersBox"; // 👈 NY
-import CrazyTimeLiveStats from "../Components/CrazyTimeLiveStats";
 
 // Laddningsskelett för tunga komponenter
 const GraphBoxSkeleton = () => (
@@ -141,8 +134,6 @@ export default function Home() {
           <MoneyCounter />
         </Box>
       </Box>
-
-      <CrazyTimeLiveStats />
 
       {/* GraphBox */}
       <Box id="overview"
