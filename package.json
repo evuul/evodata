@@ -18,15 +18,17 @@
     "@mui/x-charts": "^7.28.0",
     "@next/font": "^14.2.15",
     "@vercel/analytics": "^1.5.0",
+    "@vercel/kv": "^3.0.0",
     "axios": "^1.8.4",
     "framer-motion": "^12.6.3",
     "next": "15.2.4",
+    "playwright": "^1.55.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-icons": "^5.5.0",
     "recharts": "^2.15.2",
-    "yahoo-finance2": "^2.13.3",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "yahoo-finance2": "^2.13.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
