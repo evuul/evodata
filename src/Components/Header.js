@@ -1,21 +1,58 @@
 'use client';
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Typography, Box, Chip, IconButton, Tooltip, CircularProgress } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice';
+
+// ---- Spel (samma som i GamePlayersLiveList) ----
+const GAMES = [
+  { slug: "crazy-time",                  label: "Crazy Time" },
+  { slug: "monopoly-big-baller",         label: "Big Baller" },
+  { slug: "funky-time",                  label: "Funky Time" },
+  { slug: "lightning-storm",             label: "Lightning Storm" },
+  { slug: "crazy-balls",                 label: "Crazy Balls" },
+  { slug: "ice-fishing",                 label: "Ice Fishing" },
+  { slug: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette" },
+  { slug: "monopoly-live",               label: "Monopoly Live" },
+  { slug: "red-door-roulette",           label: "Red Door Roulette" },
+  { slug: "auto-roulette",               label: "Auto Roulette" },
+];
+
+// Delad färgpalett
+export const COLORS = {
+  "crazy-time": "#C21807",              // Rubinröd
+  "crazy-time:a": "#26A69A",            // Teal (oförändrad)
+  "monopoly-big-baller": "#00e676",
+  "funky-time": "#BA68C8",
+  "lightning-storm": "#1976D2",         // Stark blå (Royal Blue)
+  "crazy-balls": "#E57373",             // Ljusare röd
+  "ice-fishing": "#AB47BC",
+  "xxxtreme-lightning-roulette": "#FF7043",
+  "monopoly-live": "#66BB6A",
+  "red-door-roulette": "#EC407A",
+  "auto-roulette": "#26C6DA",
+  "speed-baccarat-a": "#4DB6AC",
+  "super-andar-bahar": "#F06292",
+  "lightning-dice": "#FFD54F",
+  "lightning-roulette": "#29B6F6",
+  "bac-bo": "#FF8A65",
+};
 
 const EVO_LEI = '549300SUH6ZR1RF6TA88';
 
 export default function Header() {
   const { stockPrice, loading: loadingPrice, error: priceError, marketCap, lastUpdated, refresh } = useStockPriceContext();
 
-  const fmtTime = (d) => d ? new Date(d).toLocaleTimeString("sv-SE", { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+  const fmtTime = (d) =>
+    d ? new Date(d).toLocaleTimeString("sv-SE", { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Stockholm' }) : '';
+
   const fmtCap = (v) => {
     if (!v) return 'N/A';
     const b = v / 1_000_000_000;
     return `${b.toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}B SEK`;
   };
+
   const isMarketOpen = () => {
     const now = new Date();
     const day = now.getDay(); if (day === 0 || day === 6) return false;
@@ -25,11 +62,10 @@ export default function Header() {
     return afterOpen && beforeClose;
   };
 
-  // ---- Blankning i headern ----
+  // ---- Blankning ----
   const [shortPercent, setShortPercent] = useState(null);
   const [loadingShort, setLoadingShort] = useState(false);
 
-  // 1) Läs senaste datapunkt från historik (samma källa som grafen)
   const fetchShortFromHistory = useCallback(async () => {
     try {
       setLoadingShort(true);
@@ -43,7 +79,6 @@ export default function Header() {
         if (Number.isFinite(v)) setShortPercent(v);
       }
     } catch {
-      // fall back to live endpoint if you keep it
       try {
         const res = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: 'no-store' });
         if (res.ok) {
@@ -56,17 +91,7 @@ export default function Header() {
     }
   }, []);
 
-  // 2) Första hämtning
   useEffect(() => { fetchShortFromHistory(); }, [fetchShortFromHistory]);
-
-  // 3) Lyssna på snapshot-event från ShortTrend/schemat
-  useEffect(() => {
-    const handler = () => fetchShortFromHistory();
-    try { window.addEventListener('shortSnapshot', handler); } catch {}
-    return () => { try { window.removeEventListener('shortSnapshot', handler); } catch {} };
-  }, [fetchShortFromHistory]);
-
-  // 4) Re-fetcha vid fokus / synlighet
   useEffect(() => {
     const onFocus = () => fetchShortFromHistory();
     window.addEventListener('focus', onFocus);
@@ -76,25 +101,68 @@ export default function Header() {
       window.removeEventListener('visibilitychange', onFocus);
     };
   }, [fetchShortFromHistory]);
-
-  // 5) Intervall (var 30:e min)
   useEffect(() => {
     const id = setInterval(fetchShortFromHistory, 30 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchShortFromHistory]);
 
-  const fmtSEK = (v) => {
-    if (v == null) return 'N/A';
-    if (v >= 1_000_000_000) return `${(v/1_000_000_000).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mdkr`;
-    if (v >= 1_000_000) return `${(v/1_000_000).toLocaleString('sv-SE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mkr`;
-    return `${v.toLocaleString('sv-SE')} SEK`;
-  };
+  // ---- Top 3 spel-chips (dynamiskt) ----
+  const [liveGames, setLiveGames] = useState({}); // {slug: {players, updated}}
+  const [loadingGames, setLoadingGames] = useState(false);
 
-  const openFiPage = () => {
-    if (typeof window !== 'undefined') {
-      window.open('https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88', '_blank', 'noopener');
-    }
-  };
+  const fetchAllGames = useCallback(async (force = false) => {
+    setLoadingGames(true);
+    const out = {};
+    await Promise.all(
+      GAMES.map(async (g) => {
+        try {
+          const res = await fetch(`/api/casinoscores/players/${g.slug}${force ? "?force=1" : ""}`, { cache: 'no-store' });
+          const j = await res.json();
+          if (j?.ok) {
+            out[g.slug] = { players: Number(j.players), updated: j.fetchedAt };
+          } else {
+            out[g.slug] = { players: null, updated: null };
+          }
+        } catch {
+          out[g.slug] = { players: null, updated: null };
+        }
+      })
+    );
+    setLiveGames(out);
+    setLoadingGames(false);
+  }, []);
+
+  useEffect(() => { fetchAllGames(); }, [fetchAllGames]);
+  useEffect(() => {
+    const onFocus = () => fetchAllGames();
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('visibilitychange', onFocus);
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) fetchAllGames();
+    }, 10 * 60 * 1000); // samma 10-min intervall
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('visibilitychange', onFocus);
+      clearInterval(id);
+    };
+  }, [fetchAllGames]);
+
+  const top3 = useMemo(() => {
+    const rows = GAMES.map(g => ({
+      ...g,
+      players: liveGames[g.slug]?.players ?? null,
+      updated: liveGames[g.slug]?.updated ?? null,
+      color: COLORS[g.slug] || '#fff',
+    }));
+    rows.sort((a, b) => {
+      const av = a.players, bv = b.players;
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      return bv - av;
+    });
+    return rows.slice(0, 3);
+  }, [liveGames]);
 
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw ?? "N/A";
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw ?? 0;
@@ -118,46 +186,101 @@ export default function Header() {
           transition: "all 0.3s ease",
         }}
       >
-        {/* Top bar: source + updated + refresh */}
-        <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        {/* Top bar */}
+        <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', mb: 1, gap: 1, flexWrap: 'wrap' }}>
           <Chip label="EVO.ST • Nasdaq Stockholm" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Tooltip title="Källa: FI. Klick öppnar FI-sidan">
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {/* Dynamisk Top 3 av spel */}
+            {loadingGames ? (
+              <Chip
+                size="small"
+                label={
+                  <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                    <CircularProgress size={12} sx={{ color:'#ffffff' }} /> <span>Spelare…</span>
+                  </Box>
+                }
+                sx={{ backgroundColor: '#2a2a2a', color: '#ffffff', border: '1px solid #3a3a3a' }}
+              />
+            ) : (
+              top3.map(item => {
+                const label =
+                  `${item.label}: ${Number.isFinite(item.players) ? item.players.toLocaleString('sv-SE') : "—"}`;
+                const time = item.updated
+                  ? new Date(item.updated).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+                  : null;
+                return (
+                  <Tooltip key={item.slug} title={time ? `Uppdaterad ${time}` : item.label}>
+                    <Chip
+                      size="small"
+                      label={label}
+                      sx={{
+                        backgroundColor: '#2a2a2a',
+                        color: item.color,
+                        border: `1px solid ${item.color}30`, // tunn kant i spel-färgen
+                        cursor: 'default',
+                        '& .MuiChip-label': {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          whiteSpace: 'nowrap',
+                          fontWeight: 700,
+                        },
+                      }}
+                    />
+                  </Tooltip>
+                );
+              })
+            )}
+
+            {/* Blankning */}
+            <Tooltip title="Blankning (FI)">
               <Chip
                 label={
                   loadingShort
                     ? <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
                         <CircularProgress size={12} sx={{ color:'#FFCA28' }} /> <span>Blankning…</span>
                       </Box>
-                    : `Blankning: ${
-                        Number(shortPercent ?? NaN).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                      }%`
+                    : `Blankning: ${Number(shortPercent ?? NaN).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
                 }
                 size="small"
-                onClick={openFiPage}
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.open('https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88', '_blank', 'noopener');
+                  }
+                }}
                 sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
               />
             </Tooltip>
+
             <Chip
               label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
               size="small"
               sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
             />
+
             {lastUpdated && (
-              <Chip label={`Uppdaterad ${fmtTime(lastUpdated)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }} />
+              <Chip
+                label={`Uppdaterad ${fmtTime(lastUpdated)}`}
+                size="small"
+                sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', display: { xs: 'none', sm: 'inline-flex' } }}
+              />
             )}
-<Tooltip title="Uppdatera aktie- och blankningsdata">
-  <IconButton
-    onClick={() => {
-      refresh();              // uppdatera aktiedata
-      fetchShortFromHistory(); // uppdatera blankning
-    }}
-    sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }}
-    aria-label="Uppdatera data"
-  >
-    <RefreshIcon fontSize="small" />
-  </IconButton>
-</Tooltip>
+
+            {/* Gemensam uppdatera-knapp */}
+            <Tooltip title="Uppdatera alla badges">
+              <IconButton
+                onClick={() => {
+                  refresh();               // aktiedata
+                  fetchShortFromHistory(); // blankning
+                  fetchAllGames(true);     // top3-spel (tvinga scrape vid klick)
+                }}
+                sx={{ color: '#00e676', display: { xs: 'none', sm: 'inline-flex' } }}
+                aria-label="Uppdatera data"
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
 

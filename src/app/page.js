@@ -19,7 +19,7 @@ import { Box } from "@mui/material";
 import NewsSection from "../Components/NewsSection";
 import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
-// import { Kings } from "next/font/google";
+import GamePlayersBox from "../Components/GamePlayersBox"; // 👈 NY
 
 // Laddningsskelett för tunga komponenter
 const GraphBoxSkeleton = () => (
@@ -96,18 +96,11 @@ years.forEach((year) => {
 const SAFE_PLAYER_COUNT = 0;
 
 export default function Home() {
-  // *** Allt API-anrop borttaget ***
-  // Om/när du vill slå på igen:
-  //  - gör Home async
-  //  - hämta data
-  //  - rendera komponenter villkorligt
-
   return (
     <main>
-      {/* <KingsOfTheHillTeaser gameShowsData={playerData?.gameShows} /> */}
       <Header />
 
-      {/* Container för PlayerCard, LiveEarningsBox och MoneyCounter */}
+      {/* Container: GamePlayersBox + MoneyCounter */}
       <Box
         sx={{
           display: "flex",
@@ -123,26 +116,17 @@ export default function Home() {
           boxSizing: "border-box",
         }}
       >
-        {/* PlayerCard helt borttagen för att undvika beroende av API */}
-        {/*
-        <Box ...>
-          <PlayerCard playerCount={playerData.playersCount} />
-        </Box>
-        */}
-
-        {/* LiveEarningsBox – får ett säkert defaultvärde */}
-        {/* <Box
+        {/* 🔥 NY: Live-spelare per game show (ovanför MoneyCounter) */}
+        <Box
           sx={{
-            flex: { xs: "1 1 100%", sm: "1 1 100%" },
             width: { xs: "95%", sm: "85%", md: "75%" },
             margin: "0 auto",
             boxSizing: "border-box",
-            order: { xs: 2, sm: "3" },
+            order: { xs: 1, sm: 1 },
           }}
         >
-          <LiveEarningsBox playerCount={SAFE_PLAYER_COUNT} /> */}
-          {/* Om komponenten inte kräver prop: <LiveEarningsBox /> */}
-        {/* </Box> */}
+          <GamePlayersBox />
+        </Box>
 
         {/* MoneyCounter */}
         <Box
@@ -150,7 +134,7 @@ export default function Home() {
             width: { xs: "95%", sm: "85%", md: "75%" },
             margin: "0 auto",
             boxSizing: "border-box",
-            order: { xs: 3, sm: 2 },
+            order: { xs: 2, sm: 2 },
           }}
         >
           <MoneyCounter />
@@ -198,10 +182,8 @@ export default function Home() {
         <ShortTrend />
       </Box>
 
-      {/* Short interest / Blankning temporärt dold (visas i Header med 5.15%) */}
-
-            {/* StockBuybackInfo */}
-            <Box id="buybacks"
+      {/* StockBuybackInfo */}
+      <Box id="buybacks"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "85%", md: "75%" },
@@ -210,17 +192,6 @@ export default function Home() {
       >
         <StockBuybackInfo isActive={true} buybackCash={500000000} dividendData={dividendData} />
       </Box>
-
-      {/* AveragePlayersTracker */}
-      {/* <Box
-        sx={{
-          marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
-          margin: "0 auto",
-        }}
-      >
-        <AveragePlayersTracker playersData={averagePlayersData} />
-      </Box> */}
 
       {/* InvestmentCalculator */}
       <Box id="calculator"
@@ -245,31 +216,6 @@ export default function Home() {
         <FAQ />
       </Box>
 
-      {/* CurrentCashBox – du kan slå på när du vill */}
-      {/*
-      <Box sx={{ marginTop: { xs: 2, sm: 3 }, width: { xs: "95%", sm: "85%", md: "75%" }, margin: "0 auto" }}>
-        <CurrentCashBox financialReports={financialReports} />
-      </Box>
-      */}
-
-      {/* IntelligenceIncomeReport */}
-      {/* <Box
-        sx={{
-          marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
-          margin: "0 auto",
-        }}
-      >
-        <IntelligenceIncomeReport financialReports={financialReports} averagePlayersData={averagePlayersData} />
-      </Box> */}
-
-      {/* ComingUpdates */}
-      {/*
-      <Box sx={{ marginTop: { xs: 2, sm: 3 }, width: { xs: "95%", sm: "85%", md: "75%" }, margin: "0 auto" }}>
-        <ComingUpdates />
-      </Box>
-      */}
-      {/* Footer */}
       <Footer />
     </main>
   );
