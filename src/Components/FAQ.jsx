@@ -27,6 +27,10 @@ const faqs = [
     a: "Pris kommer via Yahoo Finance API. Finansiella rapporter och återköpsdata är sammanställda i projektets JSON‑filer. Om externa nyheter saknas visas exempelposter så du ser formatet.",
   },
   {
+    q: "Hur fungerar Game Tracker?",
+    a: "Vi listar utvalda live-spel från CasinoScores och uppdaterar spelarantalen automatiskt var 10:e minut. Varje uppdatering sparas dessutom till en databas. När du tittar på trendvyn räknar vi ut medelantalet spelare för varje spel och varje dag baserat på dessa insamlade datapunkter, så att du kan följa genomsnittlig popularitet över tid.",
+  },
+  {
     q: "Vad visar MoneyCounter?",
     a: "En uppskattning av dagens vinst (till nu). Den lilla chippen visar vad vinsten skulle kunna räcka till idag: \"Skulle räcka till återköp: N aktier (X%)\" samt \"Skulle räcka till: Y SEK per aktie\". Det är en visuell representation – inga beslut underlag.",
   },
