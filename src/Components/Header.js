@@ -4,12 +4,10 @@ import { Typography, Box, Chip, IconButton, Tooltip, CircularProgress } from "@m
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice';
-import CasinoScoresBadge from "./CasinoScoresBadge";
 
 // ---- Spel (samma som i GamePlayersLiveList) ----
 const GAMES = [
   { id: "crazy-time", slug: "crazy-time", label: "Crazy Time" },
-  { id: "crazy-time:a", slug: "crazy-time", label: "Crazy Time A", variant: "a" },
   { id: "monopoly-big-baller", slug: "monopoly-big-baller", label: "Big Baller" },
   { id: "funky-time", slug: "funky-time", label: "Funky Time" },
   { id: "lightning-storm", slug: "lightning-storm", label: "Lightning Storm" },
@@ -288,22 +286,6 @@ export default function Header() {
               </IconButton>
             </Tooltip>
           </Box>
-        </Box>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, mt: 1 }}>
-          <CasinoScoresBadge
-            slug="crazy-time"
-            label="Crazy Time"
-            color={COLORS['crazy-time']}
-            showRefresh
-          />
-          <CasinoScoresBadge
-            slug="crazy-time"
-            variant="a"
-            label="Crazy Time A"
-            color={COLORS['crazy-time:a']}
-            showRefresh
-          />
         </Box>
 
         <Typography

@@ -13,7 +13,6 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
  */
 export const GAMES = [
   { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
-  { id: "crazy-time:a",  label: "Crazy Time A",  apiSlug: "crazy-time", apiVariant: "a" },
   { id: "monopoly-big-baller",         label: "Big Baller",  apiSlug: "monopoly-big-baller" },
   { id: "funky-time",                  label: "Funky Time",  apiSlug: "funky-time" },
   { id: "lightning-storm",             label: "Lightning Storm", apiSlug: "lightning-storm" },

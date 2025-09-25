@@ -441,19 +441,36 @@ export async function GET(req, ctx) {
     // Vänta in params i dynamiska API:er
     const paramsMaybe = ctx?.params;
     const params =
-      paramsMaybe && typeof paramsMaybe.then === "function" ? await paramsMaybe : paramsMaybe || {};
+      paramsMaybe && typeof paramsMaybe.then === "function"
+        ? await paramsMaybe
+        : paramsMaybe || {};
     const slug = params.game;
 
     if (!slug || !ALLOWED.has(slug)) {
-      return resJSON({ ok: false, error: "Unknown or disallowed game slug" }, 400);
+      return resJSON(
+        { ok: false, error: "Unknown or disallowed game slug" },
+        400
+      );
     }
 
     const { searchParams } = new URL(req.url);
-    const variant = (searchParams.get("variant") || "").toLowerCase() === "a" ? "a" : "default";
+    const variant =
+      (searchParams.get("variant") || "").toLowerCase() === "a"
+        ? "a"
+        : "default";
     const force = searchParams.get("force") === "1";
     const debug = searchParams.get("debug") === "1";
     const url = `${BASE}/${slug}/`;
     const cacheKey = `${slug}:${variant}`;
+
+    // 🚫 TEMP: block Crazy Time A på Vercel
+    if (slug === "crazy-time" && variant === "a") {
+      return resJSON(
+        { ok: false, error: "Crazy Time A is temporarily disabled" },
+        410,
+        { "Cache-Control": "no-store" }
+      );
+    }
 
     // Cache per variant
     const entry = g.__CS_CACHE__.get(cacheKey);
