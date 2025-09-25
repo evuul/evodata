@@ -8,8 +8,6 @@
  */
 export const GAMES = [
     { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
-    { id: "crazy-time:a",  label: "Crazy Time A",  apiSlug: "crazy-time", apiVariant: "a" },
-  
     { id: "monopoly-big-baller",         label: "Big Baller",              apiSlug: "monopoly-big-baller" },
     { id: "funky-time",                  label: "Funky Time",              apiSlug: "funky-time" },
     { id: "lightning-storm",             label: "Lightning Storm",         apiSlug: "lightning-storm" },
@@ -19,8 +17,6 @@ export const GAMES = [
     { id: "monopoly-live",               label: "Monopoly Live",           apiSlug: "monopoly-live" },
     { id: "red-door-roulette",           label: "Red Door Roulette",       apiSlug: "red-door-roulette" },
     { id: "auto-roulette",               label: "Auto Roulette",           apiSlug: "auto-roulette" },
-  
-    // Nya titlar
     { id: "speed-baccarat-a",            label: "Speed Baccarat A",        apiSlug: "speed-baccarat-a" },
     { id: "super-andar-bahar",           label: "Super Andar Bahar",       apiSlug: "super-andar-bahar" },
     { id: "lightning-dice",              label: "Lightning Dice",          apiSlug: "lightning-dice" },
