@@ -28,7 +28,7 @@ export const COLORS = {
 const EVO_LEI = '549300SUH6ZR1RF6TA88';
 
 export default function Header() {
-  const { stockPrice, loading: loadingPrice, error: priceError, marketCap, lastUpdated, refresh } = useStockPriceContext();
+  const { stockPrice, loading: loadingPrice, error: priceError, marketCap } = useStockPriceContext();
 
   const fmtCap = (v) => {
     if (!v) return 'N/A';
@@ -171,151 +171,138 @@ export default function Header() {
           transition: "all 0.3s ease",
         }}
       >
-        {/* Top bar */}
+        {/* Top bar – oförändrat på mobil, centrerad på desktop */}
         <Box
           sx={{
-            display: 'flex',
-            width: '100%',
-            justifyContent: { xs: 'center', sm: 'space-between' },
+            // Mobil: behåll flex/kolumn
+            display: { xs: 'flex', sm: 'grid' },
+            flexDirection: { xs: 'column', sm: 'initial' },
+            justifyContent: { xs: 'center', sm: 'initial' },
             alignItems: 'center',
+
+            // Desktop: 3-kolumns grid (vänster EVO, mitten chips, höger spacer)
+            gridTemplateColumns: { sm: 'auto 1fr auto' },
+            width: '100%',
             mb: 1,
             gap: 1,
-            flexWrap: 'wrap',
-            flexDirection: { xs: 'column', sm: 'row' }
+            columnGap: { sm: 1 },
           }}
         >
-          <Chip
-            label="EVO.ST • Nasdaq Stockholm"
-            size="small"
-            sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0', alignSelf: { xs: 'center', sm: 'flex-start' } }}
-          />
+          {/* Vänster: EVO.ST */}
+          <Box sx={{ display: 'flex', alignItems: 'center', alignSelf: { xs: 'center', sm: 'auto' } }}>
+            <Chip
+              label="EVO.ST • Nasdaq Stockholm"
+              size="small"
+              sx={{
+                backgroundColor: '#2a2a2a',
+                color: '#b0b0b0',
+                alignSelf: { xs: 'center', sm: 'flex-start' }, // center på mobil, vänster på desktop
+              }}
+            />
+          </Box>
 
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flexWrap: 'wrap',
-            justifyContent: { xs: 'center', sm: 'flex-start' },
-            width: '100%',
-            textAlign: { xs: 'center', sm: 'left' }
-          }}
-        >
+          {/* Mitten: ALLA chips – mobil: som innan, desktop: centrerade */}
           <Box
             sx={{
               display: 'flex',
-              flexDirection: { xs: 'column', sm: 'row' },
-              alignItems: { xs: 'center', sm: 'flex-start' },
-              gap: { xs: 1.5, sm: 1 },
-              width: '100%'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: 1,
+              px: 1,
+              width: '100%',
+              textAlign: 'center',
+              minHeight: 32,
+              justifyContent: { xs: 'center', sm: 'center' }, // center även på desktop
             }}
           >
-            <Box
-              sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 1,
-                justifyContent: { xs: 'center', sm: 'flex-start' },
-                width: { xs: '100%', sm: 'auto' },
-                textAlign: { xs: 'center', sm: 'left' }
-              }}
-            >
-              {loadingPlayers ? (
-                <Chip
-                  size="small"
-                  label={
-                    <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                      <CircularProgress size={12} sx={{ color:'#ffffff' }} /> <span>Spelare…</span>
-                    </Box>
-                  }
-                  sx={{ backgroundColor: '#2a2a2a', color: '#ffffff', border: '1px solid #3a3a3a' }}
-                />
-              ) : (
-                top3.map(item => {
-                  const label =
-                    `${item.label}: ${Number.isFinite(item.players) ? item.players.toLocaleString('sv-SE') : "—"}`;
-                  const fallbackTime = item.updated
-                    ? new Date(item.updated).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
-                    : null;
-                  const tooltipText = countdownLabel
-                    ? (countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`)
-                    : (fallbackTime ? `Senast uppdaterad ${fallbackTime}` : item.label);
-                  return (
-                    <Tooltip key={item.id} title={tooltipText}>
-                      <Chip
-                        size="small"
-                        label={label}
-                        sx={{
-                          backgroundColor: '#2a2a2a',
-                          color: item.color,
-                          border: `1px solid ${item.color}30`,
-                          cursor: 'default',
-                          '& .MuiChip-label': {
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            whiteSpace: 'nowrap',
-                            fontWeight: 700,
-                          },
-                        }}
-                      />
-                    </Tooltip>
-                  );
-                })
-              )}
-            </Box>
-
-            <Box
-              sx={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: 1,
-                justifyContent: { xs: 'center', sm: 'flex-start' },
-                width: { xs: '100%', sm: 'auto' },
-                textAlign: { xs: 'center', sm: 'left' }
-              }}
-            >
-              <Tooltip title="Blankning (FI)">
-                <Chip
-                  label={
-                    loadingShort
-                      ? <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                          <CircularProgress size={12} sx={{ color:'#FFCA28' }} /> <span>Blankning…</span>
-                        </Box>
-                      : `Blankning: ${Number(shortPercent ?? NaN).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-                  }
-                  size="small"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      window.open('https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88', '_blank', 'noopener');
-                    }
-                  }}
-                  sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
-                />
-              </Tooltip>
-
+            {/* TOP3-spelare */}
+            {loadingPlayers ? (
               <Chip
-                label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
                 size="small"
-                sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
+                label={
+                  <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                    <CircularProgress size={12} sx={{ color:'#ffffff' }} /> <span>Spelare…</span>
+                  </Box>
+                }
+                sx={{ backgroundColor: '#2a2a2a', color: '#ffffff', border: '1px solid #3a3a3a' }}
               />
+            ) : (
+              top3.map(item => {
+                const label =
+                  `${item.label}: ${Number.isFinite(item.players) ? item.players.toLocaleString('sv-SE') : "—"}`;
+                const fallbackTime = item.updated
+                  ? new Date(item.updated).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+                  : null;
+                const tooltipText = countdownLabel
+                  ? (countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`)
+                  : (fallbackTime ? `Senast uppdaterad ${fallbackTime}` : item.label);
+                return (
+                  <Tooltip key={item.id} title={tooltipText}>
+                    <Chip
+                      size="small"
+                      label={label}
+                      sx={{
+                        backgroundColor: '#2a2a2a',
+                        color: item.color,
+                        border: `1px solid ${item.color}30`,
+                        cursor: 'default',
+                        '& .MuiChip-label': {
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          whiteSpace: 'nowrap',
+                          fontWeight: 700,
+                        },
+                      }}
+                    />
+                  </Tooltip>
+                );
+              })
+            )}
 
-              <Tooltip title={countdownLabel === null ? 'Beräknar nästa uppdatering' : countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`}>
-                <Chip
-                  label={countdownLabel === null
-                    ? 'Beräknar nästa uppdatering…'
-                    : countdownLabel === '00:00'
-                      ? 'Uppdaterar nu'
-                      : `Nästa uppdatering om ${countdownLabel}`}
-                  size="small"
-                  sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }}
-                />
-              </Tooltip>
-            </Box>
+            {/* Blankning */}
+            <Tooltip title="Blankning (FI)">
+              <Chip
+                label={
+                  loadingShort
+                    ? <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
+                        <CircularProgress size={12} sx={{ color:'#FFCA28' }} /> <span>Blankning…</span>
+                      </Box>
+                    : `Blankning: ${Number(shortPercent ?? NaN).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+                }
+                size="small"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.open('https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88', '_blank', 'noopener');
+                  }
+                }}
+                sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
+              />
+            </Tooltip>
+
+            {/* Marknadsstatus */}
+            <Chip
+              label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
+              size="small"
+              sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
+            />
+
+            {/* Countdown */}
+            <Tooltip title={countdownLabel === null ? 'Beräknar nästa uppdatering' : countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`}>
+              <Chip
+                label={countdownLabel === null
+                  ? 'Beräknar nästa uppdatering…'
+                  : countdownLabel === '00:00'
+                    ? 'Uppdaterar nu'
+                    : `Nästa uppdatering om ${countdownLabel}`}
+                size="small"
+                sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }}
+              />
+            </Tooltip>
           </Box>
 
-            {/* Uppdateras automatiskt via PlayersLiveContext */}
-          </Box>
+          {/* Höger: tom “spacer” för perfekt centrering av mittenkolumnen (desktop) */}
+          <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
         </Box>
 
         <Typography
