@@ -13,7 +13,10 @@ import { usePlayersLive, GAMES as CONTEXT_GAMES, PLAYERS_POLL_INTERVAL_MS } from
  */
 export const GAMES = CONTEXT_GAMES;
 
-// Delad färgpalett – egen färg för A-varianten
+// DÖLJ dessa id i live-listan
+const HIDE_IDS = new Set(["crazy-time:a"]);
+
+// Delad färgpalett – (färgen för A finns kvar om du vill nyttja den i andra vyer)
 export const COLORS = {
   "crazy-time": "#C21807",              // Rubinröd
   "crazy-time:a": "#26A69A",            // Teal
@@ -75,9 +78,9 @@ export default function GamePlayersLiveList() {
     return () => clearInterval(id);
   }, [lastUpdated]);
 
-  // Sortera fallande (null sist)
+  // Filtrera bort dolda spel och sortera fallande (null sist)
   const rows = useMemo(() => {
-    const games = playerGames ?? GAMES;
+    const games = (playerGames ?? GAMES).filter(g => !HIDE_IDS.has(g.id));
     const list = games.map((g) => {
       const entry = liveGames?.[g.id] || {};
       const players = typeof entry.players === "number" ? entry.players : null;
@@ -162,7 +165,7 @@ export default function GamePlayersLiveList() {
 
   return (
     <Box sx={{ p: 2 }}>
-      {/* Rubrik centrerad, refresh-knapp högerjusterad */}
+      {/* Rubrik centrerad */}
       <Box
         sx={{
           position:"relative",
@@ -184,9 +187,14 @@ export default function GamePlayersLiveList() {
                 : `Nästa uppdatering om ${countdownLabel}`}
           </Typography>
         </Box>
-
-        {/* Uppdateras automatiskt via kontexten */}
       </Box>
+
+      {/* Laddare / fel */}
+      {loadingPlayers && (
+        <Box sx={{ display:"flex", justifyContent:"center", my:1 }}>
+          <CircularProgress size={18} />
+        </Box>
+      )}
 
       {/* Top 3 */}
       <Box sx={{ display:"flex", flexDirection:"column", gap:1 }}>
@@ -235,7 +243,7 @@ export default function GamePlayersLiveList() {
         </Box>
       </Collapse>
 
-      {/* Summa */}
+      {/* Summa (baserad på filtrerade rader) */}
       <Box
         sx={{
           mt:1.25, display:"flex", justifyContent:"space-between", alignItems:"center",
@@ -243,7 +251,7 @@ export default function GamePlayersLiveList() {
         }}
       >
         <Typography sx={{ color:"#fff", fontWeight:700 }}>
-          Summa ({GAMES.length} spel)
+          Summa ({rows.length} spel)
         </Typography>
         <Typography sx={{ color:"#fff", fontWeight:800 }}>
           {total.toLocaleString("sv-SE")}
