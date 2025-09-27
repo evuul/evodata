@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import { Card, CardContent, Tabs, Tab } from "@mui/material";
 import GamePlayersLiveList from "./GamePlayersLiveList";
 import GamePlayersTrendChart from "./GamePlayersTrendChart";
+import RankingTab from "./RankingTab"; // <- vår frameless ranking
 
 export default function GamePlayersBox() {
   const [tab, setTab] = useState(0);
+  const [days, setDays] = useState(30); // dela dagar mellan Trend/Ranking
 
   return (
     <Card
@@ -27,16 +29,33 @@ export default function GamePlayersBox() {
           TabIndicatorProps={{ style: { backgroundColor: "#fff" } }}
           sx={{
             px: 1,
-            "& .MuiTabs-flexContainer": { justifyContent: "center" }, // ✅ centrera tabbar
-            "& .MuiTab-root": { color: "#b0b0b0" },
+            "& .MuiTabs-flexContainer": { justifyContent: "center" },
+            "& .MuiTab-root": { color: "#b0b0b0", textTransform: "none" },
             "& .Mui-selected": { color: "#fff" },
           }}
         >
           <Tab label="Live" />
           <Tab label="Trend" />
+          <Tab label="Ranking" />
         </Tabs>
 
-        {tab === 0 ? <GamePlayersLiveList /> : <GamePlayersTrendChart />}
+        {tab === 0 && <GamePlayersLiveList />}
+
+        {tab === 1 && (
+          <GamePlayersTrendChart
+            // frameless – bara Box med p:2 i komponenten
+            days={days}
+            onChangeDays={setDays}
+          />
+        )}
+
+        {tab === 2 && (
+          <RankingTab
+            // frameless – bara Box med p:2 i komponenten
+            days={days}
+            onChangeDays={setDays}
+          />
+        )}
       </CardContent>
     </Card>
   );
