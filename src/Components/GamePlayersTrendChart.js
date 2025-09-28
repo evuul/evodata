@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Typography, Chip, CircularProgress, useMediaQuery } from "@mui/material";
 import {
@@ -15,11 +14,15 @@ import {
 import { GAMES, COLORS } from "./GamePlayersLiveList"; // GAMES: {id,label}
 
 export default function GamePlayersTrendChart() {
-  const isXs = useMediaQuery("(max-width:600px)");
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(false);
   const [multi, setMulti] = useState({});   // {id:{daily:[{date,avg}], error?}}
   const [errors, setErrors] = useState({}); // {id:"error text"}
+
+  // Responsiv höjd – rejäl även på mobil
+  const isXs = useMediaQuery("(max-width:599.95px)");
+  const isSm = useMediaQuery("(min-width:600px) and (max-width:899.95px)");
+  const chartHeight = isXs ? 380 : isSm ? 420 : 460;
 
   // Dölj "crazy-time:a" i trendvyn
   const GAMES_FOR_TREND = useMemo(
@@ -71,23 +74,8 @@ export default function GamePlayersTrendChart() {
   const hasAnyData = chartData.length > 0;
   const failedIds = Object.keys(errors);
 
-  const maxYAxisLabelLength = useMemo(() => {
-    let maxLen = 0;
-    chartData.forEach((row) => {
-      Object.entries(row).forEach(([key, value]) => {
-        if (key === "date") return;
-        if (value == null || value === "") return;
-        const formatted = Number(value).toLocaleString("sv-SE");
-        maxLen = Math.max(maxLen, formatted.length);
-      });
-    });
-    return maxLen || (isXs ? 4 : 5);
-  }, [chartData, isXs]);
-
-  const yAxisWidth = Math.min(86, Math.max(isXs ? 48 : 58, maxYAxisLabelLength * 7 + 10));
-
   return (
-    <Box sx={{ p: 2 }}>
+    <Box sx={{ p: { xs: 1, sm: 2 } }}>
       {/* Header: titel + dagväljare (bara 7/30/90) */}
       <Box
         sx={{
@@ -135,10 +123,12 @@ export default function GamePlayersTrendChart() {
         </Box>
       )}
 
+      {/* Chart container: full bredd, centrerad, större höjd */}
       <Box
         sx={{
           width: "100%",
-          height: 300,
+          mx: "auto",
+          height: chartHeight,
           background: "#1b1b1b",
           borderRadius: "10px",
           p: 1,
@@ -153,29 +143,19 @@ export default function GamePlayersTrendChart() {
             Ingen historik att visa just nu. Kontrollera att /api/casinoscores/series/[game] returnerar data och att ALLOWED är uppdaterad.
           </Typography>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
+          // minWidth:0 fixar layoutbuggar där grafen kan “tryckas åt höger” i flex-konton
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
             <LineChart
               data={chartData}
-              margin={{
-                top: isXs ? 10 : 12,
-                right: isXs ? 14 : 18,
-                bottom: isXs ? 24 : 28,
-                left: isXs ? 12 : 18,
-              }}
+              margin={{ top: 8, right: 8, bottom: isXs ? 14 : 18, left: 8 }} // jämna marginaler → centrerad
             >
               <CartesianGrid strokeOpacity={0.15} />
               <XAxis dataKey="date" tick={{ fill: "#b0b0b0", fontSize: 12 }} />
-              <YAxis
-                tick={{ fill: "#b0b0b0", fontSize: 12 }}
-                width={yAxisWidth}
-                tickMargin={6}
-                tickLine={false}
-                axisLine={false}
-              />
+              <YAxis tick={{ fill: "#b0b0b0", fontSize: 12 }} width={isXs ? 56 : 70} />
               <RTooltip
                 formatter={(v, key) => [Number(v).toLocaleString("sv-SE"), GAMES.find((g) => g.id === key)?.label || key]}
                 labelFormatter={(l) => `Datum: ${l}`}
-                contentStyle={{ background: "#2a2a2a", border: "none", color: "#fff" }}
+                contentStyle={{ background: "#2a2a2a", border: "1px solid #3a3a3a", color: "#fff" }}
               />
               <Legend wrapperStyle={{ color: "#b0b0b0" }} />
               {GAMES_FOR_TREND.map((g) => (
