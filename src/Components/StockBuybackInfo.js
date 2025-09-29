@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -14,6 +14,7 @@ import {
   Chip,
   Button,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 // Charts are rendered inside subcomponents; no direct Recharts import needed here
@@ -23,6 +24,7 @@ import oldBuybackDataDefault from "../app/data/oldBuybackData.json"; // Fallback
 import { useStockPriceContext } from '../context/StockPriceContext';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ReturnsView from './buybacks/ReturnsView';
 import WeeklyBuybacksTable from './buybacks/WeeklyBuybacksTable';
@@ -73,8 +75,9 @@ const StockBuybackInfo = ({
   const [curData, setCurData] = useState(buybackDataDefault);
   const [loadingData, setLoadingData] = useState(false);
   const [dataError, setDataError] = useState("");
+  const [lastFetchedAt, setLastFetchedAt] = useState(null);
 
-  const fetchBuybacks = async () => {
+  const fetchBuybacks = useCallback(async () => {
     try {
       setLoadingData(true);
       setDataError("");
@@ -83,19 +86,22 @@ const StockBuybackInfo = ({
       const data = await res.json();
       if (Array.isArray(data.old)) setOldData(data.old);
       if (Array.isArray(data.current)) setCurData(data.current);
+      const updatedStamp = data?.updatedAt ? new Date(data.updatedAt) : new Date();
+      setLastFetchedAt(updatedStamp);
     } catch (e) {
-      setDataError('');
+      const message = e instanceof Error ? e.message : 'Okänt fel vid hämtning av återköpsdata';
+      setDataError(message);
     } finally {
       setLoadingData(false);
     }
-  };
+  }, []);
 
-  useEffect(() => { fetchBuybacks(); }, []);
+  useEffect(() => { fetchBuybacks(); }, [fetchBuybacks]);
   useEffect(() => {
     const handler = () => { fetchBuybacks(); };
     try { window.addEventListener('buybacksSynced', handler); } catch {}
     return () => { try { window.removeEventListener('buybacksSynced', handler); } catch {} };
-  }, []);
+  }, [fetchBuybacks]);
 
   // Måndagsfönster (08:00–10:00 Europe/Stockholm): polla buyback‑data var 5:e minut
   useEffect(() => {
@@ -113,11 +119,12 @@ const StockBuybackInfo = ({
         return isMonday && hour >= 8 && hour < 10;
       } catch { return false; }
     };
+    if (inStockholmWindow()) fetchBuybacks();
     const id = setInterval(() => {
       if (inStockholmWindow()) fetchBuybacks();
     }, 5 * 60 * 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [fetchBuybacks]);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -202,6 +209,10 @@ const StockBuybackInfo = ({
     "history",
     "returns",
   ];
+
+  const handleManualRefresh = useCallback(() => {
+    fetchBuybacks();
+  }, [fetchBuybacks]);
 
   // Init from URL
   useEffect(() => {
@@ -342,6 +353,57 @@ const StockBuybackInfo = ({
       >
         Aktieåterköpsinformation
       </Typography>
+
+      {dataError && (
+        <Typography
+          variant="body2"
+          color="#ff1744"
+          sx={{
+            marginBottom: "12px",
+            fontSize: { xs: "0.85rem", sm: "0.95rem" },
+          }}
+        >
+          {dataError}
+        </Typography>
+      )}
+
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1,
+          marginBottom: "16px",
+        }}
+      >
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleManualRefresh}
+          disabled={loadingData}
+          startIcon={<RefreshIcon fontSize="small" />}
+          sx={{
+            color: '#00e676',
+            borderColor: '#00e676',
+            '&:hover': {
+              borderColor: '#00c853',
+              color: '#00c853',
+            },
+          }}
+        >
+          Uppdatera
+        </Button>
+        {loadingData && <CircularProgress size={18} thickness={6} sx={{ color: '#00e676' }} />}
+        {lastFetchedAt && !loadingData && (
+          <Typography
+            variant="caption"
+            color="#bdbdbd"
+            sx={{ fontSize: { xs: '0.75rem', sm: '0.8rem' } }}
+          >
+            Senast uppdaterad {lastFetchedAt.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+          </Typography>
+        )}
+      </Box>
 
       {isMobile ? (
         <Select
