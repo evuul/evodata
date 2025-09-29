@@ -184,7 +184,7 @@ export default function Home() {
           margin: "0 auto",
         }}
       >
-        <StockBuybackInfo isActive={true} buybackCash={500000000} dividendData={dividendData} />
+        <StockBuybackInfo isActive={false} buybackCash={500000000} dividendData={dividendData} />
       </Box>
 
       {/* InvestmentCalculator */}
