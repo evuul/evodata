@@ -1908,41 +1908,41 @@
     "Datum": "2025-09-08",
     "Antal_aktier": 36000,
     "Transaktionsvärde": 28698433,
-    "Snittkurs": 797.17,
-    "Dagsvolym": 2003385,
-    "Procent_dagsvolym": 8.26
+    "Snittkurs": 797.18,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   },
   {
     "Datum": "2025-09-09",
     "Antal_aktier": 36000,
     "Transaktionsvärde": 28948086,
     "Snittkurs": 804.11,
-    "Dagsvolym": 2003385,
-    "Procent_dagsvolym": 8.26
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   },
   {
     "Datum": "2025-09-10",
     "Antal_aktier": 38000,
     "Transaktionsvärde": 30314914,
-    "Snittkurs": 797.79,
-    "Dagsvolym": 2003385,
-    "Procent_dagsvolym": 8.26
+    "Snittkurs": 797.76,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   },
   {
     "Datum": "2025-09-11",
     "Antal_aktier": 45000,
     "Transaktionsvärde": 35871480,
     "Snittkurs": 797.14,
-    "Dagsvolym": 2003385,
-    "Procent_dagsvolym": 8.26
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   },
   {
     "Datum": "2025-09-12",
     "Antal_aktier": 50000,
     "Transaktionsvärde": 39891785,
-    "Snittkurs": 797.83,
-    "Dagsvolym": 2003385,
-    "Procent_dagsvolym": 8.26
+    "Snittkurs": 797.84,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   },
   {
     "Datum": "2025-09-15",
@@ -1981,6 +1981,38 @@
     "Antal_aktier": 90000,
     "Transaktionsvärde": 73418994,
     "Snittkurs": 815.77,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-09-22",
+    "Antal_aktier": 3000,
+    "Transaktionsvärde": 2475028,
+    "Snittkurs": 825.01,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-09-23",
+    "Antal_aktier": 1000,
+    "Transaktionsvärde": 826451,
+    "Snittkurs": 826.45,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-09-24",
+    "Antal_aktier": 6000,
+    "Transaktionsvärde": 4919637,
+    "Snittkurs": 819.94,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-09-25",
+    "Antal_aktier": 119523,
+    "Transaktionsvärde": 97385046,
+    "Snittkurs": 814.78,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   }
