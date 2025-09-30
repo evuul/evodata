@@ -38,24 +38,38 @@ export default function ShortTrend() {
   const [updatedAt, setUpdatedAt] = useState(null);
   const [range, setRange] = useState("30"); // '7' | '30'
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(async ({ skipSpinner = false } = {}) => {
+    if (!skipSpinner) setLoading(true);
     try {
-      setLoading(true);
       const res = await fetch("/api/short/history", { cache: "no-store" });
       if (!res.ok) throw new Error("Kunde inte hämta historik");
       const data = await res.json();
       const arr = Array.isArray(data.items) ? data.items : [];
       // sortera stigande på datum och normalisera
-      const sorted = [...arr].sort((a, b) => new Date(a.date) - new Date(b.date))
+      const sorted = [...arr]
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
         .map(x => ({ date: x.date, percent: Number(x.percent) }));
       setItems(sorted);
       setUpdatedAt(data.updatedAt || null);
     } catch {
       // behåll tidigare state vid fel
     } finally {
-      setLoading(false);
+      if (!skipSpinner) setLoading(false);
     }
   }, []);
+
+  const refreshNow = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/short/snapshot", { method: "POST", cache: "no-store" });
+      if (!res.ok) throw new Error(`Snapshot misslyckades (${res.status})`);
+    } catch (err) {
+      console.error("ShortTrend snapshot error:", err);
+    } finally {
+      await fetchHistory({ skipSpinner: true });
+      setLoading(false);
+    }
+  }, [fetchHistory]);
 
   // Första laddning
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
@@ -169,7 +183,8 @@ export default function ShortTrend() {
         </Typography>
         <IconButton
           aria-label="Uppdatera"
-          onClick={fetchHistory}
+          onClick={refreshNow}
+          disabled={loading}
           sx={{ color: "#00e676", position: "absolute", right: 8, top: -2 }}
           size="small"
         >
