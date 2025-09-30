@@ -225,6 +225,9 @@ export default function GamePlayersTrendChart() {
       <Typography variant="caption" sx={{ color: "#b0b0b0", display: "block", mt: 1 }}>
         Visar kompletta dagar (t.o.m. gårdagen) i Europe/Stockholm.
       </Typography>
+      <Typography variant="caption" sx={{ color: "#808080", display: "block", mt: 0.5 }}>
+        Underlaget bygger på egen insamlad historik från CasinoScores. Siffror kan variera kraftigt om ett spel varit nere för service eller rapporterat 0 spelare vid en mätning, så tolka trenderna som indikativa.
+      </Typography>
 
       {(growthStats.gainers.length > 0 || growthStats.decliners.length > 0) && (
         <Box
