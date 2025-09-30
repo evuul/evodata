@@ -49,7 +49,10 @@ export function PlayersLiveProvider({ children }) {
     try {
       await Promise.all(
         GAMES.map(async (g) => {
-          const qs = g.apiVariant ? `?variant=${g.apiVariant}` : "";
+          const params = new URLSearchParams();
+          if (g.apiVariant) params.set("variant", g.apiVariant);
+          if (force) params.set("force", "1");
+          const qs = params.toString() ? `?${params.toString()}` : "";
           try {
             const res = await fetch(`/api/casinoscores/players/${g.apiSlug}${qs}`, { cache: "no-store" });
             const j = await res.json();
@@ -70,9 +73,44 @@ export function PlayersLiveProvider({ children }) {
     }
   }, []);
 
+  const hydrateFromCache = useCallback(async () => {
+    try {
+      const res = await fetch("/api/casinoscores/players/latest", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (!json?.ok || !Array.isArray(json.items)) return;
+
+      const hydrated = {};
+      for (const item of json.items) {
+        if (!item || typeof item.id !== "string") continue;
+        const playersVal = Number(item.players);
+        hydrated[item.id] = {
+          players: Number.isFinite(playersVal) ? playersVal : null,
+          updated: item.fetchedAt || null,
+        };
+      }
+
+      setData((prev) => (Object.keys(prev).length ? prev : hydrated));
+      if (json.updatedAt) {
+        setLastUpdated((prev) => (prev ? prev : new Date(json.updatedAt)));
+      }
+    } catch {
+      // ignorerar cachefel
+    }
+  }, []);
+
   // initial + events
   useEffect(() => {
-    fetchAll(true); // initialt, bypass cooldown
+    const id = setTimeout(() => {
+      hydrateFromCache();
+    }, 0);
+    return () => clearTimeout(id);
+  }, [hydrateFromCache]);
+
+  useEffect(() => {
+    const initialId = setTimeout(() => {
+      fetchAll(true); // initialt, bypass cooldown
+    }, 0);
     const onFocus = () => fetchAll(false);
     const onVis = () => fetchAll(false);
     window.addEventListener("focus", onFocus);
@@ -81,6 +119,7 @@ export function PlayersLiveProvider({ children }) {
       if (document.visibilityState === "visible" && navigator.onLine) fetchAll(false);
     }, PLAYERS_POLL_INTERVAL_MS);
     return () => {
+      clearTimeout(initialId);
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("visibilitychange", onVis);
       clearInterval(id);
