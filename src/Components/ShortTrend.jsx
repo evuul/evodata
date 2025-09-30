@@ -3,8 +3,10 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Card, Box, Typography, Chip, CircularProgress, Link, IconButton } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { totalSharesData } from "./buybacks/utils";
 
 const TZ = "Europe/Stockholm";
+const LATEST_TOTAL_SHARES = totalSharesData?.[totalSharesData.length - 1]?.totalShares || null; // senast kända utestående aktier
 
 function stockholmTodayYMD() {
   try {
@@ -134,6 +136,14 @@ export default function ShortTrend() {
   const latest = data.length ? data[data.length - 1].percent : null;
   const prev   = data.length > 1 ? data[data.length - 2].percent : null;
   const deltaPP = (latest != null && prev != null) ? +(latest - prev).toFixed(2) : null;
+  const totalBlankedShares =
+    latest != null && LATEST_TOTAL_SHARES
+      ? Math.round((latest / 100) * LATEST_TOTAL_SHARES)
+      : null;
+  const deltaBlankedShares =
+    deltaPP != null && LATEST_TOTAL_SHARES
+      ? Math.round((deltaPP / 100) * LATEST_TOTAL_SHARES)
+      : null;
 
   // ----- Tooltip med pp och färger -----
   const CustomTooltip = ({ active, payload, label }) => {
@@ -206,6 +216,22 @@ export default function ShortTrend() {
             sx={{ backgroundColor: "#2a2a2a", color: "#b0b0b0",
                   "& .MuiChip-label": { display: "flex", alignItems: "center", gap: 4 } }}
           />
+        )}
+        {totalBlankedShares != null && (
+          <Typography variant="body2" sx={{ color: "#b0b0b0", textAlign: "center" }}>
+            Totalt blankat ≈ {totalBlankedShares.toLocaleString("sv-SE")} aktier
+          </Typography>
+        )}
+        {deltaPP != null && deltaPP !== 0 && deltaBlankedShares != null && deltaBlankedShares !== 0 && (
+          <Typography
+            variant="body2"
+            sx={{
+              color: deltaBlankedShares > 0 ? "#ff6f6f" : "#00e676",
+              textAlign: "center",
+            }}
+          >
+            {deltaBlankedShares > 0 ? "Ökning" : "Minskning"} sedan föregående ≈ {Math.abs(deltaBlankedShares).toLocaleString("sv-SE")} aktier ({deltaPP > 0 ? "+" : "-"}{Math.abs(deltaPP).toFixed(2)}pp)
+          </Typography>
         )}
         <Box sx={{ display: "flex", gap: 1 }}>
           <Chip size="small" label="7D" clickable onClick={() => setRange("7")} sx={{ backgroundColor: range==="7" ? "#00e676" : "#2a2a2a", color: range==="7" ? "#0b0b0b" : "#b0b0b0" }} />

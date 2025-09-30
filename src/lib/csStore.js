@@ -36,6 +36,12 @@ const mem = {
     const trimmed = arr.slice(start, end);
     this.store.set(key, trimmed);
   },
+  lindex(key, index) {
+    const arr = this.store.get(key) || [];
+    const idx = index >= 0 ? index : arr.length + index;
+    if (idx < 0 || idx >= arr.length) return undefined;
+    return arr[idx];
+  },
 };
 
 const KEY = (slug) => `cs:${slug}:samples`;
@@ -127,4 +133,36 @@ export function dailyAverages(points) {
   }
   out.sort((a, b) => a.date.localeCompare(b.date));
   return out;
+}
+
+/**
+ * Hämta senaste sparade mätpunkt för ett spel.
+ * @param {string} slug
+ * @returns {{ ts:number, value:number } | null}
+ */
+export async function getLatestSample(slug) {
+  const key = KEY(slug);
+  const kv = await getKv();
+
+  let raw;
+  if (kv) {
+    try {
+      raw = await kv.lindex(key, 0);
+    } catch {
+      raw = undefined;
+    }
+  } else {
+    raw = mem.lindex(key, 0);
+  }
+
+  if (!raw) return null;
+  try {
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (parsed && Number.isFinite(parsed.ts) && Number.isFinite(parsed.value)) {
+      return { ts: parsed.ts, value: parsed.value };
+    }
+  } catch {
+    // ignore JSON fel
+  }
+  return null;
 }

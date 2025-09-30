@@ -74,6 +74,32 @@ export default function GamePlayersTrendChart() {
   const hasAnyData = chartData.length > 0;
   const failedIds = Object.keys(errors);
 
+  const growthStats = useMemo(() => {
+    const SLICE = 7;
+    const rows = [];
+    for (const g of GAMES_FOR_TREND) {
+      const daily = (multi[g.id]?.daily || []).slice(-SLICE);
+      if (daily.length < 2) continue;
+      const last = daily[daily.length - 1]?.avg;
+      const prev = daily[daily.length - 2]?.avg;
+      if (!Number.isFinite(last) || !Number.isFinite(prev)) continue;
+      const delta = +(last - prev).toFixed(2);
+      const direction = delta === 0 ? 0 : delta > 0 ? 1 : -1;
+      rows.push({
+        id: g.id,
+        label: g.label,
+        delta,
+        last,
+        direction,
+        color: COLORS[g.id] || "#fff",
+      });
+    }
+
+    const gainers = [...rows].filter(r => r.direction > 0).sort((a, b) => b.delta - a.delta).slice(0, 3);
+    const decliners = [...rows].filter(r => r.direction < 0).sort((a, b) => a.delta - b.delta).slice(0, 3);
+    return { gainers, decliners };
+  }, [multi, GAMES_FOR_TREND]);
+
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       {/* Header: titel + dagväljare (bara 7/30/90) */}
@@ -177,6 +203,76 @@ export default function GamePlayersTrendChart() {
       <Typography variant="caption" sx={{ color: "#b0b0b0", display: "block", mt: 1 }}>
         Visar kompletta dagar (t.o.m. gårdagen) i Europe/Stockholm.
       </Typography>
+
+      {(growthStats.gainers.length > 0 || growthStats.decliners.length > 0) && (
+        <Box
+          sx={{
+            mt: 2,
+            display: "grid",
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: growthStats.decliners.length ? "repeat(2, 1fr)" : "1fr",
+            },
+            gap: 1.5,
+          }}
+        >
+          {growthStats.gainers.length > 0 && (
+            <Box
+              sx={{
+                background: "#1d2b1d",
+                border: "1px solid #2f4f2f",
+                borderRadius: "10px",
+                p: 1.5,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: "#7fff7f", fontWeight: 700, mb: 0.75 }}>
+                Snabbast växande (senaste 7 dagarna)
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                {growthStats.gainers.map((item) => (
+                  <Box key={item.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
+                      <Typography sx={{ color: "#e0ffe0", fontWeight: 600 }}>{item.label}</Typography>
+                    </Box>
+                    <Typography sx={{ color: "#00e676", fontWeight: 700 }}>
+                      ↑ {item.delta.toFixed(2)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+
+          {growthStats.decliners.length > 0 && (
+            <Box
+              sx={{
+                background: "#2b1d1d",
+                border: "1px solid #4f2f2f",
+                borderRadius: "10px",
+                p: 1.5,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: "#ff9f9f", fontWeight: 700, mb: 0.75 }}>
+                Störst tapp (senaste 7 dagarna)
+              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                {growthStats.decliners.map((item) => (
+                  <Box key={item.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
+                      <Typography sx={{ color: "#ffe0e0", fontWeight: 600 }}>{item.label}</Typography>
+                    </Box>
+                    <Typography sx={{ color: "#ff6f6f", fontWeight: 700 }}>
+                      ↓ {Math.abs(item.delta).toFixed(2)}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
