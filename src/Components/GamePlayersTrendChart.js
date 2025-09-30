@@ -80,25 +80,47 @@ export default function GamePlayersTrendChart() {
     for (const g of GAMES_FOR_TREND) {
       const daily = (multi[g.id]?.daily || []).slice(-SLICE);
       if (daily.length < 2) continue;
+      const first = daily[0]?.avg;
       const last = daily[daily.length - 1]?.avg;
-      const prev = daily[daily.length - 2]?.avg;
-      if (!Number.isFinite(last) || !Number.isFinite(prev)) continue;
-      const delta = +(last - prev).toFixed(2);
-      const direction = delta === 0 ? 0 : delta > 0 ? 1 : -1;
+      if (!Number.isFinite(first) || !Number.isFinite(last)) continue;
+      const deltaAbs = +(last - first).toFixed(2);
+      const deltaPct = Number.isFinite(first) && first !== 0
+        ? +((deltaAbs / first) * 100).toFixed(1)
+        : null;
+      const direction = deltaAbs === 0 ? 0 : deltaAbs > 0 ? 1 : -1;
       rows.push({
         id: g.id,
         label: g.label,
-        delta,
+        deltaAbs,
+        deltaPct,
+        first,
         last,
         direction,
         color: COLORS[g.id] || "#fff",
       });
     }
 
-    const gainers = [...rows].filter(r => r.direction > 0).sort((a, b) => b.delta - a.delta).slice(0, 3);
-    const decliners = [...rows].filter(r => r.direction < 0).sort((a, b) => a.delta - b.delta).slice(0, 3);
+    const gainers = [...rows]
+      .filter((r) => r.direction > 0)
+      .sort((a, b) => b.deltaAbs - a.deltaAbs)
+      .slice(0, 3);
+    const decliners = [...rows]
+      .filter((r) => r.direction < 0)
+      .sort((a, b) => a.deltaAbs - b.deltaAbs)
+      .slice(0, 3);
     return { gainers, decliners };
   }, [multi, GAMES_FOR_TREND]);
+
+  const formatPlayers = (value) =>
+    Number.isFinite(value)
+      ? value.toLocaleString("sv-SE", { maximumFractionDigits: 0 })
+      : "—";
+
+  const formatDelta = (value, fractionDigits = 2, { showPlus = true } = {}) => {
+    if (!Number.isFinite(value)) return "—";
+    const sign = value > 0 ? (showPlus ? "+" : "") : value < 0 ? "-" : "";
+    return `${sign}${Math.abs(value).toFixed(fractionDigits)}`;
+  };
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
@@ -230,14 +252,19 @@ export default function GamePlayersTrendChart() {
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                 {growthStats.gainers.map((item) => (
-                  <Box key={item.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box key={item.id} sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
                       <Typography sx={{ color: "#e0ffe0", fontWeight: 600 }}>{item.label}</Typography>
                     </Box>
-                    <Typography sx={{ color: "#00e676", fontWeight: 700 }}>
-                      ↑ {item.delta.toFixed(2)}
-                    </Typography>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <Typography variant="body2" sx={{ color: "#bde5bd" }}>
+                        Senaste snitt: {formatPlayers(item.last)} spelare
+                      </Typography>
+                      <Typography sx={{ color: "#00e676", fontWeight: 700 }}>
+                        ↑ {formatDelta(item.deltaAbs)} {item.deltaPct != null ? `(${formatDelta(item.deltaPct, 1)}%)` : ""}
+                      </Typography>
+                    </Box>
                   </Box>
                 ))}
               </Box>
@@ -258,14 +285,19 @@ export default function GamePlayersTrendChart() {
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                 {growthStats.decliners.map((item) => (
-                  <Box key={item.id} sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <Box key={item.id} sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
                       <Typography sx={{ color: "#ffe0e0", fontWeight: 600 }}>{item.label}</Typography>
                     </Box>
-                    <Typography sx={{ color: "#ff6f6f", fontWeight: 700 }}>
-                      ↓ {Math.abs(item.delta).toFixed(2)}
-                    </Typography>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                      <Typography variant="body2" sx={{ color: "#f2c5c5" }}>
+                        Senaste snitt: {formatPlayers(item.last)} spelare
+                      </Typography>
+                      <Typography sx={{ color: "#ff6f6f", fontWeight: 700 }}>
+                        ↓ {formatDelta(Math.abs(item.deltaAbs), 2, { showPlus: false })} {item.deltaPct != null ? `(-${formatDelta(Math.abs(item.deltaPct), 1, { showPlus: false })}%)` : ""}
+                      </Typography>
+                    </Box>
                   </Box>
                 ))}
               </Box>
