@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { usePlayersLive, GAMES as CONTEXT_GAMES, PLAYERS_POLL_INTERVAL_MS } from "../context/PlayersLiveContext";
+import GamePlayersHeatmap from "./GamePlayersHeatmap";
 
 /**
  * Viktigt:
@@ -257,6 +258,8 @@ export default function GamePlayersLiveList() {
           {total.toLocaleString("sv-SE")}
         </Typography>
       </Box>
+
+      <GamePlayersHeatmap />
     </Box>
   );
 }
