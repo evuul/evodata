@@ -11,12 +11,14 @@ import {
   InputLabel,
   CircularProgress,
   Tooltip,
+  useMediaQuery,
 } from "@mui/material";
 
 const TZ = "Europe/Stockholm";
 const WEEKDAY_ORDER = ["mån", "tis", "ons", "tors", "fre", "lör", "sön"];
 const WEEKDAY_LABELS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
 const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}`);
+const TOP_HOUR_COLORS = ["#00e676", "#ffb300", "#ff6f6f"];
 
 const HEATMAP_GAMES = [
   { id: "crazy-time", label: "Crazy Time" },
@@ -79,6 +81,7 @@ function getStockholmYMD(date) {
 
 function aggregatePoints(points) {
   const buckets = new Map();
+  const hourBuckets = Array.from({ length: 24 }, () => ({ sum: 0, count: 0 }));
   for (const point of points) {
     if (!point || !Number.isFinite(point.value)) continue;
     const date = new Date(point.ts);
@@ -90,6 +93,10 @@ function aggregatePoints(points) {
     current.sum += point.value;
     current.count += 1;
     buckets.set(key, current);
+
+    const bucket = hourBuckets[hour];
+    bucket.sum += point.value;
+    bucket.count += 1;
   }
 
   const matrix = WEEKDAY_ORDER.map((_, dayIndex) =>
@@ -107,7 +114,9 @@ function aggregatePoints(points) {
     }
   }
 
-  return { matrix, max };
+  const hourAverages = hourBuckets.map(({ sum, count }) => (count > 0 ? +(sum / count).toFixed(0) : null));
+
+  return { matrix, max, hourAverages };
 }
 
 function colorForValue(value, max) {
@@ -122,6 +131,7 @@ export default function GamePlayersHeatmap() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [points, setPoints] = useState([]);
+  const isMobile = useMediaQuery("(max-width:599.95px)");
 
   useEffect(() => {
     let isCancelled = false;
@@ -152,7 +162,16 @@ export default function GamePlayersHeatmap() {
     };
   }, [selectedGame]);
 
-  const { matrix, max } = useMemo(() => aggregatePoints(points), [points]);
+  const { matrix, max, hourAverages } = useMemo(() => aggregatePoints(points), [points]);
+
+  const topHours = useMemo(() => {
+    if (!Array.isArray(hourAverages)) return [];
+    return hourAverages
+      .map((avg, hour) => (avg != null ? { hour, avg } : null))
+      .filter(Boolean)
+      .sort((a, b) => b.avg - a.avg)
+      .slice(0, 3);
+  }, [hourAverages]);
 
   const todayPeak = useMemo(() => {
     if (!Array.isArray(points) || points.length === 0) return null;
@@ -239,93 +258,126 @@ export default function GamePlayersHeatmap() {
         <Typography variant="caption" sx={{ color: "#00e676", display: "block", mt: 0.5 }}>
           {todayPeak ? `Dagens peak: ${todayPeak.value.toLocaleString("sv-SE") } spelare kl ${todayPeak.time}` : "Dagens peak saknas (inga datapunkter ännu)."}
         </Typography>
+        {topHours.length > 0 && (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.25, mt: 0.5 }}>
+            {topHours.map((item, idx) => (
+              <Typography
+                key={item.hour}
+                variant="caption"
+                sx={{ color: TOP_HOUR_COLORS[idx] || "#b0b0b0", fontWeight: 600 }}
+              >
+                {idx + 1}. Kl {HOUR_LABELS[item.hour]}:00 ≈ {item.avg.toLocaleString("sv-SE")} spelare
+              </Typography>
+            ))}
+          </Box>
+        )}
       </Box>
 
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
-          <CircularProgress size={24} sx={{ color: "#00e676" }} />
+      {isMobile ? (
+        <Box sx={{ mt: 2, textAlign: "center" }}>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 160 }}>
+              <CircularProgress size={24} sx={{ color: "#00e676" }} />
+            </Box>
+          ) : error ? (
+            <Typography sx={{ color: "#ff6f6f" }}>Kunde inte ladda datapunkter: {error}</Typography>
+          ) : topHours.length === 0 ? (
+            <Typography sx={{ color: "#b0b0b0" }}>Inga datapunkter än för detta spel. Kolla tillbaka senare.</Typography>
+          ) : (
+            <Typography sx={{ color: "#8d8d8d", fontSize: "0.85rem" }}>
+              Topptimmarna ovan bygger på snitt från de senaste 14 dagarna.
+            </Typography>
+          )}
         </Box>
-      ) : error ? (
-        <Typography sx={{ color: "#ff6f6f", mt: 2 }}>Kunde inte ladda heatmap: {error}</Typography>
-      ) : max === 0 ? (
-        <Typography sx={{ color: "#b0b0b0", mt: 2 }}>
-          Inga datapunkter än. Låt sidan samla in fler mätningar för att visa mönstret.
-        </Typography>
       ) : (
-        <Box sx={{ overflowX: "auto", mt: 2 }}>
-          <Box sx={{ minWidth: 600 }}>
-            <Box sx={{ display: "grid", gridTemplateColumns: `100px repeat(${HOUR_LABELS.length}, 1fr)`, alignItems: "center", gap: 0.25 }}>
-              <Box />
-              {HOUR_LABELS.map((hour) => (
-                <Typography key={hour} variant="caption" sx={{ color: "#9e9e9e", textAlign: "center" }}>
-                  {hour}
-                </Typography>
-              ))}
+        <>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
+              <CircularProgress size={24} sx={{ color: "#00e676" }} />
+            </Box>
+          ) : error ? (
+            <Typography sx={{ color: "#ff6f6f", mt: 2 }}>Kunde inte ladda heatmap: {error}</Typography>
+          ) : max === 0 ? (
+            <Typography sx={{ color: "#b0b0b0", mt: 2 }}>
+              Inga datapunkter än. Låt sidan samla in fler mätningar för att visa mönstret.
+            </Typography>
+          ) : (
+            <Box sx={{ overflowX: "auto", mt: 2 }}>
+              <Box sx={{ minWidth: 600 }}>
+                <Box sx={{ display: "grid", gridTemplateColumns: `100px repeat(${HOUR_LABELS.length}, 1fr)`, alignItems: "center", gap: 0.25 }}>
+                  <Box />
+                  {HOUR_LABELS.map((hour) => (
+                    <Typography key={hour} variant="caption" sx={{ color: "#9e9e9e", textAlign: "center" }}>
+                      {hour}
+                    </Typography>
+                  ))}
 
-              {matrix.map((row, dayIndex) => (
-                <React.Fragment key={WEEKDAY_LABELS[dayIndex]}>
-                  <Typography variant="subtitle2" sx={{ color: "#e0e0e0" }}>
-                    {WEEKDAY_LABELS[dayIndex]}
-                  </Typography>
-                  {row.map((cell, hourIndex) => {
-                    const content = cell.value != null
-                      ? `${cell.value.toLocaleString("sv-SE")} spelare`
-                      : "Ingen mätning";
-                    const tooltip = `${WEEKDAY_LABELS[dayIndex]} kl ${HOUR_LABELS[hourIndex]}:00 — ${content}${cell.count ? ` (${cell.count} mätningar)` : ""}`;
-                    return (
-                      <Tooltip key={`${dayIndex}-${hourIndex}`} title={tooltip} arrow>
-                        <Box
-                          sx={{
-                            height: 28,
-                            borderRadius: "4px",
-                            backgroundColor: cell.value != null ? colorForValue(cell.value, max) : "#1f1f1f",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            color: cell.value != null ? "#0b0b0b" : "#505050",
-                            fontSize: "0.7rem",
-                            fontWeight: 600,
-                          }}
-                        >
-                          {cell.value != null ? Math.round(cell.value) : ""}
-                        </Box>
-                      </Tooltip>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
+                  {matrix.map((row, dayIndex) => (
+                    <React.Fragment key={WEEKDAY_LABELS[dayIndex]}>
+                      <Typography variant="subtitle2" sx={{ color: "#e0e0e0" }}>
+                        {WEEKDAY_LABELS[dayIndex]}
+                      </Typography>
+                      {row.map((cell, hourIndex) => {
+                        const content = cell.value != null
+                          ? `${cell.value.toLocaleString("sv-SE")} spelare`
+                          : "Ingen mätning";
+                        const tooltip = `${WEEKDAY_LABELS[dayIndex]} kl ${HOUR_LABELS[hourIndex]}:00 — ${content}${cell.count ? ` (${cell.count} mätningar)` : ""}`;
+                        return (
+                          <Tooltip key={`${dayIndex}-${hourIndex}`} title={tooltip} arrow>
+                            <Box
+                              sx={{
+                                height: 28,
+                                borderRadius: "4px",
+                                backgroundColor: cell.value != null ? colorForValue(cell.value, max) : "#1f1f1f",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                color: cell.value != null ? "#0b0b0b" : "#505050",
+                                fontSize: "0.7rem",
+                                fontWeight: 600,
+                              }}
+                            >
+                              {cell.value != null ? Math.round(cell.value) : ""}
+                            </Box>
+                          </Tooltip>
+                        );
+                      })}
+                    </React.Fragment>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 2,
+              mt: 1.5,
+              color: "#b0b0b0",
+              fontSize: "0.75rem",
+              flexWrap: "wrap",
+            }}
+          >
+            <Typography variant="body2" sx={{ color: "#b0b0b0", display: "block", width: "100%", textAlign: "center" }}>
+              Genomsnittligt antal spelare per timme och veckodag (senaste 14 dagarna).
+            </Typography>
+            <Typography variant="caption" sx={{ color: "#8d8d8d", display: "block", width: "100%", textAlign: "center" }}>
+              Vi snittar varje timme över de två senaste veckorna. Leta efter mörkare gröna rutor där trycket brukar vara som störst.
+            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Box sx={{ width: 20, height: 12, borderRadius: "4px", backgroundColor: "rgba(0, 230, 118, 0.18)" }} />
+              <span>Lägre snitt</span>
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Box sx={{ width: 20, height: 12, borderRadius: "4px", backgroundColor: "rgba(0, 230, 118, 0.9)" }} />
+              <span>Högre snitt (max ≈ {max.toLocaleString("sv-SE")})</span>
             </Box>
           </Box>
-        </Box>
+        </>
       )}
-
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          gap: 2,
-          mt: 1.5,
-          color: "#b0b0b0",
-          fontSize: "0.75rem",
-          flexWrap: "wrap",
-        }}
-      >
-        <Typography variant="body2" sx={{ color: "#b0b0b0", display: "block", width: "100%", textAlign: "center" }}>
-          Genomsnittligt antal spelare per timme och veckodag (senaste 14 dagarna).
-        </Typography>
-        <Typography variant="caption" sx={{ color: "#8d8d8d", display: "block", width: "100%", textAlign: "center" }}>
-          Vi snittar varje timme över de två senaste veckorna. Leta efter mörkare gröna rutor där trycket brukar vara som störst.
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Box sx={{ width: 20, height: 12, borderRadius: "4px", backgroundColor: "rgba(0, 230, 118, 0.18)" }} />
-          <span>Lägre snitt</span>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <Box sx={{ width: 20, height: 12, borderRadius: "4px", backgroundColor: "rgba(0, 230, 118, 0.9)" }} />
-          <span>Högre snitt (max ≈ {max.toLocaleString("sv-SE")})</span>
-        </Box>
-      </Box>
     </Card>
   );
 }
