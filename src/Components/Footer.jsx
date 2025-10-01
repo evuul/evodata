@@ -15,7 +15,8 @@ const Footer = () => {
         borderRadius: "12px",
         boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
         padding: { xs: "12px", sm: "16px" },
-        width: { xs: "92%", sm: "85%", md: "75%" },
+        width: "100%",
+        maxWidth: "1200px",
         margin: "16px auto",
         color: "#fff",
       }}

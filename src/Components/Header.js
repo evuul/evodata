@@ -166,7 +166,8 @@ export default function Header() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          width: { xs: "92%", sm: "85%", md: "75%" },
+          width: "100%",
+          maxWidth: "1200px",
           margin: "16px auto",
           transition: "all 0.3s ease",
         }}

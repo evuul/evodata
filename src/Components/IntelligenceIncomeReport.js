@@ -244,7 +244,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
         border: "1px solid rgba(255, 255, 255, 0.05)",
         padding: { xs: "12px", sm: "16px" },
         margin: "16px auto",
-        width: { xs: "92%", sm: "85%", md: "75%" },
+        width: "100%",
         maxWidth: "1200px",
         minHeight: "200px",
         justifyContent: "center",
