@@ -65,3 +65,21 @@ npm install
 
 # 3. Starta projektet
 npm start
+
+---
+
+## ⏱️ Schemalagd uppdatering av casinoscores
+
+För att sidan ska fortsätta samla in spelardata även när ingen besökare har fliken öppen kan du lägga till ett Vercel Cron-jobb som pingar den nya webhooken var femtonde minut.
+
+1. Skapa en hemlig token, t.ex. `openssl rand -hex 32`, och lägg den som miljövariabel `CASINOSCORES_CRON_SECRET` i Vercel (Production och Preview vid behov).  
+2. Deploya om så att funktionen får tillgång till variabeln.  
+3. I Vercel-projektet: **Settings → Cron Jobs → Add Cron Job**. Välj `*/15 * * * *` som schema, `POST` som metod, ställ in mål-URL till `/api/casinoscores/cron` och lägg till headern `Authorization: Bearer <din-token>`.  
+4. Testa lokalt eller efter deploy med:  
+   ```bash
+   curl -X POST "https://<din-deploy>.vercel.app/api/casinoscores/cron" \
+     -H "Authorization: Bearer <din-token>"
+   ```  
+   Responsen listar status per spel och bekräftar att mätpunkter sparats.
+
+Webhooken hoppar över körningen om token saknas eller är felaktig, så exponera aldrig hemligheten publikt.
