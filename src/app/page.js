@@ -113,7 +113,8 @@ export default function Home() {
         {/* 🔥 NY: Live-spelare per game show (ovanför MoneyCounter) */}
         <Box
           sx={{
-            width: { xs: "95%", sm: "85%", md: "75%" },
+            width: { xs: "95%", sm: "90%", md: "90%" },
+            maxWidth: "1200px",
             margin: "0 auto",
             boxSizing: "border-box",
             order: { xs: 1, sm: 1 },
