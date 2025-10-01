@@ -31,8 +31,12 @@ const readFileFallback = async () => {
 };
 
 const writeFileFallback = async (data) => {
-  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-  await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+  try {
+    await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
+    await fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+  } catch {
+    // ignore write failures (e.g. read-only filesystem on Vercel)
+  }
 };
 
 export async function loadInsiderDataset() {
