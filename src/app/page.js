@@ -113,7 +113,7 @@ export default function Home() {
         }}
       >
         {/* 🔥 NY: Live-spelare per game show (ovanför MoneyCounter) */}
-        <Box
+        <Box id="live-games"
           sx={{
             width: { xs: "95%", sm: "90%", md: "90%" },
             maxWidth: "1200px",
@@ -126,7 +126,7 @@ export default function Home() {
         </Box>
 
         {/* MoneyCounter */}
-        <Box
+        <Box id="money-counter"
           sx={{
             width: { xs: "95%", sm: "90%", md: "90%" },
             maxWidth: "1200px",
@@ -172,7 +172,7 @@ export default function Home() {
       </Box>
 
       {/* Short interest trend */}
-      <Box
+      <Box id="blankning"
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "95%", sm: "90%", md: "90%" },
