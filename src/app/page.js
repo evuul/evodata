@@ -23,7 +23,8 @@ const GraphBoxSkeleton = () => (
       borderRadius: "12px",
       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
       padding: { xs: "12px", sm: "16px" },
-      width: { xs: "92%", sm: "85%", md: "75%" },
+      width: "100%",
+      maxWidth: "1200px",
       margin: "16px auto",
       minHeight: 220,
     }}
@@ -43,7 +44,8 @@ const BuybackSkeleton = () => (
       borderRadius: "12px",
       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
       padding: { xs: "12px", sm: "16px" },
-      width: { xs: "92%", sm: "85%", md: "75%" },
+      width: "100%",
+      maxWidth: "1200px",
       margin: "16px auto",
       minHeight: 220,
     }}
@@ -126,7 +128,8 @@ export default function Home() {
         {/* MoneyCounter */}
         <Box
           sx={{
-            width: { xs: "95%", sm: "85%", md: "75%" },
+            width: { xs: "95%", sm: "90%", md: "90%" },
+            maxWidth: "1200px",
             margin: "0 auto",
             boxSizing: "border-box",
             order: { xs: 2, sm: 2 },
@@ -140,7 +143,8 @@ export default function Home() {
       <Box id="overview"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
           margin: "0 auto",
         }}
       >
@@ -159,7 +163,8 @@ export default function Home() {
       <Box id="news"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
           margin: "0 auto",
         }}
       >
@@ -170,7 +175,8 @@ export default function Home() {
       <Box
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
           margin: "0 auto",
         }}
       >
@@ -181,7 +187,8 @@ export default function Home() {
       <Box id="buybacks"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
           margin: "0 auto",
         }}
       >
@@ -192,7 +199,8 @@ export default function Home() {
       <Box id="calculator"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
           margin: "0 auto",
         }}
       >
@@ -203,7 +211,8 @@ export default function Home() {
       <Box id="faq"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "85%", md: "75%" },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
           margin: "0 auto",
           mb: { xs: 4, sm: 6 },
         }}
