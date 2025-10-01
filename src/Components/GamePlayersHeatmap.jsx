@@ -63,6 +63,13 @@ const timeFormatter = new Intl.DateTimeFormat("sv-SE", {
   hour12: false,
 });
 
+const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 function getWeekdayIndex(date) {
   const wd = weekdayFormatter.format(date).toLowerCase();
   const clean = wd.replace(/\.$/, "");
@@ -192,6 +199,25 @@ export default function GamePlayersHeatmap() {
     return peak;
   }, [points]);
 
+  const athPeak = useMemo(() => {
+    if (!Array.isArray(points) || points.length === 0) return null;
+    let peak = null;
+    for (const point of points) {
+      if (!point || !Number.isFinite(point.value)) continue;
+      const ts = new Date(point.ts);
+      if (!Number.isFinite(ts.getTime())) continue;
+      const value = Math.round(point.value);
+      if (!peak || value > peak.value) {
+        peak = {
+          value,
+          time: timeFormatter.format(ts),
+          date: dateFormatter.format(ts),
+        };
+      }
+    }
+    return peak;
+  }, [points]);
+
   return (
     <Card
       sx={{
@@ -255,11 +281,19 @@ export default function GamePlayersHeatmap() {
             ))}
           </Select>
         </FormControl>
-        <Typography variant="caption" sx={{ color: "#00e676", display: "block", mt: 0.5 }}>
+        {athPeak && (
+          <Typography variant="caption" sx={{ color: "#ffb300", display: "block", mt: 0.5 }}>
+            ATH peak: {athPeak.value.toLocaleString("sv-SE")} spelare {athPeak.date} kl {athPeak.time}
+          </Typography>
+        )}
+        <Typography variant="caption" sx={{ color: "#00e676", display: "block", mt: 0.25 }}>
           {todayPeak ? `Dagens peak: ${todayPeak.value.toLocaleString("sv-SE") } spelare kl ${todayPeak.time}` : "Dagens peak saknas (inga datapunkter ännu)."}
         </Typography>
         {topHours.length > 0 && (
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.25, mt: 0.5 }}>
+            <Typography variant="caption" sx={{ color: "#b0b0b0", textAlign: "center" }}>
+              Tiderna nedan visar när det i snitt varit flest spelare de senaste 14 dagarna.
+            </Typography>
             {topHours.map((item, idx) => (
               <Typography
                 key={item.hour}
@@ -285,7 +319,7 @@ export default function GamePlayersHeatmap() {
             <Typography sx={{ color: "#b0b0b0" }}>Inga datapunkter än för detta spel. Kolla tillbaka senare.</Typography>
           ) : (
             <Typography sx={{ color: "#8d8d8d", fontSize: "0.85rem" }}>
-              Topptimmarna ovan bygger på snitt från de senaste 14 dagarna.
+              Tiderna ovan visar när det i snitt varit flest spelare (senaste 14 dagarna).
             </Typography>
           )}
         </Box>

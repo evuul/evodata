@@ -6,7 +6,7 @@ export const maxDuration = 30;
 import { saveSample } from "@/lib/csStore";
 
 // Endast bas-slugs här (utan :a). A styrs via ?variant=a.
-const ALLOWED = new Set([
+export const ALLOWED_SLUGS = [
   "crazy-time",
   "monopoly-big-baller",
   "funky-time",
@@ -22,7 +22,9 @@ const ALLOWED = new Set([
   "lightning-dice",
   "lightning-roulette",
   "bac-bo",
-]);
+];
+
+const ALLOWED = new Set(ALLOWED_SLUGS);
 
 const BASE = "https://casinoscores.com";
 const TTL_MS = 9 * 60 * 1000;
