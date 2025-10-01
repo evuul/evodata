@@ -365,7 +365,7 @@ export default function GamePlayersHeatmap() {
               Genomsnittligt antal spelare per timme och veckodag (senaste 14 dagarna).
             </Typography>
             <Typography variant="caption" sx={{ color: "#8d8d8d", display: "block", width: "100%", textAlign: "center" }}>
-              Vi snittar varje timme över de två senaste veckorna. Leta efter mörkare gröna rutor där trycket brukar vara som störst.
+              Snittar varje timme över de senaste två veckorna för att visa när trycket är som störst under dagen.
             </Typography>
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <Box sx={{ width: 20, height: 12, borderRadius: "4px", backgroundColor: "rgba(0, 230, 118, 0.18)" }} />

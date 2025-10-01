@@ -16,7 +16,8 @@ export default function GamePlayersBox() {
         borderRadius: "12px",
         boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
         color: "#fff",
-        width: { xs: "95%", sm: "85%", md: "75%" },
+        width: "100%",
+        maxWidth: "1200px",
         m: "16px auto",
         border: "1px solid rgba(255,255,255,0.05)",
       }}
