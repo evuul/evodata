@@ -4,6 +4,8 @@ import { Card, Box, Typography, Chip, CircularProgress, Link, IconButton } from 
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { ComposedChart, Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { totalSharesData } from "./buybacks/utils";
+import { useStockPriceContext } from "@/context/StockPriceContext";
+import { formatSek } from "@/utils/formatters";
 
 const TZ = "Europe/Stockholm";
 const LATEST_TOTAL_SHARES = totalSharesData?.[totalSharesData.length - 1]?.totalShares || null; // senast kända utestående aktier
@@ -35,6 +37,7 @@ function inTradingWindow() {
 }
 
 export default function ShortTrend() {
+  const { stockPrice } = useStockPriceContext();
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]); // [{date:'YYYY-MM-DD', percent:Number}]
   const [updatedAt, setUpdatedAt] = useState(null);
@@ -144,6 +147,15 @@ export default function ShortTrend() {
     deltaPP != null && LATEST_TOTAL_SHARES
       ? Math.round((deltaPP / 100) * LATEST_TOTAL_SHARES)
       : null;
+  const latestPrice = stockPrice?.price?.regularMarketPrice?.raw;
+  const totalBlankedValue =
+    totalBlankedShares != null && Number.isFinite(latestPrice)
+      ? totalBlankedShares * latestPrice
+      : null;
+  const deltaBlankedValue =
+    deltaBlankedShares != null && Number.isFinite(latestPrice)
+      ? deltaBlankedShares * latestPrice
+      : null;
 
   // ----- Tooltip med pp och färger -----
   const CustomTooltip = ({ active, payload, label }) => {
@@ -221,6 +233,9 @@ export default function ShortTrend() {
         {totalBlankedShares != null && (
           <Typography variant="body2" sx={{ color: "#b0b0b0", textAlign: "center" }}>
             Totalt blankat ≈ {totalBlankedShares.toLocaleString("sv-SE")} aktier
+            {totalBlankedValue != null && (
+              <> ({formatSek(Math.abs(totalBlankedValue))})</>
+            )}
           </Typography>
         )}
         {deltaPP != null && deltaPP !== 0 && deltaBlankedShares != null && deltaBlankedShares !== 0 && (
@@ -231,7 +246,11 @@ export default function ShortTrend() {
               textAlign: "center",
             }}
           >
-            {deltaBlankedShares > 0 ? "Ökning" : "Minskning"} sedan föregående ≈ {Math.abs(deltaBlankedShares).toLocaleString("sv-SE")} aktier ({deltaPP > 0 ? "+" : "-"}{Math.abs(deltaPP).toFixed(2)}pp)
+            {deltaBlankedShares > 0 ? "Ökning" : "Minskning"} sedan föregående ≈ {Math.abs(deltaBlankedShares).toLocaleString("sv-SE")} aktier
+            {deltaBlankedValue != null && (
+              <> ({formatSek(Math.abs(deltaBlankedValue))})</>
+            )}
+            {` (${deltaPP > 0 ? "+" : "-"}${Math.abs(deltaPP).toFixed(2)}pp)`}
           </Typography>
         )}
         <Box sx={{ display: "flex", gap: 1 }}>
