@@ -62,6 +62,7 @@ const BuybackSkeleton = () => (
 const GraphBox = dynamic(() => import("../Components/GraphBox"), { ssr: false, loading: () => <GraphBoxSkeleton /> });
 const StockBuybackInfo = dynamic(() => import("../Components/StockBuybackInfo"), { ssr: false, loading: () => <BuybackSkeleton /> });
 const ShortTrend = dynamic(() => import("../Components/ShortTrend"), { ssr: false });
+const InsiderTradesCard = dynamic(() => import("../Components/InsiderTradesCard"), { ssr: false });
 
 // Kvartalsdata
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
@@ -181,6 +182,18 @@ export default function Home() {
         }}
       >
         <ShortTrend />
+      </Box>
+
+      {/* Insider trades */}
+      <Box id="insider"
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "95%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
+        <InsiderTradesCard />
       </Box>
 
       {/* StockBuybackInfo */}
