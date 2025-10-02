@@ -109,6 +109,22 @@ export default function ShortTrend() {
     };
   }, [fetchHistory]);
 
+  useEffect(() => {
+    const tick = async () => {
+      if (!inTradingWindow()) return;
+      try {
+        await fetch("/api/short/snapshot", { method: "POST", cache: "no-store" });
+        await fetchHistory({ skipSpinner: true });
+      } catch (err) {
+        console.error("ShortTrend hourly snapshot error:", err);
+      }
+    };
+
+    const id = setInterval(tick, 60 * 60 * 1000);
+    tick();
+    return () => clearInterval(id);
+  }, [fetchHistory]);
+
   const data = useMemo(() => {
     const n = range === "7" ? 7 : 30;
     return items.slice(-n).map(x => ({
