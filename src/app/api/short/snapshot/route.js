@@ -2,11 +2,9 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-import fs from "fs/promises";
-import path from "path";
+import { loadShortHistory, saveShortHistory } from "@/lib/shortHistoryStore";
 
 const EVO_LEI = "549300SUH6ZR1RF6TA88";
-const DATA_FILE = path.join(process.cwd(), "src", "app", "data", "shortHistory.json");
 
 function parsePercent(s) {
   if (s == null) return null;
@@ -60,20 +58,21 @@ export async function POST() {
     }
 
     const today = stockholmYMD();
-    const raw = await fs.readFile(DATA_FILE, "utf8").catch(() => "[]");
-    let arr = [];
-    try { arr = JSON.parse(raw); } catch {}
+    const history = await loadShortHistory();
 
-    // ersätt dagens datapunkt eller lägg till
     const value = +Number(total).toFixed(2);
-    if (arr.length && arr[arr.length - 1].date === today) {
-      arr[arr.length - 1] = { date: today, percent: value };
+    const next = Array.isArray(history) ? [...history] : [];
+    const idx = next.findIndex(entry => entry.date === today);
+    const updated = { date: today, percent: value };
+    if (idx >= 0) {
+      next[idx] = updated;
     } else {
-      arr.push({ date: today, percent: value });
+      next.push(updated);
     }
-    await fs.writeFile(DATA_FILE, JSON.stringify(arr, null, 2), "utf8");
 
-    return new Response(JSON.stringify({ ok: true, date: today, percent: value }), {
+    const saved = await saveShortHistory(next);
+
+    return new Response(JSON.stringify({ ok: true, date: today, percent: value, totalDays: saved.length }), {
       status: 200, headers: { "Content-Type": "application/json" },
     });
   } catch (err) {
