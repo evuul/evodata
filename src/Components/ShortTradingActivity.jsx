@@ -158,24 +158,17 @@ export default function ShortTradingActivity() {
     <Card
       sx={{
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
-        borderRadius: "12px",
+        borderRadius: { xs: 0, sm: "12px" }, // full-bleed känsla på mobil
         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
         padding: { xs: "12px", sm: "16px" },
-        width: { xs: "100%", sm: "100%" },
-        maxWidth: "1200px",
-        margin: "16px auto",
+        width: "100%",
+        maxWidth: { sm: "1200px" },
+        mx: "auto",
+        marginTop: "16px",
       }}
     >
-      <Box
-        sx={{
-          position: "relative",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 1,
-          mb: 1,
-        }}
-      >
+      {/* Header och filter */}
+      <Box sx={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 1, mb: 1 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, color: "#fff", textAlign: "center" }}>
           Daglig handel & blankarandel
         </Typography>
@@ -206,6 +199,7 @@ export default function ShortTradingActivity() {
         </Box>
       </Box>
 
+      {/* Error/Loading/Data */}
       {error && (
         <Typography variant="body2" sx={{ color: "#ff6f6f", textAlign: "center", mb: 1 }}>
           {error}
@@ -217,7 +211,15 @@ export default function ShortTradingActivity() {
           <CircularProgress size={28} sx={{ color: "#00e676" }} />
         </Box>
       ) : (
-        <Box sx={{ width: "100%", height: 260 }}>
+        <Box
+          sx={{
+            width: { xs: "100vw", sm: "100%" },
+            position: { xs: "relative", sm: "static" },
+            left: { xs: "50%", sm: "auto" },
+            ml: { xs: "-50vw", sm: 0 },
+            height: { xs: 300, sm: 260 },
+          }}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
               <defs>
@@ -227,75 +229,38 @@ export default function ShortTradingActivity() {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke="#2b2b2b" strokeDasharray="3 3" />
-              <XAxis dataKey="date" stroke="#b0b0b0" tick={{ fontSize: 12 }} minTickGap={16} tickFormatter={(value) => {
-                try { return new Date(`${value}T00:00:00`).toLocaleDateString("sv-SE", { month: "2-digit", day: "2-digit" }); }
-                catch { return value; }
-              }} />
-              <YAxis
-                yAxisId="volume"
-                stroke="#00e676"
-                tick={{ fontSize: 12 }}
-                tickFormatter={(val) => (Number.isFinite(val) ? `${val.toFixed(0)}M` : "")}
-              />
-              <YAxis
-                yAxisId="ratio"
-                orientation="right"
-                stroke="#FFCA28"
-                tick={{ fontSize: 12 }}
+              <XAxis dataKey="date" stroke="#b0b0b0" tick={{ fontSize: 12 }} minTickGap={16}
+                tickFormatter={(value) => {
+                  try { return new Date(`${value}T00:00:00`).toLocaleDateString("sv-SE", { month: "2-digit", day: "2-digit" }); }
+                  catch { return value; }
+                }} />
+              <YAxis yAxisId="volume" stroke="#00e676" tick={{ fontSize: 12 }}
+                tickFormatter={(val) => (Number.isFinite(val) ? `${val.toFixed(0)}M` : "")} />
+              <YAxis yAxisId="ratio" orientation="right" stroke="#FFCA28" tick={{ fontSize: 12 }}
                 tickFormatter={(val) => (Number.isFinite(val) ? `${val.toFixed(0)}%` : "")}
-                domain={[0, (dataMax) => Math.max(5, Math.ceil((dataMax ?? 0) / 5) * 5)]}
-              />
+                domain={[0, (dataMax) => Math.max(5, Math.ceil((dataMax ?? 0) / 5) * 5)]} />
               <Tooltip content={<CustomTooltip />} />
-              <Bar yAxisId="volume" dataKey="volumeM" name="Volym (miljoner aktier)" fill="url(#volumeFill)" barSize={16} radius={[4, 4, 0, 0]} />
-              <Line yAxisId="volume" type="monotone" dataKey="volumeAverage5M" stroke="#29b6f6" strokeWidth={1.5} dot={false} name="5-dagars volym" strokeDasharray="4 4" />
-              <Line yAxisId="ratio" type="monotone" dataKey="shortSharePct" stroke="#FFCA28" strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} name="Blankarnas andel" />
-              <Line yAxisId="ratio" type="monotone" dataKey="shortShareAvg5" stroke="#ab47bc" strokeWidth={1.5} dot={false} strokeDasharray="3 3" name="Blankarnas andel (5d)" />
+              <Bar yAxisId="volume" dataKey="volumeM" fill="url(#volumeFill)" barSize={16} radius={[4, 4, 0, 0]} />
+              <Line yAxisId="volume" type="monotone" dataKey="volumeAverage5M" stroke="#29b6f6" strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+              <Line yAxisId="ratio" type="monotone" dataKey="shortSharePct" stroke="#FFCA28" strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
+              <Line yAxisId="ratio" type="monotone" dataKey="shortShareAvg5" stroke="#ab47bc" strokeWidth={1.5} dot={false} strokeDasharray="3 3" />
             </ComposedChart>
           </ResponsiveContainer>
         </Box>
       )}
 
+      {/* Legend + Footer */}
       <Box sx={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 0.75, mt: 1.5 }}>
         {LEGEND_ITEMS.map((item) => (
-          <Box
-            key={item.key}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              backgroundColor: "#2a2a2a",
-              borderRadius: 1,
-              px: 1,
-              py: 0.5,
-            }}
-          >
+          <Box key={item.key} sx={{ display: "flex", alignItems: "center", gap: 0.75, backgroundColor: "#2a2a2a", borderRadius: 1, px: 1, py: 0.5 }}>
             <Box
               sx={() => {
-                if (item.variant === "bar") {
-                  return {
-                    width: 10,
-                    height: 14,
-                    borderRadius: 0.5,
-                    backgroundColor: item.color,
-                  };
-                }
-                if (item.variant === "line") {
-                  return {
-                    width: 18,
-                    height: 0,
-                    borderBottom: `2px solid ${item.color}`,
-                  };
-                }
-                return {
-                  width: 18,
-                  height: 0,
-                  borderBottom: `2px dashed ${item.color}`,
-                };
+                if (item.variant === "bar") return { width: 10, height: 14, borderRadius: 0.5, backgroundColor: item.color };
+                if (item.variant === "line") return { width: 18, height: 0, borderBottom: `2px solid ${item.color}` };
+                return { width: 18, height: 0, borderBottom: `2px dashed ${item.color}` };
               }}
             />
-            <Typography variant="caption" sx={{ color: "#b0b0b0", whiteSpace: "nowrap" }}>
-              {item.label}
-            </Typography>
+            <Typography variant="caption" sx={{ color: "#b0b0b0", whiteSpace: "nowrap" }}>{item.label}</Typography>
           </Box>
         ))}
       </Box>
