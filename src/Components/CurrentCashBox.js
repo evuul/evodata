@@ -92,7 +92,7 @@ const CurrentCashBox = ({ financialReports }) => {
         boxShadow: "0 6px 20px rgba(0, 0, 0, 0.4)",
         padding: { xs: "15px", sm: "25px" },
         margin: "20px auto",
-        width: { xs: "95%", sm: "80%", md: "70%" },
+        width: { xs: "100%", sm: "80%", md: "70%" },
         textAlign: "center",
       }}
     >

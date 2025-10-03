@@ -609,7 +609,7 @@ const GraphBox = ({
         boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
         padding: { xs: "12px", sm: "16px" },
         margin: "16px auto",
-        width: { xs: "92%", sm: "100%" },
+        width: { xs: "100%", sm: "100%" },
         maxWidth: "1200px",
         minHeight: "200px",
         display: "flex",
