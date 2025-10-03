@@ -62,6 +62,7 @@ const BuybackSkeleton = () => (
 const GraphBox = dynamic(() => import("../Components/GraphBox"), { ssr: false, loading: () => <GraphBoxSkeleton /> });
 const StockBuybackInfo = dynamic(() => import("../Components/StockBuybackInfo"), { ssr: false, loading: () => <BuybackSkeleton /> });
 const ShortTrend = dynamic(() => import("../Components/ShortTrend"), { ssr: false });
+const ShortTradingActivity = dynamic(() => import("../Components/ShortTradingActivity"), { ssr: false });
 const InsiderTradesCard = dynamic(() => import("../Components/InsiderTradesCard"), { ssr: false });
 
 // Kvartalsdata
@@ -182,6 +183,7 @@ export default function Home() {
         }}
       >
         <ShortTrend />
+        <ShortTradingActivity />
       </Box>
 
       {/* Insider trades */}
