@@ -108,7 +108,7 @@ const MoneyCounter = ({ sx = {} }) => {
   return (
     <Card
       sx={{
-        width: "100%",
+        width: { xs: "92%", sm: "100%" },
         maxWidth: "1200px",
         margin: "16px auto",
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",

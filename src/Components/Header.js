@@ -158,7 +158,7 @@ export default function Header() {
       <Box
         sx={{
           textAlign: "center",
-          padding: { xs: "12px", sm: "16px" },
+          padding: { xs: "10px 12px", sm: "16px" },
           background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
           borderRadius: "12px",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
@@ -166,9 +166,10 @@ export default function Header() {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          width: "100%",
+          width: { xs: "92%", sm: "100%" },
           maxWidth: "1200px",
-          margin: "16px auto",
+          margin: { xs: "10px auto", sm: "16px auto" },
+          rowGap: { xs: 1, sm: 1.5 },
           transition: "all 0.3s ease",
         }}
       >
@@ -184,7 +185,7 @@ export default function Header() {
             // Desktop: 3-kolumns grid (vänster EVO, mitten chips, höger spacer)
             gridTemplateColumns: { sm: 'auto 1fr auto' },
             width: '100%',
-            mb: 1,
+            mb: { xs: 0.5, sm: 1 },
             gap: 1,
             columnGap: { sm: 1 },
           }}
@@ -208,12 +209,12 @@ export default function Header() {
               display: 'flex',
               alignItems: 'center',
               flexWrap: 'wrap',
-              gap: 1,
-              px: 1,
+              gap: { xs: 0.75, sm: 1 },
+              px: { xs: 0.5, sm: 1 },
               width: '100%',
               textAlign: 'center',
               minHeight: 32,
-              justifyContent: { xs: 'center', sm: 'center' }, // center även på desktop
+              justifyContent: 'center',
             }}
           >
             {/* TOP3-spelare */}
@@ -288,18 +289,7 @@ export default function Header() {
               sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
             />
 
-            {/* Countdown */}
-            <Tooltip title={countdownLabel === null ? 'Beräknar nästa uppdatering' : countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`}>
-              <Chip
-                label={countdownLabel === null
-                  ? 'Beräknar nästa uppdatering…'
-                  : countdownLabel === '00:00'
-                    ? 'Uppdaterar nu'
-                    : `Nästa uppdatering om ${countdownLabel}`}
-                size="small"
-                sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }}
-              />
-            </Tooltip>
+            {/* Countdown borttagen på begäran */}
           </Box>
 
           {/* Höger: tom “spacer” för perfekt centrering av mittenkolumnen (desktop) */}
@@ -311,9 +301,9 @@ export default function Header() {
           component="h1"
           sx={{
             fontWeight: 700,
-            fontSize: { xs: "1.8rem", sm: "2.5rem", md: "3.5rem" },
+            fontSize: { xs: "1.55rem", sm: "2.5rem", md: "3.5rem" },
             color: "#ffffff",
-            marginBottom: { xs: "8px", sm: "12px" },
+            marginBottom: { xs: "6px", sm: "12px" },
             letterSpacing: "0.5px",
             textTransform: "uppercase",
           }}
@@ -325,9 +315,9 @@ export default function Header() {
           variant="body1"
           sx={{
             color: "#b0b0b0",
-            fontSize: { xs: "0.9rem", sm: "1rem" },
+            fontSize: { xs: "0.85rem", sm: "1rem" },
             opacity: 0.9,
-            marginBottom: { xs: "8px", sm: "12px" },
+            marginBottom: { xs: "6px", sm: "12px" },
             display: { xs: "none", sm: "block" },
             fontWeight: 500,
           }}
@@ -347,13 +337,13 @@ export default function Header() {
         ) : (
           <>
             {/* Mobil: pris + % */}
-            <Box sx={{ display: { xs: "flex", sm: "none" }, flexDirection: "column", alignItems: "center", gap: "6px", marginBottom: "8px" }}>
-              <Typography variant="h6" sx={{ color: "#ffffff", fontSize: "1.1rem", fontWeight: 600 }}>
+            <Box sx={{ display: { xs: "flex", sm: "none" }, flexDirection: "column", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+              <Typography variant="h6" sx={{ color: "#ffffff", fontSize: "1rem", fontWeight: 600 }}>
                 {currentPrice !== "N/A"
                   ? `${currentPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
                   : "N/A"}
               </Typography>
-              <Typography variant="body2" sx={{ color: changeColor, fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "4px", fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ color: changeColor, fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "4px", fontWeight: 500 }}>
                 {changePercent !== 0 ? `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%` : "0.00%"}
                 {changePercent > 0 && <span style={{ fontSize: "0.9rem" }}>↑</span>}
                 {changePercent < 0 && <span style={{ fontSize: "0.9rem" }}>↓</span>}

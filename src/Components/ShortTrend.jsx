@@ -10,6 +10,16 @@ import { formatSek } from "@/utils/formatters";
 const TZ = "Europe/Stockholm";
 const LATEST_TOTAL_SHARES = totalSharesData?.[totalSharesData.length - 1]?.totalShares || null; // senast kända utestående aktier
 
+function isWeekend(dateStr) {
+  try {
+    const date = new Date(`${dateStr}T12:00:00Z`); // mitt på dagen för att undvika TZ-problem
+    const weekday = date.getUTCDay();
+    return weekday === 0 || weekday === 6;
+  } catch {
+    return false;
+  }
+}
+
 function stockholmTodayYMD() {
   try {
     const parts = new Intl.DateTimeFormat("sv-SE", {
@@ -53,7 +63,8 @@ export default function ShortTrend() {
       // sortera stigande på datum och normalisera
       const sorted = [...arr]
         .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .map(x => ({ date: x.date, percent: Number(x.percent) }));
+        .map(x => ({ date: x.date, percent: Number(x.percent) }))
+        .filter(x => x.date && !isWeekend(x.date));
       setItems(sorted);
       setUpdatedAt(data.updatedAt || null);
     } catch {
@@ -210,7 +221,7 @@ export default function ShortTrend() {
       borderRadius: "12px",
       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
       padding: { xs: "12px", sm: "16px" },
-      width: "100%",
+      width: { xs: "92%", sm: "100%" },
       maxWidth: "1200px",
       margin: "16px auto",
       minHeight: 260,
