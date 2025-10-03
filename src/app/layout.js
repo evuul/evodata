@@ -48,11 +48,25 @@ export default function RootLayout({ children }) {
     <html lang="sv">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
         <Providers>
-          <Box sx={{ display: "flex" }}>
+          <Analytics />
+          <SpeedInsights />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "100vh",
+              width: "100%",
+            }}
+          >
             {/* <Sidebar /> */}
-            <Analytics />
-            <SpeedInsights />
-            <Box sx={{ flexGrow: 1, padding: "20px" }}>
+            <Box
+              sx={{
+                flexGrow: 1,
+                width: "100%",
+                padding: { xs: "12px", sm: "16px", md: "24px" },
+                boxSizing: "border-box",
+              }}
+            >
               {children}
             </Box>
           </Box>
