@@ -1,6 +1,7 @@
 import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Box from "@mui/material/Box";
 import Providers from "./providers"; // ⬅️ NYTT: gemensam klient-wrapper för alla providers
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }) {
           <Box sx={{ display: "flex" }}>
             {/* <Sidebar /> */}
             <Analytics />
+            <SpeedInsights />
             <Box sx={{ flexGrow: 1, padding: "20px" }}>
               {children}
             </Box>

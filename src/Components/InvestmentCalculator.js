@@ -261,7 +261,7 @@ const InvestmentCalculator = ({ dividendData }) => {
         padding: { xs: "12px", sm: "16px" },
         margin: "16px auto",
         width: "100%",
-        maxWidth: "1200px",
+        maxWidth: { xs: "1200px", lg: "1320px" },
         textAlign: "center",
         boxSizing: "border-box",
         minHeight: "200px",
