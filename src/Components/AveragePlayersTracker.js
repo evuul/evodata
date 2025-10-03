@@ -206,7 +206,7 @@ const AveragePlayersTracker = ({ playersData }) => {
           marginBottom: "24px",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
           border: "1px solid #444",
-          width: { xs: "95%", sm: "80%", md: "70%" },
+          width: { xs: "100%", sm: "80%", md: "70%" },
           textAlign: "center",
         }}
       >

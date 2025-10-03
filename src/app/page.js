@@ -64,6 +64,8 @@ const StockBuybackInfo = dynamic(() => import("../Components/StockBuybackInfo"),
 const ShortTrend = dynamic(() => import("../Components/ShortTrend"), { ssr: false });
 const ShortTradingActivity = dynamic(() => import("../Components/ShortTradingActivity"), { ssr: false });
 const InsiderTradesCard = dynamic(() => import("../Components/InsiderTradesCard"), { ssr: false });
+const DailyInsightsPanel = dynamic(() => import("../Components/DailyInsightsPanel"), { ssr: false });
+const SHOW_DAILY_INSIGHTS = false;
 
 // Kvartalsdata
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
@@ -98,6 +100,8 @@ export default function Home() {
     <main>
       <Header />
 
+      {SHOW_DAILY_INSIGHTS && <DailyInsightsPanel />}
+
       {/* Container: GamePlayersBox + MoneyCounter */}
       <Box
         sx={{
@@ -117,7 +121,7 @@ export default function Home() {
         {/* 🔥 NY: Live-spelare per game show (ovanför MoneyCounter) */}
         <Box id="live-games"
           sx={{
-            width: { xs: "95%", sm: "90%", md: "90%" },
+            width: { xs: "100%", sm: "90%", md: "90%" },
             maxWidth: "1200px",
             margin: "0 auto",
             boxSizing: "border-box",
@@ -130,7 +134,7 @@ export default function Home() {
         {/* MoneyCounter */}
         <Box id="money-counter"
           sx={{
-            width: { xs: "95%", sm: "90%", md: "90%" },
+            width: { xs: "100%", sm: "90%", md: "90%" },
             maxWidth: "1200px",
             margin: "0 auto",
             boxSizing: "border-box",
@@ -145,7 +149,7 @@ export default function Home() {
       <Box id="overview"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -165,7 +169,7 @@ export default function Home() {
       <Box id="news"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -177,7 +181,7 @@ export default function Home() {
       <Box id="blankning"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -190,7 +194,7 @@ export default function Home() {
       <Box id="insider"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -202,7 +206,7 @@ export default function Home() {
       <Box id="buybacks"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -214,7 +218,7 @@ export default function Home() {
       <Box id="calculator"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
         }}
@@ -226,7 +230,7 @@ export default function Home() {
       <Box id="faq"
         sx={{
           marginTop: { xs: 2, sm: 3 },
-          width: { xs: "95%", sm: "90%", md: "90%" },
+          width: { xs: "100%", sm: "90%", md: "90%" },
           maxWidth: "1200px",
           margin: "0 auto",
           mb: { xs: 4, sm: 6 },
