@@ -1,6 +1,6 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Typography, Chip, CircularProgress, useMediaQuery } from "@mui/material";
+import { Box, Typography, Chip, CircularProgress, useMediaQuery, Select, MenuItem } from "@mui/material";
 import {
   ResponsiveContainer,
   LineChart,
@@ -195,33 +195,33 @@ export default function GamePlayersTrendChart() {
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
+          flexDirection: "column",
           alignItems: "center",
+          gap: 0.75,
           mb: 1,
-          gap: 1,
-          flexWrap: "wrap",
         }}
       >
-        <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700 }}>
+        <Typography variant="h6" sx={{ color: "#fff", fontWeight: 700, textAlign: "center" }}>
           Dagligt snitt (alla spel)
         </Typography>
 
-        <Box sx={{ display: "flex", gap: 0.5 }}>
+        <Select
+          size="small"
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          sx={{
+            minWidth: 160,
+            color: "#fff",
+            ".MuiSelect-icon": { color: "#fff" },
+            ".MuiOutlinedInput-notchedOutline": { borderColor: "#3a3a3a" },
+            "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "#5a5a5a" },
+            "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#7a7a7a" },
+          }}
+        >
           {[7, 30, 90].map((n) => (
-            <Chip
-              key={n}
-              label={`${n} dagar`}
-              size="small"
-              onClick={() => setDays(n)}
-              sx={{
-                bgcolor: days === n ? "#3a3a3a" : "#2a2a2a",
-                color: "#fff",
-                border: "1px solid #3a3a3a",
-                cursor: "pointer",
-              }}
-            />
+            <MenuItem key={n} value={n}>{`${n} dagar`}</MenuItem>
           ))}
-        </Box>
+        </Select>
       </Box>
 
       {trendingHighlight && (
