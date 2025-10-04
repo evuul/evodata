@@ -131,24 +131,28 @@ export default function GamePlayersTrendChart() {
         : null;
       return {
         direction: best.direction,
-        message: `${best.label} växer mest ${periodLabel}: ${changeAbsStr} spelare${pctPositive ? ` (${pctPositive})` : ""}.`,
+        message: pctPositive
+          ? `${best.label} har starkast procentuella trend ${periodLabel}: ${pctPositive} (~${changeAbsStr} spelare).`
+          : `${best.label} har starkast trend ${periodLabel}: ${changeAbsStr} spelare.`,
       };
     }
 
     if (best.direction < 0) {
       const changeAbsStr = formatDelta(best.changeAbs, deltaDigits, { showPlus: false });
       const pctNegative = Number.isFinite(best.changePct)
-        ? `${formatDelta(Math.abs(best.changePct), 1, { showPlus: false })}%`
+        ? `${formatDelta(best.changePct, 1, { showPlus: false })}%`
         : null;
       return {
         direction: best.direction,
-        message: `Inget spel växer ${periodLabel}. Minst tapp: ${best.label} ${changeAbsStr} spelare${pctNegative ? ` (-${pctNegative})` : ""}.`,
+        message: pctNegative
+          ? `${best.label} tappar mest procentuellt ${periodLabel}: ${pctNegative} (~${changeAbsStr} spelare).`
+          : `${best.label} tappar mest ${periodLabel}: ${changeAbsStr} spelare.`,
       };
     }
 
     return {
       direction: best.direction,
-      message: `${best.label} ligger stabilt ${periodLabel} med ${formatPlayers(best.last)} spelare i snitt.`,
+      message: `${best.label} ligger stabilt ${periodLabel} med cirka ${formatPlayers(best.last)} spelare (±0%).`,
     };
   }, [GAMES_FOR_TREND, multi, days]);
 
@@ -231,6 +235,7 @@ export default function GamePlayersTrendChart() {
             color: trendingHighlight.direction > 0 ? "#a7ffbf" : trendingHighlight.direction < 0 ? "#ffbaba" : "#b0b0b0",
             fontWeight: 600,
             mb: 1,
+            textAlign: "center",
           }}
         >
           {trendingHighlight.message}
@@ -336,6 +341,9 @@ export default function GamePlayersTrendChart() {
               <Typography variant="subtitle2" sx={{ color: "#7fff7f", fontWeight: 700, mb: 0.75 }}>
                 Snabbast växande (senaste 7 dagarna)
               </Typography>
+              <Typography variant="caption" sx={{ color: "#9ad69a", display: "block", mb: 0.75 }}>
+                Mäter störst ökning i antal spelare (absolut förändring).
+              </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                 {growthStats.gainers.map((item) => (
                   <Box key={item.id} sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
@@ -368,6 +376,9 @@ export default function GamePlayersTrendChart() {
             >
               <Typography variant="subtitle2" sx={{ color: "#ff9f9f", fontWeight: 700, mb: 0.75 }}>
                 Störst tapp (senaste 7 dagarna)
+              </Typography>
+              <Typography variant="caption" sx={{ color: "#ffc7c7", display: "block", mb: 0.75 }}>
+                Mäter störst minskning i antal spelare (absolut förändring).
               </Typography>
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
                 {growthStats.decliners.map((item) => (
