@@ -74,6 +74,84 @@ export default function GamePlayersTrendChart() {
   const hasAnyData = chartData.length > 0;
   const failedIds = Object.keys(errors);
 
+  const formatPlayers = (value) =>
+    Number.isFinite(value)
+      ? value.toLocaleString("sv-SE", { maximumFractionDigits: 0 })
+      : "—";
+
+  const formatDelta = (value, fractionDigits = 2, { showPlus = true } = {}) => {
+    if (!Number.isFinite(value)) return "—";
+    const sign = value > 0 ? (showPlus ? "+" : "") : value < 0 ? "-" : "";
+    return `${sign}${Math.abs(value).toFixed(fractionDigits)}`;
+  };
+
+  const trendingHighlight = useMemo(() => {
+    const candidates = [];
+    for (const g of GAMES_FOR_TREND) {
+      const series = multi[g.id]?.daily || [];
+      if (series.length < 2) continue;
+      const slice = series.slice(-Math.min(days, series.length));
+      if (slice.length < 2) continue;
+      const first = slice[0]?.avg;
+      const last = slice[slice.length - 1]?.avg;
+      if (!Number.isFinite(first) || !Number.isFinite(last)) continue;
+      const changeAbs = +(last - first).toFixed(2);
+      const changePct = Number.isFinite(first) && first !== 0
+        ? +(((last - first) / first) * 100).toFixed(1)
+        : null;
+      const direction = changeAbs === 0 ? 0 : changeAbs > 0 ? 1 : -1;
+      candidates.push({
+        id: g.id,
+        label: g.label,
+        changeAbs,
+        changePct,
+        direction,
+        last,
+      });
+    }
+
+    if (!candidates.length) return null;
+
+    candidates.sort((a, b) => {
+      if (a.direction !== b.direction) return b.direction - a.direction;
+      const metricA = Number.isFinite(a.changePct) ? a.changePct : a.changeAbs;
+      const metricB = Number.isFinite(b.changePct) ? b.changePct : b.changeAbs;
+      if (metricA === metricB) return b.changeAbs - a.changeAbs;
+      return metricB - metricA;
+    });
+
+    const best = candidates[0];
+    const periodLabel = days === 7 ? "de senaste 7 dagarna" : days === 30 ? "de senaste 30 dagarna" : "de senaste 90 dagarna";
+    const deltaDigits = Math.abs(best.changeAbs) >= 10 ? 0 : 1;
+
+    if (best.direction > 0) {
+      const changeAbsStr = formatDelta(best.changeAbs, deltaDigits);
+      const pctPositive = Number.isFinite(best.changePct)
+        ? `${formatDelta(best.changePct, 1)}%`
+        : null;
+      return {
+        direction: best.direction,
+        message: `${best.label} växer mest ${periodLabel}: ${changeAbsStr} spelare${pctPositive ? ` (${pctPositive})` : ""}.`,
+      };
+    }
+
+    if (best.direction < 0) {
+      const changeAbsStr = formatDelta(best.changeAbs, deltaDigits, { showPlus: false });
+      const pctNegative = Number.isFinite(best.changePct)
+        ? `${formatDelta(Math.abs(best.changePct), 1, { showPlus: false })}%`
+        : null;
+      return {
+        direction: best.direction,
+        message: `Inget spel växer ${periodLabel}. Minst tapp: ${best.label} ${changeAbsStr} spelare${pctNegative ? ` (-${pctNegative})` : ""}.`,
+      };
+    }
+
+    return {
+      direction: best.direction,
+      message: `${best.label} ligger stabilt ${periodLabel} med ${formatPlayers(best.last)} spelare i snitt.`,
+    };
+  }, [GAMES_FOR_TREND, multi, days]);
+
   const growthStats = useMemo(() => {
     const SLICE = 7;
     const rows = [];
@@ -111,17 +189,6 @@ export default function GamePlayersTrendChart() {
     return { gainers, decliners };
   }, [multi, GAMES_FOR_TREND]);
 
-  const formatPlayers = (value) =>
-    Number.isFinite(value)
-      ? value.toLocaleString("sv-SE", { maximumFractionDigits: 0 })
-      : "—";
-
-  const formatDelta = (value, fractionDigits = 2, { showPlus = true } = {}) => {
-    if (!Number.isFinite(value)) return "—";
-    const sign = value > 0 ? (showPlus ? "+" : "") : value < 0 ? "-" : "";
-    return `${sign}${Math.abs(value).toFixed(fractionDigits)}`;
-  };
-
   return (
     <Box sx={{ p: { xs: 1, sm: 2 } }}>
       {/* Header: titel + dagväljare (bara 7/30/90) */}
@@ -156,6 +223,19 @@ export default function GamePlayersTrendChart() {
           ))}
         </Box>
       </Box>
+
+      {trendingHighlight && (
+        <Typography
+          variant="body2"
+          sx={{
+            color: trendingHighlight.direction > 0 ? "#a7ffbf" : trendingHighlight.direction < 0 ? "#ffbaba" : "#b0b0b0",
+            fontWeight: 600,
+            mb: 1,
+          }}
+        >
+          {trendingHighlight.message}
+        </Typography>
+      )}
 
       {/* Felchips */}
       {failedIds.length > 0 && (
