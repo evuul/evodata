@@ -21,56 +21,53 @@ import { useStockPriceContext } from "../context/StockPriceContext";
  * @typedef {Object} Report
  * @property {number} year
  * @property {string} quarter
- * @property {number=} operatingRevenues MEUR per kvartal
+ * @property {number=} operatingRevenues MEUR
  * @property {number=} adjustedEarningsPerShare EUR per aktie (kvartal)
  * @property {number=} adjustedOperatingMargin procent
  */
 
+/** --- Hjälpfunktioner --- */
 const quarterToNumber = (q) =>
   q === "Q1" ? 1 : q === "Q2" ? 2 : q === "Q3" ? 3 : q === "Q4" ? 4 : 0;
 
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
 
-const currency0 = new Intl.NumberFormat("sv-SE", {
+const numberFormatter = new Intl.NumberFormat("sv-SE", {
   style: "currency",
   currency: "SEK",
   maximumFractionDigits: 0,
 });
-
-const currency2 = new Intl.NumberFormat("sv-SE", {
+const price2Formatter = new Intl.NumberFormat("sv-SE", {
   style: "currency",
   currency: "SEK",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
-
 const pct1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
 const int0 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 });
 
-const WINDOW_SMOOTH = 8; // kvartal
-const MAX_FWD_GROWTH = 0.25;
-const MIN_FWD_GROWTH = -0.1;
+const WINDOW_SMOOTH = 8;      // 8 kvartal ≈ 2 år (bra smoothing)
+const MAX_FWD_GROWTH = 0.25;  // +25% cap på ettårsprognos
+const MIN_FWD_GROWTH = -0.10; // -10% floor
 const MIN_PE = 10;
 const MAX_PE = 35;
-const MIN_BBY = 0.0;
-const MAX_BBY = 0.08;
 
+/**
+ * Mappa grundmultipel från tillväxt (g) och marginalkvalitet (m).
+ * g och m anges som decimaler/%
+ */
 function basePeFromFundamentals(growthYoY, avgOpMargin) {
-  const g = (growthYoY ?? 0) * 100;
-
+  // Grundmultipel från tillväxtband
+  const g = growthYoY * 100; // i %
   let pe =
-    g <= 0
-      ? 12
-      : g <= 5
-      ? 14
-      : g <= 10
-      ? 16
-      : g <= 15
-      ? 18
-      : g <= 20
-      ? 20
-      : 22;
+    g <= 0   ? 12 :
+    g <= 5   ? 14 :
+    g <= 10  ? 16 :
+    g <= 15  ? 18 :
+    g <= 20  ? 20 :
+               22;
 
+  // Kvalitetsjustering från rörelsemarginal
   if (avgOpMargin != null) {
     if (avgOpMargin >= 65) pe += 3;
     else if (avgOpMargin >= 55) pe += 2;
@@ -78,158 +75,115 @@ function basePeFromFundamentals(growthYoY, avgOpMargin) {
     else if (avgOpMargin < 35) pe -= 1;
   }
 
-  return clamp(pe, MIN_PE, 30);
+  return clamp(pe, MIN_PE, 30); // basen blir inte extrem
 }
 
-function ttmEps(sortedReports, offsetFromEnd = 0) {
-  const end = sortedReports.length - offsetFromEnd;
+/** Räkna TTM på EPS (senaste 4 kvartal från slutet, med offset om du vill gå bakåt) */
+function ttmEps(sorted, offsetFromEnd = 0) {
+  const end = sorted.length - offsetFromEnd;
   const start = Math.max(0, end - 4);
   if (end - start < 4) return null;
-  return sortedReports
-    .slice(start, end)
-    .reduce((acc, r) => acc + (Number(r.adjustedEarningsPerShare) || 0), 0);
+  return sorted.slice(start, end).reduce((a, r) => a + (Number(r.adjustedEarningsPerShare) || 0), 0);
 }
 
-function normalizedAnnualEps(sortedReports, quarters = WINDOW_SMOOTH) {
-  const take = Math.min(quarters, sortedReports.length);
+/** Normaliserad årlig EPS från fönster av N kvartal: sumEPS * (4/N) */
+function normalizedAnnualEps(sorted, N = WINDOW_SMOOTH) {
+  const take = Math.min(N, sorted.length);
   if (take < 4) return null;
-  const window = sortedReports.slice(-take);
-  const sumEps = window.reduce(
-    (acc, r) => acc + (Number(r.adjustedEarningsPerShare) || 0),
-    0
-  );
+  const window = sorted.slice(-take);
+  const sumEps = window.reduce((a, r) => a + (Number(r.adjustedEarningsPerShare) || 0), 0);
   return (sumEps * 4) / take;
 }
 
-function avgOpMargin4Q(sortedReports) {
-  const last4 = sortedReports.slice(-4);
+/** Genomsnittlig rörelsemarginal över senaste 4 kvartal */
+function avgOpMargin4Q(sorted) {
+  const last4 = sorted.slice(-4);
   if (last4.length < 4) return null;
-  const sum = last4.reduce(
-    (acc, r) => acc + (Number(r.adjustedOperatingMargin) || 0),
-    0
-  );
+  const sum = last4.reduce((a, r) => a + (Number(r.adjustedOperatingMargin) || 0), 0);
   return sum / 4;
 }
 
-function ttmRevenue(sortedReports) {
-  const last4 = sortedReports.slice(-4);
+/** TTM-omsättning (MEUR) */
+function ttmRevenue(sorted) {
+  const last4 = sorted.slice(-4);
   if (last4.length < 4) return null;
-  return last4.reduce(
-    (acc, r) => acc + (Number(r.operatingRevenues) || 0),
-    0
-  );
+  return last4.reduce((a, r) => a + (Number(r.operatingRevenues) || 0), 0);
 }
 
-function epsBoostFromBuybacks(yieldValue) {
-  const y = clamp(Number(yieldValue) || 0, MIN_BBY, MAX_BBY);
-  return 1 / (1 - y) - 1;
-}
+const FairValueCard = ({ reports }) => {
+  const { rate: fxRate, meta: fxMeta } = useFxRateContext(); // EUR/SEK
+  const { stockPrice, error: priceError, lastUpdated } = useStockPriceContext();
 
-/**
- * @param {{ reports: Report[], buyback?: { base?: number, bull?: number, bear?: number } }} props
- */
-const FairValueCard = ({
-  reports,
-  buyback = { base: 0.03, bull: 0.04, bear: 0.02 },
-}) => {
-  const { rate: fxRate, meta: fxMeta } = useFxRateContext();
-  const { stockPrice, error: priceError, lastUpdated } =
-    useStockPriceContext();
-
-  const fx = typeof fxRate === "number" && Number.isFinite(fxRate) ? fxRate : null;
-  const fxPairLabel =
-    fxMeta?.base && fxMeta?.quote ? `${fxMeta.base}/${fxMeta.quote}` : "EUR/SEK";
-  const fxStr =
-    typeof fx === "number"
-      ? fx.toLocaleString("sv-SE", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      : "–";
-
+  const fx = fxRate ?? 11.0;
   const marketRaw = stockPrice?.price?.regularMarketPrice?.raw;
   const currentPriceSEK =
-    !priceError && typeof marketRaw === "number" && Number.isFinite(marketRaw)
-      ? marketRaw
-      : null;
+    !priceError && typeof marketRaw === "number" && Number.isFinite(marketRaw) ? marketRaw : null;
 
   const {
     latestLabel,
+    annualEpsEUR,          // normaliserad årlig EPS i EUR
+    annualEpsTTMEUR,       // TTM EPS i EUR
+    annualEpsSEK,
     annualEpsTTMSEK,
-    annualEpsNormSEK,
     avgMargin,
     yoyGrowth,
     revTtmMEUR,
     scenarios,
-    bbInfo,
   } = useMemo(() => {
-    const emptyState = {
+    const empty = {
       latestLabel: "",
+      annualEpsEUR: 0,
+      annualEpsTTMEUR: 0,
+      annualEpsSEK: 0,
       annualEpsTTMSEK: 0,
-      annualEpsNormSEK: 0,
       avgMargin: null,
       yoyGrowth: null,
       revTtmMEUR: null,
       scenarios: [],
-      bbInfo: { base: 0, bull: 0, bear: 0, baseBoostPct: 0 },
     };
-
-    if (!Array.isArray(reports) || reports.length === 0 || !fx) {
-      return emptyState;
-    }
+    if (!Array.isArray(reports) || reports.length === 0 || !fx) return empty;
 
     const sorted = [...reports].sort((a, b) =>
-      a.year !== b.year
-        ? a.year - b.year
-        : quarterToNumber(a.quarter) - quarterToNumber(b.quarter)
+      a.year !== b.year ? a.year - b.year : quarterToNumber(a.quarter) - quarterToNumber(b.quarter)
     );
 
     const last = sorted.at(-1);
     const latestLabel = last ? `${last.year} ${last.quarter}` : "";
 
-    const ttmNow = ttmEps(sorted, 0);
-    const ttmPrev = ttmEps(sorted, 4);
-    const epsNorm = normalizedAnnualEps(sorted, WINDOW_SMOOTH);
-    if (ttmNow == null || epsNorm == null) {
-      return emptyState;
-    }
+    // 1) Basnivåer
+    const ttmNow = ttmEps(sorted, 0);           // senaste 4Q
+    const ttmPrev = ttmEps(sorted, 4);          // föregående 4Q
+    const epsNorm = normalizedAnnualEps(sorted, WINDOW_SMOOTH); // 8Q-annualiserad
 
+    if (ttmNow == null || epsNorm == null) return empty;
+
+    // 2) Tillväxt: blandning av YoY (TTM) och läsning från normaliserad trend (om vi vill)
     const yoy = ttmPrev && ttmPrev > 0 ? (ttmNow - ttmPrev) / ttmPrev : 0;
+    // (valfritt) 3-års-CAGR går att lägga till om du vill; här håller vi den enkel
+
+    // “base growth” = clampad YoY
     const baseGrowth = clamp(yoy, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
 
+    // 3) Framåtblick: använd normaliserad EPS som startpunkt (robust mot utstickare)
+    const forwardEpsBaseEUR = epsNorm * (1 + baseGrowth);
+
+    // 4) Kvalitet (marginal) för multipel-modell
     const avgMargin = avgOpMargin4Q(sorted);
+
+    // 5) Basmultipel från fundamenta, sedan bull/bear runt den
     const peBase = basePeFromFundamentals(baseGrowth, avgMargin);
-    const peBull = clamp(Math.round(peBase * 1.2), MIN_PE, MAX_PE);
-    const peBear = clamp(Math.round(peBase * 0.8), MIN_PE, MAX_PE);
+    const peBull = clamp(Math.round(peBase * 1.20), MIN_PE, MAX_PE);
+    const peBear = clamp(Math.round(peBase * 0.80), MIN_PE, MAX_PE);
 
-    const bullGrowth = clamp(
-      baseGrowth + 0.05,
-      MIN_FWD_GROWTH,
-      MAX_FWD_GROWTH
-    );
-    const bearGrowth = clamp(
-      baseGrowth - 0.05,
-      MIN_FWD_GROWTH,
-      MAX_FWD_GROWTH
-    );
+    // 6) Scenario-tillväxt runt base (små ändringar + cap)
+    const bullGrowth = clamp(baseGrowth + 0.05, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
+    const bearGrowth = clamp(baseGrowth - 0.05, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
 
-    const bbBase = clamp(buyback?.base ?? 0.03, MIN_BBY, MAX_BBY);
-    const bbBull = clamp(
-      buyback?.bull ?? bbBase + 0.01,
-      MIN_BBY,
-      MAX_BBY
-    );
-    const bbBear = clamp(
-      buyback?.bear ?? Math.max(0, bbBase - 0.01),
-      MIN_BBY,
-      MAX_BBY
-    );
+    const fwdEpsBullEUR = epsNorm * (1 + bullGrowth);
+    const fwdEpsBearEUR = epsNorm * (1 + bearGrowth);
 
-    const fwdEpsBaseEUR = (epsNorm * (1 + baseGrowth)) / (1 - bbBase);
-    const fwdEpsBullEUR = (epsNorm * (1 + bullGrowth)) / (1 - bbBull);
-    const fwdEpsBearEUR = (epsNorm * (1 + bearGrowth)) / (1 - bbBear);
-
-    const fairSEK = peBase * fwdEpsBaseEUR * fx;
+    // 7) Implied SEK-priser
+    const fairSEK = peBase * forwardEpsBaseEUR * fx;
     const bullSEK = peBull * fwdEpsBullEUR * fx;
     const bearSEK = peBear * fwdEpsBearEUR * fx;
 
@@ -238,69 +192,60 @@ const FairValueCard = ({
         id: "fair",
         label: "Fair Value",
         pe: peBase,
-        description: `Normaliserad vinst + ${Math.round(
-          bbBase * 100
-        )}% nettoåterköp.`,
+        description: "Normaliserad vinst + multipel baserat på tillväxt/marginal.",
         color: "#22c55e",
         icon: <TrendingUpIcon fontSize="small" />,
         impliedPriceSEK: fairSEK,
-        upsidePct:
-          currentPriceSEK && currentPriceSEK > 0
-            ? ((fairSEK - currentPriceSEK) / currentPriceSEK) * 100
-            : null,
+        upsidePct: currentPriceSEK ? ((fairSEK - currentPriceSEK) / currentPriceSEK) * 100 : null,
       },
       {
         id: "bull",
         label: "Bull",
         pe: peBull,
-        description: `Starkare tillväxt + ${Math.round(
-          bbBull * 100
-        )}% nettoåterköp.`,
+        description: "Högre multipel och något starkare vinsttillväxt.",
         color: "#38bdf8",
         icon: <TrendingUpIcon fontSize="small" />,
         impliedPriceSEK: bullSEK,
-        upsidePct:
-          currentPriceSEK && currentPriceSEK > 0
-            ? ((bullSEK - currentPriceSEK) / currentPriceSEK) * 100
-            : null,
+        upsidePct: currentPriceSEK ? ((bullSEK - currentPriceSEK) / currentPriceSEK) * 100 : null,
       },
       {
         id: "bear",
         label: "Bear",
         pe: peBear,
-        description: `Dämpad tillväxt + ${Math.round(
-          bbBear * 100
-        )}% nettoåterköp.`,
+        description: "Lägre multipel och dämpad vinsttillväxt.",
         color: "#ef4444",
         icon: <TrendingDownIcon fontSize="small" />,
         impliedPriceSEK: bearSEK,
-        upsidePct:
-          currentPriceSEK && currentPriceSEK > 0
-            ? ((bearSEK - currentPriceSEK) / currentPriceSEK) * 100
-            : null,
+        upsidePct: currentPriceSEK ? ((bearSEK - currentPriceSEK) / currentPriceSEK) * 100 : null,
       },
     ];
 
+    // KPI: intäkter TTM (MEUR)
     const revTtm = ttmRevenue(sorted);
+    const annualEpsSEK = epsNorm * fx;
     const annualEpsTTMSEK = ttmNow * fx;
-    const annualEpsNormSEK = epsNorm * fx;
 
     return {
       latestLabel,
+      annualEpsEUR: epsNorm,
+      annualEpsTTMEUR: ttmNow,
+      annualEpsSEK,
       annualEpsTTMSEK,
-      annualEpsNormSEK,
       avgMargin,
       yoyGrowth: yoy,
       revTtmMEUR: revTtm,
       scenarios,
-      bbInfo: {
-        base: bbBase,
-        bull: bbBull,
-        bear: bbBear,
-        baseBoostPct: epsBoostFromBuybacks(bbBase) * 100,
-      },
     };
-  }, [reports, fx, currentPriceSEK, buyback]);
+  }, [reports, fx, currentPriceSEK]);
+
+  const fxPairLabel = (fxMeta?.base && fxMeta?.quote) ? `${fxMeta.base}/${fxMeta.quote}` : "EUR/SEK";
+  const fxStr = fx.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const priceUpdated =
+    lastUpdated instanceof Date
+      ? new Intl.DateTimeFormat("sv-SE", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }).format(lastUpdated)
+      : lastUpdated
+      ? new Intl.DateTimeFormat("sv-SE", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }).format(new Date(lastUpdated))
+      : null;
 
   return (
     <Card
@@ -308,8 +253,8 @@ const FairValueCard = ({
         background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
         color: "#f8fafc",
         borderRadius: "16px",
-        border: "1px solid rgba(255,255,255,0.06)",
-        boxShadow: "0 18px 40px rgba(0,0,0,0.35)",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
       }}
     >
       <CardContent
@@ -322,154 +267,99 @@ const FairValueCard = ({
           gap: 3,
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 1.5,
-          }}
-        >
+        {/* Header */}
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              Fair Value (inkl. återköp)
+              Fair Value
+            </Typography>
+            <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.75)" }}>
+              Senast: {latestLabel || "–"} • {fxPairLabel}: {fxStr}
             </Typography>
           </Box>
           <Tooltip
-            title="8Q-normaliserad EPS → framåtblickande tillväxt med clamp → EPS-boost via nettoåterköp → multipel baserad på tillväxt + marginal."
+            title="Bygger på ett 8-kvartalsfönster för EPS-normalisering, framåtblickande tillväxt med clamp och multipel som styrs av tillväxt + marginal."
           >
             <Chip
               icon={<InfoOutlinedIcon sx={{ color: "#f8fafc !important" }} />}
               label="Metod"
-              sx={{
-                backgroundColor: "rgba(0,229,255,0.15)",
-                color: "#e0f7ff",
-                fontWeight: 600,
-              }}
+              sx={{ backgroundColor: "rgba(0, 229, 255, 0.15)", color: "#e0f7ff", fontWeight: 600 }}
             />
           </Tooltip>
         </Box>
 
+        {/* KPI-rad */}
         <Box
           sx={{
-            width: "100%",
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            gap: { xs: 2, md: 4 },
-            alignItems: "stretch",
-            justifyContent: "center",
+            display: "flex", flexDirection: { xs: "column", md: "row" },
+            gap: { xs: 2.5, md: 6 }, alignItems: "center", justifyContent: "center",
           }}
         >
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: "12px",
-              border: "1px solid rgba(255,255,255,0.06)",
-              p: 2,
-              textAlign: "center",
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+          <Box sx={{ minWidth: 220, display: "flex", flexDirection: "column", gap: 0.6 }}>
+            <Typography variant="subtitle2" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
               Aktuell kurs (SEK)
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 700 }}>
-              {currentPriceSEK != null ? currency2.format(currentPriceSEK) : "–"}
+              {currentPriceSEK != null ? price2Formatter.format(currentPriceSEK) : "–"}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
+              {priceUpdated ? `Senast uppdaterad ${priceUpdated}` : "Prisdata saknas"}
             </Typography>
           </Box>
 
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: "12px",
-              border: "1px solid rgba(255,255,255,0.06)",
-              p: 2,
-              textAlign: "center",
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-              EPS (TTM, SEK)
+          <Box sx={{ minWidth: 220, display: "flex", flexDirection: "column", gap: 0.6 }}>
+            <Typography variant="subtitle2" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
+              Normaliserad årlig EPS (SEK)
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 700 }}>
-              {annualEpsTTMSEK ? currency2.format(annualEpsTTMSEK) : "–"}
+              {annualEpsSEK ? price2Formatter.format(annualEpsSEK) : "–"}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
+              Jämförelse TTM: {annualEpsTTMSEK ? price2Formatter.format(annualEpsTTMSEK) : "–"} SEK
             </Typography>
           </Box>
 
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: "12px",
-              border: "1px solid rgba(255,255,255,0.06)",
-              p: 2,
-              textAlign: "center",
-              display: "flex",
-              flexDirection: "column",
-              gap: 0.6,
-              justifyContent: "center",
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-              Nettoåterköp (antagande)
-            </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: 600,
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 1,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Box component="span" sx={{ color: "#22c55e", fontWeight: 700 }}>
-                Base {Math.round((bbInfo?.base ?? 0) * 100)}%
-              </Box>
-              <Box component="span" sx={{ color: "#38bdf8", fontWeight: 700 }}>
-                Bull {Math.round((bbInfo?.bull ?? 0) * 100)}%
-              </Box>
-              <Box component="span" sx={{ color: "#ef4444", fontWeight: 700 }}>
-                Bear {Math.round((bbInfo?.bear ?? 0) * 100)}%
-              </Box>
-            </Typography>
-            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-              EPS-boost (base): +{pct1.format(bbInfo?.baseBoostPct ?? 0)}%-enheter
-            </Typography>
-          </Box>
+          {yoyGrowth !== null && (
+            <Box sx={{ minWidth: 220, display: "flex", flexDirection: "column", gap: 0.6 }}>
+              <Typography variant="subtitle2" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
+                TTM EPS YoY
+              </Typography>
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, color: (yoyGrowth ?? 0) >= 0 ? "#34d399" : "#f87171" }}
+              >
+                {(yoyGrowth ?? 0) >= 0 ? "+" : ""}
+                {pct1.format((yoyGrowth ?? 0) * 100)}%
+              </Typography>
+            </Box>
+          )}
         </Box>
 
-        <Grid
-          container
-          spacing={2}
-          sx={{ mb: 3, justifyContent: "center", alignItems: "stretch" }}
-        >
-          <Grid item xs={12} sm={8} md={5} lg={4}>
+        {/* Tre små KPI-kort */}
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid item xs={12} md={6}>
             <Box
               sx={{
-                background: "rgba(56,189,248,0.08)",
-                borderRadius: "14px",
-                p: 2.5,
-                border: "1px solid rgba(56,189,248,0.4)",
-                textAlign: "center",
                 position: "relative",
                 overflow: "hidden",
-                boxShadow: "0 16px 30px rgba(15,23,42,0.28)",
+                background: "linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(129, 140, 248, 0.12))",
+                borderRadius: "14px",
+                p: 2.5,
+                border: "1px solid rgba(56, 189, 248, 0.55)",
+                textAlign: "center",
+                boxShadow: "0 16px 30px rgba(15, 23, 42, 0.3)",
                 "&::before": {
                   content: '""',
                   position: "absolute",
                   inset: 0,
                   borderRadius: "inherit",
-                  borderTop: "3px solid rgba(190,242,255,0.65)",
+                  borderTop: "3px solid rgba(190, 242, 255, 0.65)",
+                  opacity: 0.85,
                   pointerEvents: "none",
                 },
               }}
             >
-              <Typography variant="subtitle2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              <Typography variant="subtitle2" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
                 Rörelsemarginal (snitt 4Q)
               </Typography>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -477,29 +367,29 @@ const FairValueCard = ({
               </Typography>
             </Box>
           </Grid>
-
-          <Grid item xs={12} sm={8} md={5} lg={4}>
+          <Grid item xs={12} md={6}>
             <Box
               sx={{
-                background: "rgba(34,197,94,0.08)",
-                borderRadius: "14px",
-                p: 2.5,
-                border: "1px solid rgba(34,197,94,0.4)",
-                textAlign: "center",
                 position: "relative",
                 overflow: "hidden",
-                boxShadow: "0 16px 30px rgba(15,23,42,0.28)",
+                background: "linear-gradient(135deg, rgba(74, 222, 128, 0.16), rgba(34, 197, 94, 0.12))",
+                borderRadius: "14px",
+                p: 2.5,
+                border: "1px solid rgba(34, 197, 94, 0.55)",
+                textAlign: "center",
+                boxShadow: "0 16px 30px rgba(15, 23, 42, 0.3)",
                 "&::before": {
                   content: '""',
                   position: "absolute",
                   inset: 0,
                   borderRadius: "inherit",
-                  borderTop: "3px solid rgba(187,247,208,0.65)",
+                  borderTop: "3px solid rgba(187, 247, 208, 0.65)",
+                  opacity: 0.85,
                   pointerEvents: "none",
                 },
               }}
             >
-              <Typography variant="subtitle2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              <Typography variant="subtitle2" sx={{ color: "rgba(148, 163, 184, 0.75)" }}>
                 Omsättning TTM (MSEK)
               </Typography>
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -509,25 +399,20 @@ const FairValueCard = ({
           </Grid>
         </Grid>
 
+        {/* SCENARION */}
         <Grid
           container
           spacing={2}
-          sx={{
-            width: "100%",
-            maxWidth: 1200,
-            mx: "auto",
-            justifyContent: "center",
-            alignItems: "stretch",
-          }}
+          sx={{ width: "100%", maxWidth: 1200, mx: "auto", justifyContent: "center", alignItems: "stretch" }}
         >
-          {scenarios.map((scenario) => (
-            <Grid item xs={12} sm={6} md={4} key={scenario.id} sx={{ display: "flex" }}>
+          {scenarios.map((s) => (
+            <Grid item xs={12} sm={6} md={4} key={s.id} sx={{ display: "flex" }}>
               <Box
                 sx={{
-                  background: "rgba(255,255,255,0.03)",
+                  background: "rgba(255, 255, 255, 0.03)",
                   borderRadius: "14px",
                   p: 2.5,
-                  border: `1px solid ${scenario.color}44`,
+                  border: `1px solid ${s.color}44`,
                   width: "100%",
                   display: "flex",
                   flexDirection: "column",
@@ -541,33 +426,23 @@ const FairValueCard = ({
                 }}
               >
                 <Chip
-                  label={scenario.label}
-                  icon={React.cloneElement(scenario.icon, {
-                    sx: { color: `${scenario.color} !important` },
-                  })}
-                  sx={{
-                    backgroundColor: `${scenario.color}1A`,
-                    color: scenario.color,
-                    fontWeight: 600,
-                  }}
+                  label={s.label}
+                  icon={React.cloneElement(s.icon, { sx: { color: `${s.color} !important` } })}
+                  sx={{ backgroundColor: `${s.color}1A`, color: s.color, fontWeight: 600 }}
                 />
                 <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {currency0.format(scenario.impliedPriceSEK)}
+                  {numberFormatter.format(s.impliedPriceSEK)}
                 </Typography>
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)" }}>
-                  PE {scenario.pe}x • 1Y fwd EPS (inkl. buybacks)
+                <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.75)" }}>
+                  PE {s.pe}x • 1Y fwd EPS (omräknad till SEK) via 8Q-normalisering
                 </Typography>
-                {typeof scenario.upsidePct === "number" && (
+                {typeof s.upsidePct === "number" && (
                   <Typography
                     variant="body2"
-                    sx={{
-                      color:
-                        (scenario.upsidePct ?? 0) >= 0 ? "#34d399" : "#f87171",
-                      fontWeight: 600,
-                    }}
+                    sx={{ color: (s.upsidePct ?? 0) >= 0 ? "#34d399" : "#f87171", fontWeight: 600 }}
                   >
-                    {(scenario.upsidePct ?? 0) >= 0 ? "+" : ""}
-                    {pct1.format(scenario.upsidePct)}% mot aktuell kurs
+                    {(s.upsidePct ?? 0) >= 0 ? "+" : ""}
+                    {pct1.format(s.upsidePct)}% mot aktuell kurs
                   </Typography>
                 )}
               </Box>
@@ -575,23 +450,19 @@ const FairValueCard = ({
           ))}
         </Grid>
 
+        {/* Metod & varningar */}
         <Box sx={{ mt: 4 }}>
           <Typography variant="subtitle2" sx={{ color: "#e0f2ff", mb: 1 }}>
             Metod & antaganden
           </Typography>
-          <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)" }}>
-            • 8 kvartal normaliserar EPS innan prognos; tillväxt clampas mellan{" "}
-            {(MIN_FWD_GROWTH * 100).toFixed(0)}% och {(MAX_FWD_GROWTH * 100).toFixed(0)}%.
+          <Typography variant="body2" sx={{ color: "rgba(226, 232, 240, 0.75)" }}>
+            • **Normalisering:** Vi använder 8 kvartal (summa × 4/N) för att få en rättvis årlig EPS.
             <br />
-            • Nettoåterköp höjer EPS via 1/(1−y); scenarierna antar {Math.round(
-              (bbInfo?.base ?? 0) * 100
-            )}% / {Math.round((bbInfo?.bull ?? 0) * 100)}% / {Math.round(
-              (bbInfo?.bear ?? 0) * 100
-            )}%.
+            • **Tillväxt:** 1Y framåtblick baseras på TTM YoY, clampad till [{(MIN_FWD_GROWTH*100).toFixed(0)}%, {(MAX_FWD_GROWTH*100).toFixed(0)}%].
             <br />
-            • Multipeln styrs av tillväxt + marginal; bull/bear varierar multipel ±20% och tillväxt ±5 pp.
+            • **Multipel:** Sätts dynamiskt utifrån tillväxt + rörelsemarginal (kvalitet). Bear/Bull = ±20% multipel och ±5 pp tillväxt.
             <br />
-            • Alla belopp visas i SEK via {fxPairLabel} {fxStr}; omsättning visas i MSEK.
+            • **Valuta:** EPS i EUR → SEK via {fxPairLabel} {fxStr}.
           </Typography>
         </Box>
 
@@ -606,7 +477,8 @@ const FairValueCard = ({
             "& .MuiAlert-icon": { color: "#00e5ff" },
           }}
         >
-          AI har analyserat rapporterna och genererat dessa scenarier – betrakta dem inte som finansiell rådgivning.
+          Notera: Inga engångsposter justeras här. Vill du vara strikt kan vi exkludera outliers,
+          lägga till buyback-yield och/eller göra en enkel DCF för korscheck.
         </Alert>
       </CardContent>
     </Card>
