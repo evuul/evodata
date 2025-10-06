@@ -1,9 +1,11 @@
 'use client';
 import React, { useState, useEffect } from "react";
 import { Box, Typography, Card } from "@mui/material";
+import { useFxRateContext } from "../context/FxRateContext";
 
 const CurrentCashBox = ({ financialReports }) => {
-  const EXCHANGE_RATE = 11.02;
+  const { rate: fxRate } = useFxRateContext();
+  const exchangeRate = fxRate ?? 11.02;
   const dailyProfit = 36374400;
 
   // Manuellt angivet återstående återköpsbelopp (i BSEK) för Q2 2025
@@ -78,7 +80,7 @@ const CurrentCashBox = ({ financialReports }) => {
 
   const latestQuarterData = getLatestQuarter(financialReports);
   const latestCash = latestQuarterData?.cashEnd || 0;
-  const latestCashBSEK = (latestCash * EXCHANGE_RATE) / 1000;
+  const latestCashBSEK = (latestCash * exchangeRate) / 1000;
 
   const estimatedIncrease = dateInfo.days ? (dailyProfit * dateInfo.days) / 1000000000 : 0;
   const estimatedCashBSEKBeforeBuyback = latestCashBSEK + estimatedIncrease;

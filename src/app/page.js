@@ -14,6 +14,7 @@ import NewsSection from "../Components/NewsSection";
 import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
 import GamePlayersBox from "../Components/GamePlayersBox"; // 👈 NY
+import FairValueCard from "../Components/FairValueCard";
 
 // Laddningsskelett för tunga komponenter
 const GraphBoxSkeleton = () => (
@@ -143,6 +144,18 @@ export default function Home() {
         >
           <MoneyCounter />
         </Box>
+      </Box>
+
+      {/* Fair Value */}
+      <Box id="fairvalue"
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "100%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
+        <FairValueCard reports={financialReports.financialReports} />
       </Box>
 
       {/* GraphBox */}

@@ -22,6 +22,7 @@ import { keyframes } from "@emotion/react";
 import buybackDataDefault from "../app/data/buybackData.json"; // Fallback vid initial render
 import oldBuybackDataDefault from "../app/data/oldBuybackData.json"; // Fallback vid initial render
 import { useStockPriceContext } from '../context/StockPriceContext';
+import { useFxRateContext } from '../context/FxRateContext';
 import ArrowBackIosIcon from '@mui/icons-material/ArrowBackIos';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import RefreshIcon from '@mui/icons-material/Refresh';
@@ -46,9 +47,6 @@ import {
   calculateAverageDailyBuyback,
   calculateEstimatedCompletion,
 } from './buybacks/utils';
-
-// Växelkurs (exempelvärde)
-const exchangeRate = 11.02; // Exempel: 1 EUR = 10.83 SEK
 
 // Animationer för glow-effekt
 const pulseGreen = keyframes`
@@ -140,6 +138,8 @@ const StockBuybackInfo = ({
 
   const { stockPrice, marketCap, loading: loadingPrice, error: priceError } = useStockPriceContext();
   const currentSharePrice = priceError ? (dividendData?.currentSharePrice || 0) : stockPrice?.price?.regularMarketPrice?.raw || 0;
+  const { rate: fxRate } = useFxRateContext();
+  const exchangeRate = fxRate ?? 11.02;
 
   const { combinedData: returnsData, total: totalReturns, totalDividends, totalBuybacks, latestYearReturns, latestYear } = calculateShareholderReturns(dividendData, oldData);
 
