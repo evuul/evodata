@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent, Box, Typography, Chip, Tooltip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button } from "@mui/material";
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useStockPriceContext } from '../context/StockPriceContext';
+import { useFxRateContext } from '../context/FxRateContext';
 import financialReports from "../app/data/financialReports.json";
 
 const MoneyCounter = ({ sx = {} }) => {
@@ -11,7 +12,8 @@ const MoneyCounter = ({ sx = {} }) => {
   const [todayProfit, setTodayProfit] = useState(0); // Dagens vinst (till nu)
   const [openInfo, setOpenInfo] = useState(false);
   const { stockPrice, marketCap, error: priceError } = useStockPriceContext();
-  const [fxRate, setFxRate] = useState(11.02);
+  const { rate: fxRateContext } = useFxRateContext();
+  const fxRate = fxRateContext ?? 11.02;
 
   // Start på innevarande år
   const getStartOfYear = () => {
@@ -59,22 +61,6 @@ const MoneyCounter = ({ sx = {} }) => {
     if (!(totalMEUR > 0 && totalDays > 0)) return 30_000_000;
     return (totalMEUR / totalDays) * 1_000_000 * fxRate;
   };
-
-  // Fetch FX (EUR->SEK)
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await fetch('/api/fx', { cache: 'no-store' });
-        if (res.ok) {
-          const json = await res.json();
-          const r = Number(json?.rate);
-          if (mounted && isFinite(r) && r > 0) setFxRate(r);
-        }
-      } catch (_) {}
-    })();
-    return () => { mounted = false; };
-  }, []);
 
   const dailyProfitPerDay = computeDailyProfitSEK();
   // Tick updater: uses computed dailyProfitPerDay
