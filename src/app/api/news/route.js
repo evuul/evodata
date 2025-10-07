@@ -38,8 +38,11 @@ export async function GET(request) {
     rssUrls.push('https://news.cision.com/se/evolution/rss/latest');
   }
 
-  // Dedupe final RSS list
-  rssUrls = Array.from(new Set(rssUrls));
+  // Dedupe final RSS list och begränsa hur många källor vi provar per request
+  const MAX_PRIMARY_SOURCE_FETCHES = 4;
+  const TARGET_ARTICLE_COUNT = 20;
+  const MIN_ARTICLES_FOR_GOOGLE = 6;
+  rssUrls = Array.from(new Set(rssUrls)).slice(0, MAX_PRIMARY_SOURCE_FETCHES);
 
   // Förbered Google News RSS som fallback om ovan inte ger träffar
   const langLower = String(lang || 'sv').toLowerCase();
@@ -193,6 +196,7 @@ export async function GET(request) {
           const got = await tryFetchRssVariants(u);
           if (got) {
             articles = articles.concat(parseRss(got.xml));
+            if (articles.length >= TARGET_ARTICLE_COUNT) break;
           } else {
             // MFN saknar ibland RSS – parsa HTML-listan
             if (/mfn\.se\//.test(String(u))) {
@@ -203,20 +207,27 @@ export async function GET(request) {
                   if (!r.ok) continue;
                   const html = await r.text();
                   const items = parseMfnList(html);
-                  if (items.length) { articles = articles.concat(items); break; }
+                  if (items.length) {
+                    articles = articles.concat(items);
+                    break;
+                  }
                 } catch {}
               }
+              if (articles.length >= TARGET_ARTICLE_COUNT) break;
             }
           }
         } catch {}
+        if (articles.length >= TARGET_ARTICLE_COUNT) break;
       }
       // Hämta även Google News och kombinera för bredare täckning (analys/media)
-      try {
-        const got = await tryFetchRssVariants(googleNewsRss);
-        if (got) {
-          articles = articles.concat(parseRss(got.xml, 'Google News'));
-        }
-      } catch {}
+      if (articles.length < MIN_ARTICLES_FOR_GOOGLE) {
+        try {
+          const got = await tryFetchRssVariants(googleNewsRss);
+          if (got) {
+            articles = articles.concat(parseRss(got.xml, 'Google News'));
+          }
+        } catch {}
+      }
       if (articles.length === 0) articles = FAKE_ARTICLES;
 
       // Försök översätta Google News-länkar till original för de 10 första
@@ -246,7 +257,7 @@ export async function GET(request) {
       // Deduplikera på normaliserad URL
       articles = Array.from(new Map(articles.map(a => [normalizeUrl(a.url), { ...a, url: normalizeUrl(a.url) }])).values())
         .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
-        .slice(0, 30);
+        .slice(0, TARGET_ARTICLE_COUNT);
       return new Response(JSON.stringify({ articles }), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
     }
     let articles = [];
@@ -269,7 +280,7 @@ export async function GET(request) {
     articles = articles
       .filter((a) => a.title && a.url)
       .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
-      .slice(0, 30);
+      .slice(0, TARGET_ARTICLE_COUNT);
 
     return new Response(JSON.stringify({ articles }), {
       status: 200,
@@ -295,7 +306,7 @@ export async function GET(request) {
           });
           rs = Array.from(new Map(rs.map(a => [a.url, a])).values())
             .sort((a, b) => new Date(b.publishedAt || 0) - new Date(a.publishedAt || 0))
-            .slice(0, 30);
+            .slice(0, TARGET_ARTICLE_COUNT);
           return new Response(JSON.stringify({ articles: rs }), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
         }
       } catch {}

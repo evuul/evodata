@@ -3,11 +3,25 @@ export const runtime = 'nodejs';
 
 import { ensureRecentBuybackSync, readBuybackFiles } from '@/lib/buybacksSync';
 
-export async function GET() {
-  try {
-    await ensureRecentBuybackSync();
-  } catch (err) {
-    console.error('Auto buyback sync failed:', err.message);
+function isMondayInStockholm(date = new Date()) {
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    timeZone: 'Europe/Stockholm',
+  }).format(date);
+  return weekday === 'Mon';
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const force = searchParams.get('force') === '1';
+  const shouldSync = force || isMondayInStockholm();
+
+  if (shouldSync) {
+    try {
+      await ensureRecentBuybackSync();
+    } catch (err) {
+      console.error('Auto buyback sync failed:', err.message);
+    }
   }
 
   try {

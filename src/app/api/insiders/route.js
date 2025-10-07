@@ -38,6 +38,7 @@ const PAGE_DELAY_MS = 500;
 const MAX_PAGE_RETRIES = 6;
 const RETRY_DELAY_MS = 1500;
 const DEFAULT_MAX_PAGES = 32;
+const INCREMENTAL_MAX_PAGES = 2;
 const MAX_REMOTE_PAGES = 40;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -362,7 +363,13 @@ const updateDatasetWithCache = async ({ cache, requestedPages }) => {
     const desiredRaw = requestedPages ?? fallbackPages;
     const desiredPages = Math.min(Math.max(desiredRaw, 1), MAX_REMOTE_PAGES);
     const extendCoverage = desiredPages > storedPages;
-    const fetchLimit = extendCoverage ? desiredPages : Math.min(MAX_REMOTE_PAGES, Math.max(2, requestedPages ?? 2));
+    const incrementalLimit = Math.max(
+      1,
+      Math.min(INCREMENTAL_MAX_PAGES, requestedPages ?? INCREMENTAL_MAX_PAGES),
+    );
+    const fetchLimit = extendCoverage
+      ? Math.min(desiredPages, MAX_REMOTE_PAGES)
+      : Math.min(desiredPages, incrementalLimit);
 
     const { rows, totalPages, rowsPerPage, pagesFetched } = await fetchPagesWithOptions({
       params: variant.params,
