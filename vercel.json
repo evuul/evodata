@@ -1,13 +1,8 @@
 {
     "crons": [
       {
-        "path": "/api/casinoscores/cron",
-        "schedule": "*/10 * * * *",
-        "method": "POST",
-        "headers": {
-            "Authorization": "Bearer ${CASINOSCORES_CRON_SECRET}"
-        }
+        "path": "/api/casinoscores/cron?token=75a5b8ffbc47c98725cb97455f9c0ec7f3ddad840e039e7fdc7453ad73096892",
+        "schedule": "*/10 * * * *"
       }
     ]
   }
-  
