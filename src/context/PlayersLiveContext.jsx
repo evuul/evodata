@@ -1,25 +1,9 @@
 "use client";
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { GAMES as BASE_GAMES } from "@/config/games";
 
 // Samma speldefinition som du använder i listan/header
-export const GAMES = [
-  { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
-  { id: "crazy-time:a",  label: "Crazy Time A",  apiSlug: "crazy-time", apiVariant: "a" },
-  { id: "monopoly-big-baller", label: "Big Baller", apiSlug: "monopoly-big-baller" },
-  { id: "funky-time",            label: "Funky Time", apiSlug: "funky-time" },
-  { id: "lightning-storm",       label: "Lightning Storm", apiSlug: "lightning-storm" },
-  { id: "crazy-balls",           label: "Crazy Balls", apiSlug: "crazy-balls" },
-  { id: "ice-fishing",           label: "Ice Fishing", apiSlug: "ice-fishing" },
-  { id: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette", apiSlug: "xxxtreme-lightning-roulette" },
-  { id: "monopoly-live",         label: "Monopoly Live", apiSlug: "monopoly-live" },
-  { id: "red-door-roulette",     label: "Red Door Roulette", apiSlug: "red-door-roulette" },
-  { id: "auto-roulette",         label: "Auto Roulette", apiSlug: "auto-roulette" },
-  { id: "speed-baccarat-a",      label: "Speed Baccarat A", apiSlug: "speed-baccarat-a" },
-  { id: "super-andar-bahar",     label: "Super Andar Bahar", apiSlug: "super-andar-bahar" },
-  { id: "lightning-dice",        label: "Lightning Dice", apiSlug: "lightning-dice" },
-  { id: "lightning-roulette",    label: "Lightning Roulette", apiSlug: "lightning-roulette" },
-  { id: "bac-bo",                label: "Bac Bo", apiSlug: "bac-bo" },
-];
+export const GAMES = BASE_GAMES;
 
 // Gemensam cooldown / intervall
 export const PLAYERS_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minuter
@@ -34,6 +18,21 @@ export function PlayersLiveProvider({ children }) {
   const [lastUpdated, setLastUpdated] = useState(null);
   const lastFetchRef = useRef(0);
 
+  const mapSnapshotToState = useCallback((json) => {
+    if (!json?.items) return {};
+    const mapped = {};
+    for (const item of json.items) {
+      if (!item || typeof item.id !== "string") continue;
+      const playersVal = Number(item.players);
+      mapped[item.id] = {
+        players: Number.isFinite(playersVal) ? playersVal : null,
+        updated: item.fetchedAt || null,
+        error: item.error || null,
+      };
+    }
+    return mapped;
+  }, []);
+
   const fetchAll = useCallback(async (force = false) => {
     const now = Date.now();
     const visible = typeof document === "undefined" ? true : document.visibilityState === "visible";
@@ -45,33 +44,26 @@ export function PlayersLiveProvider({ children }) {
 
     setLoading(true);
     setError("");
-    const out = {};
     try {
-      await Promise.all(
-        GAMES.map(async (g) => {
-          const params = new URLSearchParams();
-          if (g.apiVariant) params.set("variant", g.apiVariant);
-          if (force) params.set("force", "1");
-          const qs = params.toString() ? `?${params.toString()}` : "";
-          try {
-            const res = await fetch(`/api/casinoscores/players/${g.apiSlug}${qs}`, { cache: "no-store" });
-            const j = await res.json();
-            out[g.id] = j.ok
-              ? { players: Number(j.players), updated: j.fetchedAt }
-              : { players: null, updated: null, error: j.error || "error" };
-          } catch (e) {
-            out[g.id] = { players: null, updated: null, error: String(e?.message || e) };
-          }
-        })
-      );
-      setData(out);
-      setLastUpdated(new Date());
+      const params = new URLSearchParams();
+      if (force) params.set("refresh", "1");
+      const qs = params.toString() ? `?${params.toString()}` : "";
+      const res = await fetch(`/api/casinoscores/players/latest${qs}`, { cache: "no-store" });
+      const json = await res.json();
+
+      if (!res.ok || json?.ok !== true) {
+        throw new Error(json?.error || `HTTP ${res.status}`);
+      }
+
+      const mapped = mapSnapshotToState(json);
+      setData(mapped);
+      setLastUpdated(json.updatedAt ? new Date(json.updatedAt) : new Date());
     } catch (e) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mapSnapshotToState]);
 
   const hydrateFromCache = useCallback(async () => {
     try {
@@ -80,16 +72,7 @@ export function PlayersLiveProvider({ children }) {
       const json = await res.json();
       if (!json?.ok || !Array.isArray(json.items)) return;
 
-      const hydrated = {};
-      for (const item of json.items) {
-        if (!item || typeof item.id !== "string") continue;
-        const playersVal = Number(item.players);
-        hydrated[item.id] = {
-          players: Number.isFinite(playersVal) ? playersVal : null,
-          updated: item.fetchedAt || null,
-        };
-      }
-
+      const hydrated = mapSnapshotToState(json);
       setData((prev) => (Object.keys(prev).length ? prev : hydrated));
       if (json.updatedAt) {
         setLastUpdated((prev) => (prev ? prev : new Date(json.updatedAt)));
@@ -97,7 +80,7 @@ export function PlayersLiveProvider({ children }) {
     } catch {
       // ignorerar cachefel
     }
-  }, []);
+  }, [mapSnapshotToState]);
 
   // initial + events
   useEffect(() => {

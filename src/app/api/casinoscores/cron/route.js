@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-import { ALLOWED_SLUGS } from "../players/[game]/route";
+import { fetchPlayersSnapshot } from "@/lib/fetchPlayersSnapshot";
+import { buildSnapshotFromResults, storePlayerSnapshot } from "@/lib/playerSnapshotStore";
 
 const SECRET = process.env.CASINOSCORES_CRON_SECRET || "";
 
@@ -30,47 +31,37 @@ export async function POST(req) {
   }
 
   const origin = new URL(req.url).origin;
-  const results = [];
+  const results = await fetchPlayersSnapshot({ origin, force: true, cronMode: true });
 
-  for (const slug of ALLOWED_SLUGS) {
-    const started = Date.now();
+  const fetched = results.filter((r) => r.ok).length;
+
+  if (fetched > 0) {
     try {
-      const url = `${origin}/api/casinoscores/players/${slug}?force=1&cron=1`;
-      const res = await fetch(url, { cache: "no-store" });
-      let payload = null;
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        try {
-          payload = await res.json();
-        } catch {
-          payload = null;
-        }
-      }
-
-      const ok = payload?.ok === true;
-      results.push({
-        slug,
-        status: res.status,
-        ok,
-        players: payload?.players ?? null,
-        fetchedAt: payload?.fetchedAt ?? null,
-        error: ok ? undefined : payload?.error || res.statusText || "Unknown error",
-        durationMs: Date.now() - started,
-      });
+      const snapshot = buildSnapshotFromResults(
+        results.map((r) => ({
+          id: r.id,
+          players: r.players,
+          fetchedAt: r.fetchedAt,
+          error: r.ok ? null : r.error,
+        })),
+        { source: "cron" }
+      );
+      await storePlayerSnapshot(snapshot);
     } catch (error) {
       results.push({
-        slug,
+        id: "snapshot",
+        slug: "snapshot",
+        variant: null,
         status: 0,
         ok: false,
         players: null,
         fetchedAt: null,
         error: error instanceof Error ? error.message : String(error),
-        durationMs: Date.now() - started,
+        durationMs: 0,
       });
     }
   }
 
-  const fetched = results.filter((r) => r.ok).length;
   return json({
     ok: fetched === results.length,
     fetched,
