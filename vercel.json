@@ -1,0 +1,13 @@
+{
+    "crons": [
+      {
+        "path": "/api/casinoscores/cron",
+        "schedule": "*/10 * * * *",
+        "method": "POST",
+        "headers": {
+            "Authorization": "Bearer ${CASINOSCORES_CRON_SECRET}"
+        }
+      }
+    ]
+  }
+  
