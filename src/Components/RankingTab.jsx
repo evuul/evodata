@@ -411,7 +411,10 @@ export default function RankingTab({
       )}
 
       {/* Liten notis för konsekvens med Trend */}
-      <Typography variant="caption" sx={{ color: "#b0b0b0", display: "block", mt: 1 }}>
+      <Typography
+        variant="caption"
+        sx={{ color: "#b0b0b0", display: "block", mt: 1, textAlign: "center" }}
+      >
         Visar kompletta dagar (t.o.m. gårdagen) i Europe/Stockholm.
       </Typography>
     </Box>
