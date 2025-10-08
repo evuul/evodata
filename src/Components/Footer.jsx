@@ -75,7 +75,7 @@ const Footer = () => {
             Hjälp mig täcka kostnaden på cirka 400 kr/mån för att hålla sidan och databasen igång när aktiviteten ökar.
           </Typography>
           <Typography variant="body2" sx={{ color: "#9e9e9e", mt: 0.5 }}>
-            Varje valfri gåva gör att vi kan fortsätta samla in data och bygga nya funktioner.
+            Varje valfri gåva gör att jag kan fortsätta samla in data och bygga nya funktioner.
           </Typography>
           <Typography variant="body2" sx={{ color: "#9e9e9e", mt: 0.5 }}>
             Varje bidrag hjälper! ❤️ Scanna QR-koden eller följ länken.
