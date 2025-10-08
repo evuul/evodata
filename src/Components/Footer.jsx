@@ -54,6 +54,7 @@ const Footer = () => {
       </Typography>
 
       <Box
+        id="support"
         sx={{
           mt: 2,
           p: { xs: 1.5, sm: 2 },

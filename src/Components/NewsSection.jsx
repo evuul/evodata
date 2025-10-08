@@ -13,28 +13,28 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 
 const FAKE_NEWS = [
   {
-    title: "Evolution lanserar nytt spel i Live Casino-portföljen",
-    url: "https://example.com/nyhet/evolution-nytt-spel",
-    source: "ExempelMedia",
+    title: "Evolution publicerar kvartalsrapport",
+    url: "https://example.com/press/evolution-kvartalsrapport",
+    source: "MFN",
     publishedAt: new Date().toISOString(),
     snippet:
-      "Det nya spelet breddar bolagets erbjudande och förstärker positionen på marknaden.",
+      "Rapporten summerar bolagets finansiella utveckling och tillväxtinitiativ.",
   },
   {
-    title: "Analytiker höjer riktkursen för Evolution",
-    url: "https://example.com/nyhet/evolution-riktkurs",
-    source: "AnalysHuset",
+    title: "Evolution annonserar strategiskt partnerskap",
+    url: "https://example.com/press/evolution-partnerskap",
+    source: "Cision",
     publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
     snippet:
-      "Stark tillväxt och robust marginalutveckling anges som skäl till höjningen.",
+      "Partnerskapet stärker erbjudandet mot operatörer i Europa.",
   },
   {
-    title: "Evolution tecknar avtal med stor operatör i Nordamerika",
-    url: "https://example.com/nyhet/evolution-nordamerika",
-    source: "Spelbranschen Idag",
+    title: "Evolution lanserar ny spelupplevelse",
+    url: "https://example.com/press/evolution-lansering",
+    source: "GlobeNewswire",
     publishedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
     snippet:
-      "Avtalet stärker närvaron på den nordamerikanska marknaden och öppnar för nya intäktsströmmar.",
+      "Det nya spelet adderar innovation och underhållning för spelare världen över.",
   },
 ];
 
@@ -47,7 +47,6 @@ const NewsSection = ({
   const [articles, setArticles] = useState([]);
   const [isTest, setIsTest] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [filter, setFilter] = useState("ALL"); // ALL | PRESS | ANALYS | MEDIA
 
   const getDomain = (u) => {
     try {
@@ -72,21 +71,7 @@ const NewsSection = ({
       /press|release|mfn|ir\b/.test(title)
     )
       return "PRESS";
-    const analysisDomains = [
-      "di.se",
-      "placera.se",
-      "seekingalpha.com",
-      "borskollen.se",
-      "affarsvarlden.se",
-      "introduce.se",
-      "marketscreener.com",
-    ];
-    if (
-      analysisDomains.some((d) => domain.endsWith(d)) ||
-      /analys|riktkurs|rekommendation/.test(title)
-    )
-      return "ANALYS";
-    return "MEDIA";
+    return "OTHER";
   };
 
   const byDateDesc = (a, b) =>
@@ -147,11 +132,10 @@ const NewsSection = ({
   }, [query, lang]);
 
   const displayed = useMemo(() => {
-    const byDate = [...articles].sort(byDateDesc);
-    const filtered =
-      filter === "ALL" ? byDate : byDate.filter((a) => a.type === filter);
-    return filtered.slice(0, 5);
-  }, [articles, filter]);
+    const pressOnly = articles.filter((a) => a.type === "PRESS");
+    const byDate = [...pressOnly].sort(byDateDesc);
+    return byDate.slice(0, 5);
+  }, [articles]);
 
   return (
     <Card
@@ -213,7 +197,7 @@ const NewsSection = ({
         </IconButton>
       </Box>
 
-      {/* Filter & statusrad */}
+      {/* Statusrad */}
       <Box
         sx={{
           display: "flex",
@@ -224,33 +208,12 @@ const NewsSection = ({
           mb: 2,
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            gap: 1,
-            flexWrap: "wrap",
-            justifyContent: "center",
-          }}
+        <Typography
+          variant="body2"
+          sx={{ color: "#b0b0b0", textAlign: "center" }}
         >
-          {[
-            { key: "ALL", label: "Alla" },
-            { key: "PRESS", label: "Pressmeddelanden" },
-            { key: "ANALYS", label: "Analys" },
-            { key: "MEDIA", label: "Media" },
-          ].map((f) => (
-            <Chip
-              key={f.key}
-              label={f.label}
-              clickable
-              onClick={() => setFilter(f.key)}
-              sx={{
-                backgroundColor: filter === f.key ? "#00e676" : "#2a2a2a",
-                color: filter === f.key ? "#0b0b0b" : "#b0b0b0",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            />
-          ))}
-        </Box>
+          Visar endast pressmeddelanden för tillfället.
+        </Typography>
         <Typography
           variant="caption"
           sx={{ color: "#b0b0b0", textAlign: "center" }}

@@ -1,6 +1,7 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Typography, Box, Chip, Tooltip, CircularProgress } from "@mui/material";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice';
 import { usePlayersLive, PLAYERS_POLL_INTERVAL_MS } from "../context/PlayersLiveContext";
@@ -147,6 +148,22 @@ export default function Header() {
       return bv - av;
     });
     return rows.slice(0, 3);
+  }, [playerGames, liveGames]);
+
+  const totalPlayers = useMemo(() => {
+    const sourceGames = playerGames ?? [];
+    let sum = 0;
+    let hasData = false;
+
+    sourceGames.forEach((g) => {
+      const value = liveGames?.[g.id]?.players;
+      if (Number.isFinite(value)) {
+        sum += value;
+        hasData = true;
+      }
+    });
+
+    return hasData ? sum : null;
   }, [playerGames, liveGames]);
 
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw ?? "N/A";
@@ -317,12 +334,45 @@ export default function Header() {
             color: "#b0b0b0",
             fontSize: { xs: "0.85rem", sm: "1rem" },
             opacity: 0.9,
-            marginBottom: { xs: "6px", sm: "12px" },
+            marginBottom: { xs: "6px", sm: "10px" },
             display: { xs: "none", sm: "block" },
             fontWeight: 500,
           }}
         >
-          Spåra utvecklingen och statistik för 2025
+          Spåra utvecklingen och statistiken över tid
+        </Typography>
+
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{
+            color: "#f2f2f2",
+            fontSize: { xs: "1.05rem", sm: "1.2rem" },
+            fontWeight: 600,
+            letterSpacing: 0.3,
+            marginBottom: { xs: "4px", sm: "8px" },
+          }}
+        >
+          <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+            <FiberManualRecordIcon
+              sx={{
+                fontSize: "0.95rem",
+                color: loadingPlayers ? "#b0b0b0" : "#00e676",
+              }}
+            />
+            {loadingPlayers ? (
+              "Laddar totala antalet spelare…"
+            ) : totalPlayers != null ? (
+              <>
+                <Box component="span" sx={{ color: "#29B6F6", ml: 0.75, mr: 0.75 }}>
+                  {totalPlayers.toLocaleString("sv-SE")}
+                </Box>
+                spelare just nu
+              </>
+            ) : (
+              "Totalt antal spelare saknas för tillfället"
+            )}
+          </Box>
         </Typography>
 
         {/* Aktiepris */}
@@ -373,6 +423,18 @@ export default function Header() {
         <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip
+          component="a"
+          href="#support"
+          clickable
+          size="small"
+          label="Stötta"
+          sx={{
+            backgroundColor: '#2a2a2a',
+            color: '#66bb6a',
+            border: '1px solid #66bb6a55',
+          }}
+        />
       </Box>
     </>
   );
