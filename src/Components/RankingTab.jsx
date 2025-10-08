@@ -30,6 +30,11 @@ const FALLBACK_TOTAL_BAR_COLOR = "#FFCA28"; // används bara om färg saknas
 const FALLBACK_PER_GAME_BAR_COLOR = "#29B6F6";
 const ROW_HEIGHT = 28;
 const BASE_HEIGHT = 320;
+const TREND_COLORS = {
+  up: "#66bb6a",
+  down: "#ef5350",
+  flat: "#b0b0b0",
+};
 
 function wrapLabel(label = "", maxCharsPerLine = 16) {
   const words = String(label).split(/\s+/).filter(Boolean);
@@ -139,8 +144,68 @@ export default function RankingTab({
   const perGameSeries = useMemo(() => {
     if (!selectedGame) return [];
     const arr = multi?.[selectedGame]?.daily || [];
-    return arr.map((d) => ({ date: d.date, avg: Number(d.avg) }));
+    return arr
+      .map((d) => ({ date: d.date, avg: Number(d.avg) }))
+      .filter((d) => Number.isFinite(d.avg))
+      .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
   }, [multi, selectedGame]);
+
+  const perGameSummary = useMemo(() => {
+    if (perGameSeries.length === 0) return null;
+    const startEntry = perGameSeries[0];
+    const endEntry = perGameSeries[perGameSeries.length - 1];
+    if (!startEntry || !endEntry) return null;
+
+    const start = startEntry.avg;
+    const end = endEntry.avg;
+    const diff = end - start;
+    const pctChange = start ? (diff / start) * 100 : null;
+    const trend =
+      diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+
+    return { start, end, diff, pctChange, trend };
+  }, [perGameSeries]);
+
+  const numberFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("sv-SE", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
+
+  const percentFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("sv-SE", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
+    []
+  );
+
+  const perGameSummaryDisplay = useMemo(() => {
+    if (!perGameSummary) return null;
+    const startText = numberFormatter.format(perGameSummary.start);
+    const endText = numberFormatter.format(perGameSummary.end);
+    const diffAbs = numberFormatter.format(Math.abs(perGameSummary.diff));
+    const diffText =
+      perGameSummary.diff === 0 ? "0" : `${perGameSummary.diff > 0 ? "+" : "-"}${diffAbs}`;
+    const hasPct = perGameSummary.pctChange != null;
+    const pctText = hasPct
+      ? `${perGameSummary.pctChange > 0 ? "+" : perGameSummary.pctChange < 0 ? "-" : ""}${percentFormatter.format(Math.abs(perGameSummary.pctChange))}%`
+      : "–";
+    const trendColor = TREND_COLORS[perGameSummary.trend] || TREND_COLORS.flat;
+
+    return {
+      startText,
+      endText,
+      diffText,
+      pctText,
+      trendColor,
+      pctColor: hasPct ? trendColor : TREND_COLORS.flat,
+    };
+  }, [perGameSummary, numberFormatter, percentFormatter]);
 
   // Dynamisk höjd på total-grafen så den inte blir “ihoptryckt”
   const totalChartHeight = useMemo(() => {
@@ -408,6 +473,24 @@ export default function RankingTab({
             </BarChart>
           </ResponsiveContainer>
         </>
+      )}
+
+      {mode === RANK_MODE.PER_GAME && perGameSummaryDisplay && (
+        <Box sx={{ mt: 2, textAlign: "center" }}>
+          <Typography variant="body2" sx={{ color: "#f2f2f2" }}>
+            Start: {perGameSummaryDisplay.startText} spelare • Slut: {perGameSummaryDisplay.endText} spelare
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#f2f2f2" }}>
+            Förändring:{" "}
+            <Box component="span" sx={{ color: perGameSummaryDisplay.trendColor, fontWeight: 600 }}>
+              {perGameSummaryDisplay.diffText}
+            </Box>
+            {" • "}
+            <Box component="span" sx={{ color: perGameSummaryDisplay.pctColor, fontWeight: 600 }}>
+              {perGameSummaryDisplay.pctText}
+            </Box>
+          </Typography>
+        </Box>
       )}
 
       {/* Liten notis för konsekvens med Trend */}
