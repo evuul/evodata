@@ -1,8 +1,7 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
-import { Box, Button, Card, Typography, Chip, Link as MLink } from "@mui/material";
+import { Box, Card, Typography, Chip, Link as MLink } from "@mui/material";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import FeedbackBox from "./FeedbackBox";
 
@@ -54,7 +53,82 @@ const Footer = () => {
         Hobbyprojekt av en student — byggt för att öva på kodning.
       </Typography>
 
-      {/* Donationssektion tillfälligt dold */}
+      <Box
+        sx={{
+          mt: 2,
+          p: { xs: 1.5, sm: 2 },
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 2,
+          backgroundColor: "#252525",
+          border: "1px solid #333",
+          borderRadius: "10px",
+        }}
+      >
+        <Box sx={{ maxWidth: { xs: "100%", sm: "60%" } }}>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#fff" }}>
+            Stötta Evolution Tracker
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#c2c2c2", mt: 0.5 }}>
+            Hjälp mig täcka kostnaden på cirka 400 kr/mån för att hålla sidan och databasen igång när aktiviteten ökar.
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#9e9e9e", mt: 0.5 }}>
+            Varje valfri gåva gör att vi kan fortsätta samla in data och bygga nya funktioner.
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#9e9e9e", mt: 0.5 }}>
+            Varje bidrag hjälper! ❤️ Scanna QR-koden eller följ länken.
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 1.5,
+            minWidth: { xs: "100%", sm: "auto" },
+          }}
+        >
+          <MLink
+            href="https://buymeacoffee.com/evuul"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#1e1e1e",
+              borderRadius: "8px",
+              border: "1px solid #3a3a3a",
+              boxShadow: "0 6px 12px rgba(0,0,0,0.35)",
+              p: 1,
+            }}
+          >
+            <Box
+              component="img"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fbuymeacoffee.com%2Fevuul"
+              alt="QR-kod till Buy Me a Coffee för Evolution Tracker"
+              sx={{
+                width: 160,
+                height: 160,
+                borderRadius: "4px",
+                backgroundColor: "#fff",
+              }}
+            />
+          </MLink>
+          <Typography variant="caption" component="span" sx={{ color: "#b0b0b0" }}>
+            <MLink
+              href="https://buymeacoffee.com/evuul"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{ color: "#d7a26b", textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
+            >
+              https://buymeacoffee.com/evuul
+            </MLink>
+          </Typography>
+        </Box>
+      </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
         <Chip label="Förslagslåda" size="small" sx={{ backgroundColor: '#2a2a2a', color: '#e0e0e0', fontWeight: 600 }} />
