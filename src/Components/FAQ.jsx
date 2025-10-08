@@ -20,11 +20,15 @@ const faqs = [
   },
   {
     q: "Hur ofta uppdateras data (pris, nyheter, grafer)?",
-    a: "Aktiepris uppdateras periodiskt via vårt API. Nyheter hämtas vid sidladdning och kan uppdateras manuellt. Historiska grafer uppdateras när nya rapporter läggs in.",
+    a: "Aktiepris uppdateras periodiskt via vårt API. Live-spelare och totalsiffran i headern hämtas var 10:e minut när fliken är aktiv. Nyheter laddas vid sidladdning och kan uppdateras manuellt (just nu visas enbart pressmeddelanden). Historiska grafer uppdateras när nya rapporter läggs in.",
   },
   {
     q: "Var kommer datan ifrån?",
     a: "Pris kommer via Yahoo Finance API. Finansiella rapporter och återköpsdata är sammanställda i projektets JSON‑filer. Om externa nyheter saknas visas exempelposter så du ser formatet.",
+  },
+  {
+    q: "Varför visas bara pressmeddelanden i nyhetsfliken?",
+    a: "För att hålla flödet fokuserat filtrerar vi just nu bort analys- och medierapporter och visar enbart pressmeddelanden från källor som Cision, MFN och liknande. Filtret kan öppnas upp igen när fler källor är på plats.",
   },
   {
     q: "Hur fungerar Game Tracker?",
@@ -33,6 +37,14 @@ const faqs = [
   {
     q: "Vad visar MoneyCounter?",
     a: "En uppskattning av dagens vinst (till nu). Den lilla chippen visar vad vinsten skulle kunna räcka till idag: \"Skulle räcka till återköp: N aktier (X%)\" samt \"Skulle räcka till: Y SEK per aktie\". Det är en visuell representation – inga beslut underlag.",
+  },
+  {
+    q: "Visar totalsiffran alla spelare i Evolution-lobbyn?",
+    a: "Headern summerar endast de spel vi trackar via sidan. När vi jämfört med Evolution-lobbyn i verkligheten har vi sett att totalen där ofta ligger 25–30% högre än den siffra vi visar.",
+  },
+  {
+    q: "Hur tas Fair Value (AI) fram?",
+    a: "Fair Value-kortet bygger på ett AI-resonemang som kombinerar senaste rapporterna, marginaltrenden och värderingsmultiplar i sektorn. Resultatet är en indikativ riktkurs – inte en rekommendation – och uppdateras när nya rapporter eller större händelser finns tillgängliga.",
   },
   {
     q: "Hur räknar ni återköpta aktier och per‑aktie idag?",

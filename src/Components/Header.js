@@ -374,6 +374,19 @@ export default function Header() {
             )}
           </Box>
         </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#9e9e9e",
+            textAlign: "center",
+            maxWidth: 520,
+            display: "block",
+            px: { xs: 1, sm: 0 },
+            mb: { xs: "8px", sm: "6px" },
+          }}
+        >
+          Den riktiga Evolution-lobbyn ligger ofta 25–30% högre.
+        </Typography>
 
         {/* Aktiepris */}
         {loadingPrice ? (
@@ -415,7 +428,8 @@ export default function Header() {
       {/* Quick anchors */}
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
         <Chip component="a" href="#live-games" clickable size="small" label="Live-spelare" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#money-counter" clickable size="small" label="Omsättning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#money-counter" clickable size="small" label="Dagens vinst" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#fairvalue" clickable size="small" label="Fair Value (AI)" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
         <Chip component="a" href="#blankning" clickable size="small" label="Blankning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
