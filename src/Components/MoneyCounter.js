@@ -158,37 +158,11 @@ const MoneyCounter = ({ sx = {} }) => {
             {formatDailyProfit(todayProfit)}
           </Typography>
 
-          <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
-            <Typography
-              variant="body1"
-              sx={{
-                color: "#b0b0b0",
-                fontSize: { xs: "0.9rem", sm: "1rem" },
-                opacity: 0.9,
-                marginBottom: "4px",
-              }}
-            >
-              Total vinst ({formattedStart} - {formattedToday}):
-            </Typography>
-            <Typography
-              variant="h5"
-              fontWeight="600"
-              sx={{
-                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
-                color: "#fff",
-                marginBottom: "4px",
-                fontFeatureSettings: '"tnum"',
-              }}
-              aria-live="polite"
-            >
-              {formatTotalProfit(totalProfitYTD)}
-            </Typography>
-        </Box>
           {/* SEK per sekund */}
-          <Box sx={{ mt: 1 }}>
+          <Box sx={{ mt: 2 }}>
             <Tooltip title="Beräknad intjäning per sekund (avrundad)">
               <Chip
-                label={`≈ ${perSecond.toLocaleString('sv-SE')} SEK/sek`}
+                label={`${perSecond.toLocaleString('sv-SE')} SEK per sekund`}
                 size="small"
                 onClick={() => setOpenInfo(true)}
                 sx={{ backgroundColor: '#2a2a2a', color: '#b0f5cf', border: '1px solid #355', cursor: 'pointer' }}
@@ -216,6 +190,33 @@ const MoneyCounter = ({ sx = {} }) => {
                 sx={{ backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #3a3a3a' }}
               />
             </Tooltip>
+          </Box>
+
+          <Box display="flex" flexDirection="column" alignItems="center" marginTop="12px">
+            <Typography
+              variant="body1"
+              sx={{
+                color: "#b0b0b0",
+                fontSize: { xs: "0.9rem", sm: "1rem" },
+                opacity: 0.9,
+                marginBottom: "4px",
+              }}
+            >
+              Total vinst ({formattedStart} - {formattedToday}):
+            </Typography>
+            <Typography
+              variant="h5"
+              fontWeight="600"
+              sx={{
+                fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
+                color: "#fff",
+                marginBottom: "4px",
+                fontFeatureSettings: '"tnum"',
+              }}
+              aria-live="polite"
+            >
+              {formatTotalProfit(totalProfitYTD)}
+            </Typography>
           </Box>
         </Box>
       </CardContent>
