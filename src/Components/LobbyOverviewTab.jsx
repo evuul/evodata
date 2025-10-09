@@ -466,7 +466,17 @@ export default function LobbyOverviewTab() {
             </Box>
           )}
 
-          <Box sx={chartGridSx}>
+          {/* Graf – kant-till-kant och full bredd */}
+          <Box
+            sx={{
+              ...chartGridSx,
+              mx: { xs: -1.5, md: -2.5 }, // matcha kortets padding på både mobil och desktop
+              borderRadius: { xs: 0, md: "12px" },
+              border: { xs: "none", md: "1px solid rgba(255,255,255,0.06)" },
+              px: { xs: 0, md: 0 },
+              py: { xs: 1.5, md: 2 },
+            }}
+          >
             <Box
               sx={{
                 display: "flex",
@@ -474,6 +484,7 @@ export default function LobbyOverviewTab() {
                 justifyContent: "space-between",
                 mb: 1.5,
                 gap: 1.5,
+                px: { xs: 1.5, md: 2.5 }, // luft för titeln när behållaren saknar padding
               }}
             >
               <Box sx={{ flex: 1 }} />
@@ -483,21 +494,35 @@ export default function LobbyOverviewTab() {
               <Box
                 sx={{
                   flex: 1,
-                  textAlign: "right",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  justifyContent: "center",
                   color: "rgba(255,255,255,0.65)",
                   fontSize: 13,
+                  textAlign: "right",
+                  pr: { xs: 1.5, md: 2.5 },
                 }}
               >
-                <Typography component="span" sx={{ fontSize: "inherit", color: "inherit" }}>
+                <Typography
+                  component="span"
+                  sx={{ fontSize: "inherit", color: "inherit", whiteSpace: "nowrap", lineHeight: 1.2 }}
+                >
                   Medel: {currentAverage != null ? formatPlayers(currentAverage) : "—"}
                 </Typography>
                 {simulate && (
                   <Typography
                     component="span"
-                    sx={{ ml: 1.5, fontSize: "inherit", color: SIM_COLOR, fontWeight: 600 }}
+                    sx={{
+                      mt: 0.15,
+                      fontSize: "inherit",
+                      color: SIM_COLOR,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      lineHeight: 1.2,
+                    }}
                   >
-                    Sim:{" "}
-                    {currentSimulatedAverage != null ? formatPlayers(currentSimulatedAverage) : "—"}
+                    Sim: {currentSimulatedAverage != null ? formatPlayers(currentSimulatedAverage) : "—"}
                   </Typography>
                 )}
               </Box>
