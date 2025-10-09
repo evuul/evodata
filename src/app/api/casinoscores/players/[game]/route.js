@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-import { saveSample } from "@/lib/csStore";
+import { saveSample, getLatestSample } from "@/lib/csStore";
 
 // Endast bas-slugs här (utan :a). A styrs via ?variant=a.
 export const ALLOWED_SLUGS = [
@@ -275,8 +275,13 @@ async function tryPlaywright({ url, variant }) {
       players: Number.isFinite(players) ? players : null,
       via: variant === "a" ? "playwright:a" : "playwright",
     };
-  } catch (e) {
-    return { players: null, via: "playwright-failed" };
+  } catch (error) {
+    console.error("[players][playwright] failed", { url, variant, error });
+    return {
+      players: null,
+      via: "playwright-failed",
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -459,7 +464,12 @@ async function tryPuppeteer({ url, variant }) {
       via: variant === "a" ? "puppeteer:a" : "puppeteer",
     };
   } catch (error) {
-    return { players: null, via: "puppeteer-failed" };
+    console.error("[players][puppeteer] failed", { url, variant, error });
+    return {
+      players: null,
+      via: "puppeteer-failed",
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -495,6 +505,7 @@ export async function GET(req, ctx) {
     const debug = searchParams.get("debug") === "1";
     const url = `${BASE}/${slug}/`;
     const cacheKey = `${slug}:${variant}`;
+    const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
 
     // 🚫 TEMP: block Crazy Time A på Vercel
     if (slug === "crazy-time" && variant === "a") {
@@ -516,6 +527,8 @@ export async function GET(req, ctx) {
 
     let players = null;
     let via = "unknown";
+    let viaDetail = null;
+    let plainError = null;
 
     if (variant === "default") {
       // För standard-varianten: försök plain först (billigt)
@@ -524,19 +537,22 @@ export async function GET(req, ctx) {
         const plain = extractPlayersFromHTML(html);
         players = plain.players;
         via = plain.via;
-      } catch {
+      } catch (error) {
         via = "plain:error";
+        plainError = error instanceof Error ? error.message : String(error);
       }
       if (!Number.isFinite(players)) {
         const headless = await runHeadlessFetch({ url, variant });
         players = headless.players;
         via = headless.via;
+        viaDetail = headless.error || null;
       }
     } else {
       // För A-variant: gå direkt på Playwright (måste klicka)
       const headless = await runHeadlessFetch({ url, variant: "a" });
       players = headless.players;
       via = headless.via;
+      viaDetail = headless.error || null;
     }
 
     if (debug) {
@@ -545,14 +561,50 @@ export async function GET(req, ctx) {
         slug,
         variant,
         via,
+        viaDetail,
+        plainError,
         players: Number.isFinite(players) ? players : null,
       });
     }
 
     if (!Number.isFinite(players)) {
-      return resJSON({ ok: false, error: "Hittade inte players", slug, variant, via }, 503, {
-        "Retry-After": "60",
-      });
+      const fallback = await getLatestSample(seriesKey).catch(() => null);
+      if (fallback) {
+        const data = {
+          slug,
+          variant,
+          players: fallback.value,
+          fetchedAt: new Date(fallback.ts).toISOString(),
+          stale: true,
+        };
+        const payload = {
+          ok: true,
+          ...data,
+          via: via === "unknown" ? "fallback-cache" : `${via}-fallback`,
+          viaDetail,
+          plainError,
+          source: "cache",
+        };
+        const etag = makeEtag({ slug, variant, players: data.players, fetchedAt: data.fetchedAt, stale: true });
+        g.__CS_CACHE__.set(cacheKey, { ts: Date.now(), data: payload, etag });
+        return resJSON(payload, 200, { ETag: etag, "Cache-Control": "no-store" });
+      }
+
+      return resJSON(
+        {
+          ok: false,
+          error: "Hittade inte players",
+          slug,
+          variant,
+          via,
+          viaDetail,
+          plainError,
+        },
+        503,
+        {
+          "Retry-After": "60",
+        }
+      );
     }
 
     const data = {
@@ -560,18 +612,25 @@ export async function GET(req, ctx) {
       variant,
       players,
       fetchedAt: new Date().toISOString(),
+      stale: false,
+    };
+    const payload = {
+      ok: true,
+      ...data,
+      via,
+      viaDetail,
+      plainError,
     };
 
     // Persist: spara under "crazy-time" resp. "crazy-time:a"
-    const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
     try {
       await saveSample(seriesKey, data.fetchedAt, players);
     } catch {}
 
     const etag = makeEtag(data);
-    g.__CS_CACHE__.set(cacheKey, { ts: Date.now(), data, etag });
+    g.__CS_CACHE__.set(cacheKey, { ts: Date.now(), data: payload, etag });
 
-    return resJSON({ ok: true, ...data }, 200, { ETag: etag });
+    return resJSON(payload, 200, { ETag: etag });
   } catch (err) {
     return resJSON({ ok: false, error: err?.message || String(err) }, 500);
   }
