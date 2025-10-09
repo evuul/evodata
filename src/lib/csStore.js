@@ -8,23 +8,7 @@ let kvClient = null;
 // Prova använda @vercel/kv om env finns – dynamisk import så build inte bryr sig lokalt
 async function getKv() {
   if (kvClient !== null) return kvClient; // cache
-
-  const normalizeUrl = (url) => (url && url.startsWith("http") ? url : undefined);
-
-  const apiUrl =
-    normalizeUrl(process.env.KV_REST_API_URL) ||
-    normalizeUrl(process.env.KV_URL) ||
-    normalizeUrl(process.env.UPSTASH_REDIS_REST_URL);
-  const apiToken =
-    process.env.KV_REST_API_TOKEN ||
-    process.env.KV_REST_TOKEN ||
-    process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (apiUrl && apiToken) {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_URL.startsWith("http")) {
-      process.env.KV_REST_API_URL = apiUrl;
-    }
-    if (!process.env.KV_REST_API_TOKEN) process.env.KV_REST_API_TOKEN = apiToken;
+  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
     const mod = await import("@vercel/kv");
     kvClient = mod.kv;
   } else {
