@@ -7,7 +7,7 @@
  * apiVariant = "a" endast för Crazy Time A (övriga saknar variant)
  */
 export const GAMES = [
-    { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
+    { id: "crazy-time",                  label: "Crazy Time",              apiSlug: "crazy-time" },
     { id: "monopoly-big-baller",         label: "Big Baller",              apiSlug: "monopoly-big-baller" },
     { id: "funky-time",                  label: "Funky Time",              apiSlug: "funky-time" },
     { id: "lightning-storm",             label: "Lightning Storm",         apiSlug: "lightning-storm" },
