@@ -44,24 +44,14 @@ export async function loadInsiderDataset() {
   if (kv) {
     try {
       const stored = await kv.get(KV_KEY);
-      if (stored) {
-        if (typeof stored === "string") return JSON.parse(stored);
-        return stored;
-      }
+      if (!stored) return null;
+      if (typeof stored === "string") return JSON.parse(stored);
+      return stored;
     } catch {
-      // ignore and fall back to file below
+      // fall back to file cache if kv read fails
     }
   }
-
-  const fallback = await readFileFallback();
-  if (fallback && kv) {
-    try {
-      await kv.set(KV_KEY, JSON.stringify(fallback));
-    } catch {
-      // ignore seed failure
-    }
-  }
-  return fallback;
+  return readFileFallback();
 }
 
 export async function saveInsiderDataset(dataset) {
