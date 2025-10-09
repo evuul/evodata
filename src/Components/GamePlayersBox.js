@@ -4,6 +4,7 @@ import { Card, CardContent, Tabs, Tab } from "@mui/material";
 import GamePlayersLiveList from "./GamePlayersLiveList";
 import GamePlayersTrendChart from "./GamePlayersTrendChart";
 import RankingTab from "./RankingTab"; // <- vår frameless ranking
+import LobbyOverviewTab from "./LobbyOverviewTab";
 
 export default function GamePlayersBox() {
   const [tab, setTab] = useState(0);
@@ -38,6 +39,7 @@ export default function GamePlayersBox() {
           <Tab label="Live" />
           <Tab label="Trend" />
           <Tab label="Ranking" />
+          <Tab label="Lobby" />
         </Tabs>
 
         {tab === 0 && <GamePlayersLiveList />}
@@ -57,6 +59,8 @@ export default function GamePlayersBox() {
             onChangeDays={setDays}
           />
         )}
+
+        {tab === 3 && <LobbyOverviewTab />}
       </CardContent>
     </Card>
   );
