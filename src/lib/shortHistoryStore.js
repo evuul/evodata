@@ -6,13 +6,21 @@ const KV_KEY = "short:history:v1";
 
 let kvClientPromise = null;
 
+function ensureKvEnv() {
+  if (!process.env.KV_REST_API_URL && process.env.KV_URL) {
+    process.env.KV_REST_API_URL = process.env.KV_URL;
+  }
+  if (!process.env.KV_REST_API_TOKEN && process.env.KV_REST_TOKEN) {
+    process.env.KV_REST_API_TOKEN = process.env.KV_REST_TOKEN;
+  }
+}
+
 async function getKvClient() {
+  ensureKvEnv();
   if (kvClientPromise) return kvClientPromise;
 
   kvClientPromise = (async () => {
-    const apiUrl = process.env.KV_REST_API_URL;
-    const apiToken = process.env.KV_REST_API_TOKEN;
-    if (!apiUrl || !apiToken) {
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
       return undefined;
     }
     try {

@@ -89,6 +89,37 @@ async function plainFetch(url) {
   return await r.text();
 }
 
+function parsePlayersFromText(text) {
+  if (typeof text !== "string") return null;
+  const cleaned = text.replace(/[^\d]/g, "");
+  if (!cleaned) return null;
+  const parsed = parseInt(cleaned, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+async function waitForPlayerCount(page, selector, timeout = 15000) {
+  try {
+    const handle = await page.waitForFunction(
+      (sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return null;
+        const text = (el.textContent || "").trim();
+        const digits = text.replace(/[^\d]/g, "");
+        if (!digits) return null;
+        const value = parseInt(digits, 10);
+        return Number.isFinite(value) ? value : null;
+      },
+      { timeout },
+      selector
+    );
+    const result = await handle.jsonValue();
+    await handle.dispose().catch(() => {});
+    return Number.isFinite(result) ? result : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------- Playwright (behövs för variant=a) ----------
 async function tryPlaywright({ url, variant }) {
   // Kör inte Playwright i Vercel
@@ -120,8 +151,7 @@ async function tryPlaywright({ url, variant }) {
     async function getCount() {
       try {
         const txt = await page.$eval(SELECTOR, (el) => (el.textContent || "").trim());
-        const n = parseInt((txt || "").replace(/[^\d]/g, ""), 10);
-        return Number.isFinite(n) ? n : null;
+        return parsePlayersFromText(txt);
       } catch {
         return null;
       }
@@ -237,9 +267,8 @@ async function tryPlaywright({ url, variant }) {
     }
 
     // Läs räknaren (oavsett variant)
-    await page.waitForSelector(SELECTOR, { timeout: 8000 });
-    const afterTxt = await page.$eval(SELECTOR, (el) => (el.textContent || "").trim());
-    const players = parseInt((afterTxt || "").replace(/[^\d]/g, ""), 10);
+    const players =
+      (await waitForPlayerCount(page, SELECTOR, 15000)) ?? (await getCount());
 
     await browser.close();
     return {
@@ -273,6 +302,9 @@ async function tryPuppeteer({ url, variant }) {
     const page = await browser.newPage();
 
     await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
+    await page.setUserAgent(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36"
+    );
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const type = req.resourceType();
@@ -300,8 +332,7 @@ async function tryPuppeteer({ url, variant }) {
         if (!handle) return null;
         const txt = await page.evaluate((el) => (el.textContent || "").trim(), handle);
         await handle.dispose();
-        const n = parseInt((txt || "").replace(/[^\d]/g, ""), 10);
-        return Number.isFinite(n) ? n : null;
+        return parsePlayersFromText(txt);
       } catch {
         return null;
       }
@@ -418,8 +449,8 @@ async function tryPuppeteer({ url, variant }) {
       }
     }
 
-    await page.waitForSelector(SELECTOR, { timeout: 8000 });
-    const players = await getCount();
+    const players =
+      (await waitForPlayerCount(page, SELECTOR, 15000)) ?? (await getCount());
 
     await browser.close();
 
