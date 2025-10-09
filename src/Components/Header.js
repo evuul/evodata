@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Typography, Box, Chip, Tooltip, CircularProgress } from "@mui/material";
+import { Typography, Box, Chip, Tooltip, CircularProgress, Button } from "@mui/material";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import { useStockPriceContext } from '../context/StockPriceContext';
 import StockPrice from './StockPrice';
@@ -27,6 +27,7 @@ export const COLORS = {
 };
 
 const EVO_LEI = '549300SUH6ZR1RF6TA88';
+const LOBBY_SIM_MULTIPLIER = 1.27;
 
 export default function Header() {
   const { stockPrice, loading: loadingPrice, error: priceError, marketCap } = useStockPriceContext();
@@ -169,6 +170,11 @@ export default function Header() {
   const currentPrice = stockPrice?.price?.regularMarketPrice?.raw ?? "N/A";
   const changePercent = stockPrice?.price?.regularMarketChangePercent?.raw ?? 0;
   const changeColor = changePercent > 0 ? "#00e676" : changePercent < 0 ? "#ff1744" : "#ccc";
+  const [simulateLobby, setSimulateLobby] = useState(false);
+  const simulatedTotalPlayers = useMemo(() => {
+    if (!Number.isFinite(totalPlayers)) return null;
+    return Math.round(totalPlayers * LOBBY_SIM_MULTIPLIER);
+  }, [totalPlayers]);
 
   return (
     <>
@@ -364,10 +370,23 @@ export default function Header() {
               "Laddar totala antalet spelare…"
             ) : totalPlayers != null ? (
               <>
-                <Box component="span" sx={{ color: "#ffffff", ml: 0.75, mr: 0.75 }}>
+                <Box component="span" sx={{ color: "#ffffff", ml: 0.75 }}>
                   {totalPlayers.toLocaleString("sv-SE")}
                 </Box>
-                spelare just nu
+                {simulateLobby && simulatedTotalPlayers != null && (
+                    <Box
+                      component="span"
+                      sx={{
+                        color: "#ffb74d",
+                        fontWeight: 600,
+                        ml: 1,
+                        mr: 0.75,
+                      }}
+                    >
+                      SIM {simulatedTotalPlayers.toLocaleString("sv-SE")}
+                    </Box>
+                  )}
+                  spelare just nu
               </>
             ) : (
               "Totalt antal spelare saknas för tillfället"
@@ -375,18 +394,37 @@ export default function Header() {
           </Box>
         </Typography>
         {!loadingPlayers && totalPlayers != null && (
-          <Typography
-            variant="caption"
-            sx={{
-              color: "#b0b0b0",
-              marginTop: -0.5,
-              marginBottom: { xs: "6px", sm: "10px" },
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            Evos riktiga lobby har oftast 25–30% fler spelare
-          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, mb: { xs: "6px", sm: "10px" } }}>
+            <Button
+              size="small"
+              onClick={() => setSimulateLobby((prev) => !prev)}
+              variant={simulateLobby ? "contained" : "outlined"}
+              sx={{
+                minWidth: 210,
+                background: simulateLobby ? "rgba(255,183,77,0.2)" : "transparent",
+                borderColor: simulateLobby ? "rgba(255,183,77,0.7)" : "rgba(255,255,255,0.2)",
+                color: simulateLobby ? "#fff" : "rgba(255,255,255,0.85)",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                "&:hover": {
+                  borderColor: "rgba(255,183,77,0.9)",
+                  background: simulateLobby ? "rgba(255,183,77,0.28)" : "rgba(255,255,255,0.08)",
+                },
+              }}
+            >
+              {simulateLobby ? "Simulering aktiv (+27%)" : "Aktivera lobby-simulering (+27%)"}
+            </Button>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "#b0b0b0",
+                textAlign: "center",
+                px: 2,
+              }}
+            >
+              Evos riktiga lobby ligger i snitt runt 27% över våra spårade spel – simuleringen ger en uppskattning, inte ett exakt värde.
+            </Typography>
+          </Box>
         )}
 
         {/* Aktiepris */}
