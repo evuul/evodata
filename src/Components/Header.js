@@ -364,7 +364,7 @@ export default function Header() {
               "Laddar totala antalet spelare…"
             ) : totalPlayers != null ? (
               <>
-                <Box component="span" sx={{ color: "#29B6F6", ml: 0.75, mr: 0.75 }}>
+                <Box component="span" sx={{ color: "#ffffff", ml: 0.75, mr: 0.75 }}>
                   {totalPlayers.toLocaleString("sv-SE")}
                 </Box>
                 spelare just nu
@@ -374,6 +374,20 @@ export default function Header() {
             )}
           </Box>
         </Typography>
+        {!loadingPlayers && totalPlayers != null && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: "#b0b0b0",
+              marginTop: -0.5,
+              marginBottom: { xs: "6px", sm: "10px" },
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
+            Evos riktiga lobby har oftast 25–30% fler spelare
+          </Typography>
+        )}
 
         {/* Aktiepris */}
         {loadingPrice ? (
