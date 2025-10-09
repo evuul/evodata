@@ -109,7 +109,7 @@ export function PlayersLiveProvider({ children }) {
 
   useEffect(() => {
     const initialId = setTimeout(() => {
-      fetchAll(false); // använd cron-cachen vid första laddningen
+      fetchAll(false); // hämta initialt när komponenten monteras
     }, 0);
     const onFocus = () => fetchAll(false);
     const onVis = () => fetchAll(false);

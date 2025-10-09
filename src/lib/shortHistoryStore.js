@@ -10,12 +10,23 @@ async function getKvClient() {
   if (kvClientPromise) return kvClientPromise;
 
   kvClientPromise = (async () => {
-    const apiUrl = process.env.KV_REST_API_URL;
-    const apiToken = process.env.KV_REST_API_TOKEN;
+    const normalizeUrl = (url) => (url && url.startsWith("http") ? url : undefined);
+    const apiUrl =
+      normalizeUrl(process.env.KV_REST_API_URL) ||
+      normalizeUrl(process.env.KV_URL) ||
+      normalizeUrl(process.env.UPSTASH_REDIS_REST_URL);
+    const apiToken =
+      process.env.KV_REST_API_TOKEN ||
+      process.env.KV_REST_TOKEN ||
+      process.env.UPSTASH_REDIS_REST_TOKEN;
     if (!apiUrl || !apiToken) {
       return undefined;
     }
     try {
+      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_URL.startsWith("http")) {
+        process.env.KV_REST_API_URL = apiUrl;
+      }
+      if (!process.env.KV_REST_API_TOKEN) process.env.KV_REST_API_TOKEN = apiToken;
       const mod = await import("@vercel/kv");
       return mod.kv;
     } catch {
