@@ -142,6 +142,8 @@ export default function LobbyOverviewTab() {
     [range, averages30, averages7]
   );
   const currentAverage = range === 30 ? thirtyDayAverage : sevenDayAverage;
+  const currentSimulatedAverage =
+    simulate && currentAverage != null ? Math.round(currentAverage * SIMULATION_MULTIPLIER) : null;
   const simulatedSeries = useMemo(
     () =>
       currentSeries.map((row) => ({
@@ -471,14 +473,34 @@ export default function LobbyOverviewTab() {
                 alignItems: "baseline",
                 justifyContent: "space-between",
                 mb: 1.5,
+                gap: 1.5,
               }}
             >
-              <Typography sx={{ fontWeight: 600 }}>
+              <Box sx={{ flex: 1 }} />
+              <Typography sx={{ flex: 1, textAlign: "center", fontWeight: 600 }}>
                 {range} dagar – snitt per dag
               </Typography>
-              <Typography sx={{ fontSize: 13, color: "rgba(255,255,255,0.65)" }}>
-                Medel: {currentAverage != null ? formatPlayers(currentAverage) : "—"}
-              </Typography>
+              <Box
+                sx={{
+                  flex: 1,
+                  textAlign: "right",
+                  color: "rgba(255,255,255,0.65)",
+                  fontSize: 13,
+                }}
+              >
+                <Typography component="span" sx={{ fontSize: "inherit", color: "inherit" }}>
+                  Medel: {currentAverage != null ? formatPlayers(currentAverage) : "—"}
+                </Typography>
+                {simulate && (
+                  <Typography
+                    component="span"
+                    sx={{ ml: 1.5, fontSize: "inherit", color: SIM_COLOR, fontWeight: 600 }}
+                  >
+                    Sim:{" "}
+                    {currentSimulatedAverage != null ? formatPlayers(currentSimulatedAverage) : "—"}
+                  </Typography>
+                )}
+              </Box>
             </Box>
 
             {chartData.length ? (
