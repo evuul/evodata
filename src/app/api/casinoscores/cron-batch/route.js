@@ -8,14 +8,14 @@ import { saveSample, getLatestSample } from "@/lib/csStore";
 const SECRET = process.env.CASINOSCORES_CRON_SECRET || "";
 const BASE = "https://casinoscores.com";
 
-// Hur länge en mätpunkt räknas som "färsk"
+// “Färsk”-fönster
 const TTL_MS = 9 * 60 * 1000;
 
-// Default hur många sidor vi kör parallellt (kan överstyras via ?batchSize=)
+// Parallellism (kan styras via ?batchSize=)
 const DEFAULT_BATCH_SIZE = 2;
 const MAX_BATCH_SIZE = 4;
 
-// OBS: vi ignorerar "crazy-time:a" just nu
+// Vi hoppar CT A just nu
 const SLUGS = [
   "crazy-time",
   // "crazy-time:a",
@@ -50,87 +50,74 @@ function okAuth(req) {
   return SECRET && authHeader === `Bearer ${SECRET}`;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                          Robust parsing + sanity-check                      */
-/* -------------------------------------------------------------------------- */
+/* -------------------------- Parsing & sanity checks ------------------------- */
 
-// Hårdare parser: läs bara siffror, släng bort extrema längder (skydd mot "exponent-skräp")
-function parsePlayersFromTextStrict(text) {
-  if (typeof text !== "string") return null;
-  const digits = text.replace(/[^\d]/g, "");
-  if (!digits) return null;
-
-  // Max 6 siffror (< 1 000 000). Justera vid behov.
-  if (digits.length > 6) return null;
-
-  const n = Number.parseInt(digits, 10);
-  if (!Number.isFinite(n)) return null;
-  return n;
-}
-
-// Rimlighetsintervall — justera efter din erfarenhet
-const MIN_REASONABLE = 50;       // Sätt lägre om du vill tillåta pyttelåga bord
-const MAX_REASONABLE = 100000;   // Inga bord ska ligga i hundratusental
+// Endast heltal 2–6 siffror (som “123”, “12345”). Allt annat -> null.
+const DIGIT_RUN = /\b(\d{2,6})\b/g;
+// Rimlighet (justera vid behov)
+const MIN_REASONABLE = 50;
+const MAX_REASONABLE = 100000;
 
 function isReasonable(n) {
-  if (!Number.isFinite(n)) return false;
-  if (n <= 0) return false;
-  if (n > MAX_REASONABLE) return false;
-  if (n < MIN_REASONABLE) return false;
-  return true;
+  return Number.isFinite(n) && n >= MIN_REASONABLE && n <= MAX_REASONABLE;
 }
 
-// Selector för räknaren
-const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
+// Returnera första rimliga heltals-matchen (2–6 siffror) från en given sträng
+function pickReasonableInt(s) {
+  if (typeof s !== "string" || !s) return null;
+  // Hårdsäkra: om strängen innehåller “e”/“E”/“+”/“-”/“.”
+  if (/[eE+\-.]/.test(s)) return null;
 
-/**
- * Läs “stabil” siffra: samma rimliga tal två gånger i rad.
- * Vi läser all text i counter-elementet (inkl. när varje siffra ligger i egen <span>).
- */
-async function readStablePlayers(page, attempts = 8, delayMs = 250) {
+  let match;
+  while ((match = DIGIT_RUN.exec(s)) !== null) {
+    const n = parseInt(match[1], 10);
+    if (isReasonable(n)) return n;
+  }
+  return null;
+}
+
+// Läs all text i ett element (inkl. digits som ligger i separata <span>)
+async function extractCounterString(page, selector) {
+  return page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (!el) return null;
+
+    // 1) Samla textnoder (robust mot splittrade siffror)
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let text = "";
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.nodeValue) text += node.nodeValue;
+    }
+
+    // 2) Som fallback: innerText
+    const fallback = el.innerText || el.textContent || "";
+    const merged = (text || "") + " " + fallback;
+    return merged.trim();
+  }, selector);
+}
+
+// Stabil-avläsning: samma rimliga heltal två gånger i rad
+async function readStablePlayers(page, selector, attempts = 8, delayMs = 250) {
   let prev = null;
-
   for (let i = 0; i < attempts; i++) {
-    // Säkerställ att elementet finns
     try {
-      await page.waitForSelector(SELECTOR, { timeout: 6000 });
-    } catch {
-      // prova igen
-    }
+      await page.waitForSelector(selector, { timeout: 6000 });
+    } catch {}
 
-    const current = await page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) return null;
-
-      // Ta alla textnoder under elementet
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-      let s = "";
-      let node;
-      while ((node = walker.nextNode())) {
-        if (node.nodeValue) s += node.nodeValue;
-      }
-      return s;
-    }, SELECTOR);
-
-    const parsed = parsePlayersFromTextStrict(current || "");
-
-    // Stabilt om samma som förra och rimligt
-    if (parsed != null && parsed === prev && isReasonable(parsed)) {
-      return parsed;
-    }
-
-    prev = parsed;
+    const raw = await extractCounterString(page, selector);
+    const cur = pickReasonableInt(raw || "");
+    if (cur != null && cur === prev) return cur;
+    prev = cur;
     await page.waitForTimeout(delayMs);
   }
-
-  // Sista chans: returnera bara om rimligt
   return isReasonable(prev) ? prev : null;
 }
 
-/**
- * Skrapa EN slug på en redan skapad sida (ingen interception sätts här inne).
- * Sparar ENDAST om vi lyckas läsa ett stabilt & rimligt värde.
- */
+const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
+
+/* ----------------------------- Scrape en slug ------------------------------ */
+
 async function scrapeOne(page, id) {
   const started = Date.now();
   const [slug, variant] = id.split(":");
@@ -148,7 +135,7 @@ async function scrapeOne(page, id) {
       if (btn) await btn.click({ delay: 40 });
     } catch {}
 
-    // Variant A (om du aktiverar den i SLUGS senare)
+    // Variant A (om du aktiverar i SLUGS)
     if (variant === "a") {
       try {
         const toggled = await page.evaluate(() => {
@@ -163,8 +150,7 @@ async function scrapeOne(page, id) {
       } catch {}
     }
 
-    // Läs stabil siffra
-    const n = await readStablePlayers(page, 8, 250);
+    const n = await readStablePlayers(page, SELECTOR, 8, 250);
 
     if (!Number.isFinite(n)) {
       return {
@@ -172,12 +158,12 @@ async function scrapeOne(page, id) {
         ok: false,
         players: null,
         fetchedAt: null,
-        error: "No stable/valid numeric player count found",
+        error: "No stable/valid integer (2-6 digits) found",
         durationMs: Date.now() - started,
+        parser: "strict-2to6-v1",
       };
     }
 
-    // Dubbelkolla rimlighet
     if (!isReasonable(n)) {
       return {
         id,
@@ -186,10 +172,10 @@ async function scrapeOne(page, id) {
         fetchedAt: null,
         error: `Unreasonable value ${n}`,
         durationMs: Date.now() - started,
+        parser: "strict-2to6-v1",
       };
     }
 
-    // Spara
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
     const tsIso = new Date().toISOString();
     try { await saveSample(seriesKey, tsIso, n); } catch {}
@@ -200,6 +186,7 @@ async function scrapeOne(page, id) {
       players: n,
       fetchedAt: tsIso,
       durationMs: Date.now() - started,
+      parser: "strict-2to6-v1",
     };
   } catch (error) {
     return {
@@ -209,15 +196,13 @@ async function scrapeOne(page, id) {
       fetchedAt: null,
       error: error instanceof Error ? error.message : String(error),
       durationMs: Date.now() - started,
+      parser: "strict-2to6-v1",
     };
   }
 }
 
-/* -------------------------------------------------------------------------- */
-/*                         Motorer: Vercel / Lokalt                            */
-/* -------------------------------------------------------------------------- */
+/* ---------------------------- Motorer (Vercel/Local) ----------------------- */
 
-/** Vercel (puppeteer-core + @sparticuz/chromium) med requestInterception */
 async function runOnVercel(staleIds, batchSize) {
   const [{ default: chromium }, puppeteerModule] = await Promise.all([
     import("@sparticuz/chromium"),
@@ -272,7 +257,6 @@ async function runOnVercel(staleIds, batchSize) {
   return out;
 }
 
-/** Lokalt (Playwright) med page.route */
 async function runLocally(staleIds, batchSize) {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
@@ -283,7 +267,6 @@ async function runLocally(staleIds, batchSize) {
       const chunk = staleIds.slice(i, i + batchSize);
       const pages = await Promise.all(chunk.map(() => browser.newPage()));
 
-      // Blockera tunga resurser
       await Promise.all(
         pages.map(async (page) => {
           await page.route("**/*", (route) => {
@@ -312,24 +295,24 @@ async function runLocally(staleIds, batchSize) {
   return out;
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                   Route                                     */
-/* -------------------------------------------------------------------------- */
+/* --------------------------------- Route ---------------------------------- */
 
 export async function GET(req) {
   if (!okAuth(req)) return resJSON({ ok: false, error: "Unauthorized" }, 401);
 
   const url = new URL(req.url);
-  // tillåt begränsning för test / undvika timeouts
   const limitParam = url.searchParams.get("limit");
   const batchSizeParam = url.searchParams.get("batchSize");
 
   const batchSize = Math.max(
     1,
-    Math.min(MAX_BATCH_SIZE, Number.parseInt(batchSizeParam || String(DEFAULT_BATCH_SIZE), 10) || DEFAULT_BATCH_SIZE)
+    Math.min(
+      MAX_BATCH_SIZE,
+      Number.parseInt(batchSizeParam || String(DEFAULT_BATCH_SIZE), 10) || DEFAULT_BATCH_SIZE
+    )
   );
 
-  // 1) Hitta vilka slugs som är stale
+  // 1) Hitta stale
   const now = Date.now();
   const staleCheck = await Promise.all(
     SLUGS.map(async (id) => {
@@ -343,7 +326,6 @@ export async function GET(req) {
   const freshList = staleCheck.filter((x) => x.fresh);
   let staleIds = staleCheck.filter((x) => !x.fresh).map((x) => x.id);
 
-  // Begränsa antal stale att köra (för att undvika timeout), om angivet
   const limit = Number.isFinite(Number(limitParam)) ? Number(limitParam) : undefined;
   if (limit && limit > 0) staleIds = staleIds.slice(0, limit);
 
@@ -359,7 +341,7 @@ export async function GET(req) {
           : { id: x.id, ok: true, players: null, fetchedAt: null, status: "no-sample" }
       ),
       ts: new Date().toISOString(),
-      meta: { batchSize, limit: limit || null },
+      meta: { batchSize, limit: limit || null, parser: "strict-2to6-v1" },
     });
   }
 
@@ -368,7 +350,7 @@ export async function GET(req) {
     ? runOnVercel(staleIds, batchSize)
     : runLocally(staleIds, batchSize));
 
-  // 3) Svar + inkludera fresh-skips
+  // 3) Sammanfoga med fresh/no-sample
   const byId = new Map(results.map((r) => [r.id, r]));
   const merged = SLUGS.map((id) => {
     if (byId.has(id)) return byId.get(id);
@@ -387,7 +369,7 @@ export async function GET(req) {
     skippedFresh: freshList.length,
     results: merged,
     ts: new Date().toISOString(),
-    meta: { batchSize, limit: limit || null },
+    meta: { batchSize, limit: limit || null, parser: "strict-2to6-v1" },
   });
 }
 
