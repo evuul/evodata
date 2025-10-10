@@ -8,7 +8,6 @@ import { saveSample, getLatestSample } from "@/lib/csStore";
 // Endast bas-slugs här (utan :a). A styrs via ?variant=a.
 export const ALLOWED_SLUGS = [
   "crazy-time",
-  // "Crazy-time:a",
   "monopoly-big-baller",
   "funky-time",
   "lightning-storm",
