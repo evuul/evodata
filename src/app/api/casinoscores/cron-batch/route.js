@@ -11,11 +11,11 @@ const BASE = "https://casinoscores.com";
 // Hur länge en mätpunkt räknas som "färsk"
 const TTL_MS = 9 * 60 * 1000;
 
-// Hur många sidor vi kör parallellt (kan styras via query ?batchSize=2)
-const DEFAULT_BATCH_SIZE = 3;
-// Max antal slugs per körning (kan styras via query ?limit=4)
-const DEFAULT_LIMIT = Infinity;
+// Default hur många sidor vi kör parallellt (kan överstyras via ?batchSize=)
+const DEFAULT_BATCH_SIZE = 2;
+const MAX_BATCH_SIZE = 4;
 
+// OBS: vi ignorerar "crazy-time:a" just nu
 const SLUGS = [
   "crazy-time",
   // "crazy-time:a",
@@ -50,122 +50,87 @@ function okAuth(req) {
   return SECRET && authHeader === `Bearer ${SECRET}`;
 }
 
-function parsePlayersFromText(text) {
+/* -------------------------------------------------------------------------- */
+/*                          Robust parsing + sanity-check                      */
+/* -------------------------------------------------------------------------- */
+
+// Hårdare parser: läs bara siffror, släng bort extrema längder (skydd mot "exponent-skräp")
+function parsePlayersFromTextStrict(text) {
   if (typeof text !== "string") return null;
-  const cleaned = text.replace(/[^\d]/g, "");
-  if (!cleaned) return null;
-  const n = parseInt(cleaned, 10);
-  return Number.isFinite(n) ? n : null;
+  const digits = text.replace(/[^\d]/g, "");
+  if (!digits) return null;
+
+  // Max 6 siffror (< 1 000 000). Justera vid behov.
+  if (digits.length > 6) return null;
+
+  const n = Number.parseInt(digits, 10);
+  if (!Number.isFinite(n)) return null;
+  return n;
 }
 
-// Samma parser som i [game]-routen (förenklad för fall-back från rå HTML)
-function extractPlayersFromHTML(html) {
-  if (typeof html !== "string" || !html) return null;
-  // 1) Försök fånga texten i kända element
-  const idMatch = html.match(/id=["']playersCounter["'][^>]*>([\s\S]*?)<\/\s*div\s*>/i);
-  if (idMatch) {
-    const n = parseInt(idMatch[1].replace(/[^\d]/g, ""), 10);
-    if (Number.isFinite(n)) return n;
-  }
-  const dtidMatch = html.match(/data-testid=["']player-counter["'][^>]*>([\s\S]*?)<\/\s*div\s*>/i);
-  if (dtidMatch) {
-    const n = parseInt(dtidMatch[1].replace(/[^\d]/g, ""), 10);
-    if (Number.isFinite(n)) return n;
-  }
-  // 2) Ta bort script/style och plocka första "NNNN players"
-  const text = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ");
-  const m = text.match(/([\d\s.,\u00A0]{1,12})\s*players/i);
-  if (m) {
-    const n = parseInt(m[1].replace(/[^\d]/g, ""), 10);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+// Rimlighetsintervall — justera efter din erfarenhet
+const MIN_REASONABLE = 50;       // Sätt lägre om du vill tillåta pyttelåga bord
+const MAX_REASONABLE = 100000;   // Inga bord ska ligga i hundratusental
+
+function isReasonable(n) {
+  if (!Number.isFinite(n)) return false;
+  if (n <= 0) return false;
+  if (n > MAX_REASONABLE) return false;
+  if (n < MIN_REASONABLE) return false;
+  return true;
 }
 
+// Selector för räknaren
 const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
 
-/** Robust läsning: vänta på siffror, scanna kandidater, fall back till page.content() */
-async function readPlayersOnPage(page) {
-  // 1) Vänta upp till 12s på att kända element innehåller siffror
-  try {
-    const value = await page.waitForFunction(
-      (sel) => {
-        const el = document.querySelector(sel);
-        if (!el) return null;
-        const txt = (el.textContent || "").trim();
-        const d = (txt || "").replace(/[^\d]/g, "");
-        if (!d) return null;
-        const n = parseInt(d, 10);
-        return Number.isFinite(n) ? n : null;
-      },
-      { timeout: 12000 },
-      SELECTOR
-    );
-    const n = await value.jsonValue();
-    if (Number.isFinite(n)) return n;
-  } catch {
-    // fortsätt till nästa strategi
-  }
+/**
+ * Läs “stabil” siffra: samma rimliga tal två gånger i rad.
+ * Vi läser all text i counter-elementet (inkl. när varje siffra ligger i egen <span>).
+ */
+async function readStablePlayers(page, attempts = 8, delayMs = 250) {
+  let prev = null;
 
-  // 2) Scanna flera kandidater direkt i DOM
-  try {
-    const n = await page.evaluate(() => {
-      function pickNum(s) {
-        if (!s) return null;
-        const d = s.replace(/[^\d]/g, "");
-        if (!d) return null;
-        const v = parseInt(d, 10);
-        return Number.isFinite(v) ? v : null;
-      }
+  for (let i = 0; i < attempts; i++) {
+    // Säkerställ att elementet finns
+    try {
+      await page.waitForSelector(SELECTOR, { timeout: 6000 });
+    } catch {
+      // prova igen
+    }
 
-      const selectors = [
-        '#playersCounter',
-        '[data-testid="player-counter"]',
-        '[class*="player"]',
-        '[class*="counter"]',
-        '[class*="players"]',
-      ];
+    const current = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
 
-      for (const sel of selectors) {
-        const nodes = Array.from(document.querySelectorAll(sel));
-        for (const el of nodes) {
-          const n = pickNum((el.textContent || "").trim());
-          if (Number.isFinite(n)) return n;
-        }
-      }
-
-      // Som sista försök: leta efter textnoder med ordet "players"
-      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      // Ta alla textnoder under elementet
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let s = "";
       let node;
       while ((node = walker.nextNode())) {
-        const t = node.nodeValue || "";
-        if (/players/i.test(t)) {
-          const n = pickNum(t);
-          if (Number.isFinite(n)) return n;
-        }
+        if (node.nodeValue) s += node.nodeValue;
       }
+      return s;
+    }, SELECTOR);
 
-      return null;
-    });
-    if (Number.isFinite(n)) return n;
-  } catch {
-    // fortsätt till fallback
+    const parsed = parsePlayersFromTextStrict(current || "");
+
+    // Stabilt om samma som förra och rimligt
+    if (parsed != null && parsed === prev && isReasonable(parsed)) {
+      return parsed;
+    }
+
+    prev = parsed;
+    await page.waitForTimeout(delayMs);
   }
 
-  // 3) Fallback: page.content() → HTML-parser
-  try {
-    const html = await page.content();
-    const n = extractPlayersFromHTML(html);
-    if (Number.isFinite(n)) return n;
-  } catch {}
-
-  return null;
+  // Sista chans: returnera bara om rimligt
+  return isReasonable(prev) ? prev : null;
 }
 
-/** Skrapa EN slug på en redan skapad sida (ingen interception här inne!) */
+/**
+ * Skrapa EN slug på en redan skapad sida (ingen interception sätts här inne).
+ * Sparar ENDAST om vi lyckas läsa ett stabilt & rimligt värde.
+ */
 async function scrapeOne(page, id) {
   const started = Date.now();
   const [slug, variant] = id.split(":");
@@ -177,12 +142,13 @@ async function scrapeOne(page, id) {
     // Cookie-knapp (best effort)
     try {
       const buttonXPath =
-        "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'allow') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept')]";
+        "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'allow') or " +
+        "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept')]";
       const [btn] = await page.$x(buttonXPath);
       if (btn) await btn.click({ delay: 40 });
     } catch {}
 
-    // Variant A-omslag om efterfrågat
+    // Variant A (om du aktiverar den i SLUGS senare)
     if (variant === "a") {
       try {
         const toggled = await page.evaluate(() => {
@@ -193,30 +159,47 @@ async function scrapeOne(page, id) {
           second.click();
           return true;
         });
-        if (toggled) {
-          await page.waitForTimeout(350);
-        }
+        if (toggled) await page.waitForTimeout(350);
       } catch {}
     }
 
-    // → robust läsning
-    const n = await readPlayersOnPage(page);
-    const ok = Number.isFinite(n);
-    if (!ok) {
+    // Läs stabil siffra
+    const n = await readStablePlayers(page, 8, 250);
+
+    if (!Number.isFinite(n)) {
       return {
-        id, ok: false, players: null, fetchedAt: null,
-        error: "No numeric player count found",
-        durationMs: Date.now() - started
+        id,
+        ok: false,
+        players: null,
+        fetchedAt: null,
+        error: "No stable/valid numeric player count found",
+        durationMs: Date.now() - started,
       };
     }
 
+    // Dubbelkolla rimlighet
+    if (!isReasonable(n)) {
+      return {
+        id,
+        ok: false,
+        players: null,
+        fetchedAt: null,
+        error: `Unreasonable value ${n}`,
+        durationMs: Date.now() - started,
+      };
+    }
+
+    // Spara
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
     const tsIso = new Date().toISOString();
     try { await saveSample(seriesKey, tsIso, n); } catch {}
 
     return {
-      id, ok: true, players: n, fetchedAt: tsIso,
-      durationMs: Date.now() - started
+      id,
+      ok: true,
+      players: n,
+      fetchedAt: tsIso,
+      durationMs: Date.now() - started,
     };
   } catch (error) {
     return {
@@ -230,6 +213,10 @@ async function scrapeOne(page, id) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*                         Motorer: Vercel / Lokalt                            */
+/* -------------------------------------------------------------------------- */
+
 /** Vercel (puppeteer-core + @sparticuz/chromium) med requestInterception */
 async function runOnVercel(staleIds, batchSize) {
   const [{ default: chromium }, puppeteerModule] = await Promise.all([
@@ -239,11 +226,7 @@ async function runOnVercel(staleIds, batchSize) {
   const puppeteer = puppeteerModule.default || puppeteerModule;
 
   const browser = await puppeteer.launch({
-    args: [
-      ...chromium.args,
-      "--lang=sv-SE",
-      "--disable-blink-features=AutomationControlled"
-    ],
+    args: chromium.args,
     defaultViewport: chromium.defaultViewport,
     executablePath: await chromium.executablePath(),
     headless: chromium.headless,
@@ -256,18 +239,13 @@ async function runOnVercel(staleIds, batchSize) {
       const chunk = staleIds.slice(i, i + batchSize);
       const pages = await Promise.all(chunk.map(() => browser.newPage()));
 
+      // Blockera tunga resurser
       await Promise.all(
         pages.map(async (page) => {
-          // Liten stealth: maskera webdriver-flaggan
-          await page.evaluateOnNewDocument(() => {
-            Object.defineProperty(navigator, "webdriver", { get: () => undefined });
-          });
-          // Header + UA
           await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
           await page.setUserAgent(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36"
           );
-          // Blockera tunga resurser
           await page.setRequestInterception(true);
           page.on("request", (req) => {
             const type = req.resourceType();
@@ -305,6 +283,7 @@ async function runLocally(staleIds, batchSize) {
       const chunk = staleIds.slice(i, i + batchSize);
       const pages = await Promise.all(chunk.map(() => browser.newPage()));
 
+      // Blockera tunga resurser
       await Promise.all(
         pages.map(async (page) => {
           await page.route("**/*", (route) => {
@@ -333,12 +312,22 @@ async function runLocally(staleIds, batchSize) {
   return out;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                                   Route                                     */
+/* -------------------------------------------------------------------------- */
+
 export async function GET(req) {
   if (!okAuth(req)) return resJSON({ ok: false, error: "Unauthorized" }, 401);
 
   const url = new URL(req.url);
-  const limit = Math.max(1, Number(url.searchParams.get("limit")) || DEFAULT_LIMIT);
-  const batchSize = Math.max(1, Number(url.searchParams.get("batchSize")) || DEFAULT_BATCH_SIZE);
+  // tillåt begränsning för test / undvika timeouts
+  const limitParam = url.searchParams.get("limit");
+  const batchSizeParam = url.searchParams.get("batchSize");
+
+  const batchSize = Math.max(
+    1,
+    Math.min(MAX_BATCH_SIZE, Number.parseInt(batchSizeParam || String(DEFAULT_BATCH_SIZE), 10) || DEFAULT_BATCH_SIZE)
+  );
 
   // 1) Hitta vilka slugs som är stale
   const now = Date.now();
@@ -352,8 +341,11 @@ export async function GET(req) {
   );
 
   const freshList = staleCheck.filter((x) => x.fresh);
-  const staleIdsAll = staleCheck.filter((x) => !x.fresh).map((x) => x.id);
-  const staleIds = staleIdsAll.slice(0, limit); // respektera ev. ?limit=
+  let staleIds = staleCheck.filter((x) => !x.fresh).map((x) => x.id);
+
+  // Begränsa antal stale att köra (för att undvika timeout), om angivet
+  const limit = Number.isFinite(Number(limitParam)) ? Number(limitParam) : undefined;
+  if (limit && limit > 0) staleIds = staleIds.slice(0, limit);
 
   if (staleIds.length === 0) {
     return resJSON({
@@ -367,15 +359,16 @@ export async function GET(req) {
           : { id: x.id, ok: true, players: null, fetchedAt: null, status: "no-sample" }
       ),
       ts: new Date().toISOString(),
+      meta: { batchSize, limit: limit || null },
     });
   }
 
-  // 3) Skrapa bara stale
+  // 2) Skrapa bara stale
   const results = await (process.env.VERCEL
     ? runOnVercel(staleIds, batchSize)
     : runLocally(staleIds, batchSize));
 
-  // 4) Svar + inkludera fresh-skips
+  // 3) Svar + inkludera fresh-skips
   const byId = new Map(results.map((r) => [r.id, r]));
   const merged = SLUGS.map((id) => {
     if (byId.has(id)) return byId.get(id);
@@ -394,7 +387,7 @@ export async function GET(req) {
     skippedFresh: freshList.length,
     results: merged,
     ts: new Date().toISOString(),
-    meta: { batchSize, limit, deadlineMs: 22000 },
+    meta: { batchSize, limit: limit || null },
   });
 }
 
