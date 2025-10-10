@@ -8,15 +8,18 @@ import { saveSample, getLatestSample } from "@/lib/csStore";
 const SECRET = process.env.CASINOSCORES_CRON_SECRET || "";
 const BASE = "https://casinoscores.com";
 
-// Hur länge en mätpunkt räknas som "färsk"
+// hur länge en mätpunkt räknas som "färsk"
 const TTL_MS = 9 * 60 * 1000;
 
-// Hur många sidor vi kör parallellt
-const BATCH_SIZE = 3;
+// default: hur många sidor i parallell
+const DEFAULT_BATCH_SIZE = 3;
+
+// hård tidsbudget (ms) för en körning, lämna lite marginal till Vercels 30s
+const DEADLINE_MS = 22_000;
 
 const SLUGS = [
   "crazy-time",
-//   "crazy-time:a",
+  // "crazy-time:a", // fortsatt avstängd
   "monopoly-big-baller",
   "funky-time",
   "lightning-storm",
@@ -58,24 +61,24 @@ function parsePlayersFromText(text) {
 
 const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
 
-/** Skrapa EN slug på en redan skapad sida (ingen interception här inne!) */
+// ---- EN slug på en existerande page ----
 async function scrapeOne(page, id) {
   const started = Date.now();
   const [slug, variant] = id.split(":");
   const url = `${BASE}/${slug}/`;
 
   try {
-    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 20000 });
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 15_000 });
 
     // Cookie-knapp (best effort)
     try {
       const buttonXPath =
         "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'allow') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz'),'accept')]";
       const [btn] = await page.$x(buttonXPath);
-      if (btn) await btn.click({ delay: 40 });
+      if (btn) await btn.click({ delay: 30 });
     } catch {}
 
-    // Variant A-omslag om efterfrågat
+    // Variant A om efterfrågat
     if (variant === "a") {
       try {
         const toggled = await page.evaluate(() => {
@@ -86,13 +89,12 @@ async function scrapeOne(page, id) {
           second.click();
           return true;
         });
-        if (toggled) {
-          await page.waitForTimeout(350);
-        }
+        if (toggled) await page.waitForTimeout(250);
       } catch {}
     }
 
-    await page.waitForSelector(SELECTOR, { timeout: 8000 });
+    // kortare selector-timeout så vi inte bränner budgeten när sidan krånglar
+    await page.waitForSelector(SELECTOR, { timeout: 4_000 }).catch(() => {});
     const handle = await page.$(SELECTOR);
     const txt = handle ? await page.evaluate((el) => (el.textContent || "").trim(), handle) : "";
     if (handle) { try { await handle.dispose(); } catch {} }
@@ -110,24 +112,18 @@ async function scrapeOne(page, id) {
     const tsIso = new Date().toISOString();
     try { await saveSample(seriesKey, tsIso, n); } catch {}
 
-    return {
-      id, ok: true, players: n, fetchedAt: tsIso,
-      durationMs: Date.now() - started
-    };
+    return { id, ok: true, players: n, fetchedAt: tsIso, durationMs: Date.now() - started };
   } catch (error) {
     return {
-      id,
-      ok: false,
-      players: null,
-      fetchedAt: null,
+      id, ok: false, players: null, fetchedAt: null,
       error: error instanceof Error ? error.message : String(error),
       durationMs: Date.now() - started,
     };
   }
 }
 
-/** Vercel (puppeteer-core + @sparticuz/chromium) med requestInterception */
-async function runOnVercel(staleIds) {
+// ---- Vercel (puppeteer-core + @sparticuz/chromium) ----
+async function runOnVercel(staleIds, batchSize, deadlineAt) {
   const [{ default: chromium }, puppeteerModule] = await Promise.all([
     import("@sparticuz/chromium"),
     import("puppeteer-core"),
@@ -144,11 +140,13 @@ async function runOnVercel(staleIds) {
 
   const out = [];
   try {
-    for (let i = 0; i < staleIds.length; i += BATCH_SIZE) {
-      const chunk = staleIds.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < staleIds.length; i += batchSize) {
+      if (Date.now() > deadlineAt) break; // hårt avbrott
+
+      const chunk = staleIds.slice(i, i + batchSize);
       const pages = await Promise.all(chunk.map(() => browser.newPage()));
 
-      // Puppeteer: blockera tunga resurser
+      // blockera tunga resurser
       await Promise.all(
         pages.map(async (page) => {
           await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
@@ -181,18 +179,19 @@ async function runOnVercel(staleIds) {
   return out;
 }
 
-/** Lokalt (Playwright) med page.route */
-async function runLocally(staleIds) {
+// ---- Lokalt (Playwright) ----
+async function runLocally(staleIds, batchSize, deadlineAt) {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
 
   const out = [];
   try {
-    for (let i = 0; i < staleIds.length; i += BATCH_SIZE) {
-      const chunk = staleIds.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < staleIds.length; i += batchSize) {
+      if (Date.now() > deadlineAt) break; // hårt avbrott
+
+      const chunk = staleIds.slice(i, i + batchSize);
       const pages = await Promise.all(chunk.map(() => browser.newPage()));
 
-      // Playwright: blockera tunga resurser
       await Promise.all(
         pages.map(async (page) => {
           await page.route("**/*", (route) => {
@@ -224,7 +223,16 @@ async function runLocally(staleIds) {
 export async function GET(req) {
   if (!okAuth(req)) return resJSON({ ok: false, error: "Unauthorized" }, 401);
 
-  // 1) Hitta vilka slugs som är stale
+  const url = new URL(req.url);
+  const limitParam = url.searchParams.get("limit");
+  const batchParam = url.searchParams.get("batchSize");
+  const engineParam = (url.searchParams.get("engine") || "").toLowerCase(); // "puppeteer"|"playwright"|""
+
+  const limit = Math.max(0, Math.min(SLUGS.length, Number(limitParam) || SLUGS.length));
+  const batchSize = Math.max(1, Math.min(6, Number(batchParam) || DEFAULT_BATCH_SIZE));
+  const deadlineAt = Date.now() + DEADLINE_MS;
+
+  // 1) vilka slugs är stale?
   const now = Date.now();
   const staleCheck = await Promise.all(
     SLUGS.map(async (id) => {
@@ -236,7 +244,10 @@ export async function GET(req) {
   );
 
   const freshList = staleCheck.filter((x) => x.fresh);
-  const staleIds = staleCheck.filter((x) => !x.fresh).map((x) => x.id);
+  let staleIds = staleCheck.filter((x) => !x.fresh).map((x) => x.id);
+
+  // begränsa mängden per körning
+  if (limit && staleIds.length > limit) staleIds = staleIds.slice(0, limit);
 
   if (staleIds.length === 0) {
     return resJSON({
@@ -253,10 +264,15 @@ export async function GET(req) {
     });
   }
 
-  // 3) Skrapa bara stale
-  const results = await (process.env.VERCEL ? runOnVercel(staleIds) : runLocally(staleIds));
+  // 2) skrapa bara stale, med tidsbudget
+  const run =
+    process.env.VERCEL || engineParam === "puppeteer"
+      ? runOnVercel
+      : runLocally;
 
-  // 4) Svar + inkludera fresh-skips
+  const results = await run(staleIds, batchSize, deadlineAt);
+
+  // 3) bygg svar + inkludera fresh-skips
   const byId = new Map(results.map((r) => [r.id, r]));
   const merged = SLUGS.map((id) => {
     if (byId.has(id)) return byId.get(id);
@@ -268,13 +284,14 @@ export async function GET(req) {
   const fetched = results.filter((r) => r.ok).length;
 
   return resJSON({
-    ok: fetched === staleIds.length,
+    ok: fetched === staleIds.length, // blir false om vi slog i deadline (det är okej)
     fetched,
     total: SLUGS.length,
     staleTried: staleIds.length,
     skippedFresh: freshList.length,
     results: merged,
     ts: new Date().toISOString(),
+    meta: { batchSize, limit, deadlineMs: DEADLINE_MS },
   });
 }
 
