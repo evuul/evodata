@@ -28,6 +28,9 @@ const ALLOWED = new Set(ALLOWED_SLUGS);
 
 const BASE = "https://casinoscores.com";
 const TTL_MS = 9 * 60 * 1000;
+const CDN_TTL_S = 60; // låt CDN cachea cache-svar i 60s
+
+const SECRET = process.env.CASINOSCORES_CRON_SECRET || "";
 
 const g = globalThis;
 g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
@@ -37,7 +40,6 @@ function resJSON(data, status = 200, extra = {}) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
       ...extra,
     },
   });
@@ -48,6 +50,23 @@ function makeEtag(obj) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return `W/"${h.toString(16)}"`;
+}
+
+// ---- auth: endast cron får trigga scraping ----
+function isCronAuthorized(req) {
+  try {
+    const url = new URL(req.url);
+    const hasCronParam = url.searchParams.get("cron") === "1";
+    if (!hasCronParam) return false;
+    if (!SECRET) return false;
+    const qToken = url.searchParams.get("token");
+    const hdr = req.headers.get("authorization") || "";
+    if (qToken && qToken === SECRET) return true;
+    if (hdr === `Bearer ${SECRET}`) return true;
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 // ---------- Plain fetch (för default-varianten) ----------
@@ -120,33 +139,24 @@ async function waitForPlayerCount(page, selector, timeout = 15000) {
   }
 }
 
-// ---------- Playwright (behövs för variant=a) ----------
+// ---------- Playwright/Puppeteer helpers (oförändrat) ----------
 async function tryPlaywright({ url, variant }) {
-  // Kör inte Playwright i Vercel
   if (process.env.VERCEL) return { players: null, via: "playwright-skip-vercel" };
-
   try {
     const { chromium } = await import("playwright");
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-
-    // Trimma nätverk
     await page.route("**/*", (route) => {
       const t = route.request().resourceType();
       if (["image", "media", "font", "stylesheet"].includes(t)) return route.abort();
       route.continue();
     });
     await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
-
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-
-    // Cookie-knapp ibland
     try {
       const btn = page.getByRole("button", { name: /allow|accept/i });
       if (await btn.isVisible({ timeout: 1500 })) await btn.click({ timeout: 1500 });
     } catch {}
-
-    // Hjälpare: hämta nuvarande players
     const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
     async function getCount() {
       try {
@@ -156,7 +166,6 @@ async function tryPlaywright({ url, variant }) {
         return null;
       }
     }
-
     async function clickCrazyTimeASwitch() {
       try {
         const clicked = await page.evaluate(() => {
@@ -168,82 +177,22 @@ async function tryPlaywright({ url, variant }) {
           return true;
         });
         return !!clicked;
-      } catch {
-        return false;
-      }
+      } catch { return false; }
     }
-
     async function waitForCrazyTimeAActive() {
       await page
-        .waitForFunction(
-          () => {
-            const switcher = document.querySelector('[data-testid="crazytime-a-switch"]');
-            if (!switcher) return false;
-            const second = switcher.querySelector(':scope > div:nth-child(2)');
-            if (!second) return false;
-            return second.classList.contains('tw:bg-cornflower');
-          },
-          undefined,
-          { timeout: 3000 }
-        )
+        .waitForFunction(() => {
+          const switcher = document.querySelector('[data-testid="crazytime-a-switch"]');
+          if (!switcher) return false;
+          const second = switcher.querySelector(':scope > div:nth-child(2)');
+          if (!second) return false;
+          return second.classList.contains('tw:bg-cornflower');
+        }, undefined, { timeout: 3000 })
         .catch(() => {});
     }
-
-    // Om A-variant: toggla till Crazy Time A och vänta på att siffran uppdateras
     if (variant === "a") {
       const before = await getCount();
       let clicked = await clickCrazyTimeASwitch();
-
-      if (!clicked) {
-        // Fallback – försök gamla selektorer
-        const tries = [
-          'button:has-text("Crazy Time A")',
-          'a:has-text("Crazy Time A")',
-          '[role="tab"]:has-text("Crazy Time A")',
-          '//*[self::button or self::a or @role="tab" or @role="button"][contains(normalize-space(.), "Crazy Time A")]',
-          'text=/^\\s*Crazy\\s*Time\\s*A\\s*$/i',
-        ];
-
-        for (const sel of tries) {
-          try {
-            const loc = sel.startsWith("//") ? page.locator(`xpath=${sel}`) : page.locator(sel);
-            if (await loc.first().isVisible({ timeout: 1500 })) {
-              await loc.first().click({ timeout: 2000 });
-              clicked = true;
-              break;
-            }
-          } catch {}
-        }
-
-        if (!clicked) {
-          try {
-            const handle = await page.evaluateHandle(() => {
-              const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-              let node;
-              while ((node = walker.nextNode())) {
-                if (node.nodeValue && /crazy\s*time\s*a/i.test(node.nodeValue)) {
-                  let el = node.parentElement;
-                  while (el && el !== document.body) {
-                    if (
-                      el.matches(
-                        'button,a,[role="button"],[role="tab"],.MuiTab-root,.tab,[class*="tab"],[class*="TwTab"]'
-                      )
-                    )
-                      return el;
-                    el = el.parentElement;
-                  }
-                }
-              }
-              return null;
-            });
-            if (handle) {
-              await handle.asElement().click();
-              clicked = true;
-            }
-          } catch {}
-        }
-      }
-
       if (clicked) {
         await waitForCrazyTimeAActive();
         if (Number.isFinite(before)) {
@@ -252,7 +201,7 @@ async function tryPlaywright({ url, variant }) {
               ({ selector, prev }) => {
                 const el = document.querySelector(selector);
                 if (!el) return false;
-                const txt = (el.textContent || '').replace(/[^\d]/g, '');
+                const txt = (el.textContent || "").replace(/[^\d]/g, "");
                 const val = parseInt(txt, 10);
                 return Number.isFinite(val) && val !== prev;
               },
@@ -265,11 +214,8 @@ async function tryPlaywright({ url, variant }) {
         }
       }
     }
-
-    // Läs räknaren (oavsett variant)
     const players =
       (await waitForPlayerCount(page, SELECTOR, 15000)) ?? (await getCount());
-
     await browser.close();
     return {
       players: Number.isFinite(players) ? players : null,
@@ -285,17 +231,14 @@ async function tryPlaywright({ url, variant }) {
   }
 }
 
-// ---------- Puppeteer (för Vercel) ----------
 async function tryPuppeteer({ url, variant }) {
   if (!process.env.VERCEL) return { players: null, via: "puppeteer-skip" };
-
   try {
     const [{ default: chromium }, puppeteerModule] = await Promise.all([
       import("@sparticuz/chromium"),
       import("puppeteer-core"),
     ]);
     const puppeteer = puppeteerModule.default || puppeteerModule;
-
     const browser = await puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
@@ -303,9 +246,7 @@ async function tryPuppeteer({ url, variant }) {
       headless: chromium.headless,
       ignoreHTTPSErrors: true,
     });
-
     const page = await browser.newPage();
-
     await page.setExtraHTTPHeaders({ "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8" });
     await page.setUserAgent(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36"
@@ -313,24 +254,17 @@ async function tryPuppeteer({ url, variant }) {
     await page.setRequestInterception(true);
     page.on("request", (req) => {
       const type = req.resourceType();
-      if (["image", "media", "font", "stylesheet"].includes(type)) {
-        req.abort();
-      } else {
-        req.continue();
-      }
+      if (["image", "media", "font", "stylesheet"].includes(type)) req.abort();
+      else req.continue();
     });
-
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-
-    // Cookie-knapp ibland
     try {
-      const buttonXPath = "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'allow') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept')]";
+      const buttonXPath =
+        "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'allow') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept')]";
       const [btn] = await page.$x(buttonXPath);
       if (btn) await btn.click({ delay: 50 });
     } catch {}
-
-    const SELECTOR = "#playersCounter, [data-testid=\"player-counter\"]";
-
+    const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
     async function getCount() {
       try {
         const handle = await page.$(SELECTOR);
@@ -338,11 +272,9 @@ async function tryPuppeteer({ url, variant }) {
         const txt = await page.evaluate((el) => (el.textContent || "").trim(), handle);
         await handle.dispose();
         return parsePlayersFromText(txt);
-      } catch {
-        return null;
-      }
+      } catch { return null; }
     }
-
+    // A-variant-klicksamma som ovan:
     async function clickCrazyTimeASwitch() {
       try {
         const clicked = await page.evaluate(() => {
@@ -355,44 +287,22 @@ async function tryPuppeteer({ url, variant }) {
         });
         if (clicked) return true;
       } catch {}
-
-      const selectors = [
-        "button.MuiTab-root",
-        "a.MuiTab-root",
-        "[role=tab]",
-        "button",
-        "a",
-      ];
-
+      const selectors = ["button.MuiTab-root","a.MuiTab-root","[role=tab]","button","a"];
       for (const sel of selectors) {
         const handles = await page.$$(sel);
         for (const handle of handles) {
           try {
             const text = await page.evaluate((el) => (el.textContent || "").trim(), handle);
-            if (/crazy\s*time\s*a/i.test(text || "")) {
-              await handle.click({ delay: 20 });
-              return true;
-            }
-          } catch {}
-          finally {
-            try {
-              await handle.dispose();
-            } catch {}
-          }
+            if (/crazy\s*time\s*a/i.test(text || "")) { await handle.click({ delay: 20 }); return true; }
+          } catch {} finally { try { await handle.dispose(); } catch {} }
         }
       }
-
       try {
         const [xpHandle] = await page.$x(
           "//*[self::button or self::a or @role='tab' or @role='button' or contains(@class,'tab')][contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'crazy time a')]"
         );
-        if (xpHandle) {
-          await xpHandle.click({ delay: 20 });
-          await xpHandle.dispose();
-          return true;
-        }
+        if (xpHandle) { await xpHandle.click({ delay: 20 }); await xpHandle.dispose(); return true; }
       } catch {}
-
       return await page.evaluate(() => {
         const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
         let node;
@@ -400,14 +310,7 @@ async function tryPuppeteer({ url, variant }) {
           if (node.nodeValue && /crazy\s*time\s*a/i.test(node.nodeValue)) {
             let el = node.parentElement;
             while (el && el !== document.body) {
-              if (
-                el.matches(
-                  "button, a, [role='button'], [role='tab'], .MuiTab-root, .tab, [class*='tab'], [class*='TwTab']"
-                )
-              ) {
-                el.click();
-                return true;
-              }
+              if (el.matches("button,a,[role='button'],[role='tab'],.MuiTab-root,.tab,[class*='tab'],[class*='TwTab']")) { el.click(); return true; }
               el = el.parentElement;
             }
           }
@@ -415,7 +318,6 @@ async function tryPuppeteer({ url, variant }) {
         return false;
       });
     }
-
     async function waitForCrazyTimeAActive() {
       await page
         .waitForFunction(() => {
@@ -427,49 +329,21 @@ async function tryPuppeteer({ url, variant }) {
         }, { timeout: 3000 })
         .catch(() => {});
     }
-
-    if (variant === "a") {
-      const before = await getCount();
+    const urlVariant = (variant) => (variant === "a" ? "a" : "default");
+    const variantStr = urlVariant(variant);
+    if (variantStr === "a") {
       const clicked = await clickCrazyTimeASwitch();
-      if (clicked) {
-        await waitForCrazyTimeAActive();
-        if (before != null) {
-          await page
-            .waitForFunction(
-              (selector, prev) => {
-                const el = document.querySelector(selector);
-                if (!el) return false;
-                const txt = (el.textContent || "").replace(/[^\d]/g, "");
-                const val = parseInt(txt, 10);
-                return Number.isFinite(val) && val !== prev;
-              },
-              { timeout: 4000 },
-              SELECTOR,
-              before
-            )
-            .catch(() => {});
-        } else {
-          await page.waitForTimeout(500);
-        }
-      }
+      if (clicked) await waitForCrazyTimeAActive();
     }
-
-    const players =
-      (await waitForPlayerCount(page, SELECTOR, 15000)) ?? (await getCount());
-
+    const players = (await waitForPlayerCount(page, SELECTOR, 15000)) ?? (await getCount());
     await browser.close();
-
     return {
       players: Number.isFinite(players) ? players : null,
       via: variant === "a" ? "puppeteer:a" : "puppeteer",
     };
   } catch (error) {
     console.error("[players][puppeteer] failed", { url, variant, error });
-    return {
-      players: null,
-      via: "puppeteer-failed",
-      error: error instanceof Error ? error.message : String(error),
-    };
+    return { players: null, via: "puppeteer-failed", error: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -483,55 +357,77 @@ export async function GET(req, ctx) {
   try {
     // Vänta in params i dynamiska API:er
     const paramsMaybe = ctx?.params;
-    const params =
-      paramsMaybe && typeof paramsMaybe.then === "function"
-        ? await paramsMaybe
-        : paramsMaybe || {};
+    const params = paramsMaybe && typeof paramsMaybe.then === "function" ? await paramsMaybe : paramsMaybe || {};
     const slug = params.game;
 
     if (!slug || !ALLOWED.has(slug)) {
-      return resJSON(
-        { ok: false, error: "Unknown or disallowed game slug" },
-        400
-      );
+      return resJSON({ ok: false, error: "Unknown or disallowed game slug" }, 400);
     }
 
     const { searchParams } = new URL(req.url);
-    const variant =
-      (searchParams.get("variant") || "").toLowerCase() === "a"
-        ? "a"
-        : "default";
-    const force = searchParams.get("force") === "1";
+    const variant = (searchParams.get("variant") || "").toLowerCase() === "a" ? "a" : "default";
+    const forceRequested = searchParams.get("force") === "1";
     const debug = searchParams.get("debug") === "1";
     const url = `${BASE}/${slug}/`;
     const cacheKey = `${slug}:${variant}`;
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
+    const authorized = isCronAuthorized(req);
+    const force = authorized && forceRequested; // force bara för cron
 
     // 🚫 TEMP: block Crazy Time A på Vercel
     if (slug === "crazy-time" && variant === "a") {
-      return resJSON(
-        { ok: false, error: "Crazy Time A is temporarily disabled" },
-        410,
-        { "Cache-Control": "no-store" }
-      );
+      return resJSON({ ok: false, error: "Crazy Time A is temporarily disabled" }, 410, {
+        "Cache-Control": "no-store",
+      });
     }
 
-    // Cache per variant
+    // 1) KV-first (färsk)
+    const latest = await getLatestSample(seriesKey).catch(() => null);
+    if (!force && latest && Date.now() - latest.ts < TTL_MS && !debug) {
+      const data = { slug, variant, players: latest.value, fetchedAt: new Date(latest.ts).toISOString() };
+      const etag = makeEtag(data);
+      const inm = req.headers.get("if-none-match");
+      if (inm && inm === etag) return new Response(null, { status: 304, headers: { ETag: etag } });
+      return resJSON({ ok: true, source: "kv", ...data }, 200, {
+        ETag: etag,
+        "Cache-Control": `s-maxage=${CDN_TTL_S}, stale-while-revalidate=600`,
+      });
+    }
+
+    // 2) In-memory cache (färsk)
     const entry = g.__CS_CACHE__.get(cacheKey);
     const now = Date.now();
     if (!force && entry && now - entry.ts < TTL_MS && !debug) {
       const inm = req.headers.get("if-none-match");
       if (inm && inm === entry.etag) return new Response(null, { status: 304, headers: { ETag: entry.etag } });
-      return resJSON({ ok: true, source: "cache", ...entry.data }, 200, { ETag: entry.etag });
+      return resJSON({ ok: true, source: "mem", ...entry.data }, 200, {
+        ETag: entry.etag,
+        "Cache-Control": `s-maxage=${CDN_TTL_S}, stale-while-revalidate=600`,
+      });
     }
 
+    // 3) Inte färskt. Om INTE cron → ge stale (om finns) eller 503. Ingen scraping för användare.
+    if (!authorized) {
+      if (latest) {
+        const data = { slug, variant, players: latest.value, fetchedAt: new Date(latest.ts).toISOString(), stale: true };
+        const etag = makeEtag(data);
+        return resJSON({ ok: true, source: "kv-stale", ...data }, 200, {
+          ETag: etag,
+          "Cache-Control": `s-maxage=${CDN_TTL_S}, stale-while-revalidate=600`,
+        });
+      }
+      return resJSON({ ok: false, error: "No fresh cache; scraping restricted to cron" }, 503, {
+        "Retry-After": "60",
+      });
+    }
+
+    // 4) Endast cron härifrån: scraping är tillåten
     let players = null;
     let via = "unknown";
     let viaDetail = null;
     let plainError = null;
 
     if (variant === "default") {
-      // För standard-varianten: försök plain först (billigt)
       try {
         const html = await plainFetch(url);
         const plain = extractPlayersFromHTML(html);
@@ -548,7 +444,6 @@ export async function GET(req, ctx) {
         viaDetail = headless.error || null;
       }
     } else {
-      // För A-variant: gå direkt på Playwright (måste klicka)
       const headless = await runHeadlessFetch({ url, variant: "a" });
       players = headless.players;
       via = headless.via;
@@ -568,69 +463,34 @@ export async function GET(req, ctx) {
     }
 
     if (!Number.isFinite(players)) {
-      const fallback = await getLatestSample(seriesKey).catch(() => null);
-      if (fallback) {
+      // Cron misslyckades → ge stale om möjligt
+      if (latest) {
         const data = {
-          slug,
-          variant,
-          players: fallback.value,
-          fetchedAt: new Date(fallback.ts).toISOString(),
-          stale: true,
+          slug, variant, players: latest.value, fetchedAt: new Date(latest.ts).toISOString(), stale: true
         };
-        const payload = {
-          ok: true,
-          ...data,
-          via: via === "unknown" ? "fallback-cache" : `${via}-fallback`,
-          viaDetail,
-          plainError,
-          source: "cache",
-        };
-        const etag = makeEtag({ slug, variant, players: data.players, fetchedAt: data.fetchedAt, stale: true });
+        const etag = makeEtag(data);
+        const payload = { ok: true, ...data, via: `${via || "unknown"}-fallback`, viaDetail, plainError, source: "cache" };
         g.__CS_CACHE__.set(cacheKey, { ts: Date.now(), data: payload, etag });
-        return resJSON(payload, 200, { ETag: etag, "Cache-Control": "no-store" });
+        return resJSON(payload, 200, { ETag: etag, "Cache-Control": `s-maxage=${CDN_TTL_S}, stale-while-revalidate=600` });
       }
-
       return resJSON(
-        {
-          ok: false,
-          error: "Hittade inte players",
-          slug,
-          variant,
-          via,
-          viaDetail,
-          plainError,
-        },
+        { ok: false, error: "Hittade inte players", slug, variant, via, viaDetail, plainError },
         503,
-        {
-          "Retry-After": "60",
-        }
+        { "Retry-After": "60" }
       );
     }
 
-    const data = {
-      slug,
-      variant,
-      players,
-      fetchedAt: new Date().toISOString(),
-      stale: false,
-    };
-    const payload = {
-      ok: true,
-      ...data,
-      via,
-      viaDetail,
-      plainError,
-    };
+    const data = { slug, variant, players, fetchedAt: new Date().toISOString(), stale: false };
+    const payload = { ok: true, ...data, via, viaDetail, plainError };
 
-    // Persist: spara under "crazy-time" resp. "crazy-time:a"
-    try {
-      await saveSample(seriesKey, data.fetchedAt, players);
-    } catch {}
-
+    try { await saveSample(seriesKey, data.fetchedAt, players); } catch {}
     const etag = makeEtag(data);
     g.__CS_CACHE__.set(cacheKey, { ts: Date.now(), data: payload, etag });
 
-    return resJSON(payload, 200, { ETag: etag });
+    return resJSON(payload, 200, {
+      ETag: etag,
+      "Cache-Control": `s-maxage=${CDN_TTL_S}, stale-while-revalidate=600`,
+    });
   } catch (err) {
     return resJSON({ ok: false, error: err?.message || String(err) }, 500);
   }

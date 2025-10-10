@@ -1,3 +1,4 @@
+// src/app/api/casinoscores/cron-proxy/route.js
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
@@ -21,6 +22,7 @@ export async function POST(req) {
     return json({ ok: false, error: "CASINOSCORES_CRON_SECRET is not configured" }, 500);
   }
 
+  // Endast auktoriserad cron får köra detta
   const authHeader = req.headers.get("authorization") || "";
   const expected = `Bearer ${SECRET}`;
   if (authHeader !== expected) {
@@ -35,8 +37,13 @@ export async function POST(req) {
   for (const slug of ALLOWED_SLUGS) {
     const started = Date.now();
     try {
+      // Viktigt: skicka vidare Authorization så [game]-routen tillåter scraping
       const url = `${origin}/api/casinoscores/players/${slug}?force=1&cron=1`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: { authorization: expected }, // <-- NYTT
+      });
+
       let payload = null;
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
