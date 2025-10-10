@@ -2,6 +2,14 @@
 // Sätter ESM-friendly exports + KV fallback till in-memory.
 
 const DEBUG = process.env.DEBUG_CS === "1";
+export const MAX_REASONABLE_PLAYERS = 5_000_000;
+
+export function normalizePlayers(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  if (num < 0 || num > MAX_REASONABLE_PLAYERS) return null;
+  return Math.round(num);
+}
 
 let kvClient = null;
 
@@ -56,20 +64,21 @@ const MAX_SAMPLES = 5000;
 export async function saveSample(slug, isoTs, players) {
   const ts = Date.parse(isoTs);
   if (!Number.isFinite(ts)) throw new Error("Bad timestamp");
-  if (!Number.isFinite(players)) throw new Error("Bad value");
+  const normalized = normalizePlayers(players);
+  if (normalized == null) throw new Error("Bad value");
 
-  const entry = JSON.stringify({ ts, value: Number(players) });
+  const entry = JSON.stringify({ ts, value: normalized });
   const key = KEY(slug);
 
   const kv = await getKv();
   if (kv) {
     await kv.lpush(key, entry);
     await kv.ltrim(key, 0, MAX_SAMPLES - 1);
-    if (DEBUG) console.log(`[csStore] KV save ${slug} ts=${ts} value=${players}`);
+    if (DEBUG) console.log(`[csStore] KV save ${slug} ts=${ts} value=${normalized}`);
   } else {
     mem.lpush(key, entry);
     mem.ltrim(key, 0, MAX_SAMPLES - 1);
-    if (DEBUG) console.log(`[csStore] MEM save ${slug} ts=${ts} value=${players}`);
+    if (DEBUG) console.log(`[csStore] MEM save ${slug} ts=${ts} value=${normalized}`);
   }
 }
 
@@ -93,8 +102,9 @@ export async function getSeries(slug, days = 30) {
   for (const r of raw || []) {
     try {
       const o = typeof r === "string" ? JSON.parse(r) : r;
-      if (o && Number.isFinite(o.ts) && Number.isFinite(o.value) && o.ts >= since) {
-        parsed.push({ ts: o.ts, value: o.value });
+      const normalized = normalizePlayers(o?.value);
+      if (o && Number.isFinite(o.ts) && normalized != null && o.ts >= since) {
+        parsed.push({ ts: o.ts, value: normalized });
       }
     } catch {
       // ignore bad rows
@@ -144,25 +154,29 @@ export async function getLatestSample(slug) {
   const key = KEY(slug);
   const kv = await getKv();
 
-  let raw;
+  let rows;
   if (kv) {
     try {
-      raw = await kv.lindex(key, 0);
+      rows = await kv.lrange(key, 0, 50);
     } catch {
-      raw = undefined;
+      rows = undefined;
     }
   } else {
-    raw = mem.lindex(key, 0);
+    rows = mem.lrange(key, 0, 50);
   }
 
-  if (!raw) return null;
-  try {
-    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    if (parsed && Number.isFinite(parsed.ts) && Number.isFinite(parsed.value)) {
-      return { ts: parsed.ts, value: parsed.value };
+  if (!rows?.length) return null;
+
+  for (const raw of rows) {
+    try {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const normalized = normalizePlayers(parsed?.value);
+      if (parsed && Number.isFinite(parsed.ts) && normalized != null) {
+        return { ts: parsed.ts, value: normalized };
+      }
+    } catch {
+      // ignore JSON fel
     }
-  } catch {
-    // ignore JSON fel
   }
   return null;
 }
