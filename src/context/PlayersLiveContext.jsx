@@ -22,8 +22,8 @@ export const GAMES = [
 ];
 
 // Gemensam cooldown / intervall
-export const PLAYERS_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minuter
-const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
+export const PLAYERS_POLL_INTERVAL_MS = 60 * 1000; // kör tätare tills allt funkar
+const MIN_COOLDOWN_MS = 0; // ingen cooldown just nu
 
 const PlayersLiveContext = createContext(undefined);
 
