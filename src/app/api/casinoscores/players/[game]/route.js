@@ -3,39 +3,24 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
+import {
+  ALLOWED_SLUGS,
+  CRON_TARGETS,
+  lobbyKeyFor,
+  fetchLobbyCounts,
+} from "@/lib/casinoscores/lobby";
 
-// Endast bas-slugs här (utan :a). A styrs via ?variant=a.
-export const ALLOWED_SLUGS = [
-  "crazy-time",
-  "monopoly-big-baller",
-  "funky-time",
-  "lightning-storm",
-  "crazy-balls",
-  "ice-fishing",
-  "xxxtreme-lightning-roulette",
-  "monopoly-live",
-  "red-door-roulette",
-  "auto-roulette",
-  "speed-baccarat-a",
-  "super-andar-bahar",
-  "lightning-dice",
-  "lightning-roulette",
-  "bac-bo",
-];
+export { ALLOWED_SLUGS, CRON_TARGETS, lobbyKeyFor, fetchLobbyCounts } from "@/lib/casinoscores/lobby";
 
 const ALLOWED = new Set(ALLOWED_SLUGS);
 
 const BASE = "https://casinoscores.com";
 const TTL_MS = 30 * 1000;
 
-const LOBBY_API =
-  "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
-const LOBBY_TTL_MS = 30 * 1000;
 const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0);
 
 const g = globalThis;
 g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
-g.__CS_LOBBY__ ??= { ts: 0, data: null };
 
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -55,65 +40,6 @@ function makeEtag(obj) {
   return `W/"${h.toString(16)}"`;
 }
 
-export const LOBBY_KEY_MAP = new Map([
-  ["crazy-time", { default: "crazyTime", a: "crazyTimeA" }],
-  ["monopoly-big-baller", "monopolyBigBallerLive"],
-  ["funky-time", "funkyTime"],
-  ["lightning-storm", "lightningStorm"],
-  ["crazy-balls", "crazyBalls"],
-  ["ice-fishing", "iceFishing"],
-  ["xxxtreme-lightning-roulette", "xxxtremeLightningRoulette"],
-  ["monopoly-live", "monopolyLive"],
-  ["red-door-roulette", "redDoorRoulette"],
-  ["auto-roulette", "autoRoulette"],
-  ["speed-baccarat-a", "speedBaccaratA"],
-  ["super-andar-bahar", "superAndarBahar"],
-  ["lightning-dice", "lightningDice"],
-  ["lightning-roulette", "lightningRoulette"],
-  ["bac-bo", "bacBo"],
-]);
-
-export const CRON_TARGETS = ALLOWED_SLUGS.flatMap((slug) => {
-  if (slug === "crazy-time") {
-    return [
-      { slug, variant: "default" },
-      { slug, variant: "a" },
-    ];
-  }
-  return [{ slug, variant: "default" }];
-});
-
-export function lobbyKeyFor(slug, variant) {
-  const entry = LOBBY_KEY_MAP.get(slug);
-  if (!entry) return null;
-  if (typeof entry === "string") return entry;
-  return variant === "a" ? entry.a ?? null : entry.default ?? null;
-}
-
-export async function fetchLobbyCounts(force = false) {
-  const cache = g.__CS_LOBBY__;
-  const now = Date.now();
-  if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) {
-    return cache.data;
-  }
-
-  const res = await fetch(`${LOBBY_API}?ts=${Date.now()}`, {
-    headers: {
-      Accept: "application/json",
-      "User-Agent": "curl/8.5.0",
-    },
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error(`Lobby HTTP ${res.status}`);
-  }
-
-  const data = await res.json();
-  cache.ts = now;
-  cache.data = data;
-  return data;
-}
 
 // ---------- Plain fetch (för default-varianten) ----------
 function extractPlayersFromHTML(html) {

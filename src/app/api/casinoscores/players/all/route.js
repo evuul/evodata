@@ -2,8 +2,14 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-// Hämtar "senaste sample" som fallback om lobby-API saknar ett värde
 import { getLatestSample, normalizePlayers } from "@/lib/csStore";
+import {
+  CRON_TARGETS,
+  lobbyKeyFor,
+  fetchLobbyCounts,
+} from "@/lib/casinoscores/lobby";
+
+const TARGETS = CRON_TARGETS;
 
 /**
  * Den här endpointen:
@@ -12,85 +18,6 @@ import { getLatestSample, normalizePlayers } from "@/lib/csStore";
  * 3) Faller tillbaka till KV-sample om lobby saknar värde
  * 4) Returnerar ett "latest" paket likt /players/latest
  */
-
-const TTL_MS = 30 * 1000;
-
-// Lobby-API och in-memory cache
-const LOBBY_API =
-  "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
-
-const g = globalThis;
-g.__CS_LOBBY__ ??= { ts: 0, data: null }; // { ts, data }
-
-// Samma spel som vi visar (lägg till/ta bort här)
-const TARGETS = [
-  { slug: "crazy-time" },
-  { slug: "crazy-time", variant: "a" }, // aktivera när du vill visa A
-  { slug: "monopoly-big-baller" },
-  { slug: "funky-time" },
-  { slug: "lightning-storm" },
-  { slug: "crazy-balls" },
-  { slug: "ice-fishing" },
-  { slug: "xxxtreme-lightning-roulette" },
-  { slug: "monopoly-live" },
-  { slug: "red-door-roulette" },
-  { slug: "auto-roulette" },
-  { slug: "speed-baccarat-a" },
-  { slug: "super-andar-bahar" },
-  { slug: "lightning-dice" },
-  { slug: "lightning-roulette" },
-  { slug: "bac-bo" },
-];
-
-// Map från våra slugs -> lobby-nycklar
-const LOBBY_KEY_MAP = new Map([
-  ["crazy-time", { default: "crazyTime", a: "crazyTimeA" }],
-  ["monopoly-big-baller", "monopolyBigBallerLive"],
-  ["funky-time", "funkyTime"],
-  ["lightning-storm", "lightningStorm"],
-  ["crazy-balls", "crazyBalls"],
-  ["ice-fishing", "iceFishing"],
-  ["xxxtreme-lightning-roulette", "xxxtremeLightningRoulette"],
-  ["monopoly-live", "monopolyLive"],
-  ["red-door-roulette", "redDoorRoulette"],
-  ["auto-roulette", "autoRoulette"],
-  ["speed-baccarat-a", "speedBaccaratA"],
-  ["super-andar-bahar", "superAndarBahar"],
-  ["lightning-dice", "lightningDice"],
-  ["lightning-roulette", "lightningRoulette"],
-  ["bac-bo", "bacBo"],
-]);
-
-function lobbyKeyFor(slug, variant = "default") {
-  const entry = LOBBY_KEY_MAP.get(slug);
-  if (!entry) return null;
-  if (typeof entry === "string") return entry;
-  if (variant === "a" && entry.a) return entry.a;
-  return entry.default ?? null;
-}
-
-async function fetchLobbyCounts(force = false) {
-  const cache = g.__CS_LOBBY__;
-  const now = Date.now();
-  if (!force && cache.data && now - cache.ts < TTL_MS) {
-    return cache.data;
-  }
-  const res = await fetch(LOBBY_API, {
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
-      Referer: "https://casinoscores.com/",
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Lobby HTTP ${res.status}`);
-  const data = await res.json();
-  cache.ts = now;
-  cache.data = data;
-  return data;
-}
 
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -112,7 +39,7 @@ export async function GET(req) {
     // 1) Hämta lobby (med in-memory TTL)
     let lobby = null;
     try {
-      lobby = await fetchLobbyCounts(force);
+    lobby = await fetchLobbyCounts(force);
     } catch {
       lobby = null;
     }
