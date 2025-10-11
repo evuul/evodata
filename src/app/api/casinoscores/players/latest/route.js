@@ -2,12 +2,13 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// In-memory cache i Edge/Node instance
-const g = globalThis;
-g.__EVO_LOBBY__ ??= { ts: 0, etag: null, json: null };
+import { CRON_TARGETS, lobbyKeyFor, fetchLobbyCounts } from "@/lib/casinoscores/lobby";
+import { getLatestSample, normalizePlayers } from "@/lib/csStore";
 
-const UPSTREAM = "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
-const TTL_MS = 30 * 1000; // 30s är lagom för detta flöde
+const g = globalThis;
+g.__CS_LATEST__ ??= { ts: 0, etag: null, payload: null };
+
+const TTL_MS = 30 * 1000; // 30 sekunders cache räcker för hydrering
 
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -20,63 +21,99 @@ function resJSON(data, status = 200, extra = {}) {
   });
 }
 
+function makeEtag(obj) {
+  const s = JSON.stringify(obj);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return `W/"${h.toString(16)}"`;
+}
+
 export async function GET(req) {
   try {
     const now = Date.now();
+    const cache = g.__CS_LATEST__;
+    const url = new URL(req.url);
+    const force = url.searchParams.get("force") === "1";
     const inm = req.headers.get("if-none-match");
-    const cache = g.__EVO_LOBBY__;
 
-    // 1) Returnera ur minne om färskt (billigast)
-    if (cache.json && now - cache.ts < TTL_MS) {
+    if (!force && cache.payload && now - cache.ts < TTL_MS) {
       if (inm && cache.etag && inm === cache.etag) {
         return new Response(null, { status: 304, headers: { ETag: cache.etag } });
       }
-      return resJSON(cache.json, 200, cache.etag ? { ETag: cache.etag } : {});
+      return resJSON(cache.payload, 200, cache.etag ? { ETag: cache.etag } : {});
     }
 
-    // 2) Hämta upstream (skicka If-None-Match om vi har ETag)
-    const upstream = await fetch(UPSTREAM, {
-      headers: {
-        accept: "application/json",
-        "accept-language": "sv-SE,sv;q=0.9,en;q=0.8",
-        "user-agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
-        ...(cache.etag ? { "if-none-match": cache.etag } : {}),
-        referer: "https://casinoscores.com/",
-      },
-      cache: "no-store",
-    });
+    let lobby = null;
+    let lobbyError = null;
+    try {
+      lobby = await fetchLobbyCounts(force, 2500);
+    } catch (error) {
+      lobbyError = error instanceof Error ? error.message : String(error);
+      lobby = null;
+    }
 
-    // 304 från upstream → behåll vår cache, svara 304 om klienten bad om samma ETag
-    if (upstream.status === 304 && cache.json) {
-      cache.ts = now;
-      if (inm && cache.etag && inm === cache.etag) {
-        return new Response(null, { status: 304, headers: { ETag: cache.etag } });
+    const items = [];
+    let newestTs = 0;
+
+    for (const { slug, variant = "default" } of CRON_TARGETS) {
+      const id = `${slug}${variant === "a" ? ":a" : ""}`;
+      let players = null;
+      let fetchedAt = null;
+      let source = "unknown";
+
+      if (lobby) {
+        const key = lobbyKeyFor(slug, variant);
+        if (key) {
+          const raw = lobby?.gameShowPlayerCounts?.[key];
+          const norm = normalizePlayers(raw);
+          if (norm != null) {
+            players = norm;
+            fetchedAt = lobby?.createdAt ? new Date(lobby.createdAt).toISOString() : null;
+            source = "lobby";
+          }
+        }
       }
-      return resJSON(cache.json, 200, cache.etag ? { ETag: cache.etag } : {});
-    }
 
-    if (!upstream.ok) {
-      // Fallback till cache om upstream felar
-      if (cache.json) {
-        return resJSON({ ok: true, stale: true, ...cache.json }, 200, cache.etag ? { ETag: cache.etag } : {});
+      if (!Number.isFinite(players)) {
+        const sample = await getLatestSample(id).catch(() => null);
+        if (sample) {
+          players = sample.value;
+          fetchedAt = new Date(sample.ts).toISOString();
+          source = "kv";
+        }
       }
-      return resJSON({ ok: false, error: `Upstream HTTP ${upstream.status}` }, upstream.status);
+
+      if (Number.isFinite(players)) {
+        const ts = fetchedAt ? Date.parse(fetchedAt) : Date.now();
+        if (Number.isFinite(ts) && ts > newestTs) newestTs = ts;
+      }
+
+      items.push({
+        id,
+        players: Number.isFinite(players) ? players : null,
+        fetchedAt,
+        source: Number.isFinite(players) ? source : null,
+      });
     }
 
-    const json = await upstream.json();
-    const etag = upstream.headers.get("etag") || `W/"${now.toString(16)}"`;
+    const payload = {
+      ok: items.some((item) => Number.isFinite(item.players)),
+      items,
+      updatedAt: newestTs ? new Date(newestTs).toISOString() : null,
+      lobbyError: lobbyError || undefined,
+    };
+    const etag = makeEtag({ items, updatedAt: payload.updatedAt });
 
-    // Uppdatera cache
     cache.ts = now;
-    cache.json = json;
+    cache.payload = payload;
     cache.etag = etag;
 
     if (inm && etag && inm === etag) {
       return new Response(null, { status: 304, headers: { ETag: etag } });
     }
-    return resJSON(json, 200, { ETag: etag });
+
+    return resJSON(payload, 200, { ETag: etag });
   } catch (err) {
-    return resJSON({ ok: false, error: String(err) }, 500);
+    return resJSON({ ok: false, error: err instanceof Error ? err.message : String(err) }, 500);
   }
 }
