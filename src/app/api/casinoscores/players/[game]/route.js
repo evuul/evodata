@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-import { saveSample, getLatestSample } from "@/lib/csStore";
+import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
 
 // Endast bas-slugs här (utan :a). A styrs via ?variant=a.
 export const ALLOWED_SLUGS = [
@@ -27,10 +27,15 @@ export const ALLOWED_SLUGS = [
 const ALLOWED = new Set(ALLOWED_SLUGS);
 
 const BASE = "https://casinoscores.com";
-const TTL_MS = 9 * 60 * 1000;
+const TTL_MS = 30 * 1000;
+
+const LOBBY_API =
+  "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
+const LOBBY_TTL_MS = 30 * 1000;
 
 const g = globalThis;
 g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
+g.__CS_LOBBY__ ??= { ts: 0, data: null };
 
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -48,6 +53,60 @@ function makeEtag(obj) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return `W/"${h.toString(16)}"`;
+}
+
+const LOBBY_KEY_MAP = new Map([
+  ["crazy-time", { default: "crazyTime", a: "crazyTimeA" }],
+  ["monopoly-big-baller", "monopolyBigBallerLive"],
+  ["funky-time", "funkyTime"],
+  ["lightning-storm", "lightningStorm"],
+  ["crazy-balls", "crazyBalls"],
+  ["ice-fishing", "iceFishing"],
+  ["xxxtreme-lightning-roulette", "xxxtremeLightningRoulette"],
+  ["monopoly-live", "monopolyLive"],
+  ["red-door-roulette", "redDoorRoulette"],
+  ["auto-roulette", "autoRoulette"],
+  ["speed-baccarat-a", "speedBaccaratA"],
+  ["super-andar-bahar", "superAndarBahar"],
+  ["lightning-dice", "lightningDice"],
+  ["lightning-roulette", "lightningRoulette"],
+  ["bac-bo", "bacBo"],
+]);
+
+function lobbyKeyFor(slug, variant) {
+  const entry = LOBBY_KEY_MAP.get(slug);
+  if (!entry) return null;
+  if (typeof entry === "string") return entry;
+  if (variant === "a" && entry.a) return entry.a;
+  return entry.default ?? null;
+}
+
+async function fetchLobbyCounts(force = false) {
+  const cache = g.__CS_LOBBY__;
+  const now = Date.now();
+  if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) {
+    return cache.data;
+  }
+
+  const res = await fetch(LOBBY_API, {
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
+      Referer: "https://casinoscores.com/",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Lobby HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  cache.ts = now;
+  cache.data = data;
+  return data;
 }
 
 // ---------- Plain fetch (för default-varianten) ----------
@@ -529,30 +588,60 @@ export async function GET(req, ctx) {
     let via = "unknown";
     let viaDetail = null;
     let plainError = null;
+    let lobbyError = null;
+    let fetchedAtOverride = null;
 
-    if (variant === "default") {
-      // För standard-varianten: försök plain först (billigt)
+    const lobbyKey = lobbyKeyFor(slug, variant);
+    if (lobbyKey) {
       try {
-        const html = await plainFetch(url);
-        const plain = extractPlayersFromHTML(html);
-        players = plain.players;
-        via = plain.via;
+        const lobby = await fetchLobbyCounts(force);
+        const raw = lobby?.gameShowPlayerCounts?.[lobbyKey];
+        const normalized = normalizePlayers(raw);
+        if (normalized != null) {
+          players = normalized;
+          via = "lobby-api";
+          fetchedAtOverride = lobby?.createdAt ? new Date(lobby.createdAt).toISOString() : null;
+          if (lobby?.id || lobby?.createdAt) {
+            viaDetail = [
+              lobby?.id ? `id=${lobby.id}` : null,
+              lobby?.createdAt ? `createdAt=${lobby.createdAt}` : null,
+            ]
+              .filter(Boolean)
+              .join(" ");
+          }
+        } else {
+          lobbyError = `No lobby value for ${lobbyKey}`;
+        }
       } catch (error) {
-        via = "plain:error";
-        plainError = error instanceof Error ? error.message : String(error);
+        lobbyError = error instanceof Error ? error.message : String(error);
       }
-      if (!Number.isFinite(players)) {
-        const headless = await runHeadlessFetch({ url, variant });
+    }
+
+    if (!Number.isFinite(players)) {
+      if (variant === "default") {
+        // För standard-varianten: försök plain först (billigt)
+        try {
+          const html = await plainFetch(url);
+          const plain = extractPlayersFromHTML(html);
+          players = plain.players;
+          via = plain.via;
+        } catch (error) {
+          via = "plain:error";
+          plainError = error instanceof Error ? error.message : String(error);
+        }
+        if (!Number.isFinite(players)) {
+          const headless = await runHeadlessFetch({ url, variant });
+          players = headless.players;
+          via = headless.via;
+          viaDetail = headless.error || null;
+        }
+      } else {
+        // För A-variant: gå direkt på Playwright (måste klicka)
+        const headless = await runHeadlessFetch({ url, variant: "a" });
         players = headless.players;
         via = headless.via;
         viaDetail = headless.error || null;
       }
-    } else {
-      // För A-variant: gå direkt på Playwright (måste klicka)
-      const headless = await runHeadlessFetch({ url, variant: "a" });
-      players = headless.players;
-      via = headless.via;
-      viaDetail = headless.error || null;
     }
 
     if (debug) {
@@ -562,6 +651,8 @@ export async function GET(req, ctx) {
         variant,
         via,
         viaDetail,
+        lobbyKey,
+        lobbyError,
         plainError,
         players: Number.isFinite(players) ? players : null,
       });
@@ -582,6 +673,7 @@ export async function GET(req, ctx) {
           ...data,
           via: via === "unknown" ? "fallback-cache" : `${via}-fallback`,
           viaDetail,
+          lobbyError,
           plainError,
           source: "cache",
         };
@@ -598,6 +690,7 @@ export async function GET(req, ctx) {
           variant,
           via,
           viaDetail,
+          lobbyError,
           plainError,
         },
         503,
@@ -611,7 +704,7 @@ export async function GET(req, ctx) {
       slug,
       variant,
       players,
-      fetchedAt: new Date().toISOString(),
+      fetchedAt: fetchedAtOverride || new Date().toISOString(),
       stale: false,
     };
     const payload = {
@@ -619,6 +712,7 @@ export async function GET(req, ctx) {
       ...data,
       via,
       viaDetail,
+      lobbyError,
       plainError,
     };
 
