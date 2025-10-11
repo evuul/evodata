@@ -34,11 +34,14 @@ export async function GET(req) {
     }
 
     // 2) Hämta upstream (skicka If-None-Match om vi har ETag)
-    const upstream = await fetch(`${UPSTREAM}?ts=${Date.now()}`, {
+    const upstream = await fetch(UPSTREAM, {
       headers: {
         accept: "application/json",
-        "user-agent": "curl/8.5.0",
+        "accept-language": "sv-SE,sv;q=0.9,en;q=0.8",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
         ...(cache.etag ? { "if-none-match": cache.etag } : {}),
+        referer: "https://casinoscores.com/",
       },
       cache: "no-store",
     });
