@@ -81,6 +81,34 @@ export async function GET(req) {
         }
 
         if (!Number.isFinite(players)) {
+          try {
+            const params = new URLSearchParams();
+            if (variant === "a") params.set("variant", "a");
+            if (force) params.set("force", "1");
+            params.set("skipLobby", "1");
+            const qs = params.toString() ? `?${params.toString()}` : "";
+            const resp = await fetch(`${url.origin}/api/casinoscores/players/${slug}${qs}`, {
+              cache: "no-store",
+            });
+            if (resp.ok) {
+              const json = await resp.json();
+              if (json?.ok) {
+                players = Number(json.players);
+                fetchedAt = json.fetchedAt || null;
+                via = json.via || "players-route";
+                error = json.error || null;
+              } else {
+                error = json?.error || `HTTP ${resp.status}`;
+              }
+            } else {
+              error = `HTTP ${resp.status}`;
+            }
+          } catch (err) {
+            error = err instanceof Error ? err.message : String(err);
+          }
+        }
+
+        if (!Number.isFinite(players)) {
           const sample = await getLatestSample(id).catch(() => null);
           if (sample) {
             players = sample.value;

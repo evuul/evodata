@@ -554,6 +554,7 @@ export async function GET(req, ctx) {
         : "default";
     const force = searchParams.get("force") === "1";
     const debug = searchParams.get("debug") === "1";
+    const skipLobby = searchParams.get("skipLobby") === "1";
     const url = `${BASE}/${slug}/`;
     const cacheKey = `${slug}:${variant}`;
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
@@ -574,7 +575,7 @@ export async function GET(req, ctx) {
     let fetchedAtOverride = null;
 
     const lobbyKey = lobbyKeyFor(slug, variant);
-    if (lobbyKey) {
+    if (!skipLobby && lobbyKey) {
       try {
         const lobby = await fetchLobbyCounts(force);
         const raw = lobby?.gameShowPlayerCounts?.[lobbyKey];
@@ -599,9 +600,11 @@ export async function GET(req, ctx) {
         lobbyError = error instanceof Error ? error.message : String(error);
         via = "lobby-error";
       }
-    } else {
+    } else if (!skipLobby && !lobbyKey) {
       lobbyError = `Missing lobby key for ${slug}${variant === "a" ? ":a" : ""}`;
       via = "lobby-missing";
+    } else if (skipLobby) {
+      via = "lobby-skipped";
     }
 
     if (!Number.isFinite(players)) {
