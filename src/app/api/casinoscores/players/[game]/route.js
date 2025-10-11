@@ -566,15 +566,6 @@ export async function GET(req, ctx) {
     const cacheKey = `${slug}:${variant}`;
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
 
-    // 🚫 TEMP: block Crazy Time A på Vercel
-    if (slug === "crazy-time" && variant === "a") {
-      return resJSON(
-        { ok: false, error: "Crazy Time A is temporarily disabled" },
-        410,
-        { "Cache-Control": "no-store" }
-      );
-    }
-
     // Cache per variant
     const entry = g.__CS_CACHE__.get(cacheKey);
     const now = Date.now();
