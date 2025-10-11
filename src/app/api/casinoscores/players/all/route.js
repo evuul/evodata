@@ -35,6 +35,7 @@ export async function GET(req) {
   try {
     const url = new URL(req.url);
     const force = url.searchParams.get("force") === "1";
+    const origin = url.origin;
 
     // 1) Hämta lobby (med in-memory TTL)
     let lobby = null;
@@ -47,14 +48,15 @@ export async function GET(req) {
     // 2) Bygg svar per target
     const rows = await Promise.all(
       TARGETS.map(async ({ slug, variant = "default" }) => {
-        const id = `${slug}${variant === "a" ? ":a" : ""}`;
+        const variantValue = variant || "default";
+        const id = `${slug}${variantValue === "a" ? ":a" : ""}`;
 
         // Försök lobby först
         let players = null;
         let fetchedAt = null;
 
         if (lobby) {
-          const key = lobbyKeyFor(slug, variant);
+          const key = lobbyKeyFor(slug, variantValue);
           if (key) {
             const raw = lobby?.gameShowPlayerCounts?.[key];
             const norm = normalizePlayers(raw);
@@ -62,6 +64,28 @@ export async function GET(req) {
               players = norm;
               fetchedAt = lobby?.createdAt ? new Date(lobby.createdAt).toISOString() : null;
             }
+          }
+        }
+
+        // Force-request: hämta direkt från per-spel route om lobby saknar värde
+        if (!Number.isFinite(players) && force) {
+          try {
+            const params = new URLSearchParams({ force: "1" });
+            if (variantValue !== "default") params.set("variant", variantValue);
+            const detailRes = await fetch(
+              `${origin}/api/casinoscores/players/${slug}?${params.toString()}`,
+              { cache: "no-store" }
+            );
+            if (detailRes.ok) {
+              const detailJson = await detailRes.json().catch(() => null);
+              const val = Number(detailJson?.players);
+              if (detailJson?.ok && Number.isFinite(val)) {
+                players = val;
+                fetchedAt = detailJson.fetchedAt || null;
+              }
+            }
+          } catch {
+            // detaljfallet ignoreras om det felar – fallback hanterar resten
           }
         }
 
