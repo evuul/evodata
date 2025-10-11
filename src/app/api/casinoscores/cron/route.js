@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-import { CRON_TARGETS } from "../players/[game]/route";
+import { ALLOWED_SLUGS } from "../players/[game]/route";
 
 const SECRET = process.env.CASINOSCORES_CRON_SECRET || "";
 
@@ -32,11 +32,10 @@ export async function POST(req) {
   const origin = new URL(req.url).origin;
   const results = [];
 
-  for (const { slug, variant } of CRON_TARGETS) {
+  for (const slug of ALLOWED_SLUGS) {
     const started = Date.now();
     try {
-      const variantParam = variant && variant !== "default" ? `&variant=${encodeURIComponent(variant)}` : "";
-      const url = `${origin}/api/casinoscores/players/${slug}?force=1&cron=1${variantParam}`;
+      const url = `${origin}/api/casinoscores/players/${slug}?force=1&cron=1`;
       const res = await fetch(url, { cache: "no-store" });
       let payload = null;
       const contentType = res.headers.get("content-type") || "";
@@ -51,7 +50,6 @@ export async function POST(req) {
       const ok = payload?.ok === true;
       results.push({
         slug,
-        variant,
         status: res.status,
         ok,
         players: payload?.players ?? null,
