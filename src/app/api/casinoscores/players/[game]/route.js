@@ -1,26 +1,41 @@
+// src/app/api/casinoscores/players/[game]/route.js
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
-import {
-  ALLOWED_SLUGS,
-  CRON_TARGETS,
-  lobbyKeyFor,
-  fetchLobbyCounts,
-} from "@/lib/casinoscores/lobby";
 
-export { ALLOWED_SLUGS, CRON_TARGETS, lobbyKeyFor, fetchLobbyCounts } from "@/lib/casinoscores/lobby";
+// Endast bas-slugs här (utan :a). A styrs via ?variant=a.
+export const ALLOWED_SLUGS = [
+  "crazy-time",
+  "monopoly-big-baller",
+  "funky-time",
+  "lightning-storm",
+  "crazy-balls",
+  "ice-fishing",
+  "xxxtreme-lightning-roulette",
+  "monopoly-live",
+  "red-door-roulette",
+  "auto-roulette",
+  "speed-baccarat-a",
+  "super-andar-bahar",
+  "lightning-dice",
+  "lightning-roulette",
+  "bac-bo",
+];
 
 const ALLOWED = new Set(ALLOWED_SLUGS);
 
 const BASE = "https://casinoscores.com";
 const TTL_MS = 30 * 1000;
 
-const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0);
+const LOBBY_API =
+  "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
+const LOBBY_TTL_MS = 30 * 1000;
 
 const g = globalThis;
 g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
+g.__CS_LOBBY__ ??= { ts: 0, data: null };
 
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
@@ -40,6 +55,59 @@ function makeEtag(obj) {
   return `W/"${h.toString(16)}"`;
 }
 
+const LOBBY_KEY_MAP = new Map([
+  ["crazy-time", { default: "crazyTime", a: "crazyTimeA" }],
+  ["monopoly-big-baller", "monopolyBigBallerLive"],
+  ["funky-time", "funkyTime"],
+  ["lightning-storm", "lightningStorm"],
+  ["crazy-balls", "crazyBalls"],
+  ["ice-fishing", "iceFishing"],
+  ["xxxtreme-lightning-roulette", "xxxtremeLightningRoulette"],
+  ["monopoly-live", "monopolyLive"],
+  ["red-door-roulette", "redDoorRoulette"],
+  ["auto-roulette", "autoRoulette"],
+  ["speed-baccarat-a", "speedBaccaratA"],
+  ["super-andar-bahar", "superAndarBahar"],
+  ["lightning-dice", "lightningDice"],
+  ["lightning-roulette", "lightningRoulette"],
+  ["bac-bo", "bacBo"],
+]);
+
+function lobbyKeyFor(slug, variant) {
+  const entry = LOBBY_KEY_MAP.get(slug);
+  if (!entry) return null;
+  if (typeof entry === "string") return entry;
+  if (variant === "a" && entry.a) return entry.a;
+  return entry.default ?? null;
+}
+
+async function fetchLobbyCounts(force = false) {
+  const cache = g.__CS_LOBBY__;
+  const now = Date.now();
+  if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) {
+    return cache.data;
+  }
+
+  const res = await fetch(LOBBY_API, {
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
+      Referer: "https://casinoscores.com/",
+    },
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error(`Lobby HTTP ${res.status}`);
+  }
+
+  const data = await res.json();
+  cache.ts = now;
+  cache.data = data;
+  return data;
+}
 
 // ---------- Plain fetch (för default-varianten) ----------
 function extractPlayersFromHTML(html) {
@@ -113,6 +181,7 @@ async function waitForPlayerCount(page, selector, timeout = 15000) {
 
 // ---------- Playwright (behövs för variant=a) ----------
 async function tryPlaywright({ url, variant }) {
+  // Kör inte Playwright i Vercel
   if (process.env.VERCEL) return { players: null, via: "playwright-skip-vercel" };
 
   try {
@@ -120,6 +189,7 @@ async function tryPlaywright({ url, variant }) {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
 
+    // Trimma nätverk
     await page.route("**/*", (route) => {
       const t = route.request().resourceType();
       if (["image", "media", "font", "stylesheet"].includes(t)) return route.abort();
@@ -129,11 +199,13 @@ async function tryPlaywright({ url, variant }) {
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
+    // Cookie-knapp ibland
     try {
       const btn = page.getByRole("button", { name: /allow|accept/i });
       if (await btn.isVisible({ timeout: 1500 })) await btn.click({ timeout: 1500 });
     } catch {}
 
+    // Hjälpare: hämta nuvarande players
     const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
     async function getCount() {
       try {
@@ -168,7 +240,7 @@ async function tryPlaywright({ url, variant }) {
             if (!switcher) return false;
             const second = switcher.querySelector(':scope > div:nth-child(2)');
             if (!second) return false;
-            return second.classList.contains("tw:bg-cornflower");
+            return second.classList.contains('tw:bg-cornflower');
           },
           undefined,
           { timeout: 3000 }
@@ -176,11 +248,13 @@ async function tryPlaywright({ url, variant }) {
         .catch(() => {});
     }
 
+    // Om A-variant: toggla till Crazy Time A och vänta på att siffran uppdateras
     if (variant === "a") {
       const before = await getCount();
       let clicked = await clickCrazyTimeASwitch();
 
       if (!clicked) {
+        // Fallback – försök gamla selektorer
         const tries = [
           'button:has-text("Crazy Time A")',
           'a:has-text("Crazy Time A")',
@@ -237,7 +311,7 @@ async function tryPlaywright({ url, variant }) {
               ({ selector, prev }) => {
                 const el = document.querySelector(selector);
                 if (!el) return false;
-                const txt = (el.textContent || "").replace(/[^\d]/g, "");
+                const txt = (el.textContent || '').replace(/[^\d]/g, '');
                 const val = parseInt(txt, 10);
                 return Number.isFinite(val) && val !== prev;
               },
@@ -251,6 +325,7 @@ async function tryPlaywright({ url, variant }) {
       }
     }
 
+    // Läs räknaren (oavsett variant)
     const players =
       (await waitForPlayerCount(page, SELECTOR, 15000)) ?? (await getCount());
 
@@ -306,14 +381,14 @@ async function tryPuppeteer({ url, variant }) {
 
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
+    // Cookie-knapp ibland
     try {
-      const buttonXPath =
-        "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'allow') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept')]";
+      const buttonXPath = "//button[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'allow') or contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'accept')]";
       const [btn] = await page.$x(buttonXPath);
       if (btn) await btn.click({ delay: 50 });
     } catch {}
 
-    const SELECTOR = '#playersCounter, [data-testid="player-counter"]';
+    const SELECTOR = "#playersCounter, [data-testid=\"player-counter\"]";
 
     async function getCount() {
       try {
@@ -340,7 +415,13 @@ async function tryPuppeteer({ url, variant }) {
         if (clicked) return true;
       } catch {}
 
-      const selectors = ["button.MuiTab-root", "a.MuiTab-root", "[role=tab]", "button", "a"];
+      const selectors = [
+        "button.MuiTab-root",
+        "a.MuiTab-root",
+        "[role=tab]",
+        "button",
+        "a",
+      ];
 
       for (const sel of selectors) {
         const handles = await page.$$(sel);
@@ -401,7 +482,7 @@ async function tryPuppeteer({ url, variant }) {
           if (!switcher) return false;
           const second = switcher.querySelector(':scope > div:nth-child(2)');
           if (!second) return false;
-          return second.classList.contains("tw:bg-cornflower");
+          return second.classList.contains('tw:bg-cornflower');
         }, { timeout: 3000 })
         .catch(() => {});
     }
@@ -459,6 +540,7 @@ async function runHeadlessFetch(opts) {
 // ---------- Route ----------
 export async function GET(req, ctx) {
   try {
+    // Vänta in params i dynamiska API:er
     const paramsMaybe = ctx?.params;
     const params =
       paramsMaybe && typeof paramsMaybe.then === "function"
@@ -484,6 +566,16 @@ export async function GET(req, ctx) {
     const cacheKey = `${slug}:${variant}`;
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
 
+    // 🚫 TEMP: block Crazy Time A på Vercel
+    if (slug === "crazy-time" && variant === "a") {
+      return resJSON(
+        { ok: false, error: "Crazy Time A is temporarily disabled" },
+        410,
+        { "Cache-Control": "no-store" }
+      );
+    }
+
+    // Cache per variant
     const entry = g.__CS_CACHE__.get(cacheKey);
     const now = Date.now();
     if (!force && entry && now - entry.ts < TTL_MS && !debug) {
@@ -519,19 +611,15 @@ export async function GET(req, ctx) {
           }
         } else {
           lobbyError = `No lobby value for ${lobbyKey}`;
-          via = "lobby-missing";
         }
       } catch (error) {
         lobbyError = error instanceof Error ? error.message : String(error);
-        via = "lobby-error";
       }
-    } else {
-      lobbyError = `Missing lobby key for ${slug}${variant === "a" ? ":a" : ""}`;
-      via = "lobby-missing";
     }
 
     if (!Number.isFinite(players)) {
       if (variant === "default") {
+        // För standard-varianten: försök plain först (billigt)
         try {
           const html = await plainFetch(url);
           const plain = extractPlayersFromHTML(html);
@@ -548,6 +636,7 @@ export async function GET(req, ctx) {
           viaDetail = headless.error || null;
         }
       } else {
+        // För A-variant: gå direkt på Playwright (måste klicka)
         const headless = await runHeadlessFetch({ url, variant: "a" });
         players = headless.players;
         via = headless.via;
@@ -570,10 +659,7 @@ export async function GET(req, ctx) {
     }
 
     if (!Number.isFinite(players)) {
-      let fallback = await getLatestSample(seriesKey).catch(() => null);
-      if (seriesKey === "crazy-time:a" && fallback && fallback.ts < CRAZY_TIME_A_RESET_MS) {
-        fallback = null;
-      }
+      const fallback = await getLatestSample(seriesKey).catch(() => null);
       if (fallback) {
         const data = {
           slug,
@@ -630,6 +716,7 @@ export async function GET(req, ctx) {
       plainError,
     };
 
+    // Persist: spara under "crazy-time" resp. "crazy-time:a"
     try {
       await saveSample(seriesKey, data.fetchedAt, players);
     } catch {}

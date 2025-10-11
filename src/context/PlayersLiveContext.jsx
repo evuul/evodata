@@ -22,8 +22,8 @@ export const GAMES = [
 ];
 
 // Gemensam cooldown / intervall
-export const PLAYERS_POLL_INTERVAL_MS = 60 * 1000; // kör tätare tills allt funkar
-const MIN_COOLDOWN_MS = 0; // ingen cooldown just nu
+export const PLAYERS_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minuter
+const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
 const PlayersLiveContext = createContext(undefined);
 
@@ -45,45 +45,6 @@ export function PlayersLiveProvider({ children }) {
 
     setLoading(true);
     setError("");
-
-    let aggregatedError = "";
-    try {
-      const params = new URLSearchParams();
-      if (force) params.set("force", "1");
-      const qs = params.toString() ? `?${params.toString()}` : "";
-      const res = await fetch(`/api/casinoscores/players/all${qs}`, { cache: "no-store" });
-      if (res.ok) {
-        const json = await res.json();
-        if (json?.ok && Array.isArray(json.items)) {
-          const aggregated = {};
-          const map = new Map(json.items.map((item) => [item.id, item]));
-          for (const g of GAMES) {
-            const item = map.get(g.id);
-            if (item) {
-              const playersVal = Number(item.players);
-              aggregated[g.id] = {
-                players: Number.isFinite(playersVal) ? playersVal : null,
-                updated: item.fetchedAt || null,
-                error: item.error || null,
-              };
-            } else {
-              aggregated[g.id] = { players: null, updated: null, error: "missing" };
-            }
-          }
-          setData(aggregated);
-          setLastUpdated(json.fetchedAt ? new Date(json.fetchedAt) : new Date());
-          setLoading(false);
-          setError("");
-          return;
-        }
-        aggregatedError = json?.error ? String(json.error) : aggregatedError;
-      } else {
-        aggregatedError = `HTTP ${res.status}`;
-      }
-    } catch (e) {
-      aggregatedError = String(e?.message || e);
-    }
-
     const out = {};
     try {
       await Promise.all(
@@ -105,7 +66,6 @@ export function PlayersLiveProvider({ children }) {
       );
       setData(out);
       setLastUpdated(new Date());
-      setError("");
     } catch (e) {
       setError(String(e?.message || e));
     } finally {
