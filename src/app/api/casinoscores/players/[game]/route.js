@@ -55,7 +55,7 @@ function makeEtag(obj) {
   return `W/"${h.toString(16)}"`;
 }
 
-const LOBBY_KEY_MAP = new Map([
+export const LOBBY_KEY_MAP = new Map([
   ["crazy-time", { default: "crazyTime", a: "crazyTimeA" }],
   ["monopoly-big-baller", "monopolyBigBallerLive"],
   ["funky-time", "funkyTime"],
@@ -83,7 +83,7 @@ export const CRON_TARGETS = ALLOWED_SLUGS.flatMap((slug) => {
   return [{ slug, variant: "default" }];
 });
 
-function lobbyKeyFor(slug, variant) {
+export function lobbyKeyFor(slug, variant) {
   const entry = LOBBY_KEY_MAP.get(slug);
   if (!entry) return null;
   if (typeof entry === "string") return entry;
@@ -91,7 +91,7 @@ function lobbyKeyFor(slug, variant) {
   return entry.default ?? null;
 }
 
-async function fetchLobbyCounts(force = false) {
+export async function fetchLobbyCounts(force = false) {
   const cache = g.__CS_LOBBY__;
   const now = Date.now();
   if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) {
