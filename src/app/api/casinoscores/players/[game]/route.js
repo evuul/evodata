@@ -4,7 +4,6 @@ export const maxDuration = 30;
 
 import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
 
-// Endast bas-slugs här (utan :a). A styrs via ?variant=a.
 export const ALLOWED_SLUGS = [
   "crazy-time",
   "monopoly-big-baller",
@@ -34,7 +33,7 @@ const LOBBY_TTL_MS = 30 * 1000;
 const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0);
 
 const g = globalThis;
-g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
+g.__CS_CACHE__ ??= new Map(); // `${slug}:${variant}` -> { ts, data, etag }
 g.__CS_LOBBY__ ??= { ts: 0, data: null };
 
 function resJSON(data, status = 200, extra = {}) {
@@ -100,7 +99,10 @@ export async function fetchLobbyCounts(force = false) {
   const res = await fetch(`${LOBBY_API}?ts=${Date.now()}`, {
     headers: {
       Accept: "application/json",
-      "User-Agent": "curl/8.5.0",
+      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36",
+      Referer: "https://casinoscores.com/",
     },
     cache: "no-store",
   });
@@ -115,7 +117,6 @@ export async function fetchLobbyCounts(force = false) {
   return data;
 }
 
-// ---------- Plain fetch (för default-varianten) ----------
 function extractPlayersFromHTML(html) {
   const idMatch = html.match(/id=["']playersCounter["'][^>]*>([\s\S]*?)<\/\s*div\s*>/i);
   if (idMatch) {
@@ -185,7 +186,6 @@ async function waitForPlayerCount(page, selector, timeout = 15000) {
   }
 }
 
-// ---------- Playwright (behövs för variant=a) ----------
 async function tryPlaywright({ url, variant }) {
   if (process.env.VERCEL) return { players: null, via: "playwright-skip-vercel" };
 
@@ -343,7 +343,6 @@ async function tryPlaywright({ url, variant }) {
   }
 }
 
-// ---------- Puppeteer (för Vercel) ----------
 async function tryPuppeteer({ url, variant }) {
   if (!process.env.VERCEL) return { players: null, via: "puppeteer-skip" };
 
@@ -530,7 +529,6 @@ async function runHeadlessFetch(opts) {
   return tryPlaywright(opts);
 }
 
-// ---------- Route ----------
 export async function GET(req, ctx) {
   try {
     const paramsMaybe = ctx?.params;
@@ -554,7 +552,6 @@ export async function GET(req, ctx) {
         : "default";
     const force = searchParams.get("force") === "1";
     const debug = searchParams.get("debug") === "1";
-    const skipLobby = searchParams.get("skipLobby") === "1";
     const url = `${BASE}/${slug}/`;
     const cacheKey = `${slug}:${variant}`;
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
@@ -575,7 +572,7 @@ export async function GET(req, ctx) {
     let fetchedAtOverride = null;
 
     const lobbyKey = lobbyKeyFor(slug, variant);
-    if (!skipLobby && lobbyKey) {
+    if (lobbyKey) {
       try {
         const lobby = await fetchLobbyCounts(force);
         const raw = lobby?.gameShowPlayerCounts?.[lobbyKey];
@@ -600,11 +597,9 @@ export async function GET(req, ctx) {
         lobbyError = error instanceof Error ? error.message : String(error);
         via = "lobby-error";
       }
-    } else if (!skipLobby && !lobbyKey) {
+    } else {
       lobbyError = `Missing lobby key for ${slug}${variant === "a" ? ":a" : ""}`;
       via = "lobby-missing";
-    } else if (skipLobby) {
-      via = "lobby-skipped";
     }
 
     if (!Number.isFinite(players)) {
