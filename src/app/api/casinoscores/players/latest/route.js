@@ -1,63 +1,81 @@
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+// Edge = snabb & billig. Ingen headless behövs för detta JSON-anrop.
+export const runtime = "edge";
 
-import { getLatestSample } from "@/lib/csStore";
+// In-memory cache i Edge/Node instance
+const g = globalThis;
+g.__EVO_LOBBY__ ??= { ts: 0, etag: null, json: null };
 
-const SLUGS = [
-  "crazy-time",
-  "crazy-time:a",
-  "monopoly-big-baller",
-  "funky-time",
-  "lightning-storm",
-  "crazy-balls",
-  "ice-fishing",
-  "xxxtreme-lightning-roulette",
-  "monopoly-live",
-  "red-door-roulette",
-  "auto-roulette",
-  "speed-baccarat-a",
-  "super-andar-bahar",
-  "lightning-dice",
-  "lightning-roulette",
-  "bac-bo",
-];
+const UPSTREAM = "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
+const TTL_MS = 30 * 1000; // 30s är lagom för detta flöde
 
-function resJSON(data, status = 200) {
+function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "s-maxage=30, stale-while-revalidate=120",
+      ...extra,
     },
   });
 }
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const items = [];
-    let newestTs = 0;
+    const now = Date.now();
+    const inm = req.headers.get("if-none-match");
+    const cache = g.__EVO_LOBBY__;
 
-    for (const slug of SLUGS) {
-      const sample = await getLatestSample(slug);
-      if (sample) {
-        newestTs = Math.max(newestTs, sample.ts);
-        items.push({
-          id: slug,
-          players: sample.value,
-          fetchedAt: new Date(sample.ts).toISOString(),
-          ageSeconds: Math.max(0, Math.round((Date.now() - sample.ts) / 1000)),
-        });
-      } else {
-        items.push({ id: slug, players: null, fetchedAt: null, ageSeconds: null });
+    // 1) Returnera ur minne om färskt (billigast)
+    if (cache.json && now - cache.ts < TTL_MS) {
+      if (inm && cache.etag && inm === cache.etag) {
+        return new Response(null, { status: 304, headers: { ETag: cache.etag } });
       }
+      return resJSON(cache.json, 200, cache.etag ? { ETag: cache.etag } : {});
     }
 
-    return resJSON({
-      ok: true,
-      items,
-      updatedAt: newestTs ? new Date(newestTs).toISOString() : null,
+    // 2) Hämta upstream (skicka If-None-Match om vi har ETag)
+    const upstream = await fetch(UPSTREAM, {
+      headers: {
+        accept: "application/json",
+        "accept-language": "sv-SE,sv;q=0.9,en;q=0.8",
+        "user-agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
+        ...(cache.etag ? { "if-none-match": cache.etag } : {}),
+        referer: "https://casinoscores.com/",
+      },
+      cache: "no-store",
     });
+
+    // 304 från upstream → behåll vår cache, svara 304 om klienten bad om samma ETag
+    if (upstream.status === 304 && cache.json) {
+      cache.ts = now;
+      if (inm && cache.etag && inm === cache.etag) {
+        return new Response(null, { status: 304, headers: { ETag: cache.etag } });
+      }
+      return resJSON(cache.json, 200, cache.etag ? { ETag: cache.etag } : {});
+    }
+
+    if (!upstream.ok) {
+      // Fallback till cache om upstream felar
+      if (cache.json) {
+        return resJSON({ ok: true, stale: true, ...cache.json }, 200, cache.etag ? { ETag: cache.etag } : {});
+      }
+      return resJSON({ ok: false, error: `Upstream HTTP ${upstream.status}` }, upstream.status);
+    }
+
+    const json = await upstream.json();
+    const etag = upstream.headers.get("etag") || `W/"${now.toString(16)}"`;
+
+    // Uppdatera cache
+    cache.ts = now;
+    cache.json = json;
+    cache.etag = etag;
+
+    if (inm && etag && inm === etag) {
+      return new Response(null, { status: 304, headers: { ETag: etag } });
+    }
+    return resJSON(json, 200, { ETag: etag });
   } catch (err) {
-    return resJSON({ ok: false, error: err?.message || String(err) }, 500);
+    return resJSON({ ok: false, error: String(err) }, 500);
   }
 }
