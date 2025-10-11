@@ -1,21 +1,31 @@
 // Snabb, fail-fast lobby-fetch med in-memory cache och export av mapping
-export const CRON_TARGETS = [
-  { slug: "crazy-time" },
-  { slug: "monopoly-big-baller" },
-  { slug: "funky-time" },
-  { slug: "lightning-storm" },
-  { slug: "crazy-balls" },
-  { slug: "ice-fishing" },
-  { slug: "xxxtreme-lightning-roulette" },
-  { slug: "monopoly-live" },
-  { slug: "red-door-roulette" },
-  { slug: "auto-roulette" },
-  { slug: "speed-baccarat-a" },
-  { slug: "super-andar-bahar" },
-  { slug: "lightning-dice" },
-  { slug: "lightning-roulette" },
-  { slug: "bac-bo" },
+export const ALLOWED_SLUGS = [
+  "crazy-time",
+  "monopoly-big-baller",
+  "funky-time",
+  "lightning-storm",
+  "crazy-balls",
+  "ice-fishing",
+  "xxxtreme-lightning-roulette",
+  "monopoly-live",
+  "red-door-roulette",
+  "auto-roulette",
+  "speed-baccarat-a",
+  "super-andar-bahar",
+  "lightning-dice",
+  "lightning-roulette",
+  "bac-bo",
 ];
+
+export const CRON_TARGETS = ALLOWED_SLUGS.flatMap((slug) => {
+  if (slug === "crazy-time") {
+    return [
+      { slug, variant: "default" },
+      { slug, variant: "a" },
+    ];
+  }
+  return [{ slug, variant: "default" }];
+});
 
 const LOBBY_KEY_MAP = new Map([
   ["crazy-time",           { default: "crazyTime", a: "crazyTimeA" }],
