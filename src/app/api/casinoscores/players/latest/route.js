@@ -1,5 +1,6 @@
-// Edge = snabb & billig. Ingen headless behövs för detta JSON-anrop.
-export const runtime = "edge";
+// Node-runtime funkar bäst på Vercel eftersom upstream blockerar Edge-IP:er.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 // In-memory cache i Edge/Node instance
 const g = globalThis;
