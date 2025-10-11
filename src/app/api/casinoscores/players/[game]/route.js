@@ -1,11 +1,10 @@
-// src/app/api/casinoscores/players/[game]/route.js
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
 
-// Endast bas-slugs här (utan :a). A styrs via ?variant=a.
+// Tillåtna bas-slugs (variant A styrs via ?variant=a)
 export const ALLOWED_SLUGS = [
   "crazy-time",
   "monopoly-big-baller",
@@ -27,14 +26,13 @@ export const ALLOWED_SLUGS = [
 const ALLOWED = new Set(ALLOWED_SLUGS);
 
 const TTL_MS = 30 * 1000;
-
 const LOBBY_API =
   "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
 const LOBBY_TTL_MS = 30 * 1000;
-const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0); // 11 oktober 2025 (00:00 Stockholm≈22:00 UTC)
+const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0); // 11 okt 2025
 
 const g = globalThis;
-g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
+g.__CS_CACHE__ ??= new Map(); // `${slug}:${variant}` -> { ts, data, etag }
 g.__CS_LOBBY__ ??= { ts: 0, data: null };
 
 function resJSON(data, status = 200, extra = {}) {
@@ -87,8 +85,7 @@ export function lobbyKeyFor(slug, variant) {
   const entry = LOBBY_KEY_MAP.get(slug);
   if (!entry) return null;
   if (typeof entry === "string") return entry;
-  if (variant === "a" && entry.a) return entry.a;
-  return entry.default ?? null;
+  return variant === "a" ? entry.a ?? null : entry.default ?? null;
 }
 
 export async function fetchLobbyCounts(force = false) {
@@ -103,7 +100,7 @@ export async function fetchLobbyCounts(force = false) {
       Accept: "application/json",
       "Accept-Language": "en-US,en;q=0.9,sv;q=0.8",
       "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36",
       Referer: "https://www.google.com/",
       Origin: "https://www.google.com",
     },
@@ -120,40 +117,31 @@ export async function fetchLobbyCounts(force = false) {
   return data;
 }
 
-// ---------- Route ----------
 export async function GET(req, ctx) {
   try {
-    // Vänta in params i dynamiska API:er
     const paramsMaybe = ctx?.params;
     const params =
-      paramsMaybe && typeof paramsMaybe.then === "function"
-        ? await paramsMaybe
-        : paramsMaybe || {};
+      paramsMaybe && typeof paramsMaybe.then === "function" ? await paramsMaybe : paramsMaybe || {};
     const slug = params.game;
 
     if (!slug || !ALLOWED.has(slug)) {
-      return resJSON(
-        { ok: false, error: "Unknown or disallowed game slug" },
-        400
-      );
+      return resJSON({ ok: false, error: "Unknown or disallowed game slug" }, 400);
     }
 
     const { searchParams } = new URL(req.url);
-    const variant =
-      (searchParams.get("variant") || "").toLowerCase() === "a"
-        ? "a"
-        : "default";
+    const variant = (searchParams.get("variant") || "").toLowerCase() === "a" ? "a" : "default";
     const force = searchParams.get("force") === "1";
     const debug = searchParams.get("debug") === "1";
     const cacheKey = `${slug}:${variant}`;
     const seriesKey = `${slug}${variant === "a" ? ":a" : ""}`;
 
-    // Cache per variant
     const entry = g.__CS_CACHE__.get(cacheKey);
     const now = Date.now();
     if (!force && entry && now - entry.ts < TTL_MS && !debug) {
       const inm = req.headers.get("if-none-match");
-      if (inm && inm === entry.etag) return new Response(null, { status: 304, headers: { ETag: entry.etag } });
+      if (inm && inm === entry.etag) {
+        return new Response(null, { status: 304, headers: { ETag: entry.etag } });
+      }
       return resJSON({ ok: true, source: "cache", ...entry.data }, 200, { ETag: entry.etag });
     }
 
@@ -164,6 +152,7 @@ export async function GET(req, ctx) {
     let fetchedAtOverride = null;
 
     const lobbyKey = lobbyKeyFor(slug, variant);
+
     if (lobbyKey) {
       try {
         const lobby = await fetchLobbyCounts(force);
@@ -171,7 +160,6 @@ export async function GET(req, ctx) {
         const normalized = normalizePlayers(raw);
         if (normalized != null) {
           players = normalized;
-          via = "lobby-api";
           fetchedAtOverride = lobby?.createdAt ? new Date(lobby.createdAt).toISOString() : null;
           if (lobby?.id || lobby?.createdAt) {
             viaDetail = [
@@ -229,7 +217,13 @@ export async function GET(req, ctx) {
           lobbyError,
           source: "cache",
         };
-        const etag = makeEtag({ slug, variant, players: data.players, fetchedAt: data.fetchedAt, stale: true });
+        const etag = makeEtag({
+          slug,
+          variant,
+          players: data.players,
+          fetchedAt: data.fetchedAt,
+          stale: true,
+        });
         g.__CS_CACHE__.set(cacheKey, { ts: Date.now(), data: payload, etag });
         return resJSON(payload, 200, { ETag: etag, "Cache-Control": "no-store" });
       }
@@ -245,9 +239,7 @@ export async function GET(req, ctx) {
           lobbyError,
         },
         503,
-        {
-          "Retry-After": "60",
-        }
+        { "Retry-After": "60" }
       );
     }
 
@@ -266,7 +258,6 @@ export async function GET(req, ctx) {
       lobbyError,
     };
 
-    // Persist: spara under "crazy-time" resp. "crazy-time:a"
     try {
       await saveSample(seriesKey, data.fetchedAt, players);
     } catch {}
