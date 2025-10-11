@@ -64,7 +64,21 @@ export function PlayersLiveProvider({ children }) {
           }
         })
       );
-      setData(out);
+      setData((prev) => {
+        const merged = {};
+        for (const g of GAMES) {
+          const next = out[g.id] ?? { players: null, updated: null };
+          const prevEntry = prev?.[g.id];
+          if (Number.isFinite(next.players)) {
+            merged[g.id] = next;
+          } else if (prevEntry && Number.isFinite(prevEntry.players)) {
+            merged[g.id] = { ...prevEntry, error: next.error ?? prevEntry.error ?? "stale" };
+          } else {
+            merged[g.id] = next;
+          }
+        }
+        return merged;
+      });
       setLastUpdated(new Date());
     } catch (e) {
       setError(String(e?.message || e));
