@@ -101,10 +101,11 @@ export async function fetchLobbyCounts(force = false) {
   const res = await fetch(LOBBY_API, {
     headers: {
       Accept: "application/json",
-      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9,sv;q=0.8",
       "User-Agent":
         "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
-      Referer: "https://casinoscores.com/",
+      Referer: "https://www.google.com/",
+      Origin: "https://www.google.com",
     },
     cache: "no-store",
   });
