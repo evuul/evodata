@@ -95,7 +95,7 @@ export async function fetchLobbyCounts(force = false) {
     return cache.data;
   }
 
-  const res = await fetch(LOBBY_API, {
+  const res = await fetch(`${LOBBY_API}?ts=${Date.now()}`, {
     headers: {
       Accept: "application/json",
       "Accept-Language": "en-US,en;q=0.9,sv;q=0.8",
@@ -103,6 +103,8 @@ export async function fetchLobbyCounts(force = false) {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36",
       Referer: "https://www.google.com/",
       Origin: "https://www.google.com",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
     },
     cache: "no-store",
   });
