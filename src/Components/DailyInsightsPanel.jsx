@@ -10,7 +10,6 @@ import { useStockPriceContext } from "@/context/StockPriceContext";
 import { formatSek } from "@/utils/formatters";
 import { totalSharesData } from "./buybacks/utils";
 
-const HIDE_IDS = new Set(["crazy-time:a"]);
 const LATEST_TOTAL_SHARES = totalSharesData[totalSharesData.length - 1]?.totalShares ?? null;
 const LOBBY_MULTIPLIER = 1.25;
 
@@ -171,7 +170,6 @@ export default function DailyInsightsPanel() {
   const currentPlayers = useMemo(() => {
     if (!liveGames) return null;
     return availableGames
-      .filter((game) => !HIDE_IDS.has(game.id))
       .reduce((sum, game) => {
         const entry = liveGames[game.id];
         const players = Number(entry?.players);

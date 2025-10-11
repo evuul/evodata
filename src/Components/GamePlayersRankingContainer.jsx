@@ -7,8 +7,7 @@ import {
 import RankingTab from "./RankingTab";
 import { GAMES as BASE_GAMES, COLORS } from "./GamePlayersLiveList"; // återanvänd färger & grundlista
 
-// Dölj A-varianten i ranking
-const GAMES = (BASE_GAMES || []).filter(g => g.id !== "crazy-time:a");
+const GAMES = BASE_GAMES || [];
 
 const DAY_OPTIONS = [7, 14, 30, 60, 90, 180, 365];
 
@@ -32,7 +31,14 @@ export default function GamePlayersRankingContainer() {
           const id = encodeURIComponent(g.id);
           const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`, { cache: "no-store" });
           const j = await res.json();
-          if (j?.ok) out[g.id] = { daily: j.daily || [] };
+          if (j?.ok) {
+            const latestVal = Number(j.latest);
+            out[g.id] = {
+              daily: j.daily || [],
+              latest: Number.isFinite(latestVal) ? latestVal : null,
+              latestTs: j.latestTs || null,
+            };
+          }
           else {
             out[g.id] = { daily: [], error: j?.error || `HTTP ${res.status}` };
             errs[g.id] = j?.error || `HTTP ${res.status}`;
