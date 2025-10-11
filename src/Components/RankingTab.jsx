@@ -25,6 +25,33 @@ import {
 } from "recharts";
 import { GAMES, COLORS as defaultColors } from "./GamePlayersLiveList";
 
+const STOCKHOLM_OPTIONS = { timeZone: "Europe/Stockholm", hour12: false };
+function formatDateStockholm(isoString) {
+  try {
+    const date = new Date(isoString);
+    if (!Number.isFinite(date.getTime())) throw new Error("bad");
+    const year = date.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, year: "numeric" });
+    const month = date.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, month: "2-digit" });
+    const day = date.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, day: "2-digit" });
+    return `${year}-${month}-${day}`;
+  } catch {
+    const now = new Date();
+    const year = now.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, year: "numeric" });
+    const month = now.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, month: "2-digit" });
+    const day = now.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, day: "2-digit" });
+    return `${year}-${month}-${day}`;
+  }
+}
+
+function buildDailySeries(entry) {
+  if (entry?.daily?.length) return entry.daily;
+  if (entry && Number.isFinite(entry.latest)) {
+    const date = formatDateStockholm(entry.latestTs || new Date().toISOString());
+    return [{ date, avg: entry.latest }];
+  }
+  return [];
+}
+
 const RANK_MODE = { TOTAL: "total", PER_GAME: "pergame" };
 const FALLBACK_TOTAL_BAR_COLOR = "#FFCA28"; // används bara om färg saknas
 const FALLBACK_PER_GAME_BAR_COLOR = "#29B6F6";
@@ -77,11 +104,7 @@ export default function RankingTab({
 
   const games = gamesProp || GAMES;
 
-  // Dölj “crazy-time:a” i ranking
-  const GAMES_FOR_RANK = useMemo(
-    () => (games || []).filter((g) => g.id !== "crazy-time:a"),
-    [games]
-  );
+  const GAMES_FOR_RANK = useMemo(() => games || [], [games]);
 
   async function fetchAllSeries(nDays) {
     setLoading(true);
@@ -93,8 +116,14 @@ export default function RankingTab({
           const id = encodeURIComponent(g.id);
           const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`, { cache: "no-store" });
           const j = await res.json();
-          if (j?.ok) out[g.id] = { daily: j.daily || [] };
-          else {
+          if (j?.ok) {
+            const latestVal = Number(j.latest);
+            out[g.id] = {
+              daily: j.daily || [],
+              latest: Number.isFinite(latestVal) ? latestVal : null,
+              latestTs: j.latestTs || null,
+            };
+          } else {
             out[g.id] = { daily: [], error: j?.error || `HTTP ${res.status}` };
             errs[g.id] = j?.error || `HTTP ${res.status}`;
           }
@@ -123,7 +152,7 @@ export default function RankingTab({
   // Total ranking – senaste snittvärdet per spel
   const rankingRows = useMemo(() => {
     const rows = GAMES_FOR_RANK.map((g) => {
-      const series = multi?.[g.id]?.daily || [];
+      const series = buildDailySeries(multi?.[g.id]);
       const last = series.length ? series[series.length - 1] : null;
       const latest = last ? Number(last.avg) : null;
       return { id: g.id, label: g.label, latest, color: colors?.[g.id] || FALLBACK_TOTAL_BAR_COLOR };
@@ -143,7 +172,7 @@ export default function RankingTab({
   // Per spel – stapelserie
   const perGameSeries = useMemo(() => {
     if (!selectedGame) return [];
-    const arr = multi?.[selectedGame]?.daily || [];
+    const arr = buildDailySeries(multi?.[selectedGame]);
     return arr
       .map((d) => ({ date: d.date, avg: Number(d.avg) }))
       .filter((d) => Number.isFinite(d.avg))

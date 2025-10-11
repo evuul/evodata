@@ -23,6 +23,8 @@ const ALLOWED = new Set([
   "bac-bo",
 ]);
 
+const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0); // 11 oktober 2025
+
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {
     status,
@@ -59,8 +61,13 @@ export async function GET(req, ctx) {
     const daysRaw = Number(searchParams.get("days") || 30);
     const days = Math.max(1, Math.min(365, Number.isFinite(daysRaw) ? daysRaw : 30));
 
-    // Hämta mätpunkter
-    const points = await getSeries(slug, days);
+    // Hämta mätpunkter (ASC sorterad från csStore)
+    const allPoints = await getSeries(slug, days);
+    const points =
+      slug === "crazy-time:a"
+        ? allPoints.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
+        : allPoints;
+    const latestPoint = points.length ? points[points.length - 1] : null;
 
     // Snitta per dag (Europe/Stockholm)
     const dailyAll = dailyAverages(points);
@@ -73,8 +80,22 @@ export async function GET(req, ctx) {
     const todaySE = `${y}-${m}-${d}`;
     const daily = dailyAll.filter((row) => row.date < todaySE);
 
-    const payload = { ok: true, slug, days, points, daily };
-    const etag = makeEtag({ slug, days, daily });
+    const payload = {
+      ok: true,
+      slug,
+      days,
+      points,
+      daily,
+      latest: latestPoint?.value ?? null,
+      latestTs: latestPoint ? new Date(latestPoint.ts).toISOString() : null,
+    };
+    const etag = makeEtag({
+      slug,
+      days,
+      daily,
+      latest: payload.latest,
+      latestTs: payload.latestTs,
+    });
 
     const inm = req.headers.get("if-none-match");
     if (inm && inm === etag) {

@@ -13,6 +13,33 @@ import {
 } from "recharts";
 import { GAMES, COLORS } from "./GamePlayersLiveList"; // GAMES: {id,label}
 
+const STOCKHOLM_OPTIONS = { timeZone: "Europe/Stockholm", hour12: false };
+function formatDateStockholm(isoString) {
+  try {
+    const date = new Date(isoString);
+    if (!Number.isFinite(date.getTime())) throw new Error("bad");
+    const year = date.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, year: "numeric" });
+    const month = date.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, month: "2-digit" });
+    const day = date.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, day: "2-digit" });
+    return `${year}-${month}-${day}`;
+  } catch {
+    const now = new Date();
+    const year = now.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, year: "numeric" });
+    const month = now.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, month: "2-digit" });
+    const day = now.toLocaleString("sv-SE", { ...STOCKHOLM_OPTIONS, day: "2-digit" });
+    return `${year}-${month}-${day}`;
+  }
+}
+
+function buildDailySeries(entry) {
+  if (entry?.daily?.length) return entry.daily;
+  if (entry && Number.isFinite(entry.latest)) {
+    const date = formatDateStockholm(entry.latestTs || new Date().toISOString());
+    return [{ date, avg: entry.latest }];
+  }
+  return [];
+}
+
 export default function GamePlayersTrendChart() {
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(false);
@@ -24,11 +51,7 @@ export default function GamePlayersTrendChart() {
   const isSm = useMediaQuery("(min-width:600px) and (max-width:899.95px)");
   const chartHeight = isXs ? 380 : isSm ? 420 : 460;
 
-  // Dölj "crazy-time:a" i trendvyn
-  const GAMES_FOR_TREND = useMemo(
-    () => (GAMES || []).filter((g) => g.id !== "crazy-time:a"),
-    []
-  );
+  const GAMES_FOR_TREND = useMemo(() => GAMES || [], []);
 
   async function fetchAllSeries(nDays) {
     setLoading(true);
@@ -40,8 +63,14 @@ export default function GamePlayersTrendChart() {
           const id = encodeURIComponent(g.id); // ":" måste encodas
           const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`, { cache: "no-store" });
           const j = await res.json();
-          if (j?.ok) out[g.id] = { daily: j.daily || [] };
-          else {
+          if (j?.ok) {
+            const latestVal = Number(j.latest);
+            out[g.id] = {
+              daily: j.daily || [],
+              latest: Number.isFinite(latestVal) ? latestVal : null,
+              latestTs: j.latestTs || null,
+            };
+          } else {
             out[g.id] = { daily: [], error: j?.error || `HTTP ${res.status}` };
             errs[g.id] = j?.error || `HTTP ${res.status}`;
           }
@@ -61,7 +90,8 @@ export default function GamePlayersTrendChart() {
   const chartData = useMemo(() => {
     const map = new Map();
     for (const g of GAMES_FOR_TREND) {
-      const arr = multi[g.id]?.daily || [];
+    const entry = multi[g.id] || {};
+    const arr = buildDailySeries(entry);
       arr.forEach(({ date, avg }) => {
         const row = map.get(date) || { date };
         row[g.id] = avg;
@@ -88,7 +118,7 @@ export default function GamePlayersTrendChart() {
   const trendingHighlight = useMemo(() => {
     const candidates = [];
     for (const g of GAMES_FOR_TREND) {
-      const series = multi[g.id]?.daily || [];
+      const series = buildDailySeries(multi[g.id]);
       if (series.length < 2) continue;
       const slice = series.slice(-Math.min(days, series.length));
       if (slice.length < 2) continue;
@@ -160,7 +190,7 @@ export default function GamePlayersTrendChart() {
     const SLICE = 7;
     const rows = [];
     for (const g of GAMES_FOR_TREND) {
-      const daily = (multi[g.id]?.daily || []).slice(-SLICE);
+      const daily = buildDailySeries(multi[g.id]).slice(-SLICE);
       if (daily.length < 2) continue;
       const first = daily[0]?.avg;
       const last = daily[daily.length - 1]?.avg;

@@ -22,6 +22,7 @@ const TOP_HOUR_COLORS = ["#00e676", "#ffb300", "#ff6f6f"];
 
 const HEATMAP_GAMES = [
   { id: "crazy-time", label: "Crazy Time" },
+  { id: "crazy-time:a", label: "Crazy Time A" },
   { id: "monopoly-big-baller", label: "Big Baller" },
   { id: "funky-time", label: "Funky Time" },
   { id: "lightning-storm", label: "Lightning Storm" },

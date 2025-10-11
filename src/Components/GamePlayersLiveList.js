@@ -14,9 +14,6 @@ import GamePlayersHeatmap from "./GamePlayersHeatmap";
  */
 export const GAMES = CONTEXT_GAMES;
 
-// DÖLJ dessa id i live-listan
-const HIDE_IDS = new Set(["crazy-time:a"]);
-
 // Delad färgpalett – (färgen för A finns kvar om du vill nyttja den i andra vyer)
 export const COLORS = {
   "crazy-time": "#C21807",              // Rubinröd
@@ -81,7 +78,7 @@ export default function GamePlayersLiveList() {
 
   // Filtrera bort dolda spel och sortera fallande (null sist)
   const rows = useMemo(() => {
-    const games = (playerGames ?? GAMES).filter(g => !HIDE_IDS.has(g.id));
+    const games = playerGames ?? GAMES;
     const list = games.map((g) => {
       const entry = liveGames?.[g.id] || {};
       const players = typeof entry.players === "number" ? entry.players : null;
