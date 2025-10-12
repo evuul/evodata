@@ -24,8 +24,15 @@ const ALLOWED = new Set(ALLOWED_SLUGS);
 // const BASE = "https://casinoscores.com"; // ⬅️ ej använd när scraping är borttaget
 const TTL_MS = 30 * 1000;
 
-const LOBBY_API =
-  "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
+const LOBBY_API = process.env.EVO_PROXY_URL ?? "https://evo-lobby-proxy.alexander-ek.workers.dev";
+const RAW_LOBBY_AUTH = process.env.EVO_PROXY_SECRET || "";
+const LOBBY_AUTH =
+  RAW_LOBBY_AUTH && RAW_LOBBY_AUTH.toLowerCase().startsWith("bearer ")
+    ? RAW_LOBBY_AUTH
+    : RAW_LOBBY_AUTH
+    ? `Bearer ${RAW_LOBBY_AUTH}`
+    : "";
+  // "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
 const LOBBY_TTL_MS = 30 * 1000;
 
 const g = globalThis;
@@ -53,24 +60,20 @@ function makeEtag(obj) {
 async function fetchLobbyCounts(force = false) {
   const cache = g.__CS_LOBBY__;
   const now = Date.now();
-  if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) {
-    return cache.data;
-  }
+  if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) return cache.data;
 
   const res = await fetch(LOBBY_API, {
     headers: {
       Accept: "application/json",
       "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/537.36 (KHTML, like Gecko) Chrome Safari",
+      "User-Agent": "Mozilla/5.0",
       Referer: "https://casinoscores.com/",
+      ...(LOBBY_AUTH ? { Authorization: LOBBY_AUTH } : {}),
     },
     cache: "no-store",
   });
 
-  if (!res.ok) {
-    throw new Error(`Lobby HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(`Lobby HTTP ${res.status}`);
 
   const data = await res.json();
   cache.ts = now;
