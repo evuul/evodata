@@ -2,28 +2,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { getSeries, dailyAverages } from "@/lib/csStore";
+import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
-// Här ska både bas‐slugs OCH "crazy-time:a" vara med (API tillåter båda)
-const ALLOWED = new Set([
-  "crazy-time",
-  "crazy-time:a", // <-- viktigt!
-  "monopoly-big-baller",
-  "funky-time",
-  "lightning-storm",
-  "crazy-balls",
-  "ice-fishing",
-  "xxxtreme-lightning-roulette",
-  "monopoly-live",
-  "red-door-roulette",
-  "auto-roulette",
-  "speed-baccarat-a",
-  "super-andar-bahar",
-  "lightning-dice",
-  "lightning-roulette",
-  "bac-bo",
-]);
-
-const CRAZY_TIME_A_RESET_MS = Date.UTC(2025, 9, 11, 0, 0, 0); // 11 oktober 2025
+const ALLOWED = new Set(SERIES_SLUGS);
 
 function resJSON(data, status = 200, extra = {}) {
   return new Response(JSON.stringify(data), {

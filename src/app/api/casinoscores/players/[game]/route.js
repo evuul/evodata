@@ -4,25 +4,20 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
+import {
+  ALLOWED_SLUGS,
+  CRAZY_TIME_A_RESET_MS,
+  lobbyKeyFor,
+} from "../shared";
 
-// Endast bas-slugs här (utan :a). A styrs via ?variant=a.
-export const ALLOWED_SLUGS = [
-  "crazy-time",
-  "monopoly-big-baller",
-  "funky-time",
-  "lightning-storm",
-  "crazy-balls",
-  "ice-fishing",
-  "xxxtreme-lightning-roulette",
-  "monopoly-live",
-  "red-door-roulette",
-  "auto-roulette",
-  "speed-baccarat-a",
-  "super-andar-bahar",
-  "lightning-dice",
-  "lightning-roulette",
-  "bac-bo",
-];
+export {
+  ALLOWED_SLUGS,
+  CRON_TARGETS,
+  SERIES_SLUGS,
+  CRAZY_TIME_A_RESET_ISO,
+  CRAZY_TIME_A_RESET_MS,
+  lobbyKeyFor,
+} from "../shared";
 
 const ALLOWED = new Set(ALLOWED_SLUGS);
 
@@ -53,32 +48,6 @@ function makeEtag(obj) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
   return `W/"${h.toString(16)}"`;
-}
-
-const LOBBY_KEY_MAP = new Map([
-  ["crazy-time", { default: "crazyTime", a: "crazyTimeA" }],
-  ["monopoly-big-baller", "monopolyBigBallerLive"],
-  ["funky-time", "funkyTime"],
-  ["lightning-storm", "lightningStorm"],
-  ["crazy-balls", "crazyBalls"],
-  ["ice-fishing", "iceFishing"],
-  ["xxxtreme-lightning-roulette", "xxxtremeLightningRoulette"],
-  ["monopoly-live", "monopolyLive"],
-  ["red-door-roulette", "redDoorRoulette"],
-  ["auto-roulette", "autoRoulette"],
-  ["speed-baccarat-a", "speedBaccaratA"],
-  ["super-andar-bahar", "superAndarBahar"],
-  ["lightning-dice", "lightningDice"],
-  ["lightning-roulette", "lightningRoulette"],
-  ["bac-bo", "bacBo"],
-]);
-
-function lobbyKeyFor(slug, variant) {
-  const entry = LOBBY_KEY_MAP.get(slug);
-  if (!entry) return null;
-  if (typeof entry === "string") return entry;
-  if (variant === "a" && entry.a) return entry.a;
-  return entry.default ?? null;
 }
 
 async function fetchLobbyCounts(force = false) {

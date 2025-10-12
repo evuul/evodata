@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { getSeries, dailyAverages } from "@/lib/csStore";
-import { ALLOWED_SLUGS } from "../players/[game]/route";
+import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../players/shared";
 
 const TZ = "Europe/Stockholm";
 
@@ -51,19 +51,25 @@ export async function GET(req) {
     let latestTs = 0;
 
     await Promise.all(
-      ALLOWED_SLUGS.map(async (slug) => {
-        const series = await getSeries(slug, days + 1);
-        if (Array.isArray(series) && series.length) {
-          const newest = series[series.length - 1]?.ts;
+      SERIES_SLUGS.map(async (seriesId) => {
+        const rawSeries = await getSeries(seriesId, days + 1);
+        const series = Array.isArray(rawSeries) ? rawSeries : [];
+        const filteredSeries =
+          seriesId === "crazy-time:a"
+            ? series.filter((point) => Number.isFinite(point?.ts) && point.ts >= CRAZY_TIME_A_RESET_MS)
+            : series;
+
+        if (filteredSeries.length) {
+          const newest = filteredSeries[filteredSeries.length - 1]?.ts;
           if (Number.isFinite(newest) && newest > latestTs) {
             latestTs = newest;
           }
         }
-        const daily = filterCompletedDays(dailyAverages(series));
+        const daily = filterCompletedDays(dailyAverages(filteredSeries));
         const trimmed = daily.slice(-days);
 
         if (includePerGame) {
-          perGame[slug] = trimmed;
+          perGame[seriesId] = trimmed;
         }
 
         trimmed.forEach(({ date, avg }) => {

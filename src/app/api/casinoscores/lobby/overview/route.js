@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 import averagePlayersData from "@/app/data/averagePlayers.json";
 import { getSeries, dailyAverages } from "@/lib/csStore";
-import { ALLOWED_SLUGS } from "../../players/[game]/route";
+import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 minut – tillräckligt för att aligna cron-samplings
@@ -188,10 +188,15 @@ export async function GET(req) {
     const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 90)) : 45;
 
     const perSlugSeries = await Promise.all(
-      ALLOWED_SLUGS.map(async (slug) => ({
-        slug,
-        series: await getSeries(slug, targetDays + 5),
-      }))
+      SERIES_SLUGS.map(async (seriesId) => {
+        const rawSeries = await getSeries(seriesId, targetDays + 5);
+        const series = Array.isArray(rawSeries) ? rawSeries : [];
+        const filtered =
+          seriesId === "crazy-time:a"
+            ? series.filter((point) => Number.isFinite(point?.ts) && point.ts >= CRAZY_TIME_A_RESET_MS)
+            : series;
+        return { slug: seriesId, series: filtered };
+      })
     );
 
     const dailyTotals = buildDailyTotals(perSlugSeries);
