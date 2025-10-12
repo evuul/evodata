@@ -27,7 +27,7 @@ export const COLORS = {
 };
 
 const EVO_LEI = '549300SUH6ZR1RF6TA88';
-const LOBBY_SIM_MULTIPLIER = 1.27;
+const LOBBY_SIM_MULTIPLIER = 1.1;
 
 export default function Header() {
   const { stockPrice, loading: loadingPrice, error: priceError, marketCap } = useStockPriceContext();
@@ -412,7 +412,7 @@ export default function Header() {
                 },
               }}
             >
-              {simulateLobby ? "Simulering aktiv (+27%)" : "Aktivera lobby-simulering (+27%)"}
+              {simulateLobby ? "Simulering aktiv (+10%)" : "Aktivera lobby-simulering (+10%)"}
             </Button>
             <Typography
               variant="caption"
@@ -422,7 +422,7 @@ export default function Header() {
                 px: 2,
               }}
             >
-              Evos riktiga lobby ligger i snitt runt 27% över våra spårade spel – simuleringen ger en uppskattning, inte ett exakt värde.
+              Evos riktiga lobby brukar ligga runt 10% över våra spårade spel – simuleringen ger en uppskattning, inte ett exakt värde.
             </Typography>
           </Box>
         )}

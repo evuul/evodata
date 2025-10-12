@@ -71,7 +71,7 @@ function formatIsoTime(iso, { withDate = false } = {}) {
 
 const CARD_GRADIENT = "linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02))";
 const CHART_GRADIENT_ID = "lobby-chart-gradient";
-const SIMULATION_MULTIPLIER = 1.27;
+const SIMULATION_MULTIPLIER = 1.1;
 const SIM_COLOR = "#ffb74d";
 const chartGridSx = {
   background: "linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0))",
@@ -369,7 +369,7 @@ export default function LobbyOverviewTab() {
                 },
               }}
             >
-              {simulate ? "Simulering aktiv (+27%)" : "Aktivera simulerad lobby (+27%)"}
+              {simulate ? "Simulering aktiv (+10%)" : "Aktivera simulerad lobby (+10%)"}
             </Button>
           </Box>
           {trendStats && (
@@ -614,7 +614,7 @@ export default function LobbyOverviewTab() {
               fontFamily: "'Roboto', sans-serif",
             }}
           >
-            Simuleringen lägger på ett genomsnittligt påslag om 27&nbsp;% för att efterlikna den
+            Simuleringen lägger på ett genomsnittligt påslag om 10&nbsp;% för att efterlikna den
             faktiska Evolution-lobbyn där flera spel saknas i vår spårning. Utfallet varierar beroende
             på tidpunkt, så värdena bör ses som en uppskattning – inte en exakt mätning.
           </Box>

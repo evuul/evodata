@@ -5,6 +5,7 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { usePlayersLive, GAMES as CONTEXT_GAMES, PLAYERS_POLL_INTERVAL_MS } from "../context/PlayersLiveContext";
+import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
 import GamePlayersHeatmap from "./GamePlayersHeatmap";
 
 /**
@@ -12,27 +13,8 @@ import GamePlayersHeatmap from "./GamePlayersHeatmap";
  *  - id används som primär nyckel (även för /series-id som kan vara "crazy-time:a")
  *  - apiSlug används för /players, och apiVariant="a" lägger till ?variant=a
  */
-export const GAMES = CONTEXT_GAMES;
-
-// Delad färgpalett – (färgen för A finns kvar om du vill nyttja den i andra vyer)
-export const COLORS = {
-  "crazy-time": "#C21807",              // Rubinröd
-  "crazy-time:a": "#26A69A",            // Teal
-  "monopoly-big-baller": "#00e676",
-  "funky-time": "#BA68C8",
-  "lightning-storm": "#1976D2",         // Stark blå
-  "crazy-balls": "#E57373",             // Ljusare röd
-  "ice-fishing": "#AB47BC",
-  "xxxtreme-lightning-roulette": "#FF7043",
-  "monopoly-live": "#66BB6A",
-  "red-door-roulette": "#EC407A",
-  "auto-roulette": "#26C6DA",
-  "speed-baccarat-a": "#4DB6AC",
-  "super-andar-bahar": "#F06292",
-  "lightning-dice": "#FFD54F",
-  "lightning-roulette": "#29B6F6",
-  "bac-bo": "#FF8A65",
-};
+export const GAMES = GAME_CONFIG || CONTEXT_GAMES;
+export const COLORS = GAME_COLORS;
 
 const TOP_N = 3;
 

@@ -1,27 +1,10 @@
 "use client";
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { GAMES as GAME_CONFIG } from "@/config/games";
 
-// Samma speldefinition som du använder i listan/header
-export const GAMES = [
-  { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
-  { id: "crazy-time:a",  label: "Crazy Time A",  apiSlug: "crazy-time", apiVariant: "a" },
-  { id: "monopoly-big-baller", label: "Big Baller", apiSlug: "monopoly-big-baller" },
-  { id: "funky-time",            label: "Funky Time", apiSlug: "funky-time" },
-  { id: "lightning-storm",       label: "Lightning Storm", apiSlug: "lightning-storm" },
-  { id: "crazy-balls",           label: "Crazy Balls", apiSlug: "crazy-balls" },
-  { id: "ice-fishing",           label: "Ice Fishing", apiSlug: "ice-fishing" },
-  { id: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette", apiSlug: "xxxtreme-lightning-roulette" },
-  { id: "monopoly-live",         label: "Monopoly Live", apiSlug: "monopoly-live" },
-  { id: "red-door-roulette",     label: "Red Door Roulette", apiSlug: "red-door-roulette" },
-  { id: "auto-roulette",         label: "Auto Roulette", apiSlug: "auto-roulette" },
-  { id: "speed-baccarat-a",      label: "Speed Baccarat A", apiSlug: "speed-baccarat-a" },
-  { id: "super-andar-bahar",     label: "Super Andar Bahar", apiSlug: "super-andar-bahar" },
-  { id: "lightning-dice",        label: "Lightning Dice", apiSlug: "lightning-dice" },
-  { id: "lightning-roulette",    label: "Lightning Roulette", apiSlug: "lightning-roulette" },
-  { id: "bac-bo",                label: "Bac Bo", apiSlug: "bac-bo" },
-];
+export const GAMES = GAME_CONFIG;
 
-// Gemensam cooldown / intervall
+// 🔁 Gemensam cooldown / intervall
 export const PLAYERS_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minuter
 const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
@@ -142,12 +125,12 @@ export function PlayersLiveProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      data,       // objekt per id
+      data,
       loading,
       error,
       lastUpdated,
       refresh: (force = false) => fetchAll(force),
-      GAMES,      // exportera listan så alla komponenter använder samma
+      GAMES,
     }),
     [data, loading, error, lastUpdated, fetchAll]
   );
