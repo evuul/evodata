@@ -206,8 +206,25 @@ export async function GET(req) {
     const days7 = dailyTotals.slice(-7);
     const days30 = dailyTotals.slice(-30);
 
+    const slugAverages = perSlugSeries.map(({ slug, series }) => {
+      if (!Array.isArray(series) || series.length === 0) {
+        return { slug, avgPlayers: null };
+      }
+      let sum = 0;
+      let count = 0;
+      for (const point of series) {
+        const value = Number(point?.value);
+        if (!Number.isFinite(value)) continue;
+        sum += value;
+        count += 1;
+      }
+      const avgPlayers = count > 0 ? Math.round((sum / count) * 100) / 100 : null;
+      return { slug, avgPlayers };
+    });
+
     return resJSON({
       ok: true,
+      dailyTotals,
       ath,
       todayPeak,
       averages: {
@@ -217,6 +234,7 @@ export async function GET(req) {
       samples: {
         todayBuckets: buckets,
       },
+      slugAverages,
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {
