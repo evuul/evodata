@@ -68,6 +68,32 @@ const InsiderTradesCard = dynamic(() => import("../Components/InsiderTradesCard"
 const DailyInsightsPanel = dynamic(() => import("../Components/DailyInsightsPanel"), { ssr: false });
 const SHOW_DAILY_INSIGHTS = false;
 
+const IntelligenceIncomeReport = dynamic(() => import("../Components/IntelligenceIncomeReport"), {
+  ssr: false,
+  loading: () => (
+    <Card
+      sx={{
+        background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+        borderRadius: "12px",
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+        padding: { xs: "12px", sm: "16px" },
+        width: "100%",
+        maxWidth: "1200px",
+        margin: "16px auto",
+        minHeight: 220,
+      }}
+    >
+      <CardContent>
+        <Typography variant="h5" sx={{ color: "#fff", mb: 1 }}>
+          Gameshow Intelligence
+        </Typography>
+        <Skeleton variant="rectangular" height={24} sx={{ mb: 1.5, bgcolor: "#2e2e2e" }} />
+        <Skeleton variant="rectangular" height={180} sx={{ bgcolor: "#2a2a2a" }} />
+      </CardContent>
+    </Card>
+  ),
+});
+
 // Kvartalsdata
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
   date: `${report.year} ${report.quarter}`,
@@ -175,6 +201,20 @@ export default function Home() {
           playersData={averagePlayersData}
           dividendData={dividendData}
           financialReports={financialReports}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          marginTop: { xs: 2, sm: 3 },
+          width: { xs: "100%", sm: "90%", md: "90%" },
+          maxWidth: "1200px",
+          margin: "0 auto",
+        }}
+      >
+        <IntelligenceIncomeReport
+          financialReports={financialReports}
+          averagePlayersData={averagePlayersData}
         />
       </Box>
 
