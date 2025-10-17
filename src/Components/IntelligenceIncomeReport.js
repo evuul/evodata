@@ -235,8 +235,9 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
   // Formatera rapportdatum för visning baserat på specifikt kvartal
   const getReportDate = (quarter, year) => {
     const reportMonth = { Q1: 4, Q2: 7, Q3: 10, Q4: 1 }[quarter];
+    const reportDay = { Q1: 17, Q2: 17, Q3: 23, Q4: 17 }[quarter];
     const reportYear = quarter === "Q4" ? year + 1 : year;
-    return new Date(`${reportYear}-${reportMonth}-17`);
+    return new Date(`${reportYear}-${reportMonth}-${reportDay}`);
   };
 
   // Beräkna antal dagar och procent för aktuellt kvartal

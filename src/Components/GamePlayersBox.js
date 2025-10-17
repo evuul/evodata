@@ -5,6 +5,7 @@ import GamePlayersLiveList from "./GamePlayersLiveList";
 import GamePlayersTrendChart from "./GamePlayersTrendChart";
 import RankingTab from "./RankingTab"; // <- vår frameless ranking
 import LobbyOverviewTab from "./LobbyOverviewTab";
+import GamePlayersAthList from "./GamePlayersAthList";
 
 export default function GamePlayersBox() {
   const [tab, setTab] = useState(0);
@@ -40,6 +41,7 @@ export default function GamePlayersBox() {
           <Tab label="Trend" />
           <Tab label="Ranking" />
           <Tab label="Lobby" />
+          <Tab label="ATH" />
         </Tabs>
 
         {tab === 0 && <GamePlayersLiveList />}
@@ -61,6 +63,8 @@ export default function GamePlayersBox() {
         )}
 
         {tab === 3 && <LobbyOverviewTab />}
+
+        {tab === 4 && <GamePlayersAthList />}
       </CardContent>
     </Card>
   );
