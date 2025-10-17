@@ -1,6 +1,6 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
-import { Box, Typography, Chip, CircularProgress, useMediaQuery, Select, MenuItem } from "@mui/material";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Box, Typography, Chip, CircularProgress, useMediaQuery, Select, MenuItem, Button } from "@mui/material";
 import {
   ResponsiveContainer,
   LineChart,
@@ -9,7 +9,6 @@ import {
   YAxis,
   Tooltip as RTooltip,
   CartesianGrid,
-  Legend,
 } from "recharts";
 import { GAMES, COLORS } from "./GamePlayersLiveList"; // GAMES: {id,label}
 
@@ -40,20 +39,36 @@ function buildDailySeries(entry) {
   return [];
 }
 
-export default function GamePlayersTrendChart() {
-  const [days, setDays] = useState(30);
+export default function GamePlayersTrendChart({ days: initialDays, onChangeDays }) {
+  const [days, setDays] = useState(initialDays ?? 30);
   const [loading, setLoading] = useState(false);
   const [multi, setMulti] = useState({});   // {id:{daily:[{date,avg}], error?}}
   const [errors, setErrors] = useState({}); // {id:"error text"}
-
-  // Responsiv höjd – rejäl även på mobil
   const isXs = useMediaQuery("(max-width:599.95px)");
   const isSm = useMediaQuery("(min-width:600px) and (max-width:899.95px)");
   const chartHeight = isXs ? 380 : isSm ? 420 : 460;
+  const [legendExpanded, setLegendExpanded] = useState(() => !isXs);
 
   const GAMES_FOR_TREND = useMemo(() => GAMES || [], []);
 
-  async function fetchAllSeries(nDays) {
+  useEffect(() => {
+    if (Number.isFinite(initialDays) && initialDays !== days) {
+      setDays(initialDays);
+    }
+  }, [initialDays, days]);
+
+  useEffect(() => {
+    setLegendExpanded((prev) => (prev === !isXs ? prev : !isXs));
+  }, [isXs]);
+
+  const handleDaysChange = (value) => {
+    setDays(value);
+    if (typeof onChangeDays === "function") {
+      onChangeDays(value);
+    }
+  };
+
+  const fetchAllSeries = useCallback(async (nDays) => {
     setLoading(true);
     const out = {};
     const errs = {};
@@ -83,9 +98,9 @@ export default function GamePlayersTrendChart() {
     setMulti(out);
     setErrors(errs);
     setLoading(false);
-  }
+  }, [GAMES_FOR_TREND]);
 
-  useEffect(() => { fetchAllSeries(days); }, [days]);
+  useEffect(() => { fetchAllSeries(days); }, [days, fetchAllSeries]);
 
   const chartData = useMemo(() => {
     const map = new Map();
@@ -242,7 +257,7 @@ export default function GamePlayersTrendChart() {
         <Select
           size="small"
           value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
+          onChange={(e) => handleDaysChange(Number(e.target.value))}
           sx={{
             minWidth: 160,
             color: "#fff",
@@ -320,7 +335,6 @@ export default function GamePlayersTrendChart() {
                 labelFormatter={(l) => `Datum: ${l}`}
                 contentStyle={{ background: "#2a2a2a", border: "1px solid #3a3a3a", color: "#fff" }}
               />
-              <Legend wrapperStyle={{ color: "#b0b0b0" }} />
               {GAMES_FOR_TREND.map((g) => (
                 <Line
                   key={g.id}
@@ -337,7 +351,84 @@ export default function GamePlayersTrendChart() {
         )}
       </Box>
 
-      <Typography variant="caption" sx={{ color: "#b0b0b0", display: "block", mt: 1 }}>
+      {hasAnyData && isXs && (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setLegendExpanded((prev) => !prev)}
+            sx={{
+              color: "#f8fafc",
+              borderColor: "#3a3a3a",
+              "&:hover": { borderColor: "#5a5a5a" },
+            }}
+          >
+            {legendExpanded ? "Dölj spel" : "Visa spel"}
+          </Button>
+        </Box>
+      )}
+
+      {hasAnyData && (
+        <Box
+          sx={{
+            mt: legendExpanded || !isXs ? 1 : 0,
+            maxHeight: legendExpanded || !isXs ? (isXs ? 200 : 999) : 0,
+            overflowY: legendExpanded || !isXs ? (isXs ? "auto" : "visible") : "hidden",
+            transition: isXs ? "max-height 0.3s ease" : "none",
+            pr: legendExpanded && isXs ? 0.5 : 0,
+            pointerEvents: legendExpanded || !isXs ? "auto" : "none",
+          }}
+        >
+          <Box
+            sx={{
+              display: "grid",
+              gap: 0.75,
+              gridTemplateColumns: {
+                xs: "repeat(2, minmax(0,1fr))",
+                sm: "repeat(3, minmax(0,1fr))",
+                md: "repeat(4, minmax(0,1fr))",
+                lg: "repeat(5, minmax(0,1fr))",
+              },
+              alignItems: "center",
+            }}
+          >
+            {GAMES_FOR_TREND.map((g) => (
+              <Box
+                key={g.id}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  minWidth: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    backgroundColor: COLORS[g.id] || "#fff",
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "#e2e8f0",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {g.label}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        </Box>
+      )}
+
+      <Typography variant="caption" sx={{ color: "#b0b0b0", display: "block", mt: 1, textAlign: "center" }}>
         Visar kompletta dagar (t.o.m. gårdagen) i Europe/Stockholm.
       </Typography>
       <Typography
@@ -366,29 +457,41 @@ export default function GamePlayersTrendChart() {
                 border: "1px solid #2f4f2f",
                 borderRadius: "10px",
                 p: 1.5,
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 0.75,
               }}
             >
-              <Typography variant="subtitle2" sx={{ color: "#7fff7f", fontWeight: 700, mb: 0.75 }}>
+              <Typography variant="subtitle2" sx={{ color: "#7fff7f", fontWeight: 700 }}>
                 Snabbast växande (senaste 7 dagarna)
               </Typography>
-              <Typography variant="caption" sx={{ color: "#9ad69a", display: "block", mb: 0.75 }}>
+              <Typography variant="caption" sx={{ color: "#9ad69a", display: "block" }}>
                 Mäter störst ökning i antal spelare (absolut förändring).
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, width: "100%" }}>
                 {growthStats.gainers.map((item) => (
-                  <Box key={item.id} sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Box
+                    key={item.id}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 0.5,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
                       <Typography sx={{ color: "#e0ffe0", fontWeight: 600 }}>{item.label}</Typography>
                     </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                      <Typography variant="body2" sx={{ color: "#bde5bd" }}>
-                        Senaste snitt: {formatPlayers(item.last)} spelare
-                      </Typography>
-                      <Typography sx={{ color: "#00e676", fontWeight: 700 }}>
-                        ↑ {formatDelta(item.deltaAbs)} {item.deltaPct != null ? `(${formatDelta(item.deltaPct, 1)}%)` : ""}
-                      </Typography>
-                    </Box>
+                    <Typography variant="body2" sx={{ color: "#bde5bd" }}>
+                      Senaste snitt: {formatPlayers(item.last)} spelare
+                    </Typography>
+                    <Typography sx={{ color: "#00e676", fontWeight: 700 }}>
+                      ↑ {formatDelta(item.deltaAbs)}{" "}
+                      {item.deltaPct != null ? `(${formatDelta(item.deltaPct, 1)}%)` : ""}
+                    </Typography>
                   </Box>
                 ))}
               </Box>
@@ -402,29 +505,43 @@ export default function GamePlayersTrendChart() {
                 border: "1px solid #4f2f2f",
                 borderRadius: "10px",
                 p: 1.5,
+                textAlign: "center",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 0.75,
               }}
             >
-              <Typography variant="subtitle2" sx={{ color: "#ff9f9f", fontWeight: 700, mb: 0.75 }}>
+              <Typography variant="subtitle2" sx={{ color: "#ff9f9f", fontWeight: 700 }}>
                 Störst tapp (senaste 7 dagarna)
               </Typography>
-              <Typography variant="caption" sx={{ color: "#ffc7c7", display: "block", mb: 0.75 }}>
+              <Typography variant="caption" sx={{ color: "#ffc7c7", display: "block" }}>
                 Mäter störst minskning i antal spelare (absolut förändring).
               </Typography>
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, width: "100%" }}>
                 {growthStats.decliners.map((item) => (
-                  <Box key={item.id} sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Box
+                    key={item.id}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 0.5,
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                       <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
                       <Typography sx={{ color: "#ffe0e0", fontWeight: 600 }}>{item.label}</Typography>
                     </Box>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                      <Typography variant="body2" sx={{ color: "#f2c5c5" }}>
-                        Senaste snitt: {formatPlayers(item.last)} spelare
-                      </Typography>
-                      <Typography sx={{ color: "#ff6f6f", fontWeight: 700 }}>
-                        ↓ {formatDelta(Math.abs(item.deltaAbs), 2, { showPlus: false })} {item.deltaPct != null ? `(-${formatDelta(Math.abs(item.deltaPct), 1, { showPlus: false })}%)` : ""}
-                      </Typography>
-                    </Box>
+                    <Typography variant="body2" sx={{ color: "#f2c5c5" }}>
+                      Senaste snitt: {formatPlayers(item.last)} spelare
+                    </Typography>
+                    <Typography sx={{ color: "#ff6f6f", fontWeight: 700 }}>
+                      ↓ {formatDelta(Math.abs(item.deltaAbs), 2, { showPlus: false })}{" "}
+                      {item.deltaPct != null
+                        ? `(-${formatDelta(Math.abs(item.deltaPct), 1, { showPlus: false })}%)`
+                        : ""}
+                    </Typography>
                   </Box>
                 ))}
               </Box>
