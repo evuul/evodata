@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import NextLink from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -21,6 +21,21 @@ import {
 import { useAuth } from "@/context/AuthContext";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+
+function LoginPageFallback() {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "70vh",
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+}
 
 function LoginPageContent() {
   const router = useRouter();
@@ -297,5 +312,11 @@ export default function LoginPage() {
   if (AUTH_DISABLED_FLAG) {
     return null;
   }
-  return <LoginPageContent />;
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  );
 }
+
+export const dynamic = "force-dynamic";
