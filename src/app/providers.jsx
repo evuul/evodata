@@ -1,15 +1,26 @@
 "use client";
 import React from "react";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { StockPriceProvider } from "@/context/StockPriceContext";
 import { PlayersLiveProvider } from "@/context/PlayersLiveContext";
 import { FxRateProvider } from "@/context/FxRateContext";
 
-export default function Providers({ children }) {
+function InnerProviders({ children }) {
+  const { isAuthenticated } = useAuth();
+
   return (
-    <FxRateProvider>
-      <StockPriceProvider stockSymbol="EVO.ST" updateInterval={300000}>
-        <PlayersLiveProvider>{children}</PlayersLiveProvider>
+    <FxRateProvider enabled={isAuthenticated}>
+      <StockPriceProvider stockSymbol="EVO.ST" updateInterval={300000} enabled={isAuthenticated}>
+        <PlayersLiveProvider enabled={isAuthenticated}>{children}</PlayersLiveProvider>
       </StockPriceProvider>
     </FxRateProvider>
+  );
+}
+
+export default function Providers({ children }) {
+  return (
+    <AuthProvider>
+      <InnerProviders>{children}</InnerProviders>
+    </AuthProvider>
   );
 }

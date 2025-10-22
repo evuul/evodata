@@ -1,24 +1,25 @@
 'use client';
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const StockPriceContext = createContext();
 
-export const StockPriceProvider = ({ children }) => {
+export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInterval = 300000, enabled = true }) => {
   const [stockPrice, setStockPrice] = useState(null);
   const [ytdChangePercent, setYtdChangePercent] = useState(null);
   const [daysWithGains, setDaysWithGains] = useState(null);
   const [daysWithLosses, setDaysWithLosses] = useState(null);
   const [marketCap, setMarketCap] = useState(null); // Ny state för marknadsvärde
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const fetchStockPrice = async () => {
+  const fetchStockPrice = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch('/api/stock?symbol=EVO.ST');
+      const response = await fetch(`/api/stock?symbol=${encodeURIComponent(stockSymbol)}`);
       if (!response.ok) {
         throw new Error('Failed to fetch stock price');
       }
@@ -34,13 +35,18 @@ export const StockPriceProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [enabled, stockSymbol]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
+
     fetchStockPrice();
-    const interval = setInterval(fetchStockPrice, 300000); // Uppdatera varje minut
+    const interval = setInterval(fetchStockPrice, updateInterval);
     return () => clearInterval(interval);
-  }, []);
+  }, [enabled, fetchStockPrice, updateInterval]);
 
   return (
     <StockPriceContext.Provider
