@@ -1,10 +1,12 @@
-'use client';
+"use client";
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { Typography, Box, Chip, Tooltip, CircularProgress, Button } from "@mui/material";
+import NextLink from "next/link";
+import { Typography, Box, Chip, Tooltip, CircularProgress, Button, Grid, Paper } from "@mui/material";
 import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
-import { useStockPriceContext } from '../context/StockPriceContext';
-import StockPrice from './StockPrice';
+import { useStockPriceContext } from "../context/StockPriceContext";
+import StockPrice from "./StockPrice";
 import { usePlayersLive, PLAYERS_POLL_INTERVAL_MS } from "../context/PlayersLiveContext";
+import { useAuth } from "../context/AuthContext";
 
 // Delad färgpalett
 export const COLORS = {
@@ -31,6 +33,7 @@ const LOBBY_SIM_MULTIPLIER = 1.1;
 
 export default function Header() {
   const { stockPrice, loading: loadingPrice, error: priceError, marketCap } = useStockPriceContext();
+  const { isAuthenticated, user, logout, authDisabled } = useAuth();
 
   const fmtCap = (v) => {
     if (!v) return 'N/A';
@@ -176,12 +179,234 @@ export default function Header() {
     return Math.round(totalPlayers * LOBBY_SIM_MULTIPLIER);
   }, [totalPlayers]);
 
+  if (!isAuthenticated) {
+  const highlightCards = [
+    {
+      key: "price",
+      title: "Aktiekurs",
+      value: "1 234,56 SEK",
+      accent: "#4cafef",
+      subtitle: "Senaste kurs från Nasdaq Stockholm",
+    },
+    {
+      key: "players",
+      title: "Live-spelare",
+      value: "89 750",
+      accent: "#66ffa6",
+      subtitle: "Uppdateras var 10:e minut",
+    },
+    {
+      key: "short",
+      title: "Blankning (FI)",
+      value: "5,12%",
+      accent: "#ffb74d",
+      subtitle: "Totala blankade andelen enligt FI",
+    },
+    {
+      key: "dividend-2025",
+      title: "Totalt utdelat 2025",
+      value: "6,4 Mdkr",
+      accent: "#d4a5ff",
+      subtitle: "Ackumulerad utdelning under året",
+    },
+  ];
+
+    return (
+      <Box
+        sx={{
+          background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
+          borderRadius: "16px",
+          border: "1px solid rgba(255,255,255,0.05)",
+          boxShadow: "0 16px 32px rgba(0,0,0,0.35)",
+          maxWidth: "1100px",
+          mx: "auto",
+          mt: { xs: 1.5, sm: 2.5 },
+          px: { xs: 2.5, sm: 4, md: 6 },
+          py: { xs: 3, sm: 4, md: 5 },
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: { xs: 1.4, sm: 1.9 },
+          textAlign: "center",
+        }}
+      >
+        <Typography
+          variant="h2"
+          component="h1"
+          sx={{
+            fontWeight: 700,
+            fontSize: { xs: "1.55rem", sm: "2.3rem", md: "2.8rem" },
+            color: "#ffffff",
+            letterSpacing: 1.5,
+            textTransform: "uppercase",
+            fontFamily: "'TT Norms', 'Manrope', 'Inter', sans-serif",
+            mb: { xs: 0.2, sm: 0.4 },
+          }}
+        >
+          Evolution Tracker
+        </Typography>
+
+        <Box sx={{ maxWidth: 720 }}>
+          <Typography
+            variant="overline"
+            sx={{
+              color: "#82c1ff",
+              letterSpacing: 3,
+              fontSize: { xs: "0.95rem", sm: "1.05rem" },
+              fontWeight: 700,
+              textTransform: "uppercase",
+              mb: { xs: 0.45, sm: 0.6 },
+            }}
+          >
+            Allt du behöver om Evolution
+          </Typography>
+        </Box>
+
+        <Box sx={{ position: "relative", width: "100%" }}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "repeat(2, minmax(0, 1fr))",
+                sm: "repeat(2, minmax(0, 1fr))",
+                md: "repeat(4, minmax(0, 1fr))",
+              },
+              gap: { xs: 1.5, sm: 2.5, md: 3 },
+              width: "100%",
+            }}
+          >
+            {highlightCards.map((card) => (
+              <Paper
+                key={card.key}
+                sx={{
+                  background: "rgba(18,18,18,0.85)",
+                  border: "1px solid rgba(255,255,255,0.04)",
+                  borderRadius: 3,
+                  px: { xs: 1.7, sm: 2.6 },
+                  py: { xs: 1.7, sm: 2.4 },
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1,
+                  boxShadow: "0 12px 24px rgba(0,0,0,0.35)",
+                  minWidth: 0,
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    textTransform: "uppercase",
+                    color: "rgba(255,255,255,0.6)",
+                    letterSpacing: 1,
+                    fontWeight: 600,
+                    fontSize: { xs: "0.68rem", sm: "0.75rem" },
+                  }}
+                >
+                  {card.title}
+                </Typography>
+                <Typography
+                  variant="h5"
+                  sx={{
+                    color: card.accent,
+                    fontWeight: 700,
+                    letterSpacing: 0.6,
+                    fontSize: { xs: "1.35rem", sm: "1.5rem" },
+                  }}
+                >
+                  {card.value}
+                </Typography>
+                <Typography component="span" sx={{ display: "none" }}>
+                  {card.subtitle}
+                </Typography>
+              </Paper>
+            ))}
+          </Box>
+        </Box>
+
+        <Box sx={{ maxWidth: 720, mt: { xs: 1.5, sm: 2.2 } }}>
+          <Typography
+            variant="h4"
+            sx={{
+              color: "#ffffff",
+              fontWeight: 700,
+              letterSpacing: 0.8,
+              textTransform: "uppercase",
+              fontFamily: "'TT Norms', 'Manrope', 'Inter', sans-serif",
+            }}
+          >
+            Live-data, analyser och dashboards på ett ställe
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "rgba(255,255,255,0.72)",
+              mt: 1,
+              lineHeight: 1.7,
+            }}
+          >
+            Följ återköp, lobbytrender, insideraffärer och kursdata i realtid. Skapa ett konto eller logga in för att låsa
+            upp alla dashboards och automatiska uppdateringar.
+          </Typography>
+        </Box>
+
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 2,
+            mt: 1,
+          }}
+        >
+          <Button
+            component={NextLink}
+            href="/login"
+            variant="contained"
+            size="large"
+            sx={{
+              minWidth: 180,
+              fontWeight: 600,
+              fontSize: "1rem",
+              textTransform: "none",
+              background: "linear-gradient(135deg, #4a90e2, #0077ff)",
+              boxShadow: "0 12px 30px rgba(0,122,255,0.35)",
+              "&:hover": {
+                background: "linear-gradient(135deg, #3a74c2, #005fcc)",
+              },
+            }}
+          >
+            Logga in
+          </Button>
+          <Button
+            component={NextLink}
+            href="/register"
+            variant="outlined"
+            size="large"
+            sx={{
+              minWidth: 180,
+              fontWeight: 600,
+              fontSize: "1rem",
+              textTransform: "none",
+              color: "#ffffff",
+              borderColor: "rgba(255,255,255,0.4)",
+              "&:hover": {
+                borderColor: "#ffffff",
+              },
+            }}
+          >
+            Skapa konto
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <>
       <Box
         sx={{
           textAlign: "center",
-          padding: { xs: "10px 12px", sm: "16px" },
+          padding: { xs: "8px 10px", sm: "12px 18px" },
           background: "linear-gradient(135deg, #1e1e1e, #2e2e2e)",
           borderRadius: "12px",
           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
@@ -191,8 +416,8 @@ export default function Header() {
           alignItems: "center",
           width: { xs: "100%", sm: "100%" },
           maxWidth: "1200px",
-          margin: { xs: "10px auto", sm: "16px auto" },
-          rowGap: { xs: 1, sm: 1.5 },
+          margin: { xs: "6px auto", sm: "12px auto" },
+          rowGap: { xs: 0.75, sm: 1.1 },
           transition: "all 0.3s ease",
         }}
       >
@@ -208,9 +433,9 @@ export default function Header() {
             // Desktop: 3-kolumns grid (vänster EVO, mitten chips, höger spacer)
             gridTemplateColumns: { sm: 'auto 1fr auto' },
             width: '100%',
-            mb: { xs: 0.5, sm: 1 },
-            gap: 1,
-            columnGap: { sm: 1 },
+            mb: { xs: 0.35, sm: 0.75 },
+            gap: 0.75,
+            columnGap: { sm: 0.75 },
           }}
         >
           {/* Vänster: EVO.ST */}
@@ -226,18 +451,18 @@ export default function Header() {
             />
           </Box>
 
-          {/* Mitten: ALLA chips – mobil: som innan, desktop: centrerade */}
+          {/* Mitten: live-statistik */}
           <Box
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
               gap: { xs: 0.75, sm: 1 },
               px: { xs: 0.5, sm: 1 },
-              width: '100%',
-              textAlign: 'center',
+              width: "100%",
+              textAlign: "center",
               minHeight: 32,
-              justifyContent: 'center',
+              justifyContent: "center",
             }}
           >
             {/* TOP3-spelare */}
@@ -245,37 +470,40 @@ export default function Header() {
               <Chip
                 size="small"
                 label={
-                  <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                    <CircularProgress size={12} sx={{ color:'#ffffff' }} /> <span>Spelare…</span>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <CircularProgress size={12} sx={{ color: "#ffffff" }} /> <span>Spelare…</span>
                   </Box>
                 }
-                sx={{ backgroundColor: '#2a2a2a', color: '#ffffff', border: '1px solid #3a3a3a' }}
+                sx={{ backgroundColor: "#2a2a2a", color: "#ffffff", border: "1px solid #3a3a3a" }}
               />
             ) : (
-              top3.map(item => {
-                const label =
-                  `${item.label}: ${Number.isFinite(item.players) ? item.players.toLocaleString('sv-SE') : "—"}`;
+              top3.map((item) => {
+                const label = `${item.label}: ${Number.isFinite(item.players) ? item.players.toLocaleString("sv-SE") : "—"}`;
                 const fallbackTime = item.updated
-                  ? new Date(item.updated).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+                  ? new Date(item.updated).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })
                   : null;
                 const tooltipText = countdownLabel
-                  ? (countdownLabel === '00:00' ? 'Uppdateras nu' : `Uppdateras om ${countdownLabel}`)
-                  : (fallbackTime ? `Senast uppdaterad ${fallbackTime}` : item.label);
+                  ? countdownLabel === "00:00"
+                    ? "Uppdateras nu"
+                    : `Uppdateras om ${countdownLabel}`
+                  : fallbackTime
+                    ? `Senast uppdaterad ${fallbackTime}`
+                    : item.label;
                 return (
                   <Tooltip key={item.id} title={tooltipText}>
                     <Chip
                       size="small"
                       label={label}
                       sx={{
-                        backgroundColor: '#2a2a2a',
+                        backgroundColor: "#2a2a2a",
                         color: item.color,
                         border: `1px solid ${item.color}30`,
-                        cursor: 'default',
-                        '& .MuiChip-label': {
-                          display: 'flex',
-                          alignItems: 'center',
+                        cursor: "default",
+                        "& .MuiChip-label": {
+                          display: "flex",
+                          alignItems: "center",
                           gap: 0.5,
-                          whiteSpace: 'nowrap',
+                          whiteSpace: "nowrap",
                           fontWeight: 700,
                         },
                       }}
@@ -289,34 +517,91 @@ export default function Header() {
             <Tooltip title="Blankning (FI)">
               <Chip
                 label={
-                  loadingShort
-                    ? <Box sx={{ display:'flex', alignItems:'center', gap:1 }}>
-                        <CircularProgress size={12} sx={{ color:'#FFCA28' }} /> <span>Blankning…</span>
-                      </Box>
-                    : `Blankning: ${Number(shortPercent ?? NaN).toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+                  loadingShort ? (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <CircularProgress size={12} sx={{ color: "#FFCA28" }} /> <span>Blankning…</span>
+                    </Box>
+                  ) : (
+                    `Blankning: ${Number(shortPercent ?? NaN).toLocaleString("sv-SE", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}%`
+                  )
                 }
                 size="small"
                 onClick={() => {
-                  if (typeof window !== 'undefined') {
-                    window.open('https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88', '_blank', 'noopener');
+                  if (typeof window !== "undefined") {
+                    window.open("https://www.fi.se/sv/vara-register/blankningsregistret/emittent/?id=549300SUH6ZR1RF6TA88", "_blank", "noopener");
                   }
                 }}
-                sx={{ backgroundColor: '#2a2a2a', color: '#FFCA28', border: '1px solid #3a3a3a', cursor: 'pointer' }}
+                sx={{ backgroundColor: "#2a2a2a", color: "#FFCA28", border: "1px solid #3a3a3a", cursor: "pointer" }}
               />
             </Tooltip>
 
             {/* Marknadsstatus */}
             <Chip
-              label={isMarketOpen() ? 'Börs: Öppen' : 'Börs: Stängd'}
+              label={isMarketOpen() ? "Börs: Öppen" : "Börs: Stängd"}
               size="small"
-              sx={{ backgroundColor: isMarketOpen() ? '#1b402a' : '#402a2a', color: isMarketOpen() ? '#00e676' : '#ff6f6f' }}
+              sx={{ backgroundColor: isMarketOpen() ? "#1b402a" : "#402a2a", color: isMarketOpen() ? "#00e676" : "#ff6f6f" }}
             />
-
-            {/* Countdown borttagen på begäran */}
           </Box>
 
-          {/* Höger: tom “spacer” för perfekt centrering av mittenkolumnen (desktop) */}
-          <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+          {!authDisabled && (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: { xs: "center", sm: "flex-end" },
+                alignItems: "center",
+                width: "100%",
+                gap: 1,
+              }}
+            >
+              {isAuthenticated ? (
+                <>
+                  {user?.email && (
+                    <Chip
+                      label={user.email}
+                      size="small"
+                      sx={{
+                        backgroundColor: "#2a2a2a",
+                        color: "#ffffff",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    />
+                  )}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={logout}
+                    sx={{
+                      borderColor: "rgba(255,255,255,0.3)",
+                      color: "#ffffff",
+                      "&:hover": { borderColor: "#ffffff" },
+                    }}
+                  >
+                    Logga ut
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  size="small"
+                  variant="contained"
+                  component={NextLink}
+                  href="/login"
+                  sx={{
+                    textTransform: "none",
+                    fontWeight: 600,
+                    background: "linear-gradient(135deg, #4a90e2, #0077ff)",
+                    "&:hover": {
+                      background: "linear-gradient(135deg, #3a74c2, #005fcc)",
+                    },
+                  }}
+                >
+                  Logga in
+                </Button>
+              )}
+            </Box>
+          )}
         </Box>
 
         <Typography
@@ -324,10 +609,10 @@ export default function Header() {
           component="h1"
           sx={{
             fontWeight: 700,
-            fontSize: { xs: "1.55rem", sm: "2.5rem", md: "3.5rem" },
+            fontSize: { xs: "1.45rem", sm: "2.35rem", md: "3.3rem" },
             color: "#ffffff",
-            marginBottom: { xs: "6px", sm: "12px" },
-            letterSpacing: "0.5px",
+            marginBottom: { xs: "4px", sm: "8px" },
+            letterSpacing: "0.4px",
             textTransform: "uppercase",
           }}
         >
@@ -338,9 +623,9 @@ export default function Header() {
           variant="body1"
           sx={{
             color: "#b0b0b0",
-            fontSize: { xs: "0.85rem", sm: "1rem" },
+            fontSize: { xs: "0.82rem", sm: "0.95rem" },
             opacity: 0.9,
-            marginBottom: { xs: "6px", sm: "10px" },
+            marginBottom: { xs: "4px", sm: "6px" },
             display: { xs: "none", sm: "block" },
             fontWeight: 500,
           }}
@@ -353,10 +638,10 @@ export default function Header() {
           component="div"
           sx={{
             color: "#f2f2f2",
-            fontSize: { xs: "1.05rem", sm: "1.2rem" },
+            fontSize: { xs: "1rem", sm: "1.16rem" },
             fontWeight: 600,
-            letterSpacing: 0.3,
-            marginBottom: { xs: "4px", sm: "8px" },
+            letterSpacing: 0.25,
+            marginBottom: { xs: "2px", sm: "6px" },
           }}
         >
           <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
@@ -374,19 +659,19 @@ export default function Header() {
                   {totalPlayers.toLocaleString("sv-SE")}
                 </Box>
                 {simulateLobby && simulatedTotalPlayers != null && (
-                    <Box
-                      component="span"
-                      sx={{
-                        color: "#ffb74d",
-                        fontWeight: 600,
-                        ml: 1,
-                        mr: 0.75,
-                      }}
-                    >
-                      SIM {simulatedTotalPlayers.toLocaleString("sv-SE")}
-                    </Box>
-                  )}
-                  spelare just nu
+                  <Box
+                    component="span"
+                    sx={{
+                      color: "#ffb74d",
+                      fontWeight: 600,
+                      ml: 1,
+                      mr: 0.75,
+                    }}
+                  >
+                    SIM {simulatedTotalPlayers.toLocaleString("sv-SE")}
+                  </Box>
+                )}
+                spelare just nu
               </>
             ) : (
               "Totalt antal spelare saknas för tillfället"
@@ -394,7 +679,7 @@ export default function Header() {
           </Box>
         </Typography>
         {!loadingPlayers && totalPlayers != null && (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, mb: { xs: "6px", sm: "10px" } }}>
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.6, mb: { xs: "4px", sm: "6px" } }}>
             <Button
               size="small"
               onClick={() => setSimulateLobby((prev) => !prev)}
@@ -457,37 +742,36 @@ export default function Header() {
               <StockPrice />
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center', mt: 1 }}>
-              <Chip label={`Market Cap: ${fmtCap(marketCap)}`} size="small" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-            </Box>
           </>
         )}
       </Box>
 
       {/* Quick anchors */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-        <Chip component="a" href="#live-games" clickable size="small" label="Live-spelare" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#money-counter" clickable size="small" label="Omsättning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#blankning" clickable size="small" label="Blankning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#insider" clickable size="small" label="Insyn" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
-        <Chip
-          component="a"
-          href="#support"
-          clickable
-          size="small"
-          label="Stötta"
-          sx={{
-            backgroundColor: '#2a2a2a',
-            color: '#66bb6a',
-            border: '1px solid #66bb6a55',
-          }}
-        />
-      </Box>
+      {isAuthenticated && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+          <Chip component="a" href="#live-games" clickable size="small" label="Live-spelare" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#money-counter" clickable size="small" label="Omsättning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#blankning" clickable size="small" label="Blankning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#insider" clickable size="small" label="Insyn" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+          <Chip
+            component="a"
+            href="#support"
+            clickable
+            size="small"
+            label="Stötta"
+            sx={{
+              backgroundColor: '#2a2a2a',
+              color: '#66bb6a',
+              border: '1px solid #66bb6a55',
+            }}
+          />
+        </Box>
+      )}
     </>
   );
 }

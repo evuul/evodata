@@ -9,8 +9,9 @@ export const PLAYERS_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minuter
 const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
 const PlayersLiveContext = createContext(undefined);
+const INITIAL_FETCH_DELAY_MS = 4000;
 
-export function PlayersLiveProvider({ children }) {
+export function PlayersLiveProvider({ children, enabled = true }) {
   const [data, setData] = useState({}); // { [id]: { players, updated, error? } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -18,6 +19,7 @@ export function PlayersLiveProvider({ children }) {
   const lastFetchRef = useRef(0);
 
   const fetchAll = useCallback(async (force = false) => {
+    if (!enabled) return;
     const now = Date.now();
     const visible = typeof document === "undefined" ? true : document.visibilityState === "visible";
 
@@ -28,49 +30,64 @@ export function PlayersLiveProvider({ children }) {
 
     setLoading(true);
     setError("");
-    const out = {};
+
+    const params = new URLSearchParams();
+    if (force) params.set("force", "1");
+    const qs = params.toString() ? `?${params.toString()}` : "";
+
     try {
-      await Promise.all(
-        GAMES.map(async (g) => {
-          const params = new URLSearchParams();
-          if (g.apiVariant) params.set("variant", g.apiVariant);
-          if (force) params.set("force", "1");
-          const qs = params.toString() ? `?${params.toString()}` : "";
-          try {
-            const res = await fetch(`/api/casinoscores/players/${g.apiSlug}${qs}`, { cache: "no-store" });
-            const j = await res.json();
-            out[g.id] = j.ok
-              ? { players: Number(j.players), updated: j.fetchedAt }
-              : { players: null, updated: null, error: j.error || "error" };
-          } catch (e) {
-            out[g.id] = { players: null, updated: null, error: String(e?.message || e) };
-          }
-        })
-      );
+      const res = await fetch(`/api/casinoscores/players/all${qs}`, { cache: "no-store" });
+      const json = await res.json();
+
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || `HTTP ${res.status}`);
+      }
+
+      const map = {};
+      if (Array.isArray(json.items)) {
+        json.items.forEach((item) => {
+          const id = item?.id;
+          if (!id) return;
+          const players = Number(item?.players);
+          map[id] = {
+            players: Number.isFinite(players) ? players : null,
+            updated: item?.fetchedAt ?? null,
+            stale: item?.stale ?? false,
+          };
+        });
+      }
+
       setData((prev) => {
         const merged = {};
         for (const g of GAMES) {
-          const next = out[g.id] ?? { players: null, updated: null };
+          const next = map[g.id] ?? { players: null, updated: null };
           const prevEntry = prev?.[g.id];
           if (Number.isFinite(next.players)) {
             merged[g.id] = next;
           } else if (prevEntry && Number.isFinite(prevEntry.players)) {
-            merged[g.id] = { ...prevEntry, error: next.error ?? prevEntry.error ?? "stale" };
+            merged[g.id] = { ...prevEntry, stale: true };
           } else {
             merged[g.id] = next;
           }
         }
         return merged;
       });
-      setLastUpdated(new Date());
+
+      if (json.fetchedAt) {
+        const parsed = Date.parse(json.fetchedAt);
+        setLastUpdated(Number.isFinite(parsed) ? new Date(parsed) : new Date());
+      } else {
+        setLastUpdated(new Date());
+      }
     } catch (e) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   const hydrateFromCache = useCallback(async () => {
+    if (!enabled) return;
     try {
       const res = await fetch("/api/casinoscores/players/latest", { cache: "no-store" });
       if (!res.ok) return;
@@ -94,20 +111,28 @@ export function PlayersLiveProvider({ children }) {
     } catch {
       // ignorerar cachefel
     }
-  }, []);
+  }, [enabled]);
 
   // initial + events
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return () => {};
+    }
     const id = setTimeout(() => {
       hydrateFromCache();
     }, 0);
     return () => clearTimeout(id);
-  }, [hydrateFromCache]);
+  }, [hydrateFromCache, enabled]);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return () => {};
+    }
     const initialId = setTimeout(() => {
       fetchAll(true);
-    }, 0);
+    }, INITIAL_FETCH_DELAY_MS);
     const onFocus = () => fetchAll(false);
     const onVis = () => fetchAll(false);
     window.addEventListener("focus", onFocus);
@@ -121,7 +146,7 @@ export function PlayersLiveProvider({ children }) {
       window.removeEventListener("visibilitychange", onVis);
       clearInterval(id);
     };
-  }, [fetchAll]);
+  }, [enabled, fetchAll]);
 
   const value = useMemo(
     () => ({

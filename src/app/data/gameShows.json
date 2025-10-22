@@ -2,9 +2,13 @@
     {
       "name": "Crazy Time",
       "playerData": [
+        { "date": "2025-04-12", "players": 15250 },
+        { "date": "2025-04-11", "players": 14920 },
         { "date": "2025-04-10", "players": 15000 },
         { "date": "2025-04-09", "players": 14500 },
-        { "date": "2025-04-08", "players": 14800 }
+        { "date": "2025-04-08", "players": 14800 },
+        { "date": "2025-04-07", "players": 14120 },
+        { "date": "2025-04-06", "players": 13850 }
       ]
     },
     {

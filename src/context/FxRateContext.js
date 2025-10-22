@@ -18,6 +18,7 @@ export const FxRateProvider = ({
   children,
   fallbackRate = 11.02,
   refreshInterval = 60 * 60 * 1000, // varje timme
+  enabled = true,
 } = {}) => {
   const [rate, setRate] = useState(fallbackRate);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,10 @@ export const FxRateProvider = ({
 
   const fetchRate = useCallback(
     async ({ silent = false } = {}) => {
+      if (!enabled) {
+        setLoading(false);
+        return;
+      }
       if (!silent) setLoading(true);
       setError(null);
       try {
@@ -82,10 +87,15 @@ export const FxRateProvider = ({
         if (!silent) setLoading(false);
       }
     },
-    [fallbackRate, persistToStorage]
+    [enabled, fallbackRate, persistToStorage]
   );
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return () => {};
+    }
+
     let shouldFetch = true;
     if (typeof window !== "undefined") {
       try {
@@ -121,7 +131,7 @@ export const FxRateProvider = ({
     return () => {
       if (id) clearInterval(id);
     };
-  }, [fetchRate, refreshInterval]);
+  }, [enabled, fetchRate, refreshInterval]);
 
   const value = useMemo(
     () => ({

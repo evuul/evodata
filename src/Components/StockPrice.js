@@ -85,22 +85,7 @@ const StockPrice = () => {
           </Box>
 
           {/* Marknadsvärde */}
-          {marketCap !== null && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#ccc",
-                fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                fontFamily: "'Roboto Mono', monospace",
-                mt: 0.5,
-              }}
-            >
-              Marknadsvärde: {(marketCap / 1000000000).toLocaleString("sv-SE", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })} Mdkr
-            </Typography>
-          )}
+          {/* Marknadsvärde visas i annan modul, utelämnad här */}
 
           {/* Daglig förändring och YTD */}
           <Box display="flex" alignItems="center" mt={0.5} gap={2}>
@@ -153,49 +138,7 @@ const StockPrice = () => {
           </Box>
 
           {/* Upp- och ner-dagar */}
-          {(daysWithGains !== null || daysWithLosses !== null) && (
-            <Box display="flex" alignItems="center" mt={0.5} gap={2}>
-              {daysWithGains !== null && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "#00e676",
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                    fontFamily: "'Roboto Mono', monospace",
-                  }}
-                >
-                  Upp-dagar: {daysWithGains}
-                </Typography>
-              )}
-              {daysWithLosses !== null && (
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: "#ff5722",
-                    fontSize: { xs: "0.8rem", sm: "0.9rem" },
-                    fontFamily: "'Roboto Mono', monospace",
-                  }}
-                >
-                  Ner-dagar: {daysWithLosses}
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          {/* Senast uppdaterad */}
-          {lastUpdated && (
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#ccc",
-                fontSize: { xs: "0.75rem", sm: "0.8rem" },
-                fontFamily: "'Roboto', sans-serif",
-                mt: 1,
-              }}
-            >
-              Senast uppdaterad: {lastUpdated.toLocaleTimeString("sv-SE")}
-            </Typography>
-          )}
+          {/* Upp- och ner-dagar samt senaste uppdaterad visas inte i preview-läget */}
         </Box>
       )}
     </Box>

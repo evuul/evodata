@@ -3,18 +3,28 @@
 import Header from "../Components/Header";
 // import PlayerCard from "../Components/PlayerCard";
 import dynamic from "next/dynamic";
-import { Card, CardContent, Skeleton, Typography } from "@mui/material";
+import { useEffect, useState, useRef } from "react";
+import { Box, Card, CardContent, CircularProgress, Skeleton, Typography } from "@mui/material";
 import MoneyCounter from "../Components/MoneyCounter";
 import InvestmentCalculator from "../Components/InvestmentCalculator";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
 import dividendData from "./data/dividendData.json";
-import { Box } from "@mui/material";
+import buybackData from "./data/buybackData.json";
+import gameShowsPreview from "./data/gameShows.json";
+import shortHistoryData from "./data/shortHistory.json";
+import insiderTransactions from "./data/insiderTransactions.json";
+import outstandingShares from "./data/amountOfShares.json";
 import NewsSection from "../Components/NewsSection";
 import FAQ from "../Components/FAQ";
 import Footer from "../Components/Footer";
 import GamePlayersBox from "../Components/GamePlayersBox"; // 👈 NY
 import FairValueCard from "../Components/FairValueCard";
+import { useAuth } from "../context/AuthContext";
+import NextLink from "next/link";
+import LoggedOutPreview from "../Components/LoggedOutPreview";
+import CreatorSpotlight from "../Components/CreatorSpotlight";
+import PreviewCharts from "../Components/PreviewCharts";
 
 // Laddningsskelett för tunga komponenter
 const GraphBoxSkeleton = () => (
@@ -67,6 +77,7 @@ const ShortTradingActivity = dynamic(() => import("../Components/ShortTradingAct
 const InsiderTradesCard = dynamic(() => import("../Components/InsiderTradesCard"), { ssr: false });
 const DailyInsightsPanel = dynamic(() => import("../Components/DailyInsightsPanel"), { ssr: false });
 const SHOW_DAILY_INSIGHTS = false;
+const SHOW_INTELLIGENCE_REPORT = false;
 
 const IntelligenceIncomeReport = dynamic(() => import("../Components/IntelligenceIncomeReport"), {
   ssr: false,
@@ -120,13 +131,46 @@ years.forEach((year) => {
 });
 
 // SAFE DEFAULT om du ändå vill visa något i LiveEarningsBox
-const SAFE_PLAYER_COUNT = 0;
+function useInViewOnce(ref) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (!ref.current || visible || typeof IntersectionObserver === "undefined") return undefined;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setVisible(true);
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [ref, visible]);
+
+  return visible;
+}
 
 export default function Home() {
-  return (
-    <main>
-      <Header />
+  const { isAuthenticated, initialized } = useAuth();
+  const [showAuthenticatedContent, setShowAuthenticatedContent] = useState(false);
+  const newsRef = useRef(null);
+  const newsInView = useInViewOnce(newsRef);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      const id = setTimeout(() => setShowAuthenticatedContent(true), 300);
+      return () => clearTimeout(id);
+    }
+    setShowAuthenticatedContent(false);
+  }, [isAuthenticated]);
+
+  const renderAuthenticatedContent = () => (
+    <>
       {SHOW_DAILY_INSIGHTS && <DailyInsightsPanel />}
 
       {/* Container: GamePlayersBox + MoneyCounter */}
@@ -204,22 +248,26 @@ export default function Home() {
         />
       </Box>
 
-      <Box
-        sx={{
-          marginTop: { xs: 2, sm: 3 },
-          width: { xs: "100%", sm: "90%", md: "90%" },
-          maxWidth: "1200px",
-          margin: "0 auto",
-        }}
-      >
-        <IntelligenceIncomeReport
-          financialReports={financialReports}
-          averagePlayersData={averagePlayersData}
-        />
-      </Box>
+      {SHOW_INTELLIGENCE_REPORT && (
+        <Box
+          sx={{
+            marginTop: { xs: 2, sm: 3 },
+            width: { xs: "100%", sm: "90%", md: "90%" },
+            maxWidth: "1200px",
+            margin: "0 auto",
+          }}
+        >
+          <IntelligenceIncomeReport
+            financialReports={financialReports}
+            averagePlayersData={averagePlayersData}
+          />
+        </Box>
+      )}
 
       {/* NewsSection (NYHETER) */}
-      <Box id="news"
+      <Box
+        id="news"
+        ref={newsRef}
         sx={{
           marginTop: { xs: 2, sm: 3 },
           width: { xs: "100%", sm: "90%", md: "90%" },
@@ -227,7 +275,7 @@ export default function Home() {
           margin: "0 auto",
         }}
       >
-        <NewsSection />
+        {newsInView && <NewsSection />}
       </Box>
 
       {/* Short interest trend */}
@@ -292,7 +340,67 @@ export default function Home() {
         <FAQ />
       </Box>
 
+      <CreatorSpotlight />
+
       <Footer />
+    </>
+  );
+
+  return (
+    <main>
+      <Header />
+
+      {!initialized ? (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "60vh",
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      ) : isAuthenticated ? (
+        <>
+          {showAuthenticatedContent ? (
+            renderAuthenticatedContent()
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: "40vh",
+                color: "rgba(255,255,255,0.7)",
+                gap: 1.5,
+              }}
+            >
+              <CircularProgress size={28} sx={{ color: "#82c1ff" }} />
+              <Typography variant="body2">Laddar dashboards …</Typography>
+            </Box>
+          )}
+        </>
+      ) : (
+        <>
+          <LoggedOutPreview
+            financialReports={financialReports}
+            averagePlayersData={averagePlayersData}
+            dividendData={dividendData}
+            buybackData={buybackData}
+            gameShowsData={gameShowsPreview}
+            shortHistoryData={shortHistoryData}
+            insiderTransactions={insiderTransactions}
+          />
+          <PreviewCharts
+            financialReports={financialReports}
+            gameShowsData={gameShowsPreview}
+            sharesData={outstandingShares}
+          />
+          <CreatorSpotlight />
+        </>
+      )}
     </main>
   );
 }
