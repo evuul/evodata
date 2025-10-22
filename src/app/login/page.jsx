@@ -20,7 +20,9 @@ import {
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 
-export default function LoginPage() {
+const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, requestPasswordReset, isAuthenticated, initialized, authDisabled } = useAuth();
@@ -39,10 +41,6 @@ export default function LoginPage() {
       router.replace("/");
     }
   }, [authDisabled, router]);
-
-  if (authDisabled) {
-    return null;
-  }
 
   useEffect(() => {
     if (initialized && isAuthenticated) {
@@ -107,6 +105,11 @@ export default function LoginPage() {
     }
   };
 
+  const handleSkipLogin = () => {
+    const next = searchParams?.get("next");
+    router.push(next || "/");
+  };
+
   if (!initialized && !isAuthenticated) {
     return (
       <Box
@@ -120,6 +123,10 @@ export default function LoginPage() {
         <CircularProgress />
       </Box>
     );
+  }
+
+  if (authDisabled) {
+    return null;
   }
 
   return (
@@ -219,6 +226,24 @@ export default function LoginPage() {
             </Link>
           </Typography>
         </Box>
+
+        <Box sx={{ mt: 3, display: "flex", justifyContent: "center" }}>
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={handleSkipLogin}
+            sx={{
+              color: "#4a90e2",
+              borderColor: "rgba(74, 144, 226, 0.6)",
+              "&:hover": {
+                borderColor: "#4a90e2",
+                backgroundColor: "rgba(74, 144, 226, 0.08)",
+              },
+            }}
+          >
+            Gå vidare utan att logga in
+          </Button>
+        </Box>
       </Paper>
 
       <Dialog open={resetDialogOpen} onClose={handleCloseReset} fullWidth maxWidth="xs">
@@ -266,4 +291,11 @@ export default function LoginPage() {
       </Dialog>
     </Container>
   );
+}
+
+export default function LoginPage() {
+  if (AUTH_DISABLED_FLAG) {
+    return null;
+  }
+  return <LoginPageContent />;
 }

@@ -15,7 +15,9 @@ import {
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 
-export default function ResetPasswordPage() {
+const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+
+function ResetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { resetPassword, authDisabled } = useAuth();
@@ -34,10 +36,6 @@ export default function ResetPasswordPage() {
       router.replace("/");
     }
   }, [authDisabled, router]);
-
-  if (authDisabled) {
-    return null;
-  }
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -63,6 +61,10 @@ export default function ResetPasswordPage() {
   };
 
   const missingParams = !email || !token;
+
+  if (authDisabled) {
+    return null;
+  }
 
   return (
     <Container
@@ -173,4 +175,11 @@ export default function ResetPasswordPage() {
       </Paper>
     </Container>
   );
+}
+
+export default function ResetPasswordPage() {
+  if (AUTH_DISABLED_FLAG) {
+    return null;
+  }
+  return <ResetPasswordContent />;
 }
