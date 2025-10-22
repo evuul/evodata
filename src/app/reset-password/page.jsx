@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import NextLink from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Container,
   Link,
   Paper,
@@ -16,6 +17,21 @@ import {
 import { useAuth } from "@/context/AuthContext";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+
+function ResetPasswordFallback() {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "70vh",
+      }}
+    >
+      <CircularProgress />
+    </Box>
+  );
+}
 
 function ResetPasswordContent() {
   const router = useRouter();
@@ -181,5 +197,11 @@ export default function ResetPasswordPage() {
   if (AUTH_DISABLED_FLAG) {
     return null;
   }
-  return <ResetPasswordContent />;
+  return (
+    <Suspense fallback={<ResetPasswordFallback />}>
+      <ResetPasswordContent />
+    </Suspense>
+  );
 }
+
+export const dynamic = "force-dynamic";
