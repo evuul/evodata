@@ -12,6 +12,7 @@ import {
   Tooltip as RTooltip,
   Area,
 } from "recharts";
+import { parseJsonResponse } from "@/lib/apiResponse";
 
 const TZ = "Europe/Stockholm";
 
@@ -93,11 +94,8 @@ export default function LobbyOverviewTab() {
     try {
       setState((prev) => ({ ...prev, loading: true, error: "" }));
       const res = await fetch("/api/casinoscores/lobby/overview", { cache: "no-store" });
-      const json = await res.json();
-      if (!res.ok || json?.ok !== true) {
-        throw new Error(json?.error || `HTTP ${res.status}`);
-      }
-      setState({ loading: false, error: "", data: json });
+      const payload = await parseJsonResponse(res);
+      setState({ loading: false, error: "", data: payload });
     } catch (error) {
       setState({ loading: false, error: error?.message || String(error), data: null });
     }
