@@ -22,6 +22,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { GAMES as GAME_LIST, COLORS as GAME_COLORS } from "@/config/games";
+import { parseJsonResponse } from "@/lib/apiResponse";
 
 const REPORT_LOOKBACK_DAYS = 90;
 const DEFAULT_REVENUE_PER_PLAYER = 423.7 / 65769; // tidigare Q2-bas
@@ -165,9 +166,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
         const res = await fetch(`/api/casinoscores/lobby/overview?days=${REPORT_LOOKBACK_DAYS}`, {
           cache: "no-store",
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        if (!json?.ok) throw new Error(json?.error || "Kunde inte hämta lobby-data");
+        const json = await parseJsonResponse(res);
 
         const rows = Array.isArray(json?.dailyTotals)
           ? json.dailyTotals
