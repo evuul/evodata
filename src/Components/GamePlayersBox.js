@@ -1,6 +1,6 @@
 "use client";
-import React, { useState } from "react";
-import { Card, CardContent, Tabs, Tab } from "@mui/material";
+import React, { useMemo, useState } from "react";
+import { Box, Card, CardContent, Tabs, Tab, Select, MenuItem, useMediaQuery, useTheme } from "@mui/material";
 import GamePlayersLiveList from "./GamePlayersLiveList";
 import GamePlayersTrendChart from "./GamePlayersTrendChart";
 import RankingTab from "./RankingTab"; // <- vår frameless ranking
@@ -10,6 +10,48 @@ import GamePlayersAthList from "./GamePlayersAthList";
 export default function GamePlayersBox() {
   const [tab, setTab] = useState(0);
   const [days, setDays] = useState(30); // dela dagar mellan Trend/Ranking
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  const tabs = useMemo(
+    () => [
+      { value: 0, label: "Live" },
+      { value: 1, label: "Trend" },
+      { value: 2, label: "Ranking" },
+      { value: 3, label: "Lobby" },
+      { value: 4, label: "ATH" },
+    ],
+    []
+  );
+
+  const renderContent = () => {
+    switch (tab) {
+      case 0:
+        return <GamePlayersLiveList />;
+      case 1:
+        return (
+          <GamePlayersTrendChart
+            // frameless – bara Box med p:2 i komponenten
+            days={days}
+            onChangeDays={setDays}
+          />
+        );
+      case 2:
+        return (
+          <RankingTab
+            // frameless – bara Box med p:2 i komponenten
+            days={days}
+            onChangeDays={setDays}
+          />
+        );
+      case 3:
+        return <LobbyOverviewTab />;
+      case 4:
+        return <GamePlayersAthList />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <Card
@@ -25,46 +67,54 @@ export default function GamePlayersBox() {
       }}
     >
       <CardContent sx={{ p: 0 }}>
-        <Tabs
-          value={tab}
-          onChange={(_, v) => setTab(v)}
-          textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#fff" } }}
-          sx={{
-            px: 1,
-            "& .MuiTabs-flexContainer": { justifyContent: "center" },
-            "& .MuiTab-root": { color: "#b0b0b0", textTransform: "none" },
-            "& .Mui-selected": { color: "#fff" },
-          }}
-        >
-          <Tab label="Live" />
-          <Tab label="Trend" />
-          <Tab label="Ranking" />
-          <Tab label="Lobby" />
-          <Tab label="ATH" />
-        </Tabs>
-
-        {tab === 0 && <GamePlayersLiveList />}
-
-        {tab === 1 && (
-          <GamePlayersTrendChart
-            // frameless – bara Box med p:2 i komponenten
-            days={days}
-            onChangeDays={setDays}
-          />
+        {isMobile ? (
+          <Box sx={{ px: 1.5, pt: 1.5, pb: 0.5 }}>
+            <Select
+              fullWidth
+              size="small"
+              value={tab}
+              onChange={(event) => setTab(Number(event.target.value))}
+              sx={{
+                color: "#fff",
+                ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.2)" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.35)" },
+                "& .MuiSelect-icon": { color: "#fff" },
+              }}
+            >
+              {tabs.map(({ value, label }) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+        ) : (
+          <Tabs
+            value={tab}
+            onChange={(_, v) => setTab(v)}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#fff" } }}
+            sx={{
+              px: 1,
+              "& .MuiTabs-flexContainer": { justifyContent: "center" },
+              "& .MuiTab-root": {
+                color: "#b0b0b0",
+                textTransform: "none",
+                minWidth: 120,
+              },
+              "& .Mui-selected": { color: "#fff" },
+            }}
+          >
+            {tabs.map(({ value, label }) => (
+              <Tab key={value} label={label} value={value} />
+            ))}
+          </Tabs>
         )}
 
-        {tab === 2 && (
-          <RankingTab
-            // frameless – bara Box med p:2 i komponenten
-            days={days}
-            onChangeDays={setDays}
-          />
-        )}
-
-        {tab === 3 && <LobbyOverviewTab />}
-
-        {tab === 4 && <GamePlayersAthList />}
+        {renderContent()}
       </CardContent>
     </Card>
   );
