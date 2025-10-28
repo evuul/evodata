@@ -148,7 +148,7 @@ const StockBuybackInfo = ({
   const buybackCashInSEK = buybackCash * exchangeRate;
   const { sharesBought, averagePrice } = calculateBuybackStats(curData); // Använd nuvarande data för Återköpsstatus
   const totalBuybackValue = sharesBought * averagePrice;
-  const remainingCash = buybackCashInSEK - totalBuybackValue;
+  const remainingCash = Math.max(buybackCashInSEK - totalBuybackValue, 0);
   const buybackProgress = buybackCashInSEK > 0 ? (totalBuybackValue / buybackCashInSEK) * 100 : 0;
   const remainingSharesToBuy = remainingCash > 0 && currentSharePrice > 0 ? Math.floor(remainingCash / currentSharePrice) : 0;
   const latestTotalShares = totalSharesData[totalSharesData.length - 1].totalShares;
@@ -173,7 +173,8 @@ const StockBuybackInfo = ({
 
   const { averageDaily: historicalAverageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback(oldData); // Använd dynamiska data för historik
 
-  const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } = calculateEstimatedCompletion(remainingCash, curData); // Använd dynamiska buybackData för Återköpsstatus
+  const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } =
+    calculateEstimatedCompletion(remainingCash > 0 ? remainingCash : null, curData) || {};
 
   // Senaste veckans återköp baserat på buybackData
   const lastWeek = getLastWeekBuybacks(curData);

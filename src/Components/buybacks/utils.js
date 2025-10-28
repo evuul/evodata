@@ -176,47 +176,86 @@ export const calculateBuybackStats = (transactions) => {
 };
 
 export const calculateAverageDailyBuyback = (data) => {
-  const positive = (data || []).filter((i) => i.Antal_aktier > 0);
+  const positive = (data || []).filter((i) => Number(i?.Antal_aktier) > 0);
   if (!positive.length) return { averageDaily: 0, averagePrice: 0 };
-  const firstDate = new Date(positive[0].Datum);
-  // Använd dagens datum för beräkning
-  const today = new Date();
-  const daysDifference = Math.ceil((today - firstDate) / (1000 * 60 * 60 * 24));
-  const totalSharesBought = positive.reduce((s, i) => s + (i.Antal_aktier || 0), 0);
-  const totalTransactionValue = positive.reduce((s, i) => s + (i.Transaktionsvärde || 0), 0);
-  const averagePrice = totalSharesBought > 0 ? totalTransactionValue / totalSharesBought : 0;
-  const averageDaily = daysDifference > 0 ? totalSharesBought / daysDifference : 0;
+
+  const sharesTotal = positive.reduce((sum, item) => sum + (Number(item.Antal_aktier) || 0), 0);
+  const valueTotal = positive.reduce((sum, item) => sum + (Number(item.Transaktionsvärde) || 0), 0);
+  const averagePrice = sharesTotal > 0 ? valueTotal / sharesTotal : 0;
+
+  const firstDate = new Date(Math.min(...positive.map((item) => new Date(item.Datum))));
+  const lastDate = new Date(Math.max(...positive.map((item) => new Date(item.Datum))));
+  const tradingDays = countTradingDays(firstDate, lastDate);
+
+  const averageDaily = tradingDays > 0 ? sharesTotal / tradingDays : 0;
   return { averageDaily, averagePrice };
 };
 
 export const calculateEstimatedCompletion = (remainingCash, transactions) => {
-  const totalShares = (transactions || []).reduce((s, i) => s + (i.Antal_aktier || 0), 0);
-  const totalValue = (transactions || []).reduce((s, i) => s + (i.Transaktionsvärde || 0), 0);
-  const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
-  const firstDate = new Date(Math.min(...(transactions || []).map((i) => new Date(i.Datum))));
-  const lastDate = new Date(Math.max(...(transactions || []).map((i) => new Date(i.Datum))));
-  let tradingDays = 0;
-  let currentDate = new Date(firstDate);
-  while (currentDate <= lastDate) {
-    const dow = currentDate.getDay();
-    if (dow !== 0 && dow !== 6) tradingDays++;
-    currentDate.setDate(currentDate.getDate() + 1);
+  if (!Array.isArray(transactions) || !transactions.length) return null;
+  if (!Number.isFinite(remainingCash) || remainingCash <= 0) return null;
+
+  const positive = transactions.filter((item) => Number(item?.Antal_aktier) > 0);
+  if (!positive.length) return null;
+
+  const sharesTotal = positive.reduce((sum, item) => sum + (Number(item.Antal_aktier) || 0), 0);
+  const valueTotal = positive.reduce((sum, item) => sum + (Number(item.Transaktionsvärde) || 0), 0);
+  if (!sharesTotal || !valueTotal) return null;
+
+  const averagePrice = valueTotal / sharesTotal;
+  if (!Number.isFinite(averagePrice) || averagePrice <= 0) return null;
+
+  const firstDate = new Date(Math.min(...positive.map((item) => new Date(item.Datum))));
+  const lastDate = new Date(Math.max(...positive.map((item) => new Date(item.Datum))));
+  const tradingDays = countTradingDays(firstDate, lastDate);
+  if (!tradingDays) return null;
+
+  const averageDailyShares = sharesTotal / tradingDays;
+  if (!Number.isFinite(averageDailyShares) || averageDailyShares <= 0) return null;
+
+  const remainingSharesToBuy = remainingCash / averagePrice;
+  if (!Number.isFinite(remainingSharesToBuy) || remainingSharesToBuy <= 0) {
+    return {
+      currentProgramAverageDailyShares: averageDailyShares,
+      daysToCompletion: 0,
+      estimatedCompletionDate: null,
+    };
   }
-  const averageDailyShares = tradingDays > 0 ? totalShares / tradingDays : 0;
-  const remainingSharesToBuy = averagePrice > 0 ? remainingCash / averagePrice : 0;
-  const daysToCompletion = averageDailyShares > 0 ? remainingSharesToBuy / averageDailyShares : 0;
-  // Starta från dagens datum
+
+  const daysToCompletion = remainingSharesToBuy / averageDailyShares;
   const today = new Date();
   let estimatedCompletionDate = new Date(today);
   let remainingTradingDays = Math.ceil(daysToCompletion);
-  while (remainingTradingDays > 0) {
+  let safetyCounter = 0;
+  while (remainingTradingDays > 0 && safetyCounter < 2000) {
     estimatedCompletionDate.setDate(estimatedCompletionDate.getDate() + 1);
     const dow = estimatedCompletionDate.getDay();
-    if (dow !== 0 && dow !== 6) remainingTradingDays--;
+    if (dow !== 0 && dow !== 6) {
+      remainingTradingDays -= 1;
+    }
+    safetyCounter += 1;
   }
+
   return {
     currentProgramAverageDailyShares: averageDailyShares,
     daysToCompletion: Math.ceil(daysToCompletion),
-    estimatedCompletionDate: estimatedCompletionDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' }),
+    estimatedCompletionDate:
+      remainingTradingDays <= 0
+        ? estimatedCompletionDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' })
+        : null,
   };
 };
+
+function countTradingDays(startDate, endDate) {
+  if (!(startDate instanceof Date) || !(endDate instanceof Date)) return 0;
+  if (Number.isNaN(startDate.valueOf()) || Number.isNaN(endDate.valueOf())) return 0;
+  if (endDate < startDate) return 0;
+  let tradingDays = 0;
+  const cursor = new Date(startDate);
+  while (cursor <= endDate) {
+    const dow = cursor.getDay();
+    if (dow !== 0 && dow !== 6) tradingDays += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return tradingDays;
+}
