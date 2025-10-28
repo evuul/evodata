@@ -120,6 +120,76 @@ export async function setOverviewSnapshot(days, snapshot) {
   }
 }
 
+function parseSeriesRows(raw, since) {
+  const parsed = [];
+  for (const r of raw || []) {
+    try {
+      const o = typeof r === "string" ? JSON.parse(r) : r;
+      const normalized = normalizePlayers(o?.value);
+      if (o && Number.isFinite(o.ts) && normalized != null && o.ts >= since) {
+        parsed.push({ ts: o.ts, value: normalized });
+      }
+    } catch {
+      // ignore bad rows
+    }
+  }
+  parsed.sort((a, b) => a.ts - b.ts);
+  return parsed;
+}
+
+export async function getSeriesBulk(slugs, days = 30) {
+  const unique = Array.from(new Set(slugs.filter(Boolean)));
+  if (!unique.length) return new Map();
+
+  const since = Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000;
+  const kv = await getKv();
+
+  let rawLists = [];
+  if (kv) {
+    try {
+      const pipeline = kv.pipeline();
+      for (const slug of unique) {
+        pipeline.lrange(KEY(slug), 0, MAX_SAMPLES - 1);
+      }
+      rawLists = await pipeline.exec();
+    } catch (err) {
+      if (DEBUG) console.warn("[csStore] KV pipeline failed, falling back to sequential", err);
+      rawLists = [];
+    }
+  }
+
+  if (!rawLists.length) {
+    rawLists = unique.map((slug) =>
+      kv ? kv.lrange(KEY(slug), 0, MAX_SAMPLES - 1) : mem.lrange(KEY(slug), 0, MAX_SAMPLES - 1)
+    );
+    if (kv) {
+      rawLists = await Promise.all(
+        rawLists.map(async (promise) => {
+          try {
+            return await promise;
+          } catch {
+            return [];
+          }
+        })
+      );
+    }
+  }
+
+  if (!kv) {
+    rawLists = unique.map((slug) => mem.lrange(KEY(slug), 0, MAX_SAMPLES - 1));
+  }
+
+  const map = new Map();
+  for (let i = 0; i < unique.length; i++) {
+    const slug = unique[i];
+    const raw = rawLists[i];
+    const parsed = parseSeriesRows(raw, since);
+    if (DEBUG) console.log(`[csStore] getSeriesBulk ${slug} days=${days} -> ${parsed.length} pts`);
+    map.set(slug, parsed);
+  }
+  return map;
+}
+
 /**
  * Spara en mätpunkt
  * @param {string} slug
@@ -154,31 +224,8 @@ export async function saveSample(slug, isoTs, players) {
  * @returns {{ts:number,value:number}[]}
  */
 export async function getSeries(slug, days = 30) {
-  const key = KEY(slug);
-  const kv = await getKv();
-
-  const raw = kv
-    ? await kv.lrange(key, 0, MAX_SAMPLES - 1)
-    : mem.lrange(key, 0, MAX_SAMPLES - 1);
-
-  const since = Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000;
-
-  const parsed = [];
-  for (const r of raw || []) {
-    try {
-      const o = typeof r === "string" ? JSON.parse(r) : r;
-      const normalized = normalizePlayers(o?.value);
-      if (o && Number.isFinite(o.ts) && normalized != null && o.ts >= since) {
-        parsed.push({ ts: o.ts, value: normalized });
-      }
-    } catch {
-      // ignore bad rows
-    }
-  }
-
-  parsed.sort((a, b) => a.ts - b.ts);
-  if (DEBUG) console.log(`[csStore] getSeries ${slug} days=${days} -> ${parsed.length} pts`);
-  return parsed;
+  const map = await getSeriesBulk([slug], days);
+  return map.get(slug) ?? [];
 }
 
 /**
