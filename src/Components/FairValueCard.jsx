@@ -16,6 +16,7 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { useFxRateContext } from "../context/FxRateContext";
 import { useStockPriceContext } from "../context/StockPriceContext";
+import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH } from "@/lib/fairValueUtils";
 
 /**
  * @typedef {Object} Report
@@ -25,11 +26,6 @@ import { useStockPriceContext } from "../context/StockPriceContext";
  * @property {number=} adjustedEarningsPerShare EUR per aktie (kvartal)
  * @property {number=} adjustedOperatingMargin procent
  */
-
-const quarterToNumber = (q) =>
-  q === "Q1" ? 1 : q === "Q2" ? 2 : q === "Q3" ? 3 : q === "Q4" ? 4 : 0;
-
-const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 const currency0 = new Intl.NumberFormat("sv-SE", {
   style: "currency",
@@ -47,83 +43,25 @@ const currency2 = new Intl.NumberFormat("sv-SE", {
 const pct1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
 const int0 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 });
 
-const WINDOW_SMOOTH = 8;
-const MAX_FWD_GROWTH = 0.25;
-const MIN_FWD_GROWTH = -0.1;
-const MIN_PE = 10;
-const MAX_PE = 35;
-const MIN_BBY = 0.0;
-const MAX_BBY = 0.08;
+const scenarioStyles = {
+  fair: {
+    color: "#22c55e",
+    Icon: TrendingUpIcon,
+  },
+  bull: {
+    color: "#38bdf8",
+    Icon: TrendingUpIcon,
+  },
+  bear: {
+    color: "#ef4444",
+    Icon: TrendingDownIcon,
+  },
+};
 
-function basePeFromFundamentals(growthYoY, avgOpMargin) {
-  const g = (growthYoY ?? 0) * 100;
-
-  let pe =
-    g <= 0
-      ? 12
-      : g <= 5
-      ? 14
-      : g <= 10
-      ? 16
-      : g <= 15
-      ? 18
-      : g <= 20
-      ? 20
-      : 22;
-
-  if (avgOpMargin != null) {
-    if (avgOpMargin >= 65) pe += 3;
-    else if (avgOpMargin >= 55) pe += 2;
-    else if (avgOpMargin >= 45) pe += 1;
-    else if (avgOpMargin < 35) pe -= 1;
-  }
-
-  return clamp(pe, MIN_PE, 30);
-}
-
-function ttmEps(sortedReports, offsetFromEnd = 0) {
-  const end = sortedReports.length - offsetFromEnd;
-  const start = Math.max(0, end - 4);
-  if (end - start < 4) return null;
-  return sortedReports
-    .slice(start, end)
-    .reduce((acc, r) => acc + (Number(r.adjustedEarningsPerShare) || 0), 0);
-}
-
-function normalizedAnnualEps(sortedReports, quarters = WINDOW_SMOOTH) {
-  const take = Math.min(quarters, sortedReports.length);
-  if (take < 4) return null;
-  const window = sortedReports.slice(-take);
-  const sumEps = window.reduce(
-    (acc, r) => acc + (Number(r.adjustedEarningsPerShare) || 0),
-    0
-  );
-  return (sumEps * 4) / take;
-}
-
-function avgOpMargin4Q(sortedReports) {
-  const last4 = sortedReports.slice(-4);
-  if (last4.length < 4) return null;
-  const sum = last4.reduce(
-    (acc, r) => acc + (Number(r.adjustedOperatingMargin) || 0),
-    0
-  );
-  return sum / 4;
-}
-
-function ttmRevenue(sortedReports) {
-  const last4 = sortedReports.slice(-4);
-  if (last4.length < 4) return null;
-  return last4.reduce(
-    (acc, r) => acc + (Number(r.operatingRevenues) || 0),
-    0
-  );
-}
-
-function epsBoostFromBuybacks(yieldValue) {
-  const y = clamp(Number(yieldValue) || 0, MIN_BBY, MAX_BBY);
-  return 1 / (1 - y) - 1;
-}
+const defaultScenarioStyle = {
+  color: "#38bdf8",
+  Icon: TrendingUpIcon,
+};
 
 /**
  * @param {{ reports: Report[], buyback?: { base?: number, bull?: number, bear?: number } }} props
@@ -154,154 +92,18 @@ const FairValueCard = ({
       ? marketRaw
       : null;
 
-  const {
-    latestLabel,
-    annualEpsTTMSEK,
-    annualEpsNormSEK,
-    avgMargin,
-    yoyGrowth,
-    revTtmMEUR,
-    scenarios,
-    bbInfo,
-  } = useMemo(() => {
-    const empty = {
-      latestLabel: "",
-      annualEpsTTMSEK: 0,
-      annualEpsNormSEK: 0,
-      avgMargin: null,
-      yoyGrowth: null,
-      revTtmMEUR: null,
-      scenarios: [],
-      bbInfo: { base: 0, bull: 0, bear: 0, baseBoostPct: 0 },
-    };
+  const fairValueInsights = useMemo(
+    () =>
+      computeFairValueInsights({
+        reports,
+        buyback,
+        fxRate: fx,
+        currentPriceSEK,
+      }),
+    [reports, buyback, fx, currentPriceSEK]
+  );
 
-    if (!Array.isArray(reports) || reports.length === 0 || !fx) {
-      return empty;
-    }
-
-    const sorted = [...reports].sort((a, b) =>
-      a.year !== b.year
-        ? a.year - b.year
-        : quarterToNumber(a.quarter) - quarterToNumber(b.quarter)
-    );
-
-    const last = sorted.at(-1);
-    const latestLabel = last ? `${last.year} ${last.quarter}` : "";
-
-    const ttmNow = ttmEps(sorted, 0);
-    const ttmPrev = ttmEps(sorted, 4);
-    const epsNorm = normalizedAnnualEps(sorted, WINDOW_SMOOTH);
-    if (ttmNow == null || epsNorm == null) {
-      return empty;
-    }
-
-    const yoy = ttmPrev && ttmPrev > 0 ? (ttmNow - ttmPrev) / ttmPrev : 0;
-    const baseGrowth = clamp(yoy, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
-
-    const avgMargin = avgOpMargin4Q(sorted);
-    const peBase = basePeFromFundamentals(baseGrowth, avgMargin);
-    const peBull = clamp(Math.round(peBase * 1.2), MIN_PE, MAX_PE);
-    const peBear = clamp(Math.round(peBase * 0.8), MIN_PE, MAX_PE);
-
-    const bullGrowth = clamp(
-      baseGrowth + 0.05,
-      MIN_FWD_GROWTH,
-      MAX_FWD_GROWTH
-    );
-    const bearGrowth = clamp(
-      baseGrowth - 0.05,
-      MIN_FWD_GROWTH,
-      MAX_FWD_GROWTH
-    );
-
-    const bbBase = clamp(buyback?.base ?? 0.03, MIN_BBY, MAX_BBY);
-    const bbBull = clamp(
-      buyback?.bull ?? bbBase + 0.01,
-      MIN_BBY,
-      MAX_BBY
-    );
-    const bbBear = clamp(
-      buyback?.bear ?? Math.max(0, bbBase - 0.01),
-      MIN_BBY,
-      MAX_BBY
-    );
-
-    const fwdEpsBaseEUR = (epsNorm * (1 + baseGrowth)) / (1 - bbBase);
-    const fwdEpsBullEUR = (epsNorm * (1 + bullGrowth)) / (1 - bbBull);
-    const fwdEpsBearEUR = (epsNorm * (1 + bearGrowth)) / (1 - bbBear);
-
-    const fairSEK = peBase * fwdEpsBaseEUR * fx;
-    const bullSEK = peBull * fwdEpsBullEUR * fx;
-    const bearSEK = peBear * fwdEpsBearEUR * fx;
-
-    const scenarios = [
-      {
-        id: "fair",
-        label: "Fair Value",
-        pe: peBase,
-        description: `Normaliserad vinst + ${Math.round(
-          bbBase * 100
-        )}% nettoåterköp.`,
-        color: "#22c55e",
-        icon: <TrendingUpIcon fontSize="small" />,
-        impliedPriceSEK: fairSEK,
-        upsidePct:
-          currentPriceSEK && currentPriceSEK > 0
-            ? ((fairSEK - currentPriceSEK) / currentPriceSEK) * 100
-            : null,
-      },
-      {
-        id: "bull",
-        label: "Bull",
-        pe: peBull,
-        description: `Starkare tillväxt + ${Math.round(
-          bbBull * 100
-        )}% nettoåterköp.`,
-        color: "#38bdf8",
-        icon: <TrendingUpIcon fontSize="small" />,
-        impliedPriceSEK: bullSEK,
-        upsidePct:
-          currentPriceSEK && currentPriceSEK > 0
-            ? ((bullSEK - currentPriceSEK) / currentPriceSEK) * 100
-            : null,
-      },
-      {
-        id: "bear",
-        label: "Bear",
-        pe: peBear,
-        description: `Dämpad tillväxt + ${Math.round(
-          bbBear * 100
-        )}% nettoåterköp.`,
-        color: "#ef4444",
-        icon: <TrendingDownIcon fontSize="small" />,
-        impliedPriceSEK: bearSEK,
-        upsidePct:
-          currentPriceSEK && currentPriceSEK > 0
-            ? ((bearSEK - currentPriceSEK) / currentPriceSEK) * 100
-            : null,
-      },
-    ];
-
-    const revTtm = ttmRevenue(sorted);
-    const annualEpsTTMSEK = ttmNow * fx;
-    const annualEpsNormSEK = epsNorm * fx;
-
-    return {
-      latestLabel,
-      annualEpsTTMSEK,
-      annualEpsNormSEK,
-      avgMargin,
-      yoyGrowth: yoy,
-      revTtmMEUR: revTtm,
-      scenarios,
-      bbInfo: {
-        base: bbBase,
-        bull: bbBull,
-        bear: bbBear,
-        baseBoostPct: epsBoostFromBuybacks(bbBase) * 100,
-      },
-    };
-  }, [reports, fx, currentPriceSEK, buyback]);
+  const { annualEpsTTMSEK, avgMargin, revTtmMEUR, scenarios, bbInfo } = fairValueInsights;
 
   return (
     <Card
@@ -521,59 +323,71 @@ const FairValueCard = ({
             alignItems: "stretch",
           }}
         >
-          {scenarios.map((scenario) => (
-            <Grid item xs={12} sm={6} md={4} key={scenario.id} sx={{ display: "flex" }}>
-              <Box
-                sx={{
-                  background: "rgba(255,255,255,0.03)",
-                  borderRadius: "14px",
-                  p: 2.5,
-                  border: `1px solid ${scenario.color}44`,
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  textAlign: "center",
-                  height: "100%",
-                  flex: 1,
-                  minHeight: { xs: 220, sm: 240, md: 260 },
-                  justifyContent: "space-between",
-                  gap: 1.25,
-                }}
-              >
-                <Chip
-                  label={scenario.label}
-                  icon={React.cloneElement(scenario.icon, {
-                    sx: { color: `${scenario.color} !important` },
-                  })}
+          {scenarios.map((scenario) => {
+            const style = scenarioStyles[scenario.id] ?? defaultScenarioStyle;
+            const color = style.color;
+            const ScenarioIcon = style.Icon;
+            const impliedPrice = Number.isFinite(scenario.impliedPriceSEK)
+              ? currency0.format(scenario.impliedPriceSEK)
+              : "–";
+            const upside = typeof scenario.upsidePct === "number" ? scenario.upsidePct : null;
+
+            return (
+              <Grid item xs={12} sm={6} md={4} key={scenario.id} sx={{ display: "flex" }}>
+                <Box
                   sx={{
-                    backgroundColor: `${scenario.color}1A`,
-                    color: scenario.color,
-                    fontWeight: 600,
+                    background: "rgba(255,255,255,0.03)",
+                    borderRadius: "14px",
+                    p: 2.5,
+                    border: `1px solid ${color}44`,
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    textAlign: "center",
+                    height: "100%",
+                    flex: 1,
+                    minHeight: { xs: 220, sm: 240, md: 260 },
+                    justifyContent: "space-between",
+                    gap: 1.25,
                   }}
-                />
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {currency0.format(scenario.impliedPriceSEK)}
-                </Typography>
-                <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)" }}>
-                  PE {scenario.pe}x • 1Y fwd EPS (inkl. buybacks)
-                </Typography>
-                {typeof scenario.upsidePct === "number" && (
-                  <Typography
-                    variant="body2"
+                >
+                  <Chip
+                    label={scenario.label}
+                    icon={
+                      <ScenarioIcon
+                        fontSize="small"
+                        sx={{ color: `${color} !important` }}
+                      />
+                    }
                     sx={{
-                      color:
-                        (scenario.upsidePct ?? 0) >= 0 ? "#34d399" : "#f87171",
+                      backgroundColor: `${color}1A`,
+                      color,
                       fontWeight: 600,
                     }}
-                  >
-                    {(scenario.upsidePct ?? 0) >= 0 ? "+" : ""}
-                    {pct1.format(scenario.upsidePct)}% mot aktuell kurs
+                  />
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {impliedPrice}
                   </Typography>
-                )}
-              </Box>
-            </Grid>
-          ))}
+                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)" }}>
+                    PE {scenario.pe}x • 1Y fwd EPS (inkl. buybacks)
+                  </Typography>
+                  {upside != null && (
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        color: upside >= 0 ? "#34d399" : "#f87171",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {upside >= 0 ? "+" : ""}
+                      {pct1.format(upside)}% mot aktuell kurs
+                    </Typography>
+                  )}
+                </Box>
+              </Grid>
+            );
+          })}
         </Grid>
 
         <Box sx={{ mt: 4 }}>
