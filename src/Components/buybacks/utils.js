@@ -73,7 +73,11 @@ export const buybackDataForGraphYearly = (data) => {
     .filter((i) => i.Antal_aktier > 0)
     .forEach((i) => {
       const year = i.Datum.split('-')[0];
-      yearly[year] = { Datum: year, Antal_aktier: (yearly[year]?.Antal_aktier || 0) + i.Antal_aktier };
+      yearly[year] = {
+        Datum: year,
+        Antal_aktier: (yearly[year]?.Antal_aktier || 0) + i.Antal_aktier,
+        Transaktionsvärde: (yearly[year]?.Transaktionsvärde || 0) + (i.Transaktionsvärde || 0),
+      };
     });
   return Object.values(yearly).sort((a, b) => a.Datum.localeCompare(b.Datum));
 };
@@ -85,7 +89,11 @@ export const buybackDataForGraphMonthly = (data) => {
     .forEach((i) => {
       const [year, month] = i.Datum.split('-').slice(0, 2);
       const key = `${year}-${month}`;
-      monthly[key] = { Datum: key, Antal_aktier: (monthly[key]?.Antal_aktier || 0) + i.Antal_aktier };
+      monthly[key] = {
+        Datum: key,
+        Antal_aktier: (monthly[key]?.Antal_aktier || 0) + i.Antal_aktier,
+        Transaktionsvärde: (monthly[key]?.Transaktionsvärde || 0) + (i.Transaktionsvärde || 0),
+      };
     });
   return Object.values(monthly).sort((a, b) => a.Datum.localeCompare(b.Datum));
 };
@@ -102,7 +110,11 @@ export const buybackDataForGraphWeekly = (data) => {
       const daysSinceYearStart = Math.floor((date - firstDayOfYear) / (1000 * 60 * 60 * 24));
       const weekNumber = Math.ceil((daysSinceYearStart + daysOffset + 1) / 7);
       const key = `${year}-V${String(weekNumber).padStart(2, '0')}`;
-      weekly[key] = { Datum: key, Antal_aktier: (weekly[key]?.Antal_aktier || 0) + i.Antal_aktier };
+      weekly[key] = {
+        Datum: key,
+        Antal_aktier: (weekly[key]?.Antal_aktier || 0) + i.Antal_aktier,
+        Transaktionsvärde: (weekly[key]?.Transaktionsvärde || 0) + (i.Transaktionsvärde || 0),
+      };
     });
   return Object.values(weekly).sort((a, b) => a.Datum.localeCompare(b.Datum));
 };

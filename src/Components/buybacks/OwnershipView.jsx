@@ -10,6 +10,8 @@ import {
   TableBody,
   TableRow,
   TableCell,
+  TableContainer,
+  Stack,
 } from "@mui/material";
 import {
   ResponsiveContainer,
@@ -24,6 +26,16 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+
+const COLORS = {
+  surface: "rgba(15,23,42,0.62)",
+  border: "rgba(148,163,184,0.18)",
+  textPrimary: "#f8fafc",
+  textSecondary: "rgba(203,213,225,0.78)",
+  accent: "#38bdf8",
+  grid: "rgba(148,163,184,0.14)",
+  tooltipBg: "rgba(15,23,42,0.92)",
+};
 
 const OwnershipView = ({
   isMobile,
@@ -45,48 +57,113 @@ const OwnershipView = ({
   const xHeight = isMobile ? 30 : 40;
 
   return (
-    <Box display="flex" flexDirection="column" alignItems="center">
+    <Box
+      sx={{
+        width: "100%",
+        background: COLORS.surface,
+        borderRadius: "20px",
+        border: `1px solid ${COLORS.border}`,
+        boxShadow: "0 18px 40px rgba(8,15,40,0.46)",
+        px: { xs: 2.2, md: 3 },
+        py: { xs: 2.4, md: 3.2 },
+        display: "flex",
+        flexDirection: "column",
+        gap: 2.4,
+      }}
+    >
       <Typography
         variant="h6"
         sx={{
           fontWeight: 700,
-          color: "#fff",
-          mb: 2,
-          fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" },
+          color: COLORS.textPrimary,
+          fontSize: { xs: "1.05rem", sm: "1.35rem", md: "1.5rem" },
         }}
       >
         Evolutions ägande
       </Typography>
 
-      <Typography
-        variant="body2"
-        color="#fff"
-        sx={{ mb: 1, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={{ xs: 1.2, sm: 1.6 }}
+        sx={{ flexWrap: "wrap" }}
       >
-        Evolution äger: {latestEvolutionShares.toLocaleString()} aktier
-      </Typography>
-      <Typography
-        variant="body2"
-        color="#FFCA28"
-        sx={{ mb: 2, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
-      >
-        Ägarandel: {latestOwnershipPercentage.toFixed(2)}%
-      </Typography>
-      {cancelledShares > 0 && (
-        <Typography
-          variant="body2"
-          color="#FF6F61"
-          sx={{ mb: 2, fontSize: { xs: "0.85rem", sm: "0.95rem" } }}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: { xs: "100%", sm: 200 },
+            background: "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(14,116,144,0.25))",
+            borderRadius: "16px",
+            border: `1px solid rgba(56,189,248,0.35)`,
+            px: 2.2,
+            py: 1.8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
         >
-          Makulerade aktier: {cancelledShares.toLocaleString()}
-        </Typography>
-      )}
+          <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+            Aktieinnehav
+          </Typography>
+          <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+            {latestEvolutionShares.toLocaleString("sv-SE")}
+          </Typography>
+          <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+            Totalt antal Evolution-ägda aktier
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: { xs: "100%", sm: 200 },
+            background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(21,128,61,0.2))",
+            borderRadius: "16px",
+            border: `1px solid rgba(34,197,94,0.35)`,
+            px: 2.2,
+            py: 1.8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+            Ägarandel
+          </Typography>
+          <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+            {latestOwnershipPercentage.toFixed(2)}%
+          </Typography>
+          <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+            Baserat på senaste totala aktiestocken
+          </Typography>
+        </Box>
+        {cancelledShares > 0 && (
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: { xs: "100%", sm: 200 },
+              background: "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(185,28,28,0.18))",
+              borderRadius: "16px",
+              border: `1px solid rgba(248,113,113,0.35)`,
+              px: 2.2,
+              py: 1.8,
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+            }}
+          >
+            <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+              Makulerade aktier
+            </Typography>
+            <Typography variant="h6" sx={{ color: "#fca5a5", fontWeight: 600 }}>
+              {cancelledShares.toLocaleString("sv-SE")}
+            </Typography>
+            <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+              Historiskt indragna sedan programstart
+            </Typography>
+          </Box>
+        )}
+      </Stack>
 
-      <Typography
-        variant="h6"
-        color="#00e676"
-        sx={{ mt: 2, mb: 1, fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" } }}
-      >
+      <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         Antal aktier över tid
       </Typography>
 
@@ -97,12 +174,27 @@ const OwnershipView = ({
           value={chartTypeOwnership}
           onChange={onChangeChartTypeOwnership}
           textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#ff5722" } }}
+          TabIndicatorProps={{ style: { display: "none" } }}
           sx={{
-            color: "#ccc",
+            backgroundColor: "rgba(15,23,42,0.45)",
+            borderRadius: "999px",
+            p: 0.5,
+            minHeight: "unset",
+            "& .MuiTabs-flexContainer": {
+              gap: 0.8,
+            },
             "& .MuiTab-root": {
-              fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" },
-              padding: { xs: "6px 8px", sm: "12px 16px" },
+              fontSize: { xs: "0.85rem", sm: "0.95rem", md: "1rem" },
+              padding: { xs: "6px 12px", sm: "8px 18px" },
+              color: "rgba(203,213,225,0.75)",
+              textTransform: "none",
+              borderRadius: "999px",
+              minHeight: 36,
+              fontWeight: 600,
+            },
+            "& .Mui-selected": {
+              color: COLORS.textPrimary,
+              backgroundColor: "rgba(56,189,248,0.25)",
             },
           }}
           variant="scrollable"
@@ -128,16 +220,16 @@ const OwnershipView = ({
             {/* Gradient för linjeyta */}
             <defs>
               <linearGradient id={areaFillId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00e676" stopOpacity={0.18} />
-                <stop offset="100%" stopColor="#00e676" stopOpacity={0} />
+                <stop offset="0%" stopColor={COLORS.accent} stopOpacity={0.22} />
+                <stop offset="100%" stopColor={COLORS.accent} stopOpacity={0} />
               </linearGradient>
             </defs>
 
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
             <XAxis
               dataKey="date"
-              stroke="#ccc"
-              tick={{ fontSize: tickFontSize }}
+              stroke={COLORS.textSecondary}
+              tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               height={xHeight}
             >
               {!isMobile && (
@@ -145,14 +237,14 @@ const OwnershipView = ({
                   value="År"
                   offset={-10}
                   position="insideBottom"
-                  fill="#ccc"
+                  fill={COLORS.textSecondary}
                   style={{ fontSize: isMobile ? "12px" : "14px" }}
                 />
               )}
             </XAxis>
             <YAxis
-              stroke="#ccc"
-              tick={{ fontSize: tickFontSize }}
+              stroke={COLORS.textSecondary}
+              tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               domain={yDomain}
               tickFormatter={formatYAxisTick}
               width={yTickWidth}
@@ -164,7 +256,7 @@ const OwnershipView = ({
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
-                  fill="#ccc"
+                  fill={COLORS.textSecondary}
                   style={{ fontSize: isMobile ? "12px" : "14px" }}
                 />
               )}
@@ -172,10 +264,11 @@ const OwnershipView = ({
             <Tooltip
               formatter={(value) => value.toLocaleString("sv-SE")}
               contentStyle={{
-                backgroundColor: "#2e2e2e",
-                color: "#fff",
+                backgroundColor: COLORS.tooltipBg,
+                color: COLORS.textPrimary,
                 border: "none",
-                borderRadius: "5px",
+                borderRadius: "10px",
+                boxShadow: "0 12px 30px rgba(8,15,40,0.38)",
               }}
             />
             {/* Transparent area + linje */}
@@ -189,10 +282,10 @@ const OwnershipView = ({
             <Line
               type="monotone"
               dataKey="shares"
-              stroke="#00e676"
-              strokeWidth={2}
-              dot={{ r: 4, fill: "#00e676" }}
-              activeDot={{ r: 6 }}
+              stroke={COLORS.accent}
+              strokeWidth={2.4}
+              dot={{ r: 3.6, fill: COLORS.accent }}
+              activeDot={{ r: 6, stroke: COLORS.surface, strokeWidth: 2 }}
             />
           </ComposedChart>
         ) : (
@@ -205,11 +298,11 @@ const OwnershipView = ({
               left: isMobile ? -10 : 0,
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
             <XAxis
               dataKey="date"
-              stroke="#ccc"
-              tick={{ fontSize: tickFontSize }}
+              stroke={COLORS.textSecondary}
+              tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               height={xHeight}
             >
               {!isMobile && (
@@ -217,14 +310,14 @@ const OwnershipView = ({
                   value="År"
                   offset={-10}
                   position="insideBottom"
-                  fill="#ccc"
+                  fill={COLORS.textSecondary}
                   style={{ fontSize: isMobile ? "12px" : "14px" }}
                 />
               )}
             </XAxis>
             <YAxis
-              stroke="#ccc"
-              tick={{ fontSize: tickFontSize }}
+              stroke={COLORS.textSecondary}
+              tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               domain={yDomain}
               tickFormatter={formatYAxisTick}
               width={yTickWidth}
@@ -236,7 +329,7 @@ const OwnershipView = ({
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
-                  fill="#ccc"
+                  fill={COLORS.textSecondary}
                   style={{ fontSize: isMobile ? "12px" : "14px" }}
                 />
               )}
@@ -244,53 +337,87 @@ const OwnershipView = ({
             <Tooltip
               formatter={(value) => value.toLocaleString("sv-SE")}
               contentStyle={{
-                backgroundColor: "#2e2e2e",
-                color: "#fff",
+                backgroundColor: COLORS.tooltipBg,
+                color: COLORS.textPrimary,
                 border: "none",
-                borderRadius: "5px",
+                borderRadius: "10px",
+                boxShadow: "0 12px 30px rgba(8,15,40,0.38)",
               }}
             />
-            <Bar dataKey="shares" fill="#00e676" name="Antal aktier" />
+            <Bar
+              dataKey="shares"
+              fill={COLORS.accent}
+              name="Antal aktier"
+              radius={[6, 6, 0, 0]}
+            />
           </BarChart>
         )}
       </ResponsiveContainer>
 
-      <Typography
-        variant="h6"
-        color="#00e676"
-        sx={{ mt: 2, mb: 1, fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.8rem" } }}
-      >
+      <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
         Detaljer per år
       </Typography>
-      <Box sx={{ overflowX: "auto", width: "100%" }}>
-        <Table
-          sx={{
-            backgroundColor: "#2e2e2e",
-            borderRadius: "10px",
-            minWidth: isMobile ? "600px" : "auto",
-          }}
-        >
+      <TableContainer
+        sx={{
+          backgroundColor: "rgba(15,23,42,0.5)",
+          borderRadius: "16px",
+          border: `1px solid ${COLORS.border}`,
+          backdropFilter: "blur(12px)",
+          overflow: "hidden",
+        }}
+      >
+        <Table size="small" sx={{ minWidth: isMobile ? 600 : "auto" }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ color: "#fff", textAlign: "center" }}>År</TableCell>
-              <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+              <TableCell
+                sx={{
+                  color: COLORS.textSecondary,
+                  textAlign: "center",
+                  fontWeight: 600,
+                  borderBottom: `1px solid ${COLORS.border}`,
+                }}
+              >
+                År
+              </TableCell>
+              <TableCell
+                sx={{
+                  color: COLORS.textSecondary,
+                  textAlign: "center",
+                  fontWeight: 600,
+                  borderBottom: `1px solid ${COLORS.border}`,
+                }}
+              >
                 Aktier
               </TableCell>
-              <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+              <TableCell
+                sx={{
+                  color: COLORS.textSecondary,
+                  textAlign: "center",
+                  fontWeight: 600,
+                  borderBottom: `1px solid ${COLORS.border}`,
+                }}
+              >
                 % ägande
               </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {data.map((item) => (
-              <TableRow key={item.date}>
-                <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+              <TableRow
+                key={item.date}
+                sx={{
+                  "&:nth-of-type(odd)": {
+                    backgroundColor: "rgba(148,163,184,0.06)",
+                  },
+                }}
+              >
+                <TableCell sx={{ color: COLORS.textPrimary, textAlign: "center" }}>
                   {item.date}
                 </TableCell>
-                <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+                <TableCell sx={{ color: COLORS.textPrimary, textAlign: "center" }}>
                   {item.shares.toLocaleString()}
                 </TableCell>
-                <TableCell sx={{ color: "#fff", textAlign: "center" }}>
+                <TableCell sx={{ color: COLORS.textPrimary, textAlign: "center" }}>
                   {ownershipPercentageData
                     .find((d) => d.date === item.date)
                     ?.percentage.toFixed(2) || "0.00"}
@@ -300,7 +427,7 @@ const OwnershipView = ({
             ))}
           </TableBody>
         </Table>
-      </Box>
+      </TableContainer>
     </Box>
   );
 };

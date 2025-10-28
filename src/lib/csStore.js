@@ -55,6 +55,71 @@ const mem = {
 const KEY = (slug) => `cs:${slug}:samples`;
 const MAX_SAMPLES = 5000;
 
+const overviewMem = new Map(); // key -> { snapshot, exp }
+const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
+
+function overviewKey(days) {
+  const n = Number(days);
+  const suffix = Number.isFinite(n) ? Math.round(n) : String(days ?? "default");
+  return `cs:overview:${suffix}`;
+}
+
+function getOverviewMem(key) {
+  const entry = overviewMem.get(key);
+  if (!entry) return null;
+  const { exp, snapshot } = entry;
+  if (Number.isFinite(exp) && exp <= Date.now()) {
+    overviewMem.delete(key);
+    return null;
+  }
+  return snapshot;
+}
+
+function setOverviewMem(key, snapshot) {
+  const staleAfter =
+    snapshot?.meta?.staleAfter && typeof snapshot.meta.staleAfter === "string"
+      ? Date.parse(snapshot.meta.staleAfter)
+      : Number.NaN;
+  const exp = Number.isFinite(staleAfter) ? staleAfter : Date.now() + DEFAULT_OVERVIEW_MEM_TTL;
+  overviewMem.set(key, { snapshot, exp });
+}
+
+export async function getOverviewSnapshot(days) {
+  const key = overviewKey(days);
+  const fromMem = getOverviewMem(key);
+  if (fromMem) return fromMem;
+
+  const kv = await getKv();
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(key);
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (parsed && typeof parsed === "object") {
+      setOverviewMem(key, parsed);
+      if (DEBUG) console.log(`[csStore] KV overview hit ${key}`);
+      return parsed;
+    }
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV overview get failed ${key}:`, err);
+  }
+  return null;
+}
+
+export async function setOverviewSnapshot(days, snapshot) {
+  const key = overviewKey(days);
+  setOverviewMem(key, snapshot);
+
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(key, JSON.stringify(snapshot));
+    if (DEBUG) console.log(`[csStore] KV overview set ${key}`);
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV overview set failed ${key}:`, err);
+  }
+}
+
 /**
  * Spara en mätpunkt
  * @param {string} slug

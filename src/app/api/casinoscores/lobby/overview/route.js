@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 import averagePlayersData from "@/app/data/averagePlayers.json";
-import { getSeries, dailyAverages } from "@/lib/csStore";
+import { getSeries, dailyAverages, getOverviewSnapshot, setOverviewSnapshot } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
 const TZ = "Europe/Stockholm";
@@ -13,10 +13,19 @@ const RESPONSE_CACHE_CONTROL = "public, max-age=30, s-maxage=30, stale-while-rev
 // ---------- In-process cache (per Node-instans) ----------
 const g = globalThis;
 g.__overviewCache ??= { byKey: new Map(), series: new Map() };
-// overview TTL: 60s (justera vid behov)
-const OVERVIEW_TTL_MS = 60 * 1000;
-// per-serie TTL: 2 min (så vi kan återanvända vid snabb toggling)
-const SERIES_TTL_MS = 2 * 60 * 1000;
+const OVERVIEW_TTL_MS = (() => {
+  const rawMs = Number(process.env.CS_OVERVIEW_REFRESH_MS);
+  if (Number.isFinite(rawMs) && rawMs > 0) {
+    return Math.min(rawMs, 24 * 60 * 60 * 1000); // max 24 h
+  }
+  const rawHours = Number(process.env.CS_OVERVIEW_REFRESH_HOURS);
+  if (Number.isFinite(rawHours) && rawHours > 0) {
+    return Math.min(rawHours * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
+  }
+  return 6 * 60 * 60 * 1000; // default ~6 h ⇒ ~4 uppdateringar/dygn
+})();
+// Per-serie TTL följer overview men caps vid 6 h för att hålla minnet i schack
+const SERIES_TTL_MS = Math.min(Math.max(5 * 60 * 1000, OVERVIEW_TTL_MS), 6 * 60 * 60 * 1000);
 
 function getOverviewCache(key) {
   const hit = g.__overviewCache.byKey.get(key);
@@ -25,8 +34,15 @@ function getOverviewCache(key) {
   g.__overviewCache.byKey.delete(key);
   return null;
 }
-function setOverviewCache(key, data, etag) {
-  g.__overviewCache.byKey.set(key, { data, etag, exp: Date.now() + OVERVIEW_TTL_MS });
+function setOverviewCache(key, data, etag, meta = null) {
+  const now = Date.now();
+  g.__overviewCache.byKey.set(key, {
+    data,
+    etag,
+    exp: now + OVERVIEW_TTL_MS,
+    ts: now,
+    meta: meta ?? null,
+  });
 }
 
 function getSeriesCache(slug, days) {
@@ -232,9 +248,77 @@ export async function GET(req) {
         });
       }
       const t = Date.now() - t0;
-      const payload = attachMeta(cachedEntry.data, { cached: true, totalMs: t });
+      const cachedAtMs =
+        typeof cachedEntry.ts === "number" && Number.isFinite(cachedEntry.ts)
+          ? cachedEntry.ts
+          : cachedEntry.exp - OVERVIEW_TTL_MS;
+      const storedMeta =
+        cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
+      const payload = attachMeta(cachedEntry.data, {
+        cached: true,
+        totalMs: t,
+        refreshIntervalMs: Number.isFinite(storedMeta.refreshIntervalMs)
+          ? storedMeta.refreshIntervalMs
+          : OVERVIEW_TTL_MS,
+        cachedAt:
+          typeof storedMeta.cachedAt === "string"
+            ? storedMeta.cachedAt
+            : new Date(cachedAtMs).toISOString(),
+        staleAfter:
+          typeof storedMeta.staleAfter === "string"
+            ? storedMeta.staleAfter
+            : new Date(cachedEntry.exp).toISOString(),
+        persisted: Boolean(storedMeta.persisted),
+      });
       const headers = cachedEntry.etag ? { ETag: cachedEntry.etag } : {};
       return resJSON(payload, 200, headers);
+    }
+
+    const storedSnapshot = await getOverviewSnapshot(targetDays);
+    if (storedSnapshot && storedSnapshot.data) {
+      const snapshotMeta =
+        storedSnapshot.meta && typeof storedSnapshot.meta === "object"
+          ? storedSnapshot.meta
+          : {};
+      const refreshIntervalMsRaw = Number(snapshotMeta.refreshIntervalMs);
+      const refreshIntervalMs =
+        Number.isFinite(refreshIntervalMsRaw) && refreshIntervalMsRaw > 0
+          ? refreshIntervalMsRaw
+          : OVERVIEW_TTL_MS;
+      const staleAfterMs =
+        typeof snapshotMeta.staleAfter === "string"
+          ? Date.parse(snapshotMeta.staleAfter)
+          : Number.NaN;
+      const isFresh = Number.isFinite(staleAfterMs) ? staleAfterMs > Date.now() : true;
+      if (isFresh) {
+        const cachedAtMs =
+          typeof snapshotMeta.cachedAt === "string"
+            ? Date.parse(snapshotMeta.cachedAt)
+            : Number.NaN;
+        const cachedAtIso = Number.isFinite(cachedAtMs)
+          ? new Date(cachedAtMs).toISOString()
+          : Number.isFinite(staleAfterMs)
+          ? new Date(staleAfterMs - refreshIntervalMs).toISOString()
+          : new Date().toISOString();
+        const staleAfterIso = Number.isFinite(staleAfterMs)
+          ? new Date(staleAfterMs).toISOString()
+          : new Date(Date.now() + refreshIntervalMs).toISOString();
+        const etag = storedSnapshot.etag ?? makeEtag(storedSnapshot.data);
+        const baseMeta = {
+          refreshIntervalMs,
+          cachedAt: cachedAtIso,
+          staleAfter: staleAfterIso,
+          persisted: true,
+        };
+        setOverviewCache(overviewKey, storedSnapshot.data, etag, baseMeta);
+        const totalMs = Date.now() - t0;
+        const payload = attachMeta(storedSnapshot.data, {
+          ...baseMeta,
+          cached: true,
+          totalMs,
+        });
+        return resJSON(payload, 200, { ETag: etag });
+      }
     }
 
     const tSeries0 = Date.now();
@@ -350,10 +434,26 @@ export async function GET(req) {
     const etag = makeEtag(basePayload);
 
     // Spara översikt i cache
-    setOverviewCache(overviewKey, basePayload, etag);
-
     const totalMs = Date.now() - t0;
+    const now = Date.now();
+    const cachedAtIso = new Date(now).toISOString();
+    const staleAfterIso = new Date(now + OVERVIEW_TTL_MS).toISOString();
+    const cacheMeta = {
+      refreshIntervalMs: OVERVIEW_TTL_MS,
+      cachedAt: cachedAtIso,
+      staleAfter: staleAfterIso,
+      persisted: false,
+    };
+
+    setOverviewCache(overviewKey, basePayload, etag, cacheMeta);
+    await setOverviewSnapshot(targetDays, {
+      data: basePayload,
+      etag,
+      meta: { ...cacheMeta, persisted: true },
+    });
+
     const payload = attachMeta(basePayload, {
+      ...cacheMeta,
       cached: false,
       fetchMs: tSeries,
       aggMs: tAgg,
