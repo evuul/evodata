@@ -12,11 +12,16 @@ import {
   Grid,
   ToggleButton,
   ToggleButtonGroup,
+  FormControl,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
 import { COLORS as GAME_COLORS } from "@/config/games";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 
 const EVO_LEI = "549300SUH6ZR1RF6TA88";
 const LOBBY_SIM_MULTIPLIER = 1.1;
@@ -48,6 +53,8 @@ const LiveInvestmentCalculatorPanel = dynamic(() => import("./LiveInvestmentCalc
 });
 
 export default function LiveHeader({ financialReports, averagePlayersData, dividendData }) {
+  const theme = useTheme();
+  const isMobileMenu = useMediaQuery(theme.breakpoints.down("sm"));
   const {
     stockPrice,
     marketCap,
@@ -590,7 +597,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           <Box
             sx={{
               flex: { xs: "1 1 auto", md: "0 1 320px" },
-              display: "flex",
+              display: { xs: "none", md: "flex" },
               justifyContent: "center",
             }}
           >
@@ -657,120 +664,174 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             >
               Topp 3 liveshower just nu
             </Typography>
-            <Grid
-              container
-              spacing={{ xs: 1.2, sm: 1.8 }}
-              sx={{ width: "100%", maxWidth: { xs: "100%", md: 960 }, mx: "auto" }}
-              justifyContent="center"
-              alignItems="stretch"
-            >
-              {top3.length ? (
-                top3.map((item, index) => {
-                  const playersLabel = Number.isFinite(item.players)
-                    ? item.players.toLocaleString("sv-SE")
-                    : "—";
-                  const updatedLabel = item.updated ? formatTime(item.updated) : null;
-                  const displayLabel = item.label === "Monopoly Big Baller" ? "Big Baller" : item.label;
-                  return (
-                    <Grid
-                      key={item.id ?? index}
-                      item
-                      xs={12}
-                      sm="auto"
-                      sx={{ display: "flex", justifyContent: "center", px: { md: 1 }, maxWidth: 320 }}
-                    >
-                      <Box
+            {top3.length ? (
+              isMobileMenu ? (
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  justifyContent="center"
+                  alignItems="center"
+                  flexWrap="wrap"
+                  sx={{ width: "100%", maxWidth: 640, mx: "auto" }}
+                >
+                  {top3.map((item, index) => {
+                    const playersLabel = Number.isFinite(item.players)
+                      ? item.players.toLocaleString("sv-SE")
+                      : "—";
+                    const displayLabel = item.label === "Monopoly Big Baller" ? "Big Baller" : item.label;
+                    return (
+                      <Chip
+                        key={item.id ?? index}
+                        label={`#${index + 1} ${displayLabel} · ${playersLabel}`}
                         sx={{
-                          height: "100%",
-                          borderRadius: "18px",
-                          p: { xs: 2.4, sm: 2.8 },
-                          display: "flex",
-                          flexDirection: "column",
-                          alignItems: "center",
-                          gap: 0.9,
-                          width: "100%",
-                          maxWidth: 320,
+                          backgroundColor: "rgba(15,23,42,0.55)",
+                          color: item.color,
+                          border: `1px solid ${item.color}44`,
+                          borderRadius: "999px",
+                          fontWeight: 600,
+                          px: 1.4,
+                          py: 1,
                         }}
-                      >
-                        <Stack spacing={0.6} alignItems="center">
-                          <Typography
-                            variant="overline"
-                            sx={{
-                              color: "rgba(226,232,240,0.85)",
-                              letterSpacing: 1.5,
-                              fontWeight: 600,
-                            }}
-                          >
-                            #{index + 1}
-                          </Typography>
-                          <Typography
-                            variant="h6"
-                            sx={{ color: "#f8fafc", fontWeight: 700, textAlign: "center" }}
-                          >
-                            {displayLabel}
-                          </Typography>
-                          <Typography
-                            variant="h3"
-                            sx={{ color: item.color, fontWeight: 700, textAlign: "center" }}
-                          >
-                            {playersLabel}
-                          </Typography>
-                        </Stack>
-                        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                          {updatedLabel ? `Senast ${updatedLabel}` : "Ingen tidsstämpel"}
-                        </Typography>
-                      </Box>
-                    </Grid>
-                  );
-                })
+                      />
+                    );
+                  })}
+                </Stack>
               ) : (
-                <Grid item xs={12}>
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                    Ingen live-data tillgänglig just nu.
-                  </Typography>
+                <Grid
+                  container
+                  spacing={{ xs: 1.2, sm: 1.8 }}
+                  sx={{ width: "100%", maxWidth: { xs: "100%", md: 960 }, mx: "auto" }}
+                  justifyContent="center"
+                  alignItems="stretch"
+                >
+                  {top3.map((item, index) => {
+                    const playersLabel = Number.isFinite(item.players)
+                      ? item.players.toLocaleString("sv-SE")
+                      : "—";
+                    const updatedLabel = item.updated ? formatTime(item.updated) : null;
+                    const displayLabel = item.label === "Monopoly Big Baller" ? "Big Baller" : item.label;
+                    return (
+                      <Grid
+                        key={item.id ?? index}
+                        item
+                        xs={12}
+                        sm="auto"
+                        sx={{ display: "flex", justifyContent: "center", px: { md: 1 }, maxWidth: 320 }}
+                      >
+                        <Box
+                          sx={{
+                            height: "100%",
+                            borderRadius: "18px",
+                            p: { xs: 2.4, sm: 2.8 },
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: 0.9,
+                            width: "100%",
+                            maxWidth: 320,
+                          }}
+                        >
+                          <Stack spacing={0.6} alignItems="center">
+                            <Typography
+                              variant="overline"
+                              sx={{
+                                color: "rgba(226,232,240,0.85)",
+                                letterSpacing: 1.5,
+                                fontWeight: 600,
+                              }}
+                            >
+                              #{index + 1}
+                            </Typography>
+                            <Typography
+                              variant="h6"
+                              sx={{ color: "#f8fafc", fontWeight: 700, textAlign: "center" }}
+                            >
+                              {displayLabel}
+                            </Typography>
+                            <Typography
+                              variant="h3"
+                              sx={{ color: item.color, fontWeight: 700, textAlign: "center" }}
+                            >
+                              {playersLabel}
+                            </Typography>
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
+                            {updatedLabel ? `Senast ${updatedLabel}` : "Ingen tidsstämpel"}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    );
+                  })}
                 </Grid>
-              )}
-            </Grid>
+              )
+            ) : (
+              <Typography sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                Ingen live-data tillgänglig just nu.
+              </Typography>
+            )}
           </Box>
 
           <Stack spacing={{ xs: 1.6, sm: 1.9 }} alignItems="stretch">
             <Box sx={{ display: "flex", justifyContent: "center" }}>
-              <ToggleButtonGroup
-                value={activePanel}
-                exclusive
-                onChange={handlePanelChange}
-                sx={{
-                  backgroundColor: "rgba(148,163,184,0.12)",
-                  borderRadius: "999px",
-                  p: 0.5,
-                  flexWrap: "wrap",
-                }}
-              >
-                {panelOptions.map((option) => (
-                  <ToggleButton
-                    key={option.value}
-                    value={option.value}
+              {isMobileMenu ? (
+                <FormControl fullWidth size="small" sx={{ maxWidth: 260 }}>
+                  <Select
+                    value={activePanel}
+                    onChange={(event) => setActivePanel(event.target.value)}
                     sx={{
-                      textTransform: "none",
-                      color: "rgba(226,232,240,0.8)",
-                      border: 0,
-                      borderRadius: "999px!important",
-                      px: { xs: 1.5, md: 2.5 },
-                      py: 0.75,
-                      "&.Mui-selected": {
-                        color: "#f8fafc",
-                        backgroundColor: option.value === "buybacks"
-                          ? "rgba(134,239,172,0.22)"
-                          : option.value === "short"
-                          ? "rgba(248,113,113,0.22)"
-                          : "rgba(56,189,248,0.25)",
-                      },
+                      borderRadius: "999px",
+                      color: "#f8fafc",
+                      backgroundColor: "rgba(148,163,184,0.12)",
+                      border: "1px solid rgba(148,163,184,0.2)",
+                      "& .MuiSelect-select": { py: 1.1, pl: 2.2 },
                     }}
                   >
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
+                    {panelOptions.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <ToggleButtonGroup
+                  value={activePanel}
+                  exclusive
+                  onChange={handlePanelChange}
+                  sx={{
+                    backgroundColor: "rgba(148,163,184,0.12)",
+                    borderRadius: "999px",
+                    p: 0.5,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {panelOptions.map((option) => (
+                    <ToggleButton
+                      key={option.value}
+                      value={option.value}
+                      sx={{
+                        textTransform: "none",
+                        color: "rgba(226,232,240,0.8)",
+                        border: 0,
+                        borderRadius: "999px!important",
+                        px: { xs: 1.5, md: 2.5 },
+                        py: 0.75,
+                        "&.Mui-selected": {
+                          color: "#f8fafc",
+                          backgroundColor:
+                            option.value === "buybacks"
+                              ? "rgba(134,239,172,0.22)"
+                              : option.value === "short"
+                              ? "rgba(248,113,113,0.22)"
+                              : "rgba(56,189,248,0.25)",
+                        },
+                      }}
+                    >
+                      {option.label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
             </Box>
 
             <Box
