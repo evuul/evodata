@@ -410,7 +410,7 @@ const renderAuthenticatedContent = () => (
           insiderTransactions={insiderTransactions}
           sharesData={outstandingShares}
         />
-        <LiveFooter />
+        {/* <LiveFooter /> */}
       </main>
     );
   }

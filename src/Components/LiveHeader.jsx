@@ -36,6 +36,7 @@ const PanelLoader = () => (
 );
 
 const FinancialOverviewPanel = dynamic(() => import("./FinancialOverviewCard"), { ssr: false, loading: PanelLoader });
+const LiveAiFairValuePanel = dynamic(() => import("./LiveAiFairValue"), { ssr: false, loading: PanelLoader });
 const GameshowEarningsPanel = dynamic(() => import("./LiveShowIntelligence"), { ssr: false, loading: PanelLoader });
 const ShortIntelligencePanel = dynamic(() => import("./ShortIntellegence"), { ssr: false, loading: PanelLoader });
 const LivePlayersControlPanel = dynamic(() => import("./LivePlayersControlPanel"), { ssr: false, loading: PanelLoader });
@@ -256,6 +257,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     () => [
       { value: "live", label: "Live Intelligence" },
       { value: "financial", label: "Finansiell översikt" },
+      { value: "fairvalue", label: "AI Fair Value" },
       { value: "gameshow", label: "Gameshow Earnings" },
       { value: "money", label: "Live Money" },
       { value: "buybacks", label: "Återköp (live)" },
@@ -281,6 +283,18 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         );
       }
       return <FinancialOverviewPanel financialReports={financialReports} dividendData={dividendData} />;
+    }
+
+    if (activePanel === "fairvalue") {
+      const reports = financialReports?.financialReports ?? [];
+      if (!reports.length) {
+        return (
+          <Box sx={{ color: "rgba(148,163,184,0.75)", p: 3 }}>
+            Kräver kvartalsdata för att visa AI Fair Value.
+          </Box>
+        );
+      }
+      return <LiveAiFairValuePanel reports={reports} />;
     }
 
     if (activePanel === "gameshow") {
