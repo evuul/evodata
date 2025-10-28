@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 import averagePlayersData from "@/app/data/averagePlayers.json";
-import { getSeries, dailyAverages, getOverviewSnapshot, setOverviewSnapshot } from "@/lib/csStore";
+import { getSeriesBulk, dailyAverages, getOverviewSnapshot, setOverviewSnapshot } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
 const TZ = "Europe/Stockholm";
@@ -322,26 +322,32 @@ export async function GET(req) {
     }
 
     const tSeries0 = Date.now();
-    // Hämta alla serier – använd per-serie-cache för att undvika upprepade nätverksanrop
-    const perSlugSeries = await Promise.all(
-      SERIES_SLUGS.map(async (seriesId) => {
-        const cachedSeries = getSeriesCache(seriesId, targetDays + 5);
-        let series;
-        if (cachedSeries) {
-          series = cachedSeries;
-        } else {
-          const raw = await getSeries(seriesId, targetDays + 5);
-          const arr = Array.isArray(raw) ? raw : [];
-          const filtered =
-            seriesId === "crazy-time:a"
-              ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
-              : arr;
-          series = filtered;
-          setSeriesCache(seriesId, targetDays + 5, series);
-        }
-        return { slug: seriesId, series };
-      })
-    );
+    const cachedEntries = new Map();
+    for (const slug of SERIES_SLUGS) {
+      const cachedSeries = getSeriesCache(slug, targetDays + 5);
+      if (cachedSeries) cachedEntries.set(slug, cachedSeries);
+    }
+
+    const missingSlugs = SERIES_SLUGS.filter((slug) => !cachedEntries.has(slug));
+    let fetchedMap = new Map();
+    if (missingSlugs.length) {
+      fetchedMap = await getSeriesBulk(missingSlugs, targetDays + 5);
+    }
+
+    const perSlugSeries = SERIES_SLUGS.map((seriesId) => {
+      const cached = cachedEntries.get(seriesId);
+      const raw = cached ?? fetchedMap.get(seriesId) ?? [];
+      const arr = Array.isArray(raw) ? raw : [];
+      const filtered =
+        seriesId === "crazy-time:a"
+          ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
+          : arr;
+      if (!cached) {
+        setSeriesCache(seriesId, targetDays + 5, filtered);
+      }
+      return { slug: seriesId, series: filtered };
+    });
+
     const tSeries = Date.now() - tSeries0;
 
     const todayYmd = stockholmTodayYMD();
