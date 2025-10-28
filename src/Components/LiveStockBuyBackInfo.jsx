@@ -62,7 +62,7 @@ const SUB_VIEWS = [
 ];
 
 const fmtNum = (n) => (Number.isFinite(n) ? n.toLocaleString('sv-SE') : '–');
-const fmtMillions = (n, digits = 1) =>
+const fmtThousands = (n, digits = 1) =>
   Number.isFinite(n) ? n.toLocaleString('sv-SE', { maximumFractionDigits: digits }) : '–';
 
 const fmtCurrency = (value) =>
@@ -168,7 +168,9 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
     else if (viewMode === 'weekly') base = buildWeekly(curData);
     else if (viewMode === 'monthly') base = buildMonthly(curData);
     else base = buildYearly(curData);
-    return base.map((row) => ({ x: toLabel(row.Datum), sharesM: (row.Antal_aktier || 0) / 1_000_000 })).filter((r) => Number.isFinite(r.sharesM));
+    return base
+      .map((row) => ({ x: toLabel(row.Datum), sharesK: (row.Antal_aktier || 0) / 1_000 }))
+      .filter((r) => Number.isFinite(r.sharesK));
   }, [viewMode, curData]);
 
   // ---- Subview derived data ----
@@ -333,12 +335,12 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
                 </defs>
                 <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                 <XAxis dataKey="x" tick={{ fontSize: 11, fill: 'rgba(148,163,184,0.75)' }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.25)' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'rgba(148,163,184,0.75)' }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.25)' }} width={60} tickFormatter={(v) => `${fmtMillions(v, 1)} M`} />
+                <YAxis tick={{ fontSize: 11, fill: 'rgba(148,163,184,0.75)' }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.25)' }} width={60} tickFormatter={(v) => `${fmtThousands(v, 1)} k`} />
                 <RechartsTooltip
                   contentStyle={{ background: 'rgba(15,23,42,0.92)', border: '1px solid rgba(96,165,250,0.25)', borderRadius: 12, color: '#f8fafc' }}
-                  formatter={(v) => [`${fmtMillions(v, 2)} M aktier`, 'Återköp']}
+                  formatter={(v) => [`${fmtThousands(v, 1)} k aktier`, 'Återköp']}
                 />
-                <Area type="monotone" dataKey="sharesM" stroke="#38bdf8" strokeWidth={2.5} fill="url(#bbGradient)" fillOpacity={1} dot={false} />
+                <Area type="monotone" dataKey="sharesK" stroke="#38bdf8" strokeWidth={2.5} fill="url(#bbGradient)" fillOpacity={1} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
@@ -364,7 +366,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               ) : (
                 <Stack spacing={0.5}>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {fmtMillions(weekNow.totalShares / 1_000_000, 2)} M aktier
+                    {fmtNum(weekNow.totalShares)} aktier
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
                     {weekNow.periodStart && weekNow.periodEnd
@@ -391,7 +393,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               ) : (
                 <Stack spacing={0.5}>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {fmtMillions(weekPrev.totalShares / 1_000_000, 2)} M aktier
+                    {fmtNum(weekPrev.totalShares)} aktier
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
                     {weekPrev.periodStart && weekPrev.periodEnd
@@ -534,8 +536,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
             yDomain={getYDomain(historyChartData, 'Antal_aktier')}
             yTicks={getYTickValues(historyChartData, 'Antal_aktier', viewMode)}
             formatYAxisTick={formatYAxisTick}
-            historicalAverageDailyBuyback={avgDaily.averageDaily}
-            averageBuybackPrice={stats.averagePrice}
             sortedData={sortedOldData}
             sortConfig={sortConfig}
             onSort={onSort}

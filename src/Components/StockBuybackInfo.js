@@ -44,7 +44,6 @@ import {
   getLastWeekBuybacks,
   getPreviousWeekBuybacks,
   calculateBuybackStats,
-  calculateAverageDailyBuyback,
   calculateEstimatedCompletion,
 } from './buybacks/utils';
 
@@ -170,8 +169,6 @@ const StockBuybackInfo = ({
 
   const latestEvolutionShares = evolutionOwnershipDataMemo[evolutionOwnershipDataMemo.length - 1]?.shares || 0;
   const latestOwnershipPercentage = (latestEvolutionShares / latestTotalShares) * 100;
-
-  const { averageDaily: historicalAverageDailyBuyback, averagePrice: averageBuybackPrice } = calculateAverageDailyBuyback(oldData); // Använd dynamiska data för historik
 
   const { currentProgramAverageDailyShares, daysToCompletion, estimatedCompletionDate } =
     calculateEstimatedCompletion(remainingCash > 0 ? remainingCash : null, curData) || {};
@@ -813,22 +810,20 @@ const StockBuybackInfo = ({
           {/* removed inline totalShares UI (moved to TotalSharesView) */}
 
       {activeTab === "history" && (
-        <HistoryView
-          isMobile={isMobile}
-          viewMode={viewMode}
-          onChangeViewMode={handleViewModeChange}
-          chartTypeHistory={chartTypeHistory}
-          onChangeChartTypeHistory={handleChartTypeChange("history")}
-          historyChartData={historyChartData}
-          yDomain={getYDomain(historyChartData, "Antal_aktier")}
-          yTicks={getYTickValues(historyChartData, "Antal_aktier", viewMode)}
-          formatYAxisTick={formatYAxisTick}
-          historicalAverageDailyBuyback={historicalAverageDailyBuyback}
-          averageBuybackPrice={averageBuybackPrice}
-          sortedData={sortedData}
-          sortConfig={sortConfig}
-          onSort={handleSort}
-        />
+      <HistoryView
+        isMobile={isMobile}
+        viewMode={viewMode}
+        onChangeViewMode={handleViewModeChange}
+        chartTypeHistory={chartTypeHistory}
+        onChangeChartTypeHistory={handleChartTypeChange("history")}
+        historyChartData={historyChartData}
+        yDomain={getYDomain(historyChartData, "Antal_aktier")}
+        yTicks={getYTickValues(historyChartData, "Antal_aktier", viewMode)}
+        formatYAxisTick={formatYAxisTick}
+        sortedData={sortedData}
+        sortConfig={sortConfig}
+        onSort={handleSort}
+      />
       )}
 
       {activeTab === "returns" && (
