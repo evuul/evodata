@@ -8,8 +8,8 @@ import {
   Chip,
   CircularProgress,
   Button,
-  Grid,
   Stack,
+  Grid,
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
@@ -46,7 +46,7 @@ const LiveInvestmentCalculatorPanel = dynamic(() => import("./LiveInvestmentCalc
   loading: PanelLoader,
 });
 
-export default function Header({ financialReports, averagePlayersData, dividendData }) {
+export default function LiveHeader({ financialReports, averagePlayersData, dividendData }) {
   const {
     stockPrice,
     marketCap,
@@ -327,13 +327,13 @@ export default function Header({ financialReports, averagePlayersData, dividendD
           borderRadius: "24px",
           border: "1px solid rgba(148,163,184,0.18)",
           boxShadow: "0 24px 50px rgba(15,23,42,0.45)",
-          px: { xs: 3, sm: 5, md: 6 },
-          py: { xs: 3, sm: 4 },
+          px: { xs: 2.8, sm: 4.5, md: 5.5 },
+          py: { xs: 2.4, sm: 3.2 },
           maxWidth: { xs: "100%", lg: "1400px" },
           width: "100%",
         }}
       >
-        <Stack spacing={{ xs: 2.4, sm: 3.2, md: 4 }}>
+        <Stack spacing={{ xs: 1.8, sm: 2.5, md: 3 }}>
           <Box
             sx={{
               display: "flex",
@@ -405,13 +405,15 @@ export default function Header({ financialReports, averagePlayersData, dividendD
             )}
           </Box>
 
-          <Stack spacing={{ xs: 2, sm: 2.2 }} alignItems="center" textAlign="center">
+          <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
             <Typography
               variant="overline"
               sx={{
-                letterSpacing: 4,
-                color: "rgba(148,163,184,0.75)",
-                fontWeight: 600,
+                letterSpacing: { xs: 5, sm: 7.5 },
+                color: "rgba(148,163,184,0.78)",
+                fontWeight: 700,
+                fontSize: { xs: "0.82rem", sm: "1rem", md: "1.12rem" },
+                textTransform: "uppercase",
               }}
             >
               Evolution Control Center
@@ -439,44 +441,51 @@ export default function Header({ financialReports, averagePlayersData, dividendD
             </Typography>
           </Stack>
 
-          <Grid
-            container
-            spacing={{ xs: 1.2, sm: 2 }}
-            justifyContent="center"
-            alignItems="stretch"
-            sx={{ width: "100%", maxWidth: { xs: "100%", md: 960 }, mx: "auto" }}
+          <Box
+            sx={{
+              width: "100%",
+              maxWidth: { xs: "100%", lg: "1400px" },
+              mx: "auto",
+              display: "flex",
+              flexDirection: { xs: "column", md: "row" },
+              alignItems: { xs: "stretch", md: "stretch" },
+              justifyContent: { xs: "center", md: "space-between" },
+              gap: { xs: 1.2, sm: 1.4, md: 2.8 },
+              mt: { xs: 0.2, sm: 0.6 },
+              px: { xs: 0, md: 0 },
+            }}
           >
-            <Grid
-              item
-              xs={12}
-              md={4}
-              sx={{ display: "flex", justifyContent: "center", px: { md: 2 } }}
+            <Box
+              sx={{
+                flex: { xs: "1 1 auto", md: "0 1 320px" },
+                display: "flex",
+                justifyContent: "center",
+              }}
             >
               <Box
                 sx={{
-                  background: "rgba(15,23,42,0.55)",
-                  borderRadius: "20px",
-                  p: { xs: 3, sm: 3.5 },
-                  textAlign: "center",
+                  background: "rgba(15,23,42,0.35)",
+                  borderRadius: "18px",
+                  p: { xs: 1.6, sm: 1.9 },
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: 1.5,
+                  gap: 0.9,
                   width: "100%",
                   maxWidth: 320,
                 }}
               >
-                <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                  <Box sx={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: "#22c55e" }} />
-                  <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 2 }}>
+                <Stack direction="row" spacing={0.8} alignItems="center">
+                  <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     Live · spelare
                   </Typography>
+                  <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#22c55e" }} />
                 </Stack>
                 <Typography
                   variant="h2"
                   sx={{
                     fontWeight: 800,
-                    fontSize: { xs: "2.3rem", md: "2.8rem" },
+                    fontSize: { xs: "2.1rem", md: "2.5rem" },
                     color: "#f8fafc",
                   }}
                 >
@@ -506,45 +515,50 @@ export default function Header({ financialReports, averagePlayersData, dividendD
                     },
                   }}
                 >
-                  {simulateButtonLabel}
-                </Button>
-                {simulateLobby && Number.isFinite(playersValue) && (
-                  <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                    Visar simulerad lobby med +10% boost.
-                  </Typography>
-                )}
-              </Box>
-            </Grid>
+                {simulateButtonLabel}
+              </Button>
+              {simulateLobby && Number.isFinite(playersValue) && (
+                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
+                  Visar simulerad lobby med +10% boost.
+                </Typography>
+              )}
+            </Box>
+          </Box>
 
-            <Grid
-              item
-              xs={12}
-              md={4}
-              sx={{ display: "flex", justifyContent: "center", px: { md: 2 } }}
-            >
+          <Box
+            sx={{
+              flex: { xs: "1 1 auto", md: "0 1 320px" },
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
               <Box
                 sx={{
-                  background: "rgba(15,23,42,0.55)",
-                  borderRadius: "20px",
-                  p: { xs: 3, sm: 3.5 },
-                  textAlign: "center",
+                  background: "rgba(15,23,42,0.35)",
+                  borderRadius: "18px",
+                  p: { xs: 1.6, sm: 1.9 },
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: 1.25,
+                  gap: 0.9,
                   width: "100%",
                   maxWidth: 320,
                 }}
               >
-                <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                  <Box sx={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: "#38bdf8" }} />
-                  <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 2 }}>
+                <Stack direction="row" spacing={0.8} alignItems="center">
+                  <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     Aktiekurs
                   </Typography>
+                  <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#38bdf8" }} />
                 </Stack>
                 <Typography
                   variant="h2"
-                  sx={{ fontWeight: 800, fontSize: { xs: "2.2rem", md: "2.7rem" }, color: "#f8fafc" }}
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: "2.1rem", md: "2.5rem" },
+                    color: "#f8fafc",
+                    whiteSpace: "nowrap",
+                  }}
                 >
                   {loadingPrice ? "—" : priceDisplay}
                 </Typography>
@@ -556,38 +570,43 @@ export default function Header({ financialReports, averagePlayersData, dividendD
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
                   {stockUpdatedLabel ? `Uppdaterad ${stockUpdatedLabel}` : "Senaste kurs saknas"}
                 </Typography>
-              </Box>
-            </Grid>
+            </Box>
+          </Box>
 
-            <Grid
-              item
-              xs={12}
-              md={4}
-              sx={{ display: "flex", justifyContent: "center", px: { md: 2 } }}
-            >
+          <Box
+            sx={{
+              flex: { xs: "1 1 auto", md: "0 1 320px" },
+              display: "flex",
+              justifyContent: "center",
+            }}
+          >
               <Box
                 sx={{
-                  background: "rgba(15,23,42,0.55)",
-                  borderRadius: "20px",
-                  p: { xs: 3, sm: 3.5 },
-                  textAlign: "center",
+                  background: "rgba(15,23,42,0.35)",
+                  borderRadius: "18px",
+                  p: { xs: 1.6, sm: 1.9 },
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: 1.25,
+                  gap: 0.9,
                   width: "100%",
                   maxWidth: 320,
                 }}
               >
-                <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-                  <Box sx={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: "#c084fc" }} />
-                  <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 2 }}>
+                <Stack direction="row" spacing={0.8} alignItems="center">
+                  <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     Marknadsvärde
                   </Typography>
+                  <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#c084fc" }} />
                 </Stack>
                 <Typography
                   variant="h2"
-                  sx={{ fontWeight: 800, fontSize: { xs: "2.2rem", md: "2.7rem" }, color: "#f8fafc" }}
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: "2.1rem", md: "2.5rem" },
+                    color: "#f8fafc",
+                    whiteSpace: "nowrap",
+                  }}
                 >
                   {fmtCap(marketCap)}
                 </Typography>
@@ -598,19 +617,19 @@ export default function Header({ financialReports, averagePlayersData, dividendD
                   Uppdateras tillsammans med kursdata.
                 </Typography>
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
 
           <Box
             sx={{
               background: "rgba(15,23,42,0.45)",
               borderRadius: "20px",
-              p: { xs: 2.4, sm: 2.8 },
+              p: { xs: 1.4, sm: 1.7 },
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 1.4,
-              mt: { xs: -3, sm: -3.5, md: -4 },
+              gap: { xs: 0.8, sm: 1 },
+              mt: { xs: -0.6, sm: -1, md: -1.3 },
             }}
           >
             <Typography
@@ -644,22 +663,22 @@ export default function Header({ financialReports, averagePlayersData, dividendD
                       item
                       xs={12}
                       sm="auto"
-                      sx={{ display: "flex", justifyContent: "center", px: { md: 2 }, maxWidth: 320 }}
+                      sx={{ display: "flex", justifyContent: "center", px: { md: 1 }, maxWidth: 320 }}
                     >
                       <Box
                         sx={{
                           height: "100%",
                           borderRadius: "18px",
-                          p: { xs: 2.5, sm: 3 },
+                          p: { xs: 2.4, sm: 2.8 },
                           display: "flex",
                           flexDirection: "column",
                           alignItems: "center",
-                          gap: 1.25,
+                          gap: 0.9,
                           width: "100%",
                           maxWidth: 320,
                         }}
                       >
-                        <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Stack spacing={0.6} alignItems="center">
                           <Typography
                             variant="overline"
                             sx={{
@@ -670,22 +689,19 @@ export default function Header({ financialReports, averagePlayersData, dividendD
                           >
                             #{index + 1}
                           </Typography>
-                          <Chip
-                            size="small"
-                            label={playersLabel}
-                            sx={{
-                              backgroundColor: "rgba(15,23,42,0.55)",
-                              color: item.color,
-                              borderRadius: "999px",
-                            }}
-                          />
+                          <Typography
+                            variant="h6"
+                            sx={{ color: "#f8fafc", fontWeight: 700, textAlign: "center" }}
+                          >
+                            {displayLabel}
+                          </Typography>
+                          <Typography
+                            variant="h3"
+                            sx={{ color: item.color, fontWeight: 700, textAlign: "center" }}
+                          >
+                            {playersLabel}
+                          </Typography>
                         </Stack>
-                        <Typography
-                          variant="h6"
-                          sx={{ color: "#f8fafc", fontWeight: 700, textAlign: "center" }}
-                        >
-                          {displayLabel}
-                        </Typography>
                         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
                           {updatedLabel ? `Senast ${updatedLabel}` : "Ingen tidsstämpel"}
                         </Typography>
@@ -703,7 +719,7 @@ export default function Header({ financialReports, averagePlayersData, dividendD
             </Grid>
           </Box>
 
-          <Stack spacing={{ xs: 2, sm: 2.2 }} alignItems="stretch">
+          <Stack spacing={{ xs: 1.6, sm: 1.9 }} alignItems="stretch">
             <Box sx={{ display: "flex", justifyContent: "center" }}>
               <ToggleButtonGroup
                 value={activePanel}

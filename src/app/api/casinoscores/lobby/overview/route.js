@@ -1,36 +1,95 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import averagePlayersData from "@/app/data/averagePlayers.json";
 import { getSeries, dailyAverages } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
 const TZ = "Europe/Stockholm";
-const BUCKET_MS = 60 * 1000; // 1 minut – tillräckligt för att aligna cron-samplings
+const BUCKET_MS = 60 * 1000; // 1 min
+const RESPONSE_CACHE_CONTROL = "public, max-age=30, s-maxage=30, stale-while-revalidate=60";
 
-function resJSON(data, status = 200) {
+// ---------- In-process cache (per Node-instans) ----------
+const g = globalThis;
+g.__overviewCache ??= { byKey: new Map(), series: new Map() };
+// overview TTL: 60s (justera vid behov)
+const OVERVIEW_TTL_MS = 60 * 1000;
+// per-serie TTL: 2 min (så vi kan återanvända vid snabb toggling)
+const SERIES_TTL_MS = 2 * 60 * 1000;
+
+function getOverviewCache(key) {
+  const hit = g.__overviewCache.byKey.get(key);
+  if (!hit) return null;
+  if (hit.exp > Date.now()) return hit;
+  g.__overviewCache.byKey.delete(key);
+  return null;
+}
+function setOverviewCache(key, data, etag) {
+  g.__overviewCache.byKey.set(key, { data, etag, exp: Date.now() + OVERVIEW_TTL_MS });
+}
+
+function getSeriesCache(slug, days) {
+  const k = `${slug}::${days}`;
+  const hit = g.__overviewCache.series.get(k);
+  if (hit && hit.exp > Date.now()) return hit.data;
+  if (hit) g.__overviewCache.series.delete(k);
+  return null;
+}
+function setSeriesCache(slug, days, data) {
+  const k = `${slug}::${days}`;
+  g.__overviewCache.series.set(k, { data, exp: Date.now() + SERIES_TTL_MS });
+}
+
+// ---------- helpers ----------
+function resJSON(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Cache-Control": RESPONSE_CACHE_CONTROL,
+      ...extraHeaders,
     },
   });
 }
 
+function attachMeta(base, meta) {
+  return {
+    ...base,
+    _meta: meta,
+  };
+}
+
+function makeEtag(obj) {
+  const s = JSON.stringify(obj);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  }
+  return `W/"${h.toString(16)}"`;
+}
+
+const YMD_FORMATTER = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function normalizeFormattedYMD(value) {
+  const parts = String(value)
+    .split(/[^\d]/)
+    .filter(Boolean);
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  return value;
+}
+
 function stockholmTodayYMD() {
   try {
-    const parts = new Intl.DateTimeFormat("sv-SE", {
-      timeZone: TZ,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(new Date());
-
-    const y = parts.find((p) => p.type === "year")?.value ?? "0000";
-    const m = parts.find((p) => p.type === "month")?.value ?? "00";
-    const d = parts.find((p) => p.type === "day")?.value ?? "00";
-    return `${y}-${m}-${d}`;
+    return normalizeFormattedYMD(YMD_FORMATTER.format(new Date()));
   } catch {
     return new Date().toISOString().slice(0, 10);
   }
@@ -38,17 +97,9 @@ function stockholmTodayYMD() {
 
 function stockholmYMDFromTs(ts) {
   try {
-    const parts = new Intl.DateTimeFormat("sv-SE", {
-      timeZone: TZ,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).formatToParts(new Date(ts));
-
-    const y = parts.find((p) => p.type === "year")?.value ?? "0000";
-    const m = parts.find((p) => p.type === "month")?.value ?? "00";
-    const d = parts.find((p) => p.type === "day")?.value ?? "00";
-    return `${y}-${m}-${d}`;
+    const date = new Date(Number(ts));
+    if (!Number.isFinite(date.getTime())) return null;
+    return normalizeFormattedYMD(YMD_FORMATTER.format(date));
   } catch {
     return null;
   }
@@ -58,7 +109,8 @@ function bucketTs(ts) {
   return Math.floor(ts / BUCKET_MS) * BUCKET_MS;
 }
 
-function parseStaticDaily() {
+const STATIC_DAILY = (() => {
+  // Gör parsing en gång per process
   if (!Array.isArray(averagePlayersData)) return [];
   return averagePlayersData
     .map((row) => {
@@ -69,109 +121,85 @@ function parseStaticDaily() {
     })
     .filter(Boolean)
     .sort((a, b) => a.date.localeCompare(b.date));
-}
+})();
 
-function computeAth(dynamicDaily) {
+function computeAthFromDailyRows(staticDaily, dynamicDaily) {
   let athValue = null;
   let athDate = null;
 
-  for (const row of parseStaticDaily()) {
-    if (!Number.isFinite(row.players)) continue;
-    if (athValue === null || row.players > athValue) {
-      athValue = row.players;
+  for (const row of staticDaily) {
+    const v = row.players;
+    if (!Number.isFinite(v)) continue;
+    if (athValue === null || v > athValue) {
+      athValue = v;
       athDate = row.date;
     }
   }
-
   for (const row of dynamicDaily) {
-    const value = Number(row?.avgPlayers);
-    if (!Number.isFinite(value)) continue;
-    if (athValue === null || value > athValue) {
-      athValue = value;
+    const v = Number(row?.avgPlayers);
+    if (!Number.isFinite(v)) continue;
+    if (athValue === null || v > athValue) {
+      athValue = v;
       athDate = row.date || null;
     }
   }
-
-  return athValue != null
-    ? { value: Math.round(athValue), date: athDate }
-    : null;
+  return athValue != null ? { value: Math.round(athValue), date: athDate } : null;
 }
 
-function buildDailyTotals(perSlugSeries) {
-  const today = stockholmTodayYMD();
-  const totalsMap = new Map(); // date -> { sum, count }
+function buildDailyTotals(perSlugSeries, today) {
+  const totals = new Map(); // date -> sum
 
-  perSlugSeries.forEach(({ series }) => {
-    const daily = dailyAverages(series) || [];
-    for (const entry of daily) {
-      const date = entry?.date;
-      const avg = Number(entry?.avg);
+  for (const { daily } of perSlugSeries) {
+    for (let i = 0; i < daily.length; i++) {
+      const date = daily[i].date;
+      const avg = Number(daily[i].avg);
       if (!date || !Number.isFinite(avg)) continue;
       if (date >= today) continue; // hoppa över pågående dag
-      const item = totalsMap.get(date) || { sum: 0, count: 0 };
-      item.sum += avg;
-      item.count += 1;
-      totalsMap.set(date, item);
+      totals.set(date, (totals.get(date) ?? 0) + avg);
     }
-  });
+  }
 
-  return Array.from(totalsMap.entries())
-    .map(([date, { sum, count }]) => ({
+  return Array.from(totals.entries())
+    .map(([date, sum]) => ({
       date,
       avgPlayers: Math.round(sum * 100) / 100,
-      games: count,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function computeTodayPeak(perSlugSeries) {
-  const today = stockholmTodayYMD();
-  const bucketMap = new Map(); // bucketTs -> Map<slug, value>
+function computeTodayPeak(perSlugSeries, today) {
+  const bucketMap = new Map(); // bucketTs -> sum av per-slug-peak
 
-  for (const { slug, series } of perSlugSeries) {
-    for (const point of series || []) {
-      const ts = Number(point?.ts);
-      const value = Number(point?.value);
+  for (const { series } of perSlugSeries) {
+    // track peak per bucket för denna slug
+    const localPeak = new Map(); // bucket -> peak
+    for (let i = 0; i < (series?.length ?? 0); i++) {
+      const p = series[i];
+      const ts = Number(p?.ts);
+      const value = Number(p?.value);
       if (!Number.isFinite(ts) || !Number.isFinite(value)) continue;
       const bucket = bucketTs(ts);
       const ymd = stockholmYMDFromTs(bucket);
       if (!ymd || ymd !== today) continue;
-
-      let perSlug = bucketMap.get(bucket);
-      if (!perSlug) {
-        perSlug = new Map();
-        bucketMap.set(bucket, perSlug);
-      }
-
-      const prev = perSlug.get(slug);
-      if (!Number.isFinite(prev) || value > prev) {
-        perSlug.set(slug, value);
-      }
+      const prev = localPeak.get(bucket);
+      if (!Number.isFinite(prev) || value > prev) localPeak.set(bucket, value);
+    }
+    // addera detta slags peak in i totalen
+    for (const [b, v] of localPeak.entries()) {
+      bucketMap.set(b, (bucketMap.get(b) ?? 0) + v);
     }
   }
 
   if (!bucketMap.size) return { peak: null, buckets: [] };
 
   const buckets = Array.from(bucketMap.entries())
-    .map(([ts, perSlug]) => {
-      let sum = 0;
-      for (const v of perSlug.values()) {
-        if (Number.isFinite(v)) sum += v;
-      }
-      return { ts, value: Math.round(sum) };
-    })
-    .filter((row) => Number.isFinite(row.value))
+    .map(([ts, value]) => ({ ts, value: Math.round(value) }))
     .sort((a, b) => a.ts - b.ts);
 
-  if (!buckets.length) return { peak: null, buckets: [] };
-
   let peak = buckets[0];
-  for (const row of buckets) {
-    if (row.value > peak.value) {
-      peak = row;
-    }
+  for (let i = 1; i < buckets.length; i++) {
+    if (buckets[i].value > peak.value) peak = buckets[i];
   }
-
   return {
     peak: peak ? { value: peak.value, at: new Date(peak.ts).toISOString() } : null,
     buckets: buckets.map((row) => ({
@@ -181,66 +209,162 @@ function computeTodayPeak(perSlugSeries) {
   };
 }
 
+// ---------- GET med cache + tidsmätning ----------
 export async function GET(req) {
+  const t0 = Date.now();
   try {
     const { searchParams } = new URL(req.url);
     const daysParam = Number(searchParams.get("days"));
-    const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 90)) : 45;
+    const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 365)) : 45;
 
+    // Överblicks-cache (hela svaret) per days
+    const overviewKey = `overview:${targetDays}`;
+    const cachedEntry = getOverviewCache(overviewKey);
+    if (cachedEntry) {
+      const inm = req.headers.get("if-none-match");
+      if (inm && cachedEntry.etag && inm === cachedEntry.etag) {
+        return new Response(null, {
+          status: 304,
+          headers: {
+            ETag: cachedEntry.etag,
+            "Cache-Control": RESPONSE_CACHE_CONTROL,
+          },
+        });
+      }
+      const t = Date.now() - t0;
+      const payload = attachMeta(cachedEntry.data, { cached: true, totalMs: t });
+      const headers = cachedEntry.etag ? { ETag: cachedEntry.etag } : {};
+      return resJSON(payload, 200, headers);
+    }
+
+    const tSeries0 = Date.now();
+    // Hämta alla serier – använd per-serie-cache för att undvika upprepade nätverksanrop
     const perSlugSeries = await Promise.all(
       SERIES_SLUGS.map(async (seriesId) => {
-        const rawSeries = await getSeries(seriesId, targetDays + 5);
-        const series = Array.isArray(rawSeries) ? rawSeries : [];
-        const filtered =
-          seriesId === "crazy-time:a"
-            ? series.filter((point) => Number.isFinite(point?.ts) && point.ts >= CRAZY_TIME_A_RESET_MS)
-            : series;
-        return { slug: seriesId, series: filtered };
+        const cachedSeries = getSeriesCache(seriesId, targetDays + 5);
+        let series;
+        if (cachedSeries) {
+          series = cachedSeries;
+        } else {
+          const raw = await getSeries(seriesId, targetDays + 5);
+          const arr = Array.isArray(raw) ? raw : [];
+          const filtered =
+            seriesId === "crazy-time:a"
+              ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
+              : arr;
+          series = filtered;
+          setSeriesCache(seriesId, targetDays + 5, series);
+        }
+        return { slug: seriesId, series };
       })
     );
+    const tSeries = Date.now() - tSeries0;
 
-    const dailyTotals = buildDailyTotals(perSlugSeries);
-    const ath = computeAth(dailyTotals);
-    const { peak: todayPeak, buckets } = computeTodayPeak(perSlugSeries);
+    const todayYmd = stockholmTodayYMD();
+    const perSlugData = perSlugSeries.map(({ slug, series }) => {
+      const daily = dailyAverages(series) || [];
+      let sum = 0;
+      let count = 0;
+      let latestTs = null;
+      let latestValue = null;
+      let athValue = null;
+      let athTs = null;
+
+      for (let i = 0; i < (series?.length ?? 0); i++) {
+        const entry = series[i];
+        const value = Number(entry?.value);
+        const ts = Number(entry?.ts);
+        if (!Number.isFinite(value)) continue;
+        sum += value;
+        count += 1;
+
+        if (Number.isFinite(ts)) {
+          if (latestTs === null || ts > latestTs) {
+            latestTs = ts;
+            latestValue = value;
+          }
+          if (athValue === null || value > athValue) {
+            athValue = value;
+            athTs = ts;
+          }
+        } else if (athValue === null || value > athValue) {
+          athValue = value;
+          athTs = null;
+        }
+      }
+
+      const average = count > 0 ? Math.round((sum / count) * 100) / 100 : null;
+      const latest =
+        latestValue != null && latestTs != null
+          ? { value: Math.round(latestValue), at: new Date(latestTs).toISOString() }
+          : null;
+      const ath =
+        athValue != null
+          ? {
+              value: Math.round(athValue),
+              at: athTs != null ? new Date(athTs).toISOString() : null,
+            }
+          : null;
+
+      return {
+        slug,
+        series,
+        daily,
+        summary: { average, latest, ath },
+      };
+    });
+
+    // Aggregeringar
+    const tAgg0 = Date.now();
+    const dailyTotals = buildDailyTotals(perSlugData, todayYmd);
+    const ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
+    const { peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd);
 
     const days7 = dailyTotals.slice(-7);
     const days30 = dailyTotals.slice(-30);
 
-    const slugAverages = perSlugSeries.map(({ slug, series }) => {
-      if (!Array.isArray(series) || series.length === 0) {
-        return { slug, avgPlayers: null };
-      }
-      let sum = 0;
-      let count = 0;
-      for (const point of series) {
-        const value = Number(point?.value);
-        if (!Number.isFinite(value)) continue;
-        sum += value;
-        count += 1;
-      }
-      const avgPlayers = count > 0 ? Math.round((sum / count) * 100) / 100 : null;
-      return { slug, avgPlayers };
-    });
+    // snitt + toppar per slug (enkelt medel av alla punkter)
+    const slugAverages = perSlugData.map(({ slug, summary }) => ({
+      slug,
+      avgPlayers: summary.average,
+    }));
+    const slugDetails = perSlugData.map(({ slug, summary }) => ({
+      slug,
+      latest: summary.latest,
+      ath: summary.ath,
+    }));
+    const tAgg = Date.now() - tAgg0;
 
-    return resJSON({
+    const basePayload = {
       ok: true,
       dailyTotals,
       ath,
       todayPeak,
-      averages: {
-        days7,
-        days30,
-      },
-      samples: {
-        todayBuckets: buckets,
-      },
+      averages: { days7, days30 },
+      samples: { todayBuckets: buckets },
       slugAverages,
+      slugDetails,
       generatedAt: new Date().toISOString(),
+    };
+
+    const etag = makeEtag(basePayload);
+
+    // Spara översikt i cache
+    setOverviewCache(overviewKey, basePayload, etag);
+
+    const totalMs = Date.now() - t0;
+    const payload = attachMeta(basePayload, {
+      cached: false,
+      fetchMs: tSeries,
+      aggMs: tAgg,
+      totalMs,
     });
+    return resJSON(payload, 200, { ETag: etag });
   } catch (error) {
     return resJSON(
       { ok: false, error: error?.message || String(error) },
-      500
+      500,
+      { "Cache-Control": "no-store" }
     );
   }
 }

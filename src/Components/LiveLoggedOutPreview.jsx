@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, Box, Typography, Chip, IconButton, useMediaQuery, useTheme } from "@mui/material";
+import NextLink from "next/link";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  IconButton,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import GroupsIcon from "@mui/icons-material/Groups";
 import PaidIcon from "@mui/icons-material/Paid";
@@ -257,7 +269,7 @@ const StatCard = ({ icon, title, value, subtitle, badge }) => (
   </Card>
 );
 
-export default function LoggedOutPreview({
+export default function LiveLoggedOutPreview({
   financialReports,
   averagePlayersData,
   dividendData,
@@ -713,6 +725,47 @@ export default function LoggedOutPreview({
           Få detaljerade grafer, realtidsstatistik över spelare och djupgående utdelningshistorik för Evolution.
           Allt samlat på ett ställe, uppdaterat varje dag.
         </Typography>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ mt: { xs: 2.5, sm: 3 }, justifyContent: "center", alignItems: "center" }}
+        >
+          <Button
+            component={NextLink}
+            href="/login"
+            size="large"
+            variant="contained"
+            sx={{
+              minWidth: 180,
+              fontWeight: 600,
+              textTransform: "none",
+              background: "linear-gradient(135deg, #38bdf8, #0ea5e9)",
+              boxShadow: "0px 16px 35px rgba(14,165,233,0.25)",
+            }}
+          >
+            Logga in
+          </Button>
+          <Button
+            component={NextLink}
+            href="/register"
+            size="large"
+            variant="outlined"
+            sx={{
+              minWidth: 180,
+              fontWeight: 600,
+              textTransform: "none",
+              borderWidth: 2,
+              borderColor: "rgba(148,163,184,0.6)",
+              color: "#e2e8f0",
+              "&:hover": {
+                borderColor: "rgba(148,163,184,0.85)",
+                backgroundColor: "rgba(148,163,184,0.08)",
+              },
+            }}
+          >
+            Skapa konto
+          </Button>
+        </Stack>
       </Box>
 
       <Box
