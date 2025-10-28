@@ -16,6 +16,8 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -110,6 +112,17 @@ const formatDateTime = (value) => {
   }
 };
 
+const formatDateOnly = (value) => {
+  if (!value) return null;
+  try {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return null;
+    return dateFormatter.format(date);
+  } catch {
+    return null;
+  }
+};
+
 const SLUG_TO_GAME = (() => {
   const map = new Map();
   (GAME_CONFIG || []).forEach((game) => {
@@ -118,6 +131,59 @@ const SLUG_TO_GAME = (() => {
   });
   return map;
 })();
+
+const normalizeDailySeries = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((row) => {
+      const date = row?.date ?? row?.Datum ?? null;
+      const avgRaw = row?.avgPlayers ?? row?.avg ?? row?.Players ?? row?.players;
+      const avg = Number(avgRaw);
+      if (!date || !Number.isFinite(avg)) return null;
+      return { date, players: Math.round(avg) };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+};
+
+const normalizeTrendDelta = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const startValue = Number(value?.start?.value);
+  const endValue = Number(value?.end?.value);
+  if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return null;
+  const startDate = value?.start?.date ?? null;
+  const endDate = value?.end?.date ?? null;
+  const absolute = Number(value?.absolute);
+  const percent = Number(value?.percent);
+  return {
+    start: startDate ? { date: startDate, value: Math.round(startValue) } : null,
+    end: endDate ? { date: endDate, value: Math.round(endValue) } : null,
+    absolute: Number.isFinite(absolute) ? absolute : Math.round((endValue - startValue) * 100) / 100,
+    percent: Number.isFinite(percent)
+      ? percent
+      : startValue !== 0
+      ? Math.round(((endValue - startValue) / startValue) * 10000) / 100
+      : null,
+  };
+};
+
+const computeTrendDiff = (series, key = "players") => {
+  if (!Array.isArray(series) || series.length < 2) return null;
+  const first = series[0];
+  const last = series[series.length - 1];
+  const startValue = Number(first?.[key]);
+  const endValue = Number(last?.[key]);
+  if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return null;
+  const absolute = Math.round((endValue - startValue) * 100) / 100;
+  const percent =
+    startValue !== 0 ? Math.round(((endValue - startValue) / startValue) * 10000) / 100 : null;
+  return {
+    start: { date: first?.date ?? null, value: startValue },
+    end: { date: last?.date ?? null, value: endValue },
+    absolute,
+    percent,
+  };
+};
 
 const LivePlayersControlPanel = () => {
   const { data: liveGames, loading: loadingLive, GAMES: contextGames, lastUpdated } = usePlayersLive();
@@ -131,6 +197,10 @@ const LivePlayersControlPanel = () => {
   const [dailyTotals, setDailyTotals] = useState([]);
   const [slugAverages, setSlugAverages] = useState([]);
   const [slugDetails, setSlugDetails] = useState([]);
+  const [slugDailyMap, setSlugDailyMap] = useState(new Map());
+  const [trendDelta, setTrendDelta] = useState(null);
+  const [gameTrendSlug, setGameTrendSlug] = useState(null);
+  const [gameTrendDays, setGameTrendDays] = useState(TREND_DAY_OPTIONS[0]);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
 
   const [showAllLive, setShowAllLive] = useState(false);
@@ -146,6 +216,17 @@ const LivePlayersControlPanel = () => {
       setDailyTotals(cached.dailyTotals);
       setSlugAverages(cached.slugAverages);
       setSlugDetails(cached.slugDetails);
+      const cachedDailyEntries = Array.isArray(cached.slugDailyEntries) ? cached.slugDailyEntries : [];
+      const map = new Map(
+        cachedDailyEntries.map(([slug, arr]) => [slug, normalizeDailySeries(arr)])
+      );
+      setSlugDailyMap(map);
+      setTrendDelta(normalizeTrendDelta(cached.trendDelta));
+      setGameTrendSlug((prev) => {
+        if (prev && map.has(prev)) return prev;
+        const first = map.keys().next();
+        return first.done ? prev : first.value;
+      });
       setOverviewGeneratedAt(cached.generatedAt);
       return;
     }
@@ -192,10 +273,18 @@ const LivePlayersControlPanel = () => {
             .filter(Boolean)
         : [];
 
+      const slugDailyEntries = Object.entries(json?.slugDaily ?? {}).map(([slug, series]) => [
+        slug,
+        normalizeDailySeries(series),
+      ]);
+      const trendInfo = normalizeTrendDelta(json?.trendDelta);
+
       const payload = {
         dailyTotals: totals,
         slugAverages: averages,
         slugDetails: details,
+        slugDailyEntries,
+        trendDelta: trendInfo,
         generatedAt: json?.generatedAt || null,
       };
       overviewCache.set(cacheKey, payload, OVERVIEW_TTL);
@@ -203,12 +292,22 @@ const LivePlayersControlPanel = () => {
       setDailyTotals(totals);
       setSlugAverages(averages);
       setSlugDetails(details);
+      const map = new Map(slugDailyEntries);
+      setSlugDailyMap(map);
+      setTrendDelta(trendInfo);
+      setGameTrendSlug((prev) => {
+        if (prev && map.has(prev)) return prev;
+        const first = map.keys().next();
+        return first.done ? prev : first.value;
+      });
       setOverviewGeneratedAt(payload.generatedAt);
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : String(error));
       setDailyTotals([]);
       setSlugAverages([]);
       setSlugDetails([]);
+      setSlugDailyMap(new Map());
+      setTrendDelta(null);
       setOverviewGeneratedAt(null);
     } finally {
       setOverviewLoading(false);
@@ -219,6 +318,18 @@ const LivePlayersControlPanel = () => {
   useEffect(() => {
     fetchOverview(trendDays, athDays);
   }, [trendDays, athDays, fetchOverview]);
+
+  useEffect(() => {
+    if (!slugDailyMap.size) {
+      setGameTrendSlug((prev) => (prev !== null ? null : prev));
+      return;
+    }
+    setGameTrendSlug((prev) => {
+      if (prev && slugDailyMap.has(prev)) return prev;
+      const first = slugDailyMap.keys().next();
+      return first.done ? prev : first.value;
+    });
+  }, [slugDailyMap]);
 
   // --------- Deriverad UI-data ----------
   const playersUpdatedText = useMemo(() => {
@@ -275,6 +386,9 @@ const LivePlayersControlPanel = () => {
       .filter((row) => row.players != null);
   }, [dailyTotals, trendDays]);
 
+  const trendSummary = useMemo(() => computeTrendDiff(trendChartData), [trendChartData]);
+  const trendSummaryForView = trendSummary ?? trendDelta;
+
   const trendUpdatedLabel = useMemo(() => formatDateTime(overviewGeneratedAt), [overviewGeneratedAt]);
 
   const rankingRows = useMemo(
@@ -310,6 +424,43 @@ const LivePlayersControlPanel = () => {
         .sort((a, b) => (b.ath?.value ?? -Infinity) - (a.ath?.value ?? -Infinity)),
     [slugDetails]
   );
+
+  const gameTrendOptions = useMemo(() => {
+    if (!slugDailyMap.size) return [];
+    return Array.from(slugDailyMap.entries())
+      .map(([slug, series]) => {
+      const game = SLUG_TO_GAME.get(slug);
+      const label = game?.label || slug;
+      const color = GAME_COLORS?.[game?.id] || "#38bdf8";
+      const latest = series.length ? series[series.length - 1].players : null;
+      const average =
+        series.length > 0
+          ? Math.round(series.reduce((sum, row) => sum + (row.players ?? 0), 0) / series.length)
+          : null;
+      return { slug, label, color, latest, average };
+    })
+      .sort((a, b) => a.label.localeCompare(b.label, "sv"));
+  }, [slugDailyMap]);
+
+  const selectedGameOption = useMemo(
+    () => gameTrendOptions.find((opt) => opt.slug === gameTrendSlug) || null,
+    [gameTrendOptions, gameTrendSlug]
+  );
+
+  const gameTrendSeries = useMemo(() => {
+    if (!gameTrendSlug || !slugDailyMap.size) return [];
+    const series = slugDailyMap.get(gameTrendSlug) ?? [];
+    const sliceCount = Math.min(series.length, Math.max(gameTrendDays, 1));
+    return series.slice(-sliceCount);
+  }, [slugDailyMap, gameTrendSlug, gameTrendDays]);
+
+  const gameTrendSummary = useMemo(() => {
+    const primary = computeTrendDiff(gameTrendSeries);
+    if (primary) return primary;
+    if (!gameTrendSlug) return null;
+    const fullSeries = slugDailyMap.get(gameTrendSlug) ?? [];
+    return computeTrendDiff(fullSeries);
+  }, [gameTrendSeries, gameTrendSlug, slugDailyMap]);
 
   // ====================== RENDER ======================
   return (
@@ -483,6 +634,12 @@ const LivePlayersControlPanel = () => {
             Trend
           </ToggleButton>
           <ToggleButton
+            value="gameTrend"
+            sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(74,222,128,0.28)" } }}
+          >
+            Speltrend
+          </ToggleButton>
+          <ToggleButton
             value="ranking"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}
           >
@@ -502,9 +659,27 @@ const LivePlayersControlPanel = () => {
             overviewLoading={overviewLoading}
             overviewError={overviewError}
             trendChartData={trendChartData}
+            trendSummary={trendSummaryForView}
             trendDays={trendDays}
             trendUpdatedLabel={trendUpdatedLabel}
             onChangeDays={setTrendDays}
+          />
+        )}
+
+        {detailView === "gameTrend" && (
+          <GameTrendSection
+            overviewLoading={overviewLoading}
+            overviewError={overviewError}
+            options={gameTrendOptions}
+            selectedSlug={gameTrendSlug}
+            onSelectSlug={setGameTrendSlug}
+            trendUpdatedLabel={trendUpdatedLabel}
+            chartData={gameTrendSeries}
+            summary={gameTrendSummary}
+            selectedOption={selectedGameOption}
+            dayOptions={TREND_DAY_OPTIONS}
+            days={gameTrendDays}
+            onChangeDays={setGameTrendDays}
           />
         )}
 
@@ -532,7 +707,36 @@ const LivePlayersControlPanel = () => {
 };
 
 // ================== Sektioner ==================
-const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendDays, trendUpdatedLabel, onChangeDays }) => (
+const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendSummary, trendDays, trendUpdatedLabel, onChangeDays }) => {
+  const changeColor =
+    trendSummary && Number.isFinite(trendSummary.absolute)
+      ? trendSummary.absolute >= 0
+        ? "#34d399"
+        : "#f87171"
+      : "rgba(148,163,184,0.75)";
+  const percentText =
+    trendSummary && Number.isFinite(trendSummary.percent)
+      ? `${trendSummary.percent > 0 ? "+" : ""}${trendSummary.percent.toLocaleString("sv-SE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })}%`
+      : "—";
+  const absoluteText =
+    trendSummary && Number.isFinite(trendSummary.absolute)
+      ? `${trendSummary.absolute > 0 ? "+" : ""}${trendSummary.absolute.toLocaleString("sv-SE")}`
+      : "—";
+  const startText =
+    trendSummary?.start?.value != null
+      ? trendSummary.start.value.toLocaleString("sv-SE")
+      : "—";
+  const endText =
+    trendSummary?.end?.value != null
+      ? trendSummary.end.value.toLocaleString("sv-SE")
+      : "—";
+  const startDateText = formatDateOnly(trendSummary?.start?.date) ?? "—";
+  const endDateText = formatDateOnly(trendSummary?.end?.date) ?? "—";
+
+  return (
   <Box
     sx={{
       background: "rgba(15,23,42,0.45)",
@@ -588,6 +792,23 @@ const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendDay
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
+    </Stack>
+    <Stack
+      direction={{ xs: "column", md: "row" }}
+      spacing={{ xs: 0.75, md: 2 }}
+      alignItems={{ xs: "flex-start", md: "center" }}
+      justifyContent="space-between"
+      sx={{ color: "rgba(148,163,184,0.75)" }}
+    >
+      <Typography variant="caption">
+        Start: <strong>{startText}</strong> ({startDateText})
+      </Typography>
+      <Typography variant="caption">
+        Slut: <strong>{endText}</strong> ({endDateText})
+      </Typography>
+      <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
+        Förändring: {absoluteText} ({percentText})
+      </Typography>
     </Stack>
     <Box sx={{ height: 260 }}>
       {overviewLoading ? (
@@ -655,7 +876,224 @@ const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendDay
       )}
     </Box>
   </Box>
-);
+  );
+};
+
+const GameTrendSection = ({
+  overviewLoading,
+  overviewError,
+  options,
+  selectedSlug,
+  onSelectSlug,
+  trendUpdatedLabel,
+  chartData,
+  summary,
+  selectedOption,
+  dayOptions,
+  days,
+  onChangeDays,
+}) => {
+  const changeColor =
+    summary && Number.isFinite(summary.absolute)
+      ? summary.absolute >= 0
+        ? "#34d399"
+        : "#f87171"
+      : "rgba(148,163,184,0.75)";
+  const percentText =
+    summary && Number.isFinite(summary.percent)
+      ? `${summary.percent > 0 ? "+" : ""}${summary.percent.toLocaleString("sv-SE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })}%`
+      : "—";
+  const absoluteText =
+    summary && Number.isFinite(summary.absolute)
+      ? `${summary.absolute > 0 ? "+" : ""}${summary.absolute.toLocaleString("sv-SE")}`
+      : "—";
+  const startText =
+    summary?.start?.value != null ? summary.start.value.toLocaleString("sv-SE") : "—";
+  const endText =
+    summary?.end?.value != null ? summary.end.value.toLocaleString("sv-SE") : "—";
+  const startDateText = formatDateOnly(summary?.start?.date) ?? "—";
+  const endDateText = formatDateOnly(summary?.end?.date) ?? "—";
+  const activeColor = selectedOption?.color ?? "#38bdf8";
+  const activeLabel = selectedOption?.label ?? "Välj spel";
+
+  return (
+    <Box
+      sx={{
+        background: "rgba(15,23,42,0.45)",
+        borderRadius: "16px",
+        border: "1px solid rgba(148,163,184,0.18)",
+        p: { xs: 2, md: 2.5 },
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+      }}
+    >
+      <Stack spacing={0.4}>
+        <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
+          Speltrend – dagligt snitt
+        </Typography>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
+          {overviewLoading
+            ? "Hämtar speltrend…"
+            : trendUpdatedLabel
+            ? `Senast uppdaterad ${trendUpdatedLabel}`
+            : overviewError || "Ingen speltrenddata"}
+        </Typography>
+      </Stack>
+
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ color: activeColor, fontWeight: 700 }}>
+          {activeLabel}
+        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            flexWrap: "wrap",
+            maxHeight: { xs: 210, md: 120 },
+            overflowY: "auto",
+            pr: 0.5,
+          }}
+        >
+          {options.length ? (
+            options.map((option) => {
+              const isActive = option.slug === selectedSlug;
+              return (
+                <Chip
+                  key={option.slug}
+                  label={option.label}
+                  onClick={() => onSelectSlug && onSelectSlug(option.slug)}
+                  clickable
+                  sx={{
+                    borderRadius: "999px",
+                    backgroundColor: isActive ? `${option.color}33` : "rgba(148,163,184,0.1)",
+                    color: isActive ? option.color : "rgba(226,232,240,0.8)",
+                    border: `1px solid ${isActive ? option.color : "transparent"}`,
+                    fontWeight: isActive ? 600 : 500,
+                  }}
+                />
+              );
+            })
+          ) : (
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
+              Ingen speldata tillgänglig ännu.
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={{ xs: 0.75, md: 2 }}
+        alignItems={{ xs: "flex-start", md: "center" }}
+        justifyContent="space-between"
+        sx={{ color: "rgba(148,163,184,0.75)" }}
+      >
+        <Typography variant="caption">
+          Start: <strong>{startText}</strong> ({startDateText})
+        </Typography>
+        <Typography variant="caption">
+          Slut: <strong>{endText}</strong> ({endDateText})
+        </Typography>
+        <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
+          Förändring: {absoluteText} ({percentText})
+        </Typography>
+      </Stack>
+
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1}>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
+          Visa dagar
+        </Typography>
+        <ToggleButtonGroup
+          value={days}
+          exclusive
+          size="small"
+          onChange={(_, value) => value && onChangeDays(value)}
+          sx={{
+            backgroundColor: "rgba(148,163,184,0.12)",
+            borderRadius: "999px",
+            p: 0.5,
+          }}
+        >
+          {dayOptions.map((option) => (
+            <ToggleButton
+              key={option}
+              value={option}
+              sx={{
+                textTransform: "none",
+                color: "rgba(226,232,240,0.75)",
+                border: 0,
+                borderRadius: "999px!important",
+                px: { xs: 1.5, md: 2 },
+                "&.Mui-selected": {
+                  color: "#f8fafc",
+                  backgroundColor: "rgba(74,222,128,0.28)",
+                },
+              }}
+            >
+              {option} d
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
+
+      <Box sx={{ height: 260 }}>
+        {overviewLoading ? (
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
+            <CircularProgress size={20} sx={{ color: "#38bdf8" }} />
+            <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              Laddar spelardata…
+            </Typography>
+          </Box>
+        ) : chartData.length ? (
+          <ResponsiveContainer>
+            <BarChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+              <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                tickFormatter={(value) => numberFormatter.format(value)}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                width={60}
+              />
+              <RechartsTooltip
+                contentStyle={{
+                  background: "rgba(15,23,42,0.92)",
+                  border: "1px solid rgba(96,165,250,0.25)",
+                  borderRadius: 12,
+                  color: "#f8fafc",
+                }}
+                formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Snitt"]}
+              />
+              <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "rgba(148,163,184,0.75)",
+            }}
+          >
+            Ingen trenddata för valt spel.
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+};
 
 const RankingSection = ({ rankingRows, overviewLoading }) => (
   <Box

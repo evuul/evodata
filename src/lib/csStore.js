@@ -120,6 +120,220 @@ export async function setOverviewSnapshot(days, snapshot) {
   }
 }
 
+// ---- Dagliga aggregat ----
+function normalizeYmd(str) {
+  if (!str) return null;
+  const parts = String(str)
+    .split(/[^\d]/)
+    .filter(Boolean);
+  if (parts.length === 3) {
+    const [y, m, d] = parts;
+    return `${y.padStart(4, "0")}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return str;
+}
+
+const STOCKHOLM_TZ = "Europe/Stockholm";
+const YMD_FORMATTER = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: STOCKHOLM_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function stockholmYMDFromTs(ts) {
+  try {
+    const date = new Date(Number(ts));
+    if (!Number.isFinite(date.getTime())) return null;
+    return normalizeYmd(YMD_FORMATTER.format(date));
+  } catch {
+    return null;
+  }
+}
+
+function pastDates(days) {
+  const out = [];
+  const base = new Date();
+  for (let i = 0; i < Math.max(1, days); i++) {
+    const d = new Date(base.getTime());
+    d.setDate(d.getDate() - i);
+    const ymd = stockholmYMDFromTs(d.getTime());
+    if (ymd && !out.includes(ymd)) out.push(normalizeYmd(ymd));
+  }
+  return out.reverse();
+}
+
+const dailyMem = new Map(); // key -> { sum, count, max, maxTs, latestValue, latestTs }
+const DAILY_KEY = (slug, ymd) => `cs:daily:${slug}:${ymd}`;
+
+function cloneDaily(entry) {
+  if (!entry) return null;
+  return {
+    sum: entry.sum ?? 0,
+    count: entry.count ?? 0,
+    max: entry.max ?? null,
+    maxTs: entry.maxTs ?? null,
+    latestValue: entry.latestValue ?? null,
+    latestTs: entry.latestTs ?? null,
+  };
+}
+
+function parseDailyFromRaw(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const sum = Number(raw.sum);
+  const count = Number(raw.count);
+  const max = Number(raw.max);
+  const maxTs = Number(raw.maxTs ?? raw.maxts);
+  const latestValue = Number(raw.latestValue ?? raw.latest);
+  const latestTs = Number(raw.latestTs ?? raw.latestts);
+  return {
+    sum: Number.isFinite(sum) ? sum : 0,
+    count: Number.isFinite(count) ? count : 0,
+    max: Number.isFinite(max) ? max : null,
+    maxTs: Number.isFinite(maxTs) ? maxTs : null,
+    latestValue: Number.isFinite(latestValue) ? latestValue : null,
+    latestTs: Number.isFinite(latestTs) ? latestTs : null,
+  };
+}
+
+async function ensureDailyEntry(slug, ymd) {
+  const key = DAILY_KEY(slug, ymd);
+  let entry = dailyMem.get(key);
+  if (entry) return { key, entry };
+  const kv = await getKv();
+  if (kv) {
+    try {
+      const raw = await kv.hgetall(key);
+      const parsed = parseDailyFromRaw(raw);
+      if (parsed) entry = parsed;
+    } catch (err) {
+      if (DEBUG) console.warn(`[csStore] KV daily hgetall failed ${key}:`, err);
+    }
+  }
+  if (!entry) {
+    entry = { sum: 0, count: 0, max: null, maxTs: null, latestValue: null, latestTs: null };
+  }
+  dailyMem.set(key, entry);
+  return { key, entry };
+}
+
+async function persistDailyEntry(key, entry, { incrementValue, timestamp }) {
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    const pipeline = kv.pipeline ? kv.pipeline() : null;
+    if (pipeline) {
+      pipeline.hincrby(key, "sum", incrementValue);
+      pipeline.hincrby(key, "count", 1);
+      pipeline.hset(key, {
+        max: entry.max ?? incrementValue,
+        maxTs: entry.maxTs ?? timestamp,
+        latestValue: entry.latestValue ?? incrementValue,
+        latestTs: entry.latestTs ?? timestamp,
+      });
+      await pipeline.exec();
+    } else {
+      await kv.hincrby(key, "sum", incrementValue);
+      await kv.hincrby(key, "count", 1);
+      await kv.hset(key, {
+        max: entry.max ?? incrementValue,
+        maxTs: entry.maxTs ?? timestamp,
+        latestValue: entry.latestValue ?? incrementValue,
+        latestTs: entry.latestTs ?? timestamp,
+      });
+    }
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV daily persist failed ${key}:`, err);
+  }
+}
+
+async function updateDailyAggregate(slug, ts, value) {
+  const ymdRaw = stockholmYMDFromTs(ts);
+  const ymd = normalizeYmd(ymdRaw);
+  if (!ymd) return;
+  const { key, entry } = await ensureDailyEntry(slug, ymd);
+
+  entry.sum = (entry.sum ?? 0) + value;
+  entry.count = (entry.count ?? 0) + 1;
+  if (entry.max == null || value > entry.max) {
+    entry.max = value;
+    entry.maxTs = ts;
+  }
+  entry.latestValue = value;
+  entry.latestTs = ts;
+  dailyMem.set(key, entry);
+
+  await persistDailyEntry(
+    key,
+    entry,
+    {
+      incrementValue: value,
+      timestamp: ts,
+    }
+  );
+}
+
+export async function getDailyAggregates(slugs, days = 30) {
+  const unique = Array.from(new Set(slugs.filter(Boolean)));
+  const result = new Map();
+  for (const slug of unique) {
+    result.set(slug, new Map());
+  }
+  if (!unique.length) {
+    return result;
+  }
+
+  const dateList = pastDates(days + 1);
+  const kv = await getKv();
+  const requests = [];
+  const pipeline = kv?.pipeline ? kv.pipeline() : null;
+
+  for (const slug of unique) {
+    const dateMap = result.get(slug);
+    for (const date of dateList) {
+      const key = DAILY_KEY(slug, date);
+      const memEntry = dailyMem.get(key);
+      if (memEntry) {
+        dateMap.set(date, cloneDaily(memEntry));
+      } else if (pipeline) {
+        requests.push({ slug, date });
+        pipeline.hgetall(key);
+      } else if (kv) {
+        requests.push({ slug, date, direct: true });
+      }
+    }
+  }
+
+  if (pipeline) {
+    try {
+      const rawResults = await pipeline.exec();
+      for (let i = 0; i < requests.length; i++) {
+        const { slug, date } = requests[i];
+        const raw = rawResults?.[i];
+        const parsed = parseDailyFromRaw(raw);
+        if (parsed) {
+          result.get(slug).set(date, parsed);
+        }
+      }
+    } catch (err) {
+      if (DEBUG) console.warn("[csStore] KV pipeline hgetall failed", err);
+    }
+  } else if (kv) {
+    for (const req of requests) {
+      const { slug, date } = req;
+      try {
+        const raw = await kv.hgetall(DAILY_KEY(slug, date));
+        const parsed = parseDailyFromRaw(raw);
+        if (parsed) result.get(slug).set(date, parsed);
+      } catch (err) {
+        if (DEBUG) console.warn("[csStore] KV hgetall failed", slug, date, err);
+      }
+    }
+  }
+
+  return result;
+}
+
 function parseSeriesRows(raw, since) {
   const parsed = [];
   for (const r of raw || []) {
@@ -215,6 +429,8 @@ export async function saveSample(slug, isoTs, players) {
     mem.ltrim(key, 0, MAX_SAMPLES - 1);
     if (DEBUG) console.log(`[csStore] MEM save ${slug} ts=${ts} value=${normalized}`);
   }
+
+  await updateDailyAggregate(slug, ts, normalized);
 }
 
 /**
