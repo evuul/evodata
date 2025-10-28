@@ -3,7 +3,13 @@ export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 import averagePlayersData from "@/app/data/averagePlayers.json";
-import { getSeriesBulk, dailyAverages, getOverviewSnapshot, setOverviewSnapshot } from "@/lib/csStore";
+import {
+  getSeriesBulk,
+  dailyAverages,
+  getOverviewSnapshot,
+  setOverviewSnapshot,
+  getDailyAggregates,
+} from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
 const TZ = "Europe/Stockholm";
@@ -269,6 +275,10 @@ export async function GET(req) {
             ? storedMeta.staleAfter
             : new Date(cachedEntry.exp).toISOString(),
         persisted: Boolean(storedMeta.persisted),
+        source:
+          typeof storedMeta.source === "string" && storedMeta.source.length
+            ? storedMeta.source
+            : "cache",
       });
       const headers = cachedEntry.etag ? { ETag: cachedEntry.etag } : {};
       return resJSON(payload, 200, headers);
@@ -309,6 +319,10 @@ export async function GET(req) {
           cachedAt: cachedAtIso,
           staleAfter: staleAfterIso,
           persisted: true,
+          source:
+            typeof snapshotMeta.source === "string" && snapshotMeta.source.length
+              ? snapshotMeta.source
+              : "snapshot",
         };
         setOverviewCache(overviewKey, storedSnapshot.data, etag, baseMeta);
         const totalMs = Date.now() - t0;
@@ -321,72 +335,84 @@ export async function GET(req) {
       }
     }
 
-    const tSeries0 = Date.now();
-    const cachedEntries = new Map();
+    const aggregatesStart = Date.now();
+    const dailyAggregates = await getDailyAggregates(SERIES_SLUGS, targetDays + 5);
+    const aggregatesFetchMs = Date.now() - aggregatesStart;
+
+    const recentDays = 2;
+    const cachedSeriesMap = new Map();
     for (const slug of SERIES_SLUGS) {
-      const cachedSeries = getSeriesCache(slug, targetDays + 5);
-      if (cachedSeries) cachedEntries.set(slug, cachedSeries);
+      const cached = getSeriesCache(slug, recentDays);
+      if (cached) cachedSeriesMap.set(slug, cached);
     }
-
-    const missingSlugs = SERIES_SLUGS.filter((slug) => !cachedEntries.has(slug));
-    let fetchedMap = new Map();
-    if (missingSlugs.length) {
-      fetchedMap = await getSeriesBulk(missingSlugs, targetDays + 5);
+    const missingForRecent = SERIES_SLUGS.filter((slug) => !cachedSeriesMap.has(slug));
+    let fetchedRecent = new Map();
+    let recentFetchMs = 0;
+    if (missingForRecent.length) {
+      const recentStart = Date.now();
+      fetchedRecent = await getSeriesBulk(missingForRecent, recentDays);
+      recentFetchMs = Date.now() - recentStart;
     }
-
-    const perSlugSeries = SERIES_SLUGS.map((seriesId) => {
-      const cached = cachedEntries.get(seriesId);
-      const raw = cached ?? fetchedMap.get(seriesId) ?? [];
+    const perSlugSeries = SERIES_SLUGS.map((slug) => {
+      const cached = cachedSeriesMap.get(slug);
+      const raw = cached ?? fetchedRecent.get(slug) ?? [];
       const arr = Array.isArray(raw) ? raw : [];
       const filtered =
-        seriesId === "crazy-time:a"
+        slug === "crazy-time:a"
           ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
           : arr;
-      if (!cached) {
-        setSeriesCache(seriesId, targetDays + 5, filtered);
-      }
-      return { slug: seriesId, series: filtered };
+      if (!cached) setSeriesCache(slug, recentDays, filtered);
+      return { slug, series: filtered };
     });
-
-    const tSeries = Date.now() - tSeries0;
+    const seriesBySlug = new Map(perSlugSeries.map(({ slug, series }) => [slug, series]));
+    let fetchMs = aggregatesFetchMs + recentFetchMs;
 
     const todayYmd = stockholmTodayYMD();
-    const perSlugData = perSlugSeries.map(({ slug, series }) => {
-      const daily = dailyAverages(series) || [];
-      let sum = 0;
-      let count = 0;
+    const dayTotalsMap = new Map(); // date -> total avg players
+    let perSlugData = SERIES_SLUGS.map((slug) => {
+      const perDayMap = dailyAggregates.get(slug) ?? new Map();
+      const dates = Array.from(perDayMap.keys()).sort((a, b) => a.localeCompare(b));
+      const daily = [];
+      let totalSum = 0;
+      let totalCount = 0;
       let latestTs = null;
       let latestValue = null;
       let athValue = null;
       let athTs = null;
 
-      for (let i = 0; i < (series?.length ?? 0); i++) {
-        const entry = series[i];
-        const value = Number(entry?.value);
-        const ts = Number(entry?.ts);
-        if (!Number.isFinite(value)) continue;
-        sum += value;
-        count += 1;
+      for (const date of dates) {
+        const entry = perDayMap.get(date);
+        if (!entry) continue;
+        const { sum = 0, count = 0, max = null, maxTs = null, latestValue: lv, latestTs: lts } = entry;
+        totalSum += Number(sum) || 0;
+        totalCount += Number(count) || 0;
 
-        if (Number.isFinite(ts)) {
-          if (latestTs === null || ts > latestTs) {
-            latestTs = ts;
-            latestValue = value;
-          }
-          if (athValue === null || value > athValue) {
-            athValue = value;
-            athTs = ts;
-          }
-        } else if (athValue === null || value > athValue) {
-          athValue = value;
-          athTs = null;
+        if (lv != null && Number.isFinite(lv) && Number.isFinite(lts) && (latestTs == null || lts > latestTs)) {
+          latestTs = lts;
+          latestValue = lv;
+        }
+
+        if (Number.isFinite(max) && (athValue == null || max > athValue)) {
+          athValue = max;
+          athTs = Number.isFinite(maxTs) ? maxTs : null;
+        }
+
+        if (Number.isFinite(sum) && Number.isFinite(count) && count > 0 && date < todayYmd) {
+          const avg = Math.round((sum / count) * 100) / 100;
+          daily.push({ date, avg });
+          dayTotalsMap.set(date, (dayTotalsMap.get(date) ?? 0) + avg);
         }
       }
 
-      const average = count > 0 ? Math.round((sum / count) * 100) / 100 : null;
+      const trimmedDaily = daily.slice(-targetDays);
+      const average =
+        totalCount > 0 ? Math.round((totalSum / totalCount) * 100) / 100 : null;
       const latest =
-        latestValue != null && latestTs != null
-          ? { value: Math.round(latestValue), at: new Date(latestTs).toISOString() }
+        latestValue != null
+          ? {
+              value: Math.round(latestValue),
+              at: latestTs != null ? new Date(latestTs).toISOString() : null,
+            }
           : null;
       const ath =
         athValue != null
@@ -398,32 +424,169 @@ export async function GET(req) {
 
       return {
         slug,
-        series,
-        daily,
+        series: seriesBySlug.get(slug) ?? [],
+        daily: trimmedDaily,
         summary: { average, latest, ath },
       };
     });
 
     // Aggregeringar
     const tAgg0 = Date.now();
-    const dailyTotals = buildDailyTotals(perSlugData, todayYmd);
-    const ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
-    const { peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd);
+    let dailyTotals = Array.from(dayTotalsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, total]) => ({
+        date,
+        avgPlayers: Math.round(Number(total || 0) * 100) / 100,
+      }))
+      .slice(-targetDays);
+    let ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
+    let { peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd);
 
-    const days7 = dailyTotals.slice(-7);
-    const days30 = dailyTotals.slice(-30);
+    let days7 = dailyTotals.slice(-7);
+    let days30 = dailyTotals.slice(-30);
 
     // snitt + toppar per slug (enkelt medel av alla punkter)
-    const slugAverages = perSlugData.map(({ slug, summary }) => ({
+    let slugAverages = perSlugData.map(({ slug, summary }) => ({
       slug,
       avgPlayers: summary.average,
     }));
-    const slugDetails = perSlugData.map(({ slug, summary }) => ({
+    let slugDetails = perSlugData.map(({ slug, summary }) => ({
       slug,
       latest: summary.latest,
       ath: summary.ath,
     }));
-    const tAgg = Date.now() - tAgg0;
+    let aggMs = Date.now() - tAgg0;
+
+    const hasAggregateData =
+      dailyTotals.length > 0 ||
+      perSlugData.some(
+        (item) =>
+          (item.daily?.length ?? 0) > 0 ||
+          (item.summary?.average != null && Number.isFinite(item.summary.average))
+      );
+
+    let dataSource = "aggregates";
+
+    if (!hasAggregateData) {
+      dataSource = "series";
+
+      const fetchStart = Date.now();
+      const cacheKeyDays = targetDays + 5;
+      const cachedEntries = new Map();
+      for (const slug of SERIES_SLUGS) {
+        const cached = getSeriesCache(slug, cacheKeyDays);
+        if (cached) cachedEntries.set(slug, cached);
+      }
+      const missingSlugs = SERIES_SLUGS.filter((slug) => !cachedEntries.has(slug));
+      let fetched = new Map();
+      if (missingSlugs.length) {
+        fetched = await getSeriesBulk(missingSlugs, cacheKeyDays);
+      }
+      fetchMs = Date.now() - fetchStart;
+
+      perSlugData = SERIES_SLUGS.map((slug) => {
+        const cached = cachedEntries.get(slug);
+        const raw = cached ?? fetched.get(slug) ?? [];
+        const arr = Array.isArray(raw) ? raw : [];
+        const filtered =
+          slug === "crazy-time:a"
+            ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
+            : arr;
+        if (!cached) setSeriesCache(slug, cacheKeyDays, filtered);
+
+        const daily = dailyAverages(filtered) || [];
+        let sum = 0;
+        let count = 0;
+        let latestTs = null;
+        let latestValue = null;
+        let athValue = null;
+        let athTs = null;
+
+        for (let i = 0; i < filtered.length; i++) {
+          const entry = filtered[i];
+          const value = Number(entry?.value);
+          const ts = Number(entry?.ts);
+          if (!Number.isFinite(value)) continue;
+          sum += value;
+          count += 1;
+          if (Number.isFinite(ts)) {
+            if (latestTs == null || ts > latestTs) {
+              latestTs = ts;
+              latestValue = value;
+            }
+            if (athValue == null || value > athValue) {
+              athValue = value;
+              athTs = ts;
+            }
+          } else if (athValue == null || value > athValue) {
+            athValue = value;
+            athTs = null;
+          }
+        }
+
+        const average = count > 0 ? Math.round((sum / count) * 100) / 100 : null;
+        const latest =
+          latestValue != null && latestTs != null
+            ? { value: Math.round(latestValue), at: new Date(latestTs).toISOString() }
+            : null;
+        const ath =
+          athValue != null
+            ? {
+                value: Math.round(athValue),
+                at: athTs != null ? new Date(athTs).toISOString() : null,
+              }
+            : null;
+
+        return {
+          slug,
+          series: filtered,
+          daily,
+          summary: { average, latest, ath },
+        };
+      });
+
+      const fallbackAggStart = Date.now();
+      dailyTotals = buildDailyTotals(perSlugData, todayYmd);
+      ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
+      ({ peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd));
+      days7 = dailyTotals.slice(-7);
+      days30 = dailyTotals.slice(-30);
+      slugAverages = perSlugData.map(({ slug, summary }) => ({
+        slug,
+        avgPlayers: summary.average,
+      }));
+      slugDetails = perSlugData.map(({ slug, summary }) => ({
+        slug,
+        latest: summary.latest,
+        ath: summary.ath,
+      }));
+      aggMs = Date.now() - fallbackAggStart;
+    }
+
+    const slugDaily = Object.fromEntries(
+      perSlugData.map(({ slug, daily }) => [slug, daily])
+    );
+
+    const trendDelta = (() => {
+      if (dailyTotals.length < 2) return null;
+      const first = dailyTotals[0];
+      const last = dailyTotals[dailyTotals.length - 1];
+      if (!first || !last) return null;
+      const startValue = Number(first.avgPlayers);
+      const endValue = Number(last.avgPlayers);
+      if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return null;
+      const absolute = Math.round((endValue - startValue) * 100) / 100;
+      const percent =
+        startValue !== 0
+          ? Math.round(((endValue - startValue) / startValue) * 10000) / 100
+          : null;
+      return {
+        start: { date: first.date, value: startValue },
+        end: { date: last.date, value: endValue },
+        absolute,
+        percent,
+      };
+    })();
 
     const basePayload = {
       ok: true,
@@ -434,6 +597,8 @@ export async function GET(req) {
       samples: { todayBuckets: buckets },
       slugAverages,
       slugDetails,
+      slugDaily,
+      trendDelta,
       generatedAt: new Date().toISOString(),
     };
 
@@ -449,6 +614,7 @@ export async function GET(req) {
       cachedAt: cachedAtIso,
       staleAfter: staleAfterIso,
       persisted: false,
+      source: dataSource,
     };
 
     setOverviewCache(overviewKey, basePayload, etag, cacheMeta);
@@ -461,8 +627,8 @@ export async function GET(req) {
     const payload = attachMeta(basePayload, {
       ...cacheMeta,
       cached: false,
-      fetchMs: tSeries,
-      aggMs: tAgg,
+      fetchMs,
+      aggMs,
       totalMs,
     });
     return resJSON(payload, 200, { ETag: etag });
