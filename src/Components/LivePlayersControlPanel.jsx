@@ -82,6 +82,9 @@ const overviewCache = new PersistentCache("overview_");
 const OVERVIEW_TTL = 2 * 60 * 1000; // 2 min
 // ============================================================================
 
+// ====== NEW: storage-nyckel för boost-knappen ======
+const TREND_BOOST_STORAGE_KEY = "trend_boost_10pct";
+
 const TREND_DAY_OPTIONS = [30, 60, 90];
 const ATH_DAY_OPTIONS = [90, 180, 365];
 const INITIAL_VISIBLE_LIVE = 10;
@@ -205,6 +208,24 @@ const LivePlayersControlPanel = () => {
 
   const [showAllLive, setShowAllLive] = useState(false);
   const [showAllAth, setShowAllAth] = useState(false);
+
+  // ===== NEW: +10% boost on/off (med localStorage ihågkomst)
+  const [trendBoostOn, setTrendBoostOn] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const v = localStorage.getItem(TREND_BOOST_STORAGE_KEY);
+      setTrendBoostOn(v === "1");
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(TREND_BOOST_STORAGE_KEY, trendBoostOn ? "1" : "0");
+    } catch {}
+  }, [trendBoostOn]);
 
   // -------- Overview (Trend + Ranking) med localStorage-cache --------
   const fetchOverview = useCallback(async (trendWindow, athWindow) => {
@@ -387,7 +408,23 @@ const LivePlayersControlPanel = () => {
   }, [dailyTotals, trendDays]);
 
   const trendSummary = useMemo(() => computeTrendDiff(trendChartData), [trendChartData]);
-  const trendSummaryForView = trendSummary ?? trendDelta;
+
+  // ===== NEW: applicera +10% boost på serie & summering
+  const boostedTrendChartData = useMemo(
+    () =>
+      trendBoostOn
+        ? trendChartData.map((row) => ({
+            ...row,
+            players: Math.round(row.players * 1.1),
+          }))
+        : trendChartData,
+    [trendChartData, trendBoostOn]
+  );
+
+  const boostedTrendSummary = useMemo(() => computeTrendDiff(boostedTrendChartData), [boostedTrendChartData]);
+
+  // Fallback mot serverns trendDelta om vår serie saknas
+  const trendSummaryForView = boostedTrendSummary ?? trendDelta;
 
   const trendUpdatedLabel = useMemo(() => formatDateTime(overviewGeneratedAt), [overviewGeneratedAt]);
 
@@ -478,9 +515,25 @@ const LivePlayersControlPanel = () => {
       <Stack spacing={{ xs: 2.2, md: 3.2 }}>
         {/* Header */}
         <Stack spacing={{ xs: 1, md: 1.25 }} alignItems="center" textAlign="center">
-          <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.8rem", sm: "2.3rem" } }}>
-            Gameshow live-data & historik
-          </Typography>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.8rem", sm: "2.3rem" } }}>
+              Gameshow live-data & historik
+            </Typography>
+            {/* Tydlig badge när boost är aktiv */}
+            {trendBoostOn && (
+              <Chip
+                label="Simulerar EVOS lobby +10%"
+                sx={{
+                  backgroundColor: "rgba(74,222,128,0.2)",
+                  color: "#22c55e",
+                  border: "1px solid rgba(74,222,128,0.5)",
+                  borderRadius: "999px",
+                  fontWeight: 700,
+                  height: 28
+                }}
+              />
+            )}
+          </Stack>
           <Typography variant="body1" sx={{ color: "rgba(226,232,240,0.75)", maxWidth: 760, lineHeight: 1.6 }}>
             En förädlad vy över live-spelare, trendutveckling, ranking och toppnoteringar. Uppdateras automatiskt med lobbydata.
           </Typography>
@@ -658,11 +711,13 @@ const LivePlayersControlPanel = () => {
           <TrendSection
             overviewLoading={overviewLoading}
             overviewError={overviewError}
-            trendChartData={trendChartData}
-            trendSummary={trendSummaryForView}
+            trendChartData={boostedTrendChartData}   // boostad data
+            trendSummary={trendSummaryForView}       // boostad summering/fallback
             trendDays={trendDays}
             trendUpdatedLabel={trendUpdatedLabel}
             onChangeDays={setTrendDays}
+            boostOn={trendBoostOn}                   // NY PROP
+            onToggleBoost={() => setTrendBoostOn((v) => !v)} // NY PROP
           />
         )}
 
@@ -707,7 +762,18 @@ const LivePlayersControlPanel = () => {
 };
 
 // ================== Sektioner ==================
-const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendSummary, trendDays, trendUpdatedLabel, onChangeDays }) => {
+const TrendSection = ({
+  overviewLoading,
+  overviewError,
+  trendChartData,
+  trendSummary,
+  trendDays,
+  trendUpdatedLabel,
+  onChangeDays,
+  // NEW:
+  boostOn,
+  onToggleBoost,
+}) => {
   const changeColor =
     trendSummary && Number.isFinite(trendSummary.absolute)
       ? trendSummary.absolute >= 0
@@ -761,38 +827,76 @@ const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendSum
             : overviewError || "Ingen trenddata"}
         </Typography>
       </Stack>
-      <ToggleButtonGroup
-        value={trendDays}
-        exclusive
-        onChange={(_, value) => value && onChangeDays(value)}
-        size="small"
+
+      <Stack direction="row" spacing={1}>
+        {/* +10% boost toggle */}
+        <Chip
+          label={boostOn ? "Boost +10% (på)" : "Boost +10%"}
+          onClick={onToggleBoost}
+          clickable
+          sx={{
+            borderRadius: "999px",
+            backgroundColor: boostOn ? "rgba(74,222,128,0.22)" : "rgba(148,163,184,0.12)",
+            color: boostOn ? "#34d399" : "rgba(226,232,240,0.85)",
+            border: boostOn ? "1px solid rgba(74,222,128,0.55)" : "1px solid transparent",
+            fontWeight: boostOn ? 700 : 500,
+          }}
+        />
+
+        {/* Dagar */}
+        <ToggleButtonGroup
+          value={trendDays}
+          exclusive
+          onChange={(_, value) => value && onChangeDays(value)}
+          size="small"
+          sx={{
+            backgroundColor: "rgba(148,163,184,0.12)",
+            borderRadius: "999px",
+            p: 0.5,
+          }}
+        >
+          {TREND_DAY_OPTIONS.map((option) => (
+            <ToggleButton
+              key={option}
+              value={option}
+              sx={{
+                textTransform: "none",
+                color: "rgba(226,232,240,0.75)",
+                border: 0,
+                borderRadius: "999px!important",
+                px: { xs: 1.5, md: 2 },
+                "&.Mui-selected": {
+                  color: "#f8fafc",
+                  backgroundColor: "rgba(56,189,248,0.28)",
+                },
+              }}
+            >
+              {option} d
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
+    </Stack>
+
+    {/* Tydlig banner när boost är aktiv */}
+    {boostOn && (
+      <Box
         sx={{
-          backgroundColor: "rgba(148,163,184,0.12)",
-          borderRadius: "999px",
-          p: 0.5,
+          background: "linear-gradient(90deg, rgba(34,197,94,0.18), rgba(34,197,94,0.06))",
+          border: "1px solid rgba(34,197,94,0.35)",
+          borderRadius: "12px",
+          p: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        {TREND_DAY_OPTIONS.map((option) => (
-          <ToggleButton
-            key={option}
-            value={option}
-            sx={{
-              textTransform: "none",
-              color: "rgba(226,232,240,0.75)",
-              border: 0,
-              borderRadius: "999px!important",
-              px: { xs: 1.5, md: 2 },
-              "&.Mui-selected": {
-                color: "#f8fafc",
-                backgroundColor: "rgba(56,189,248,0.28)",
-              },
-            }}
-          >
-            {option} d
-          </ToggleButton>
-        ))}
-      </ToggleButtonGroup>
-    </Stack>
+        <Typography variant="caption" sx={{ color: "#34d399", fontWeight: 700 }}>
+          Simulerar EVOS riktiga lobby: +10% ökning på trenden (visas i graf & tooltip)
+        </Typography>
+      </Box>
+    )}
+
     <Stack
       direction={{ xs: "column", md: "row" }}
       spacing={{ xs: 0.75, md: 2 }}
@@ -807,9 +911,10 @@ const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendSum
         Slut: <strong>{endText}</strong> ({endDateText})
       </Typography>
       <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
-        Förändring: {absoluteText} ({percentText})
+        Förändring: {absoluteText} ({percentText}) {boostOn ? "• (boost +10%)" : ""}
       </Typography>
     </Stack>
+
     <Box sx={{ height: 260 }}>
       {overviewLoading ? (
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
@@ -848,7 +953,10 @@ const TrendSection = ({ overviewLoading, overviewError, trendChartData, trendSum
                 borderRadius: 12,
                 color: "#f8fafc",
               }}
-              formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Genomsnitt"]}
+              formatter={(value) => [
+                `${numberFormatter.format(value)} spelare${boostOn ? " (boost +10%)" : ""}`,
+                "Genomsnitt",
+              ]}
             />
             <Area
               type="monotone"
@@ -1029,7 +1137,7 @@ const GameTrendSection = ({
                 borderRadius: "999px!important",
                 px: { xs: 1.5, md: 2 },
                 "&.Mui-selected": {
-                  color: "#f8fafc",
+                  color: "#f8fafd",
                   backgroundColor: "rgba(74,222,128,0.28)",
                 },
               }}
