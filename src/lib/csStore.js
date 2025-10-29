@@ -334,7 +334,101 @@ export async function getDailyAggregates(slugs, days = 30) {
   return result;
 }
 
-function parseSeriesRows(raw, since) {
+function clearDailyCacheForSlug(slug) {
+  const prefix = `cs:daily:${slug}:`;
+  for (const key of dailyMem.keys()) {
+    if (key.startsWith(prefix)) dailyMem.delete(key);
+  }
+}
+
+export async function getAllSamples(slug, limit = MAX_SAMPLES) {
+  const kv = await getKv();
+  const raw = kv
+    ? await kv.lrange(KEY(slug), 0, Math.max(0, Math.min(limit, MAX_SAMPLES) - 1))
+    : mem.lrange(KEY(slug), 0, Math.max(0, Math.min(limit, MAX_SAMPLES) - 1));
+  return parseSeriesRows(raw, Number.NEGATIVE_INFINITY);
+}
+
+export async function rebuildDailyAggregates(slug, samples) {
+  if (!Array.isArray(samples) || !samples.length) {
+    return;
+  }
+  const sorted = [...samples]
+    .map((sample) => ({
+      ts: Number(sample?.ts ?? sample?.timestamp),
+      value: Number(sample?.value ?? sample?.players),
+    }))
+    .filter((sample) => Number.isFinite(sample.ts) && Number.isFinite(sample.value) && sample.value > 0)
+    .sort((a, b) => a.ts - b.ts);
+
+  if (!sorted.length) return;
+
+  const byDay = new Map();
+  for (const { ts, value } of sorted) {
+    const ymd = normalizeYmd(stockholmYMDFromTs(ts));
+    if (!ymd) continue;
+    const entry = byDay.get(ymd) ?? {
+      sum: 0,
+      count: 0,
+      max: null,
+      maxTs: null,
+      latestValue: null,
+      latestTs: null,
+    };
+    entry.sum += value;
+    entry.count += 1;
+    if (entry.max == null || value > entry.max) {
+      entry.max = value;
+      entry.maxTs = ts;
+    }
+    entry.latestValue = value;
+    entry.latestTs = ts;
+    byDay.set(ymd, entry);
+  }
+
+  clearDailyCacheForSlug(slug);
+
+  const kv = await getKv();
+  const pipeline = kv?.pipeline ? kv.pipeline() : null;
+
+  for (const [ymd, entry] of byDay) {
+    const key = DAILY_KEY(slug, ymd);
+    dailyMem.set(key, { ...entry });
+    if (kv) {
+      if (pipeline) {
+        pipeline.del(key);
+        pipeline.hset(key, {
+          sum: String(entry.sum ?? 0),
+          count: String(entry.count ?? 0),
+          max: entry.max != null ? String(entry.max) : "",
+          maxTs: entry.maxTs != null ? String(entry.maxTs) : "",
+          latestValue: entry.latestValue != null ? String(entry.latestValue) : "",
+          latestTs: entry.latestTs != null ? String(entry.latestTs) : "",
+        });
+      } else {
+        await kv.del(key);
+        await kv.hset(key, {
+          sum: String(entry.sum ?? 0),
+          count: String(entry.count ?? 0),
+          max: entry.max != null ? String(entry.max) : "",
+          maxTs: entry.maxTs != null ? String(entry.maxTs) : "",
+          latestValue: entry.latestValue != null ? String(entry.latestValue) : "",
+          latestTs: entry.latestTs != null ? String(entry.latestTs) : "",
+        });
+      }
+    }
+  }
+
+  if (pipeline) {
+    try {
+      await pipeline.exec();
+    } catch (err) {
+      if (DEBUG) console.warn(`[csStore] KV pipeline rebuild failed ${slug}:`, err);
+    }
+  }
+}
+
+function parseSeriesRows(raw, since = Number.NEGATIVE_INFINITY) {
   const parsed = [];
   for (const r of raw || []) {
     try {
