@@ -257,7 +257,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         border: "1px solid rgba(252,165,165,0.35)",
       };
 
-  const simulateButtonLabel = simulateLobby ? "Visa faktisk lobby" : "Simulera lobby (+10%)";
+    const simulateButtonLabel = simulateLobby ? "Stäng av simulering" : "Simulera lobby (+10%)";
 
   const [activePanel, setActivePanel] = useState("live");
   const panelOptions = useMemo(
@@ -540,7 +540,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               </Button>
               {simulateLobby && Number.isFinite(playersValue) && (
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                  Visar simulerad lobby med +10% boost.
+                  EVOs riktiga lobby ligger ca 10% över min.
                 </Typography>
               )}
             </Box>
