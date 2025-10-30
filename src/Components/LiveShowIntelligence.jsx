@@ -550,11 +550,11 @@ const trendText = (() => {
                 "& .MuiLinearProgress-bar": { background: "linear-gradient(90deg, #34d399, #38bdf8)" },
               }}
             />
-            {baselineReferencePeriod && (
+            {/* {baselineReferencePeriod && (
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem", mt: 2 }}>
                 Baslinje: {labelFromPeriod(baselineReferencePeriod)} · {formatMillion(baselineRevenuePerPlayer)} €M/spelare
               </Typography>
-            )}
+            )} */}
           </Box>
         </Grid>
 
