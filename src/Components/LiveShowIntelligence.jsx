@@ -428,17 +428,24 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       ? "#34d399"
       : "#f87171";
 
-  // Beskrivande rad under grafen (fortsätter vara QoQ – oförändrat)
-  const trendText = (() => {
-    if (!Number.isFinite(estimatedRevenue)) {
-      return "Uppskattad omsättning saknas – inväntar mer data.";
-    }
-    if (changeQoQ.percent == null) {
-      return `Håller en takt mot ${labelFromPeriod(previousPeriod)} på ungefär ${formatMillion(estimatedRevenue)} €M.`;
-    }
-    const descriptor = changeQoQ.percent >= 0 ? "över" : "under";
-    return `Taktar ${descriptor} ${labelFromPeriod(previousPeriod)} med ${formatMillion(Math.abs(changeQoQ.value))} €M (${Math.abs(changeQoQ.percent).toFixed(1)}%).`;
-  })();
+// Beskrivande rad under grafen (NU YoY, med teckenregler)
+const trendText = (() => {
+  if (!Number.isFinite(estimatedRevenue)) {
+    return "Uppskattad omsättning saknas – inväntar mer data.";
+  }
+  const refLabel = labelFromPeriod(lastYearSameQuarterPeriod);
+  if (changeYoY.percent == null) {
+    return `Taktar mot ${refLabel} på ungefär ${formatMillion(estimatedRevenue)} €M.`;
+  }
+
+  const descriptor = changeYoY.percent >= 0 ? "över" : "under";
+  const amountSign = changeYoY.value < 0 ? "–" : "";
+  const percentSign = changeYoY.percent < 0 ? "–" : "";
+  const amountStr = `${amountSign}${formatMillion(Math.abs(changeYoY.value))} €M`;
+  const percentStr = `${percentSign}${Math.abs(changeYoY.percent).toFixed(1)}%`;
+
+  return `Taktar ${descriptor} ${refLabel} med ${amountStr} (${percentStr}).`;
+})();
 
   const chartYAxisMax = useMemo(() => {
     if (!qData.length) return undefined;
