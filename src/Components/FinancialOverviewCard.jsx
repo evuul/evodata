@@ -543,7 +543,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       });
   }, [metric, quarterlySeries, dividendSeries]);
 
-  const geoSeries = useMemo(() => {
+  const geoQuarterlySeries = useMemo(() => {
     const regionKeys = [
       { key: "europe", label: "Europa" },
       { key: "asia", label: "Asien" },
@@ -572,7 +572,38 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       .filter((entry) => entry.total > 0);
   }, [reportsAscending]);
 
-  const productMixSeries = useMemo(() => {
+  const geoAnnualSeries = useMemo(() => {
+    const map = new Map();
+    geoQuarterlySeries.forEach((entry) => {
+      if (!Number.isFinite(entry.year)) return;
+      if (!map.has(entry.year)) {
+        map.set(entry.year, {
+          year: entry.year,
+          xLabel: `${entry.year}`,
+          period: `${entry.year}`,
+          europe: 0,
+          asia: 0,
+          northAmerica: 0,
+          latAm: 0,
+          other: 0,
+          total: 0,
+        });
+      }
+      const target = map.get(entry.year);
+      ["europe", "asia", "northAmerica", "latAm", "other"].forEach((key) => {
+        const value = Number(entry[key]);
+        if (Number.isFinite(value)) {
+          target[key] += value;
+          target.total += value;
+        }
+      });
+    });
+    return Array.from(map.values())
+      .filter((entry) => entry.total > 0)
+      .sort((a, b) => a.year - b.year);
+  }, [geoQuarterlySeries]);
+
+  const productMixQuarterlySeries = useMemo(() => {
     return reportsAscending
       .map((report) => {
         const live = Number.isFinite(report?.liveCasino) ? Math.max(report.liveCasino, 0) : 0;
@@ -591,44 +622,89 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       .filter((entry) => entry.total > 0);
   }, [reportsAscending]);
 
-  const regionBreakdown = useMemo(() => {
-    if (!latestReport) return [];
+  const productMixAnnualSeries = useMemo(() => {
+    const map = new Map();
+    productMixQuarterlySeries.forEach((entry) => {
+      if (!Number.isFinite(entry.year)) return;
+      if (!map.has(entry.year)) {
+        map.set(entry.year, {
+          year: entry.year,
+          xLabel: `${entry.year}`,
+          period: `${entry.year}`,
+          liveCasino: 0,
+          rng: 0,
+          total: 0,
+        });
+      }
+      const target = map.get(entry.year);
+      const live = Number(entry.liveCasino);
+      const rng = Number(entry.rng);
+      if (Number.isFinite(live)) {
+        target.liveCasino += live;
+        target.total += live;
+      }
+      if (Number.isFinite(rng)) {
+        target.rng += rng;
+        target.total += rng;
+      }
+    });
+    return Array.from(map.values())
+      .filter((entry) => entry.total > 0)
+      .sort((a, b) => a.year - b.year);
+  }, [productMixQuarterlySeries]);
+
+  const selectedGeoSeries = viewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries;
+  const selectedProductMixSeries =
+    viewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries;
+
+  const geoSnapshot = useMemo(() => {
+    const dataset = viewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries;
+    if (!dataset.length) return null;
+    const latestEntry = dataset[dataset.length - 1];
     const regions = [
       { key: "europe", label: "Europa" },
       { key: "asia", label: "Asien" },
       { key: "northAmerica", label: "Nordamerika" },
       { key: "latAm", label: "Latinamerika" },
       { key: "other", label: "Övrigt" },
-    ].map(({ key, label }) => {
-      const raw = Number(latestReport?.[key]);
-      const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
-      return { key, label, value };
-    });
+    ]
+      .map(({ key, label }) => {
+        const raw = Number(latestEntry?.[key]);
+        const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
+        return { key, label, value };
+      })
+      .filter((item) => item.value > 0);
     const total = regions.reduce((sum, item) => sum + item.value, 0);
-    if (total === 0) return [];
-    return regions
-      .filter((item) => item.value > 0)
-      .map((item) => ({
-        ...item,
-        share: item.value / total,
-      }))
-      .sort((a, b) => b.value - a.value);
-  }, [latestReport]);
+    if (total === 0) return null;
+    return {
+      period: latestEntry.period,
+      total,
+      regions: regions
+        .map((item) => ({
+          ...item,
+          share: item.value / total,
+        }))
+        .sort((a, b) => b.value - a.value),
+    };
+  }, [geoAnnualSeries, geoQuarterlySeries, viewMode]);
 
-  const productBreakdown = useMemo(() => {
-    if (!latestReport) return null;
-    const live = Number.isFinite(latestReport?.liveCasino) ? Math.max(latestReport.liveCasino, 0) : 0;
-    const rng = Number.isFinite(latestReport?.rng) ? Math.max(latestReport.rng, 0) : 0;
+  const productMixSnapshot = useMemo(() => {
+    const dataset = viewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries;
+    if (!dataset.length) return null;
+    const latestEntry = dataset[dataset.length - 1];
+    const live = Number.isFinite(latestEntry?.liveCasino) ? Math.max(latestEntry.liveCasino, 0) : 0;
+    const rng = Number.isFinite(latestEntry?.rng) ? Math.max(latestEntry.rng, 0) : 0;
     const total = live + rng;
     if (total === 0) return null;
     return {
+      period: latestEntry.period,
       live,
       rng,
       total,
       liveShare: live / total,
       rngShare: rng / total,
     };
-  }, [latestReport]);
+  }, [productMixAnnualSeries, productMixQuarterlySeries, viewMode]);
 
   const isCustomMetric = metricConfigs[metric]?.custom;
   const isStandardMetric = Boolean(metricConfigs[metric] && !metricConfigs[metric].custom);
@@ -828,40 +904,38 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                 ))}
               </ToggleButtonGroup>
 
-              {isStandardMetric && (
-                <ToggleButtonGroup
-                  value={viewMode}
-                  exclusive
-                  onChange={handleViewModeChange}
-                  size="small"
-                  sx={{
-                    backgroundColor: "rgba(148,163,184,0.12)",
-                    borderRadius: "999px",
-                    p: 0.5,
-                  }}
-                >
-                  {viewToggleOptions.map((option) => (
-                    <ToggleButton
-                      key={option.value}
-                      value={option.value}
-                      disabled={metric === "dividend" && option.value === "quarterly"}
-                      sx={{
-                        textTransform: "none",
-                        color: "rgba(226,232,240,0.75)",
-                        border: 0,
-                        borderRadius: "999px!important",
-                        px: { xs: 1.5, md: 2 },
-                        "&.Mui-selected": {
-                          color: "#f8fafc",
-                          backgroundColor: "rgba(96,165,250,0.25)",
-                        },
-                      }}
-                    >
-                      {option.label}
-                    </ToggleButton>
-                  ))}
-                </ToggleButtonGroup>
-              )}
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={handleViewModeChange}
+                size="small"
+                sx={{
+                  backgroundColor: "rgba(148,163,184,0.12)",
+                  borderRadius: "999px",
+                  p: 0.5,
+                }}
+              >
+                {viewToggleOptions.map((option) => (
+                  <ToggleButton
+                    key={option.value}
+                    value={option.value}
+                    disabled={metric === "dividend" && option.value === "quarterly"}
+                    sx={{
+                      textTransform: "none",
+                      color: "rgba(226,232,240,0.75)",
+                      border: 0,
+                      borderRadius: "999px!important",
+                      px: { xs: 1.5, md: 2 },
+                      "&.Mui-selected": {
+                        color: "#f8fafc",
+                        backgroundColor: "rgba(96,165,250,0.25)",
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
             </Stack>
 
             <Box sx={{ height: isMobile ? 280 : 380 }}>
@@ -932,9 +1006,9 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                   </Box>
                 )
               ) : metric === "geo" ? (
-                geoSeries.length ? (
+                selectedGeoSeries.length ? (
                   <ResponsiveContainer>
-                    <AreaChart data={geoSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                    <AreaChart data={selectedGeoSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                       <XAxis
                         dataKey="xLabel"
@@ -989,9 +1063,9 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                   </Box>
                 )
               ) : metric === "productMix" ? (
-                productMixSeries.length ? (
+                selectedProductMixSeries.length ? (
                   <ResponsiveContainer>
-                    <AreaChart data={productMixSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                    <AreaChart data={selectedProductMixSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                       <XAxis
                         dataKey="xLabel"
@@ -1161,43 +1235,49 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
             ) : metric === "geo" ? (
               <>
                 <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                  Fördelning per region baserat på rapporterade segmentintäkter. Värden anges i miljoner euro.
+                  Fördelning per region baserat på rapporterade segmentintäkter. Värden anges i miljoner euro ({geoSnapshot?.period ?? "–"}).
                 </Typography>
-                <Stack
-                  direction={isMobile ? "column" : "row"}
-                  spacing={isMobile ? 1.5 : 2}
-                  sx={{ mt: 1 }}
-                >
-                  {regionBreakdown.slice(0, 4).map((region) => (
-                    <Box
-                      key={region.key}
-                      sx={{
-                        flex: 1,
-                        background: "rgba(168,85,247,0.08)",
-                        borderRadius: "12px",
-                        border: "1px solid rgba(168,85,247,0.2)",
-                        p: 2,
-                      }}
-                    >
-                      <Typography sx={{ color: "rgba(228,228,247,0.75)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
-                        {region.label}
-                      </Typography>
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                        {`${formatMillion(region.value, region.value >= 100 ? 0 : 1)} €M`}
-                      </Typography>
-                      <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
-                        {formatShare(region.share)} av senaste kvartalet
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
+                {geoSnapshot ? (
+                  <Stack
+                    direction={isMobile ? "column" : "row"}
+                    spacing={isMobile ? 1.5 : 2}
+                    sx={{ mt: 1 }}
+                  >
+                    {geoSnapshot.regions.slice(0, 4).map((region) => (
+                      <Box
+                        key={region.key}
+                        sx={{
+                          flex: 1,
+                          background: "rgba(168,85,247,0.08)",
+                          borderRadius: "12px",
+                          border: "1px solid rgba(168,85,247,0.2)",
+                          p: 2,
+                        }}
+                      >
+                        <Typography sx={{ color: "rgba(228,228,247,0.75)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                          {region.label}
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                          {`${formatMillion(region.value, region.value >= 100 ? 0 : 1)} €M`}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
+                          {formatShare(region.share)} av perioden
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem", mt: 1 }}>
+                    Ingen geografisk data tillgänglig.
+                  </Typography>
+                )}
               </>
             ) : metric === "productMix" ? (
               <>
                 <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                  Produktmix visar fördelningen mellan Live Casino och RNG-intäkter per kvartal.
+                  Produktmix visar fördelningen mellan Live Casino och RNG-intäkter ({productMixSnapshot?.period ?? "–"}).
                 </Typography>
-                {productBreakdown && (
+                {productMixSnapshot ? (
                   <Stack
                     direction={isMobile ? "column" : "row"}
                     spacing={isMobile ? 1.5 : 2}
@@ -1216,10 +1296,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                         Live Casino
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                        {`${formatMillion(productBreakdown.live, productBreakdown.live >= 100 ? 0 : 1)} €M`}
+                        {`${formatMillion(productMixSnapshot.live, productMixSnapshot.live >= 100 ? 0 : 1)} €M`}
                       </Typography>
                       <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
-                        {formatShare(productBreakdown.liveShare)} av mixen
+                        {formatShare(productMixSnapshot.liveShare)} av mixen
                       </Typography>
                     </Box>
                     <Box
@@ -1235,13 +1315,17 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                         RNG
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                        {`${formatMillion(productBreakdown.rng, productBreakdown.rng >= 100 ? 0 : 1)} €M`}
+                        {`${formatMillion(productMixSnapshot.rng, productMixSnapshot.rng >= 100 ? 0 : 1)} €M`}
                       </Typography>
                       <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
-                        {formatShare(productBreakdown.rngShare)} av mixen
+                        {formatShare(productMixSnapshot.rngShare)} av mixen
                       </Typography>
                     </Box>
                   </Stack>
+                ) : (
+                  <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem", mt: 1 }}>
+                    Ingen produktmix-data tillgänglig.
+                  </Typography>
                 )}
               </>
             ) : null}
