@@ -171,6 +171,18 @@ function LoginPageContent() {
           <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1 }}>
             Ange dina uppgifter för att fortsätta.
           </Typography>
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              color: "rgba(130,193,255,0.85)",
+              mt: 1.5,
+              fontStyle: "italic",
+            }}
+          >
+            Obs! Inloggningen kan ta upp till 20 sekunder vid kallstart av databasen eftersom vi kör ett budgetvänligt
+            upplägg då jag är student och tjänar inga pengar på dashboarden.
+          </Typography>
         </Box>
 
         <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2.5 }}>
