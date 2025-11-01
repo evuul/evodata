@@ -766,6 +766,18 @@ export default function LiveLoggedOutPreview({
             Skapa konto
           </Button>
         </Stack>
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            color: "rgba(130,193,255,0.85)",
+            mt: 2,
+            fontStyle: "italic",
+          }}
+        >
+          Obs! Inloggningen kan dröja upp till 20 sekunder vid kallstart av databasen – Jag håller nere kostnaderna så länge
+          sajten är studentdriven.
+        </Typography>
       </Box>
 
       <Box

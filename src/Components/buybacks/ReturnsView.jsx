@@ -241,9 +241,9 @@ const ReturnsView = ({
               )}
             </YAxis>
             <Tooltip
-              formatter={(value, name) => [
+              formatter={(value, _name, entry) => [
                 formatMillions(value),
-                name === "dividends" ? "Utdelningar" : "Återköp",
+                entry?.dataKey === "dividends" ? "Utdelningar" : "Aktieåterköp",
               ]}
               labelFormatter={(label) => `År ${label}`}
               contentStyle={{
@@ -261,8 +261,8 @@ const ReturnsView = ({
                 color: COLORS.textSecondary,
                 paddingBottom: 8,
               }}
-              formatter={(value) =>
-                value === "dividends" ? "Utdelningar" : "Aktieåterköp"
+              formatter={(_value, entry) =>
+                entry?.dataKey === "dividends" ? "Utdelningar" : "Aktieåterköp"
               }
             />
             <Bar

@@ -23,6 +23,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
+  Legend,
 } from "recharts";
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
@@ -119,6 +120,28 @@ const metricConfigs = {
     background: "rgba(167,139,250,0.12)",
     border: "rgba(196,181,253,0.25)",
   },
+  geo: {
+    label: "Geografisk översikt",
+    valueKey: null,
+    decimals: 1,
+    unit: "%",
+    changeMode: "percent",
+    accent: "#a855f7",
+    background: "rgba(168,85,247,0.12)",
+    border: "rgba(168,85,247,0.25)",
+    custom: true,
+  },
+  productMix: {
+    label: "Live vs RNG",
+    valueKey: null,
+    decimals: 1,
+    unit: "%",
+    changeMode: "percent",
+    accent: "#38bdf8",
+    background: "rgba(56,189,248,0.12)",
+    border: "rgba(56,189,248,0.25)",
+    custom: true,
+  },
 };
 
 const formatMetricValue = (metric, value) => {
@@ -159,6 +182,8 @@ const metricToggleOptions = [
   { value: "margin", label: "Marginal" },
   { value: "eps", label: "EPS" },
   { value: "dividend", label: "Utdelning" },
+  { value: "geo", label: "Geografisk översikt" },
+  { value: "productMix", label: "Live vs RNG" },
 ];
 
 const viewToggleOptions = [
@@ -312,6 +337,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   }, [dividendData, fxRate]);
 
   const selectedSeries = useMemo(() => {
+    const config = metricConfigs[metric];
+    if (!config || config.custom || !config.valueKey) {
+      return [];
+    }
     const source =
       metric === "dividend"
         ? dividendSeries.filter((item) => Number.isFinite(item.dividend))
@@ -325,8 +354,11 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   }, [metric, viewMode, dividendSeries, annualSeries, quarterlySeries]);
 
   const chartDomain = useMemo(() => {
-    if (!selectedSeries.length) return [0, 1];
-    const key = metricConfigs[metric].valueKey;
+    const config = metricConfigs[metric];
+    if (!config || config.custom || !config.valueKey || !selectedSeries.length) {
+      return [0, 1];
+    }
+    const key = config.valueKey;
     const values = selectedSeries
       .map((item) => Number(item[key]))
       .filter((value) => Number.isFinite(value));
@@ -358,6 +390,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   }, [metric, selectedSeries]);
 
   const xAxisInterval = useMemo(() => {
+    const config = metricConfigs[metric];
+    if (!config || config.custom) return 0;
     const dataLength = selectedSeries.length;
     if (!dataLength) return 0;
     if (metric === "dividend") return Math.max(dataLength - 12, 0);
@@ -370,6 +404,21 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
 
   const selectedSummary = useMemo(() => {
     const config = metricConfigs[metric];
+    if (!config || config.custom || !config.valueKey) {
+      return {
+        latestLabel: null,
+        latestValue: null,
+        changeQoQ: null,
+        changeYoY: null,
+        previousLabel: null,
+        yoyLabel: null,
+        highValue: null,
+        highLabel: null,
+        lowValue: null,
+        lowLabel: null,
+        trendText: "",
+      };
+    }
     const key = config.valueKey;
 
     if (!selectedSeries.length) {
@@ -457,47 +506,140 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   }, [metric, viewMode, selectedSeries]);
 
   const metricSummaries = useMemo(() => {
-    return metricToggleOptions.map(({ value }) => {
-      const config = metricConfigs[value];
-      const source = value === "dividend" ? dividendSeries : quarterlySeries;
-      const filtered = source.filter((item) => Number.isFinite(item[config.valueKey]));
-      if (!filtered.length) {
+    return metricToggleOptions
+      .filter(({ value }) => !metricConfigs[value]?.custom)
+      .map(({ value }) => {
+        const config = metricConfigs[value];
+        const source = value === "dividend" ? dividendSeries : quarterlySeries;
+        const filtered = source.filter((item) => Number.isFinite(item[config.valueKey]));
+        if (!filtered.length) {
+          return {
+            metric: value,
+            label: config.label,
+            valueLabel: "–",
+            changeText: "Δ saknas",
+            periodLabel: null,
+            active: value === metric,
+            accent: config.accent,
+            background: config.background,
+            border: config.border,
+          };
+        }
+        const latest = filtered[filtered.length - 1];
+        const previous = filtered.length > 1 ? filtered[filtered.length - 2] : null;
+        const change = computeChangeValue(value, latest[config.valueKey], previous?.[config.valueKey]);
+        const changeLabel = value === "dividend" ? "Δ" : "QoQ";
         return {
           metric: value,
           label: config.label,
-          valueLabel: "–",
-          changeText: "Δ saknas",
-          periodLabel: null,
+          valueLabel: formatMetricValue(value, latest[config.valueKey]),
+          changeText: formatChangeValue(value, change, changeLabel),
+          periodLabel: latest.period,
           active: value === metric,
           accent: config.accent,
           background: config.background,
           border: config.border,
         };
-      }
-      const latest = filtered[filtered.length - 1];
-      const previous = filtered.length > 1 ? filtered[filtered.length - 2] : null;
-      const change = computeChangeValue(value, latest[config.valueKey], previous?.[config.valueKey]);
-      const changeLabel = value === "dividend" ? "Δ" : "QoQ";
-      return {
-        metric: value,
-        label: config.label,
-        valueLabel: formatMetricValue(value, latest[config.valueKey]),
-        changeText: formatChangeValue(value, change, changeLabel),
-        periodLabel: latest.period,
-        active: value === metric,
-        accent: config.accent,
-        background: config.background,
-        border: config.border,
-      };
-    });
+      });
   }, [metric, quarterlySeries, dividendSeries]);
+
+  const geoSeries = useMemo(() => {
+    const regionKeys = [
+      { key: "europe", label: "Europa" },
+      { key: "asia", label: "Asien" },
+      { key: "northAmerica", label: "Nordamerika" },
+      { key: "latAm", label: "Latinamerika" },
+      { key: "other", label: "Övrigt" },
+    ];
+    return reportsAscending
+      .map((report) => {
+        const entry = {
+          period: `${report.quarter} ${report.year}`,
+          xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+          year: report.year,
+          quarter: report.quarter,
+        };
+        let total = 0;
+        regionKeys.forEach(({ key }) => {
+          const raw = Number(report?.[key]);
+          const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
+          entry[key] = value;
+          total += value;
+        });
+        entry.total = total;
+        return entry;
+      })
+      .filter((entry) => entry.total > 0);
+  }, [reportsAscending]);
+
+  const productMixSeries = useMemo(() => {
+    return reportsAscending
+      .map((report) => {
+        const live = Number.isFinite(report?.liveCasino) ? Math.max(report.liveCasino, 0) : 0;
+        const rng = Number.isFinite(report?.rng) ? Math.max(report.rng, 0) : 0;
+        const total = live + rng;
+        return {
+          period: `${report.quarter} ${report.year}`,
+          xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+          year: report.year,
+          quarter: report.quarter,
+          liveCasino: live,
+          rng,
+          total,
+        };
+      })
+      .filter((entry) => entry.total > 0);
+  }, [reportsAscending]);
+
+  const regionBreakdown = useMemo(() => {
+    if (!latestReport) return [];
+    const regions = [
+      { key: "europe", label: "Europa" },
+      { key: "asia", label: "Asien" },
+      { key: "northAmerica", label: "Nordamerika" },
+      { key: "latAm", label: "Latinamerika" },
+      { key: "other", label: "Övrigt" },
+    ].map(({ key, label }) => {
+      const raw = Number(latestReport?.[key]);
+      const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
+      return { key, label, value };
+    });
+    const total = regions.reduce((sum, item) => sum + item.value, 0);
+    if (total === 0) return [];
+    return regions
+      .filter((item) => item.value > 0)
+      .map((item) => ({
+        ...item,
+        share: item.value / total,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [latestReport]);
+
+  const productBreakdown = useMemo(() => {
+    if (!latestReport) return null;
+    const live = Number.isFinite(latestReport?.liveCasino) ? Math.max(latestReport.liveCasino, 0) : 0;
+    const rng = Number.isFinite(latestReport?.rng) ? Math.max(latestReport.rng, 0) : 0;
+    const total = live + rng;
+    if (total === 0) return null;
+    return {
+      live,
+      rng,
+      total,
+      liveShare: live / total,
+      rngShare: rng / total,
+    };
+  }, [latestReport]);
+
+  const isCustomMetric = metricConfigs[metric]?.custom;
+  const isStandardMetric = Boolean(metricConfigs[metric] && !metricConfigs[metric].custom);
 
   // Removed geo/product mix and recent dividends sections from this card per request
 
   const gradientId = `financial-${metric}`;
-  const yAxisKey = metricConfigs[metric].valueKey;
+  const yAxisKey = metricConfigs[metric]?.valueKey;
 
   const formatYAxisTick = (value) => {
+    if (!isStandardMetric) return value;
     if (!Number.isFinite(value)) return "";
     if (metric === "revenue") {
       return formatMillion(value, value >= 100 ? 0 : 1);
@@ -507,6 +649,12 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     }
     return value.toFixed(metricConfigs[metric].decimals);
   };
+
+  const formatGeoTooltipValue = (value) =>
+    Number.isFinite(value) ? `${formatMillion(value, value >= 100 ? 0 : 1)} €M` : "–";
+
+  const formatShare = (value) =>
+    Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : "–";
 
   return (
     <Box
@@ -680,218 +828,423 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                 ))}
               </ToggleButtonGroup>
 
-              <ToggleButtonGroup
-                value={viewMode}
-                exclusive
-                onChange={handleViewModeChange}
-                size="small"
-                sx={{
-                  backgroundColor: "rgba(148,163,184,0.12)",
-                  borderRadius: "999px",
-                  p: 0.5,
-                }}
-              >
-                {viewToggleOptions.map((option) => (
-                  <ToggleButton
-                    key={option.value}
-                    value={option.value}
-                    disabled={metric === "dividend" && option.value === "quarterly"}
-                    sx={{
-                      textTransform: "none",
-                      color: "rgba(226,232,240,0.75)",
-                      border: 0,
-                      borderRadius: "999px!important",
-                      px: { xs: 1.5, md: 2 },
-                      "&.Mui-selected": {
-                        color: "#f8fafc",
-                        backgroundColor: "rgba(96,165,250,0.25)",
-                      },
-                    }}
-                  >
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
+              {isStandardMetric && (
+                <ToggleButtonGroup
+                  value={viewMode}
+                  exclusive
+                  onChange={handleViewModeChange}
+                  size="small"
+                  sx={{
+                    backgroundColor: "rgba(148,163,184,0.12)",
+                    borderRadius: "999px",
+                    p: 0.5,
+                  }}
+                >
+                  {viewToggleOptions.map((option) => (
+                    <ToggleButton
+                      key={option.value}
+                      value={option.value}
+                      disabled={metric === "dividend" && option.value === "quarterly"}
+                      sx={{
+                        textTransform: "none",
+                        color: "rgba(226,232,240,0.75)",
+                        border: 0,
+                        borderRadius: "999px!important",
+                        px: { xs: 1.5, md: 2 },
+                        "&.Mui-selected": {
+                          color: "#f8fafc",
+                          backgroundColor: "rgba(96,165,250,0.25)",
+                        },
+                      }}
+                    >
+                      {option.label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              )}
             </Stack>
 
             <Box sx={{ height: isMobile ? 280 : 380 }}>
-              {selectedSeries.length ? (
-                <ResponsiveContainer>
-                  <AreaChart data={selectedSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={metricConfigs[metric].accent} stopOpacity={0.6} />
-                        <stop offset="95%" stopColor={metricConfigs[metric].accent} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
-                    <XAxis
-                      dataKey="xLabel"
-                      tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                      interval={xAxisInterval}
-                      minTickGap={isMobile ? 8 : 16}
-                    />
-                    <YAxis
-                      tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                      domain={chartDomain}
-                      width={isMobile ? 46 : 56}
-                      tickFormatter={formatYAxisTick}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{
-                        background: "rgba(15,23,42,0.92)",
-                        border: "1px solid rgba(96,165,250,0.25)",
-                        borderRadius: 12,
-                        color: "#f8fafc",
-                      }}
-                      labelStyle={{ color: "rgba(226,232,240,0.8)" }}
-                      labelFormatter={(_label, payload) => {
-                        const original = payload && payload[0] && payload[0].payload?.period;
-                        return original || _label;
-                      }}
-                      formatter={(value) => [formatMetricValue(metric, Number(value)), metricConfigs[metric].label]}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey={yAxisKey}
-                      stroke={metricConfigs[metric].accent}
-                      strokeWidth={2.5}
-                      fill={`url(#${gradientId})`}
-                      fillOpacity={1}
-                      animationDuration={800}
-                      dot={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <Box
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "rgba(148,163,184,0.65)",
-                  }}
-                >
-                  <Typography>Ingen data att visualisera för valt läge.</Typography>
-                </Box>
-              )}
+              {isStandardMetric ? (
+                selectedSeries.length ? (
+                  <ResponsiveContainer>
+                    <AreaChart data={selectedSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={metricConfigs[metric].accent} stopOpacity={0.6} />
+                          <stop offset="95%" stopColor={metricConfigs[metric].accent} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="xLabel"
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        interval={xAxisInterval}
+                        minTickGap={isMobile ? 8 : 16}
+                      />
+                      <YAxis
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        domain={chartDomain}
+                        width={isMobile ? 46 : 56}
+                        tickFormatter={formatYAxisTick}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(96,165,250,0.25)",
+                          borderRadius: 12,
+                          color: "#f8fafc",
+                        }}
+                        labelStyle={{ color: "rgba(226,232,240,0.8)" }}
+                        labelFormatter={(_label, payload) => {
+                          const original = payload && payload[0] && payload[0].payload?.period;
+                          return original || _label;
+                        }}
+                        formatter={(value) => [formatMetricValue(metric, Number(value)), metricConfigs[metric].label]}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey={yAxisKey}
+                        stroke={metricConfigs[metric].accent}
+                        strokeWidth={2.5}
+                        fill={`url(#${gradientId})`}
+                        fillOpacity={1}
+                        animationDuration={800}
+                        dot={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(148,163,184,0.65)",
+                    }}
+                  >
+                    <Typography>Ingen data att visualisera för valt läge.</Typography>
+                  </Box>
+                )
+              ) : metric === "geo" ? (
+                geoSeries.length ? (
+                  <ResponsiveContainer>
+                    <AreaChart data={geoSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="xLabel"
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        minTickGap={isMobile ? 8 : 16}
+                      />
+                      <YAxis
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        tickFormatter={(value) => formatMillion(value, value >= 100 ? 0 : 1)}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(168,85,247,0.25)",
+                          borderRadius: 12,
+                          color: "#f8fafc",
+                        }}
+                        labelFormatter={(_label, payload) =>
+                          payload && payload[0] && payload[0].payload?.period
+                            ? payload[0].payload.period
+                            : "–"
+                        }
+                        formatter={(value, name) => [formatGeoTooltipValue(value), name]}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={36}
+                        wrapperStyle={{ color: "rgba(226,232,240,0.78)" }}
+                      />
+                      <Area type="monotone" dataKey="europe" name="Europa" stroke="#60a5fa" fill="#60a5fa44" strokeWidth={2} stackId="regions" dot={false} />
+                      <Area type="monotone" dataKey="asia" name="Asien" stroke="#fbbf24" fill="#fbbf2444" strokeWidth={2} stackId="regions" dot={false} />
+                      <Area type="monotone" dataKey="northAmerica" name="Nordamerika" stroke="#34d399" fill="#34d39944" strokeWidth={2} stackId="regions" dot={false} />
+                      <Area type="monotone" dataKey="latAm" name="Latinamerika" stroke="#f97316" fill="#f9731644" strokeWidth={2} stackId="regions" dot={false} />
+                      <Area type="monotone" dataKey="other" name="Övrigt" stroke="#a855f7" fill="#a855f744" strokeWidth={2} stackId="regions" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(148,163,184,0.65)",
+                    }}
+                  >
+                    <Typography>Ingen geografisk data tillgänglig.</Typography>
+                  </Box>
+                )
+              ) : metric === "productMix" ? (
+                productMixSeries.length ? (
+                  <ResponsiveContainer>
+                    <AreaChart data={productMixSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="xLabel"
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        minTickGap={isMobile ? 8 : 16}
+                      />
+                      <YAxis
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        tickFormatter={(value) => formatMillion(value, value >= 100 ? 0 : 1)}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(56,189,248,0.25)",
+                          borderRadius: 12,
+                          color: "#f8fafc",
+                        }}
+                        labelFormatter={(_label, payload) =>
+                          payload && payload[0] && payload[0].payload?.period
+                            ? payload[0].payload.period
+                            : "–"
+                        }
+                        formatter={(value, name) => [formatGeoTooltipValue(value), name]}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={36}
+                        wrapperStyle={{ color: "rgba(226,232,240,0.78)" }}
+                      />
+                      <Area type="monotone" dataKey="liveCasino" name="Live Casino" stroke="#38bdf8" fill="#38bdf844" strokeWidth={2.2} stackId="products" dot={false} />
+                      <Area type="monotone" dataKey="rng" name="RNG" stroke="#f87171" fill="#f8717144" strokeWidth={2.2} stackId="products" dot={false} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <Box
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(148,163,184,0.65)",
+                    }}
+                  >
+                    <Typography>Ingen produktmix-data tillgänglig.</Typography>
+                  </Box>
+                )
+              ) : null}
             </Box>
 
-            <Stack
-              direction={isMobile ? "column" : "row"}
-              spacing={isMobile ? 1.5 : 2}
-            >
-              <Box
-                sx={{
-                  flex: 1,
-                  background: "rgba(148,163,184,0.08)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  p: 2,
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                  Senaste
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                  {formatMetricValue(metric, selectedSummary.latestValue)}
-                </Typography>
-                <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
-                  {selectedSummary.latestLabel || "–"}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  flex: 1,
-                  background: "rgba(148,163,184,0.08)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  p: 2,
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                  QoQ
-                </Typography>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    color: Number.isFinite(selectedSummary.changeQoQ)
-                      ? selectedSummary.changeQoQ >= 0
-                        ? "#34d399"
-                        : "#f87171"
-                      : "rgba(226,232,240,0.75)",
-                  }}
+            {isStandardMetric ? (
+              <>
+                <Stack
+                  direction={isMobile ? "column" : "row"}
+                  spacing={isMobile ? 1.5 : 2}
                 >
-                  {formatChangeValue(metric, selectedSummary.changeQoQ, "").replace(/\s$/, "")}
-                </Typography>
-                <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
-                  {selectedSummary.previousLabel ? `vs ${selectedSummary.previousLabel}` : "–"}
-                </Typography>
-              </Box>
+                  <Box
+                    sx={{
+                      flex: 1,
+                      background: "rgba(148,163,184,0.08)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      p: 2,
+                    }}
+                  >
+                    <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                      Senaste
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                      {formatMetricValue(metric, selectedSummary.latestValue)}
+                    </Typography>
+                    <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
+                      {selectedSummary.latestLabel || "–"}
+                    </Typography>
+                  </Box>
 
-              <Box
-                sx={{
-                  flex: 1,
-                  background: "rgba(148,163,184,0.08)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  p: 2,
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                  YoY
+                  <Box
+                    sx={{
+                      flex: 1,
+                      background: "rgba(148,163,184,0.08)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      p: 2,
+                    }}
+                  >
+                    <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                      QoQ
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 700,
+                        color: Number.isFinite(selectedSummary.changeQoQ)
+                          ? selectedSummary.changeQoQ >= 0
+                            ? "#34d399"
+                            : "#f87171"
+                          : "rgba(226,232,240,0.75)",
+                      }}
+                    >
+                      {formatChangeValue(metric, selectedSummary.changeQoQ, "").replace(/\s$/, "")}
+                    </Typography>
+                    <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
+                      {selectedSummary.previousLabel ? `vs ${selectedSummary.previousLabel}` : "–"}
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      flex: 1,
+                      background: "rgba(148,163,184,0.08)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      p: 2,
+                    }}
+                  >
+                    <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                      YoY
+                    </Typography>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 700,
+                        color: Number.isFinite(selectedSummary.changeYoY)
+                          ? selectedSummary.changeYoY >= 0
+                            ? "#34d399"
+                            : "#f87171"
+                          : "rgba(226,232,240,0.75)",
+                      }}
+                    >
+                      {formatChangeValue(metric, selectedSummary.changeYoY, "").replace(/\s$/, "")}
+                    </Typography>
+                    <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
+                      {selectedSummary.yoyLabel ? `vs ${selectedSummary.yoyLabel}` : "–"}
+                    </Typography>
+                  </Box>
+
+                  <Box
+                    sx={{
+                      flex: 1,
+                      background: "rgba(148,163,184,0.08)",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(148,163,184,0.12)",
+                      p: 2,
+                    }}
+                  >
+                    <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                      Spann
+                    </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                      {`${formatMetricValue(metric, selectedSummary.lowValue)} → ${formatMetricValue(metric, selectedSummary.highValue)}`}
+                    </Typography>
+                    <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
+                      {selectedSummary.lowLabel && selectedSummary.highLabel
+                        ? `${selectedSummary.lowLabel} • ${selectedSummary.highLabel}`
+                        : "–"}
+                    </Typography>
+                  </Box>
+                </Stack>
+
+                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
+                  {selectedSummary.trendText}
                 </Typography>
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontWeight: 700,
-                    color: Number.isFinite(selectedSummary.changeYoY)
-                      ? selectedSummary.changeYoY >= 0
-                        ? "#34d399"
-                        : "#f87171"
-                      : "rgba(226,232,240,0.75)",
-                  }}
+              </>
+            ) : metric === "geo" ? (
+              <>
+                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
+                  Fördelning per region baserat på rapporterade segmentintäkter. Värden anges i miljoner euro.
+                </Typography>
+                <Stack
+                  direction={isMobile ? "column" : "row"}
+                  spacing={isMobile ? 1.5 : 2}
+                  sx={{ mt: 1 }}
                 >
-                  {formatChangeValue(metric, selectedSummary.changeYoY, "").replace(/\s$/, "")}
+                  {regionBreakdown.slice(0, 4).map((region) => (
+                    <Box
+                      key={region.key}
+                      sx={{
+                        flex: 1,
+                        background: "rgba(168,85,247,0.08)",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(168,85,247,0.2)",
+                        p: 2,
+                      }}
+                    >
+                      <Typography sx={{ color: "rgba(228,228,247,0.75)", fontSize: "0.8rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                        {region.label}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                        {`${formatMillion(region.value, region.value >= 100 ? 0 : 1)} €M`}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
+                        {formatShare(region.share)} av senaste kvartalet
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </>
+            ) : metric === "productMix" ? (
+              <>
+                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
+                  Produktmix visar fördelningen mellan Live Casino och RNG-intäkter per kvartal.
                 </Typography>
-                <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
-                  {selectedSummary.yoyLabel ? `vs ${selectedSummary.yoyLabel}` : "–"}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  flex: 1,
-                  background: "rgba(148,163,184,0.08)",
-                  borderRadius: "12px",
-                  border: "1px solid rgba(148,163,184,0.12)",
-                  p: 2,
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                  Spann
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                  {`${formatMetricValue(metric, selectedSummary.lowValue)} → ${formatMetricValue(metric, selectedSummary.highValue)}`}
-                </Typography>
-                <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
-                  {selectedSummary.lowLabel && selectedSummary.highLabel
-                    ? `${selectedSummary.lowLabel} • ${selectedSummary.highLabel}`
-                    : "–"}
-                </Typography>
-              </Box>
-            </Stack>
-
-            <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-              {selectedSummary.trendText}
-            </Typography>
+                {productBreakdown && (
+                  <Stack
+                    direction={isMobile ? "column" : "row"}
+                    spacing={isMobile ? 1.5 : 2}
+                    sx={{ mt: 1 }}
+                  >
+                    <Box
+                      sx={{
+                        flex: 1,
+                        background: "rgba(56,189,248,0.08)",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(56,189,248,0.2)",
+                        p: 2,
+                      }}
+                    >
+                      <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                        Live Casino
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                        {`${formatMillion(productBreakdown.live, productBreakdown.live >= 100 ? 0 : 1)} €M`}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
+                        {formatShare(productBreakdown.liveShare)} av mixen
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        flex: 1,
+                        background: "rgba(248,113,113,0.1)",
+                        borderRadius: "12px",
+                        border: "1px solid rgba(248,113,113,0.25)",
+                        p: 2,
+                      }}
+                    >
+                      <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                        RNG
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                        {`${formatMillion(productBreakdown.rng, productBreakdown.rng >= 100 ? 0 : 1)} €M`}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
+                        {formatShare(productBreakdown.rngShare)} av mixen
+                      </Typography>
+                    </Box>
+                  </Stack>
+                )}
+              </>
+            ) : null}
           </Box>
         </Grid>
 
