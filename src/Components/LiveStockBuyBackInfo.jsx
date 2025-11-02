@@ -74,11 +74,10 @@ const fmtEuroMillions = (value) =>
   Number.isFinite(value) ? `${(value / 1_000_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} M€` : '–';
 
 const toLabel = (datum) => {
-  // datum: 'YYYY-MM-DD', 'YYYY-Vxx', 'YYYY-MM', or 'YYYY'
   if (!datum) return '';
   if (/^\d{4}-V\d{2}$/.test(datum)) return datum.replace('-V', ' v');
-  if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) return datum.slice(5); // MM-DD
-  if (/^\d{4}-\d{2}$/.test(datum)) return datum; // YYYY-MM
+  if (/^\d{4}-\d{2}-\d{2}$/.test(datum)) return datum.slice(5);
+  if (/^\d{4}-\d{2}$/.test(datum)) return datum;
   return String(datum);
 };
 
@@ -285,7 +284,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
         </Box>
       </Stack>
 
-      {/* Subview menu row at top, similar to main header menu */}
+      {/* Subview menu row */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
         <ToggleButtonGroup
           value={subView}
@@ -314,9 +313,24 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
         </ToggleButtonGroup>
       </Box>
 
-      {/* Time window toggle only for overview */}
-            {subView === 'overview' && (
-        <Box sx={{ mt: 2, background: 'rgba(15,23,42,0.45)', borderRadius: '16px', border: '1px solid rgba(148,163,184,0.18)', p: { xs: 2, md: 2.5 }, height: isMobile ? 240 : 280 }}>
+      {/* ===== Overview chart (FULLBREDD) ===== */}
+      {subView === 'overview' && (
+        <Box
+          sx={{
+            mt: 2,
+            background: 'rgba(15,23,42,0.45)',
+            border: '1px solid rgba(148,163,184,0.18)',
+            borderRadius: { xs: 0, md: '16px' },
+
+            // Fullbleed-trick för att matcha dina andra komponenter
+            mx: { xs: -2, sm: -3, md: -4 },
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
+
+            height: isMobile ? 240 : 280,
+            overflow: 'visible',
+          }}
+        >
           {loading ? (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1 }}>
               <CircularProgress size={20} sx={{ color: '#38bdf8' }} />
@@ -325,8 +339,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
           ) : error ? (
             <Typography sx={{ color: '#fecaca' }}>Fel: {error}</Typography>
           ) : chartData.length ? (
-            <ResponsiveContainer>
-              <AreaChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={chartData}
+                margin={{ top: 10, right: 0, left: 0, bottom: 0 }} // inga sidmarginaler
+              >
                 <defs>
                   <linearGradient id="bbGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.6} />

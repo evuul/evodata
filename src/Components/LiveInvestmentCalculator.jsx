@@ -438,14 +438,17 @@ export default function LiveInvestmentCalculator({ dividendData }) {
     <Box
       sx={{
         background: "linear-gradient(135deg, #0f172a, #111c2f)",
-        borderRadius: "18px",
+        borderRadius: { xs: 0, md: "18px" },              // fullbleed hörn på mobil
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 28px 60px rgba(15,23,42,0.55)",
         color: "#f8fafc",
         width: "100%",
         maxWidth: "1200px",
-        margin: "16px auto",
-        p: { xs: 3, md: 4 },
+        // fullbleed horisontellt: matcha sidans padding (t.ex. p={2|3|4})
+        mx: { xs: -2, sm: -3, md: -4 },
+        px: { xs: 2, sm: 3, md: 4 },
+        my: 2,
+        py: { xs: 3, md: 4 },
         display: "flex",
         flexDirection: "column",
         gap: { xs: 3, md: 3.5 },

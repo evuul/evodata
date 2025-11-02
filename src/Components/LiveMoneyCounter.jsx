@@ -8,7 +8,6 @@ import {
   Stack,
   Grid,
   Tooltip,
-  LinearProgress,
   useTheme,
 } from '@mui/material';
 import useMediaQuery from '@/lib/useMuiMediaQuery';
@@ -32,9 +31,10 @@ const findLatestQ3Report = (reports) => {
   if (!Array.isArray(reports)) return null;
   const q3Reports = reports.filter((r) => r?.quarter === 'Q3');
   if (!q3Reports.length) return null;
-  return q3Reports.reduce((latest, current) =>
-    current.year > (latest?.year ?? 0) ? current : latest
-  , q3Reports[0]);
+  return q3Reports.reduce(
+    (latest, current) => (current.year > (latest?.year ?? 0) ? current : latest),
+    q3Reports[0]
+  );
 };
 
 const LiveMoneyCounter = () => {
@@ -47,6 +47,7 @@ const LiveMoneyCounter = () => {
     () => findLatestQ3Report(financialReports?.financialReports),
     []
   );
+
   const currentYearProfitMEUR = useMemo(() => {
     if (!latestQ3) return null;
     const year = latestQ3.year;
@@ -103,7 +104,8 @@ const LiveMoneyCounter = () => {
   const chips = [
     {
       label: `≈ ${formatSEK(perSecond, 0)} SEK / sekund`,
-      tooltip: 'Genomsnitt baserat på total Q3-vinst dividerat med kvartalets sekunder.',
+      tooltip:
+        'Genomsnitt baserat på total Q3-vinst dividerat med kvartalets sekunder.',
       color: '#38bdf8',
       value: perSecond,
     },
@@ -162,14 +164,18 @@ const LiveMoneyCounter = () => {
     <Box
       sx={{
         background: 'linear-gradient(135deg, #0f172a, #1f2937)',
-        borderRadius: '18px',
+        borderRadius: { xs: 0, md: '18px' },
         border: '1px solid rgba(148,163,184,0.18)',
         boxShadow: '0 20px 45px rgba(15, 23, 42, 0.45)',
         color: '#f8fafc',
-        padding: { xs: 3, md: 4 },
+
+        // === FULLBREDD / BLEED ===
+        mx: { xs: -2, sm: -3, md: -4 },
+        px: { xs: 2, sm: 3, md: 4 },
+        py: { xs: 3, md: 4 },
         width: '100%',
-        maxWidth: '1200px',
-        margin: '16px auto',
+        overflow: 'visible',
+
         display: 'flex',
         flexDirection: 'column',
         gap: { xs: 2.5, md: 3 },
@@ -184,7 +190,7 @@ const LiveMoneyCounter = () => {
         <Box>
           <Typography
             variant="overline"
-            sx={{ letter_spacing: 1, color: 'rgba(148,163,184,0.75)' }}
+            sx={{ letterSpacing: 1, color: 'rgba(148,163,184,0.75)' }}
           >
             Live Money
           </Typography>
@@ -203,9 +209,24 @@ const LiveMoneyCounter = () => {
           </Typography>
         </Box>
 
-        <Stack direction="row" flexWrap="wrap" gap={1} justifyContent={isMobile ? 'flex-start' : 'flex-end'}>
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          gap={1}
+          justifyContent={isMobile ? 'flex-start' : 'flex-end'}
+        >
           <Chip
-            icon={<span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', display: 'inline-block' }} />}
+            icon={
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: '#34d399',
+                  display: 'inline-block',
+                }}
+              />
+            }
             label={
               latestQ3
                 ? `Datakälla: ${latestQ3.quarter} ${latestQ3.year}`
@@ -219,7 +240,17 @@ const LiveMoneyCounter = () => {
             }}
           />
           <Chip
-            icon={<span style={{ width: 8, height: 8, borderRadius: '50%', background: '#60a5fa', display: 'inline-block' }} />}
+            icon={
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: '#60a5fa',
+                  display: 'inline-block',
+                }}
+              />
+            }
             label={`FX EUR/SEK: ${fx.toFixed(2)}`}
             size="small"
             sx={{
@@ -245,7 +276,8 @@ const LiveMoneyCounter = () => {
           sx={{
             position: 'absolute',
             inset: 0,
-            background: 'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.15), transparent 55%)',
+            background:
+              'radial-gradient(circle at 20% 20%, rgba(59,130,246,0.15), transparent 55%)',
             pointerEvents: 'none',
           }}
         />
@@ -269,25 +301,31 @@ const LiveMoneyCounter = () => {
             </Typography>
           </Box>
 
-            <Stack direction="row" flexWrap="wrap" gap={1.2}>
-              {chips.map((chip) => (
-                <Tooltip key={chip.label} title={chip.tooltip}>
-                  <Box
+          <Stack direction="row" flexWrap="wrap" gap={1.2}>
+            {chips.map((chip) => (
+              <Tooltip key={chip.label} title={chip.tooltip}>
+                <Box
+                  sx={{
+                    background: 'rgba(15,23,42,0.7)',
+                    borderRadius: '12px',
+                    border: `1px solid ${chip.color}44`,
+                    p: 1.5,
+                    minWidth: isMobile ? '100%' : 170,
+                  }}
+                >
+                  <Typography
                     sx={{
-                      background: 'rgba(15,23,42,0.7)',
-                      borderRadius: '12px',
-                      border: `1px solid ${chip.color}44`,
-                      p: 1.5,
-                      minWidth: isMobile ? '100%' : 170,
+                      color: chip.color,
+                      fontSize: '0.75rem',
+                      letterSpacing: 0.4,
                     }}
                   >
-                    <Typography sx={{ color: chip.color, fontSize: '0.75rem', letterSpacing: 0.4 }}>
-                      {chip.label}
-                    </Typography>
-                  </Box>
-                </Tooltip>
-              ))}
-            </Stack>
+                    {chip.label}
+                  </Typography>
+                </Box>
+              </Tooltip>
+            ))}
+          </Stack>
         </Stack>
       </Box>
 
@@ -311,10 +349,7 @@ const LiveMoneyCounter = () => {
               >
                 {card.title}
               </Typography>
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 700, color: '#f8fafc' }}
-              >
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#f8fafc' }}>
                 {card.value}
               </Typography>
               <Typography
