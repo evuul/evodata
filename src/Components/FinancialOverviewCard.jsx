@@ -9,7 +9,6 @@ import {
   Chip,
   Divider,
   Stack,
-  LinearProgress,
   ToggleButton,
   ToggleButtonGroup,
   useTheme,
@@ -314,7 +313,6 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       const dividendSek = Number.isFinite(item.dividendPerShare)
         ? item.dividendPerShare
         : null;
-      // Convert SEK → EUR for display (unit is €)
       const dividendValue =
         Number.isFinite(fxRate) && fxRate > 0 && dividendSek != null
           ? dividendSek / fxRate
@@ -706,11 +704,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     };
   }, [productMixAnnualSeries, productMixQuarterlySeries, viewMode]);
 
-  const isCustomMetric = metricConfigs[metric]?.custom;
   const isStandardMetric = Boolean(metricConfigs[metric] && !metricConfigs[metric].custom);
-
-  // Removed geo/product mix and recent dividends sections from this card per request
-
   const gradientId = `financial-${metric}`;
   const yAxisKey = metricConfigs[metric]?.valueKey;
 
@@ -736,14 +730,16 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     <Box
       sx={{
         background: "linear-gradient(135deg, #0f172a, #1f2937)",
-        borderRadius: "18px",
+        borderRadius: { xs: 0, md: "18px" },
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
         color: "#f8fafc",
-        padding: { xs: 3, md: 4 },
-        width: "100%",
-        maxWidth: "1200px",
-        margin: "16px auto",
+
+        // BLEED inom sidan/container
+        mx: { xs: -2, sm: -3, md: -4 },
+        px: { xs: 2, sm: 3, md: 4 },
+        py: { xs: 2.5, md: 4 },
+        overflow: "visible",
       }}
     >
       <Box
@@ -847,7 +843,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
 
       <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
 
-      <Grid container spacing={isMobile ? 2 : 3}>
+      <Grid container spacing={isMobile ? 1.5 : 2.5}>
         <Grid item xs={12} md={9}>
           <Box
             sx={{
@@ -942,7 +938,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
               {isStandardMetric ? (
                 selectedSeries.length ? (
                   <ResponsiveContainer>
-                    <AreaChart data={selectedSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                    <AreaChart data={selectedSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                       <defs>
                         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor={metricConfigs[metric].accent} stopOpacity={0.6} />
@@ -1008,7 +1004,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
               ) : metric === "geo" ? (
                 selectedGeoSeries.length ? (
                   <ResponsiveContainer>
-                    <AreaChart data={selectedGeoSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                    <AreaChart data={selectedGeoSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                       <XAxis
                         dataKey="xLabel"
@@ -1065,7 +1061,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
               ) : metric === "productMix" ? (
                 selectedProductMixSeries.length ? (
                   <ResponsiveContainer>
-                    <AreaChart data={selectedProductMixSeries} margin={{ top: 10, right: 16, left: 16, bottom: 0 }}>
+                    <AreaChart data={selectedProductMixSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                       <XAxis
                         dataKey="xLabel"
@@ -1333,9 +1329,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         </Grid>
 
         <Grid item xs={12} md={3}>
-          <Stack spacing={2.5}
-            sx={{ height: "100%" }}
-          >
+          <Stack spacing={2.5} sx={{ height: "100%" }}>
             {metricSummaries.map((summary) => (
               <Box
                 key={summary.metric}
@@ -1372,8 +1366,6 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
           </Stack>
         </Grid>
       </Grid>
-
-      {/* Removed: Utdelningar, Kund- och marknadsmix, Geografisk fördelning, Produktmix – moved to separate views */}
     </Box>
   );
 };

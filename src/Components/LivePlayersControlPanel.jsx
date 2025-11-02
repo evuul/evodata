@@ -61,7 +61,6 @@ class PersistentCache {
     if (typeof window === "undefined") return;
     try {
       const now = Date.now();
-      // Clone keys first to avoid index shift while removing
       const keys = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -504,12 +503,16 @@ const LivePlayersControlPanel = () => {
     <Box
       sx={{
         background: "linear-gradient(135deg, #0f172a, #111c2f)",
-        borderRadius: "18px",
+        borderRadius: { xs: 0, md: "18px" },
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 24px 50px rgba(15,23,42,0.45)",
         color: "#f8fafc",
-        p: { xs: 3, md: 4 },
-        width: "100%",
+
+        // BLEED inom sidan/container
+        mx: { xs: -2, sm: -3, md: -4 },
+        px: { xs: 2, sm: 3, md: 4 },
+        py: { xs: 3, md: 4 },
+        overflow: "visible",
       }}
     >
       <Stack spacing={{ xs: 2.2, md: 3.2 }}>
@@ -711,13 +714,13 @@ const LivePlayersControlPanel = () => {
           <TrendSection
             overviewLoading={overviewLoading}
             overviewError={overviewError}
-            trendChartData={boostedTrendChartData}   // boostad data
-            trendSummary={trendSummaryForView}       // boostad summering/fallback
+            trendChartData={boostedTrendChartData}
+            trendSummary={trendSummaryForView}
             trendDays={trendDays}
             trendUpdatedLabel={trendUpdatedLabel}
             onChangeDays={setTrendDays}
-            boostOn={trendBoostOn}                   // NY PROP
-            onToggleBoost={() => setTrendBoostOn((v) => !v)} // NY PROP
+            boostOn={trendBoostOn}
+            onToggleBoost={() => setTrendBoostOn((v) => !v)}
           />
         )}
 
@@ -878,7 +881,6 @@ const TrendSection = ({
       </Stack>
     </Stack>
 
-    {/* Tydlig banner när boost är aktiv */}
     {boostOn && (
       <Box
         sx={{

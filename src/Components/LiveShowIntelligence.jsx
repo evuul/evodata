@@ -207,13 +207,12 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const currentQuarter = getQuarter(currentDate);
   const currentIndex = quarterToIndex(currentYear, currentQuarter);
 
-  // Period-nycklar
   const currentPeriod = formatPeriodKey(currentIndex);
-  const previousPeriod = formatPeriodKey(currentIndex - 1); // kvar för tabellen/texten
-  const twoBeforePeriod = formatPeriodKey(currentIndex - 2); // kvar för tabellen
+  const previousPeriod = formatPeriodKey(currentIndex - 1);
+  const twoBeforePeriod = formatPeriodKey(currentIndex - 2);
   const lastYearSameQuarterPeriod = formatPeriodKey(
     quarterToIndex(currentYear - 1, currentQuarter)
-  ); // <-- NYTT: YoY-period
+  );
 
   const quarterProgress = useMemo(
     () => calculateQuarterProgress(currentDate, currentYear, currentQuarter),
@@ -240,7 +239,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     }, {});
   }, [financialReports]);
 
-  // Baslinje för €/spelare
   const baseline = useMemo(() => {
     const entries = Object.entries(quarterlyPlayers)
       .map(([period, info]) => {
@@ -267,7 +265,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const baselineRevenuePerPlayer = baseline.revenuePerPlayer;
   const baselineReferencePeriod = baseline.period;
 
-  // Lista perioder att visa i tabellen (oförändrat)
   const quarterPlayersList = useMemo(() => {
     const basePeriods = [currentPeriod, previousPeriod, twoBeforePeriod, baselineReferencePeriod];
     const unique = [];
@@ -277,7 +274,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
   const currentQuarterPlayers = quarterlyPlayers[currentPeriod]?.avgPlayers ?? null;
 
-  // Serie för nuvarande kvartal (till grafen)
   const qData = useMemo(() => {
     if (!currentPeriod) return [];
     return mergedPlayersData
@@ -299,17 +295,14 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const baseAveragePlayers = liveAveragePlayers ?? currentQuarterPlayers ?? 0;
   const adjustedAveragePlayers = Math.round(baseAveragePlayers * PLAYER_ADJUSTMENT_FACTOR);
 
-  // Estimerad omsättning för pågående kvartal
   const estimatedRevenue = Number.isFinite(baselineRevenuePerPlayer)
     ? Math.round(adjustedAveragePlayers * baselineRevenuePerPlayer * 10) / 10
     : null;
 
-  // Takt hittills (linjär fördelning över dagar)
   const revenueSoFar = Number.isFinite(estimatedRevenue)
     ? Math.round((estimatedRevenue * quarterProgress.elapsedDays) / Math.max(quarterProgress.totalDays, 1) * 10) / 10
     : null;
 
-  // --- NYTT: Endast KORTET uppe till höger ska vara YoY ---
   const yoyReferenceRevenue = Number.isFinite(revenueData[lastYearSameQuarterPeriod])
     ? revenueData[lastYearSameQuarterPeriod]
     : null;
@@ -323,7 +316,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return { value, percent };
   }, [estimatedRevenue, yoyReferenceRevenue]);
 
-  // --- Kvar: tidigare QoQ-jämförelse för text under graferna (oförändrad) ---
   const previousRevenue = Number.isFinite(revenueData[previousPeriod])
     ? revenueData[previousPeriod]
     : null;
@@ -337,7 +329,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return { value, percent };
   }, [estimatedRevenue, previousRevenue]);
 
-  // Tabell (oförändrad logik/ordning)
   const tableRows = useMemo(() => {
     return quarterPlayersList
       .map((period) => {
@@ -354,10 +345,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           Number.isFinite(actualRevenue) && Number.isFinite(est)
             ? actualRevenue - est
             : null;
-        const percent =
-          Number.isFinite(diff) && Number.isFinite(actualRevenue) && actualRevenue !== 0
-            ? (diff / actualRevenue) * 100
-            : null;
 
         return {
           period,
@@ -368,7 +355,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           estimated: est,
           actual: actualRevenue,
           diff,
-          percent,
           highlight: period === currentPeriod,
         };
       })
@@ -380,7 +366,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       );
   }, [quarterPlayersList, quarterlyPlayers, revenueData, currentPeriod, baselineRevenuePerPlayer]);
 
-  // Topp 3-spel (oförändrat)
   const topGames = useMemo(() => {
     if (!slugAverages.length) return [];
     const totalPlayers = slugAverages.reduce(
@@ -420,7 +405,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     }
   }, [overviewGeneratedAt]);
 
-  // Färg för QoQ-texten under korten (oförändrat)
   const changeQoQColor =
     changeQoQ.percent == null
       ? "rgba(226,232,240,0.7)"
@@ -428,24 +412,23 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       ? "#34d399"
       : "#f87171";
 
-// Beskrivande rad under grafen (NU YoY, med teckenregler)
-const trendText = (() => {
-  if (!Number.isFinite(estimatedRevenue)) {
-    return "Uppskattad omsättning saknas – inväntar mer data.";
-  }
-  const refLabel = labelFromPeriod(lastYearSameQuarterPeriod);
-  if (changeYoY.percent == null) {
-    return `Taktar mot ${refLabel} på ungefär ${formatMillion(estimatedRevenue)} €M.`;
-  }
+  const trendText = (() => {
+    if (!Number.isFinite(estimatedRevenue)) {
+      return "Uppskattad omsättning saknas – inväntar mer data.";
+    }
+    const refLabel = labelFromPeriod(lastYearSameQuarterPeriod);
+    if (changeYoY.percent == null) {
+      return `Taktar mot ${refLabel} på ungefär ${formatMillion(estimatedRevenue)} €M.`;
+    }
 
-  const descriptor = changeYoY.percent >= 0 ? "över" : "under";
-  const amountSign = changeYoY.value < 0 ? "–" : "";
-  const percentSign = changeYoY.percent < 0 ? "–" : "";
-  const amountStr = `${amountSign}${formatMillion(Math.abs(changeYoY.value))} €M`;
-  const percentStr = `${percentSign}${Math.abs(changeYoY.percent).toFixed(1)}%`;
+    const descriptor = changeYoY.percent >= 0 ? "över" : "under";
+    const amountSign = changeYoY.value < 0 ? "–" : "";
+    const percentSign = changeYoY.percent < 0 ? "–" : "";
+    const amountStr = `${amountSign}${formatMillion(Math.abs(changeYoY.value))} €M`;
+    const percentStr = `${percentSign}${Math.abs(changeYoY.percent).toFixed(1)}%`;
 
-  return `Taktar ${descriptor} ${refLabel} med ${amountStr} (${percentStr}).`;
-})();
+    return `Taktar ${descriptor} ${refLabel} med ${amountStr} (${percentStr}).`;
+  })();
 
   const chartYAxisMax = useMemo(() => {
     if (!qData.length) return undefined;
@@ -457,14 +440,16 @@ const trendText = (() => {
     <Box
       sx={{
         background: "linear-gradient(135deg, #111827, #0f172a)",
-        borderRadius: "18px",
+        borderRadius: { xs: 0, md: "18px" },
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
         color: "#f8fafc",
-        padding: { xs: 3, md: 4 },
-        width: "100%",
-        maxWidth: "1200px",
-        margin: "16px auto",
+
+        // === FULLBREDD / BLEED ===
+        mx: { xs: -2, sm: -3, md: -4 },
+        px: { xs: 2, sm: 3, md: 4 },
+        py: { xs: 3, md: 4 },
+        overflow: "visible",
         position: "relative",
       }}
     >
@@ -550,11 +535,6 @@ const trendText = (() => {
                 "& .MuiLinearProgress-bar": { background: "linear-gradient(90deg, #34d399, #38bdf8)" },
               }}
             />
-            {/* {baselineReferencePeriod && (
-              <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem", mt: 2 }}>
-                Baslinje: {labelFromPeriod(baselineReferencePeriod)} · {formatMillion(baselineRevenuePerPlayer)} €M/spelare
-              </Typography>
-            )} */}
           </Box>
         </Grid>
 
@@ -585,7 +565,7 @@ const trendText = (() => {
           </Box>
         </Grid>
 
-        {/* Uppskattad omsättning – NU: YoY mot samma kvartal i fjol */}
+        {/* Uppskattad omsättning (YoY) */}
         <Grid item xs={12} md={4}>
           <Box
             sx={{
@@ -603,7 +583,6 @@ const trendText = (() => {
               {formatMillion(estimatedRevenue)} €M
             </Typography>
 
-            {/* YoY-differens */}
             <Typography
               sx={{
                 color:
@@ -630,7 +609,6 @@ const trendText = (() => {
         </Grid>
       </Grid>
 
-      {/* QoQ-text under korten (oförändrad) */}
       <Typography sx={{ color: changeQoQColor, mt: { xs: 3, md: 4 } }}>
         {trendText}
       </Typography>
@@ -727,7 +705,7 @@ const trendText = (() => {
           )}
         </Box>
 
-        {/* Tabell (oförändrad ordning/beräkning) */}
+        {/* Tabell */}
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
             Kvartalsjämförelse

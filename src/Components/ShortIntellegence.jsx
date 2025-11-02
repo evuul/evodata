@@ -40,7 +40,8 @@ const BLANKING_RANGES = [7, 30, 90];
 const TRADING_RANGES_DESKTOP = [14, 30, 90];
 const TRADING_RANGES_MOBILE = [7, 14, 30];
 
-const LATEST_TOTAL_SHARES = totalSharesData?.[totalSharesData.length - 1]?.totalShares || null;
+const LATEST_TOTAL_SHARES =
+  totalSharesData?.[totalSharesData.length - 1]?.totalShares || null;
 
 const formatPercent = (value, digits = 2) =>
   Number.isFinite(value) ? `${value.toFixed(digits)}%` : "–";
@@ -80,7 +81,9 @@ const buildTradingSeries = (items) =>
     date: item.date,
     xLabel: shortLabel(item.date),
     volumeShares: item.volumeShares,
-    volumeM: Number.isFinite(item.volumeShares) ? item.volumeShares / 1_000_000 : null,
+    volumeM: Number.isFinite(item.volumeShares)
+      ? item.volumeShares / 1_000_000
+      : null,
     volumeAverage5M: Number.isFinite(item.volumeAverage5)
       ? item.volumeAverage5 / 1_000_000
       : null,
@@ -119,13 +122,9 @@ const computeBlankingSummary = (series, stockPrice) => {
 
   const price = stockPrice?.price?.regularMarketPrice?.raw;
   const totalValue =
-    totalShares != null && Number.isFinite(price)
-      ? totalShares * price
-      : null;
+    totalShares != null && Number.isFinite(price) ? totalShares * price : null;
   const valueDelta =
-    deltaShares != null && Number.isFinite(price)
-      ? deltaShares * price
-      : null;
+    deltaShares != null && Number.isFinite(price) ? deltaShares * price : null;
 
   return {
     latestPercent: latest.percent,
@@ -195,15 +194,16 @@ const TradingTooltip = ({ active, payload }) => {
           Blankarnas andel: {formatPercent(datum.shortSharePct)}
         </Typography>
       )}
-      {Number.isFinite(datum.shortChangeShares) && datum.shortChangeShares !== 0 && (
-        <Typography
-          variant="body2"
-          sx={{ color: datum.shortChangeShares > 0 ? "#f87171" : "#34d399" }}
-        >
-          Netto: {datum.shortChangeShares > 0 ? "+" : "-"}
-          {formatNumber(Math.abs(datum.shortChangeShares))} aktier
-        </Typography>
-      )}
+      {Number.isFinite(datum.shortChangeShares) &&
+        datum.shortChangeShares !== 0 && (
+          <Typography
+            variant="body2"
+            sx={{ color: datum.shortChangeShares > 0 ? "#f87171" : "#34d399" }}
+          >
+            Netto: {datum.shortChangeShares > 0 ? "+" : "-"}
+            {formatNumber(Math.abs(datum.shortChangeShares))} aktier
+          </Typography>
+        )}
     </Box>
   );
 };
@@ -246,9 +246,12 @@ const ShortIntellegence = () => {
         .map((item, idx, arr) => {
           const prev = idx > 0 ? arr[idx - 1] : null;
           const percent = Number(item.percent);
+          theconstprevPercent = prev != null ? Number(prev.percent) : null; // <— bara lokalt namn; tas bort i resultat
           const prevPercent = prev != null ? Number(prev.percent) : null;
           const delta =
-            prevPercent != null && Number.isFinite(prevPercent) && Number.isFinite(percent)
+            prevPercent != null &&
+            Number.isFinite(prevPercent) &&
+            Number.isFinite(percent)
               ? Number(percent - prevPercent).toFixed(2)
               : null;
           return {
@@ -270,7 +273,10 @@ const ShortIntellegence = () => {
   const refreshBlanking = useCallback(async () => {
     setBlankingLoading(true);
     try {
-      await fetch("/api/short/snapshot", { method: "POST", cache: "no-store" }).catch(() => {});
+      await fetch("/api/short/snapshot", {
+        method: "POST",
+        cache: "no-store",
+      }).catch(() => {});
     } finally {
       await fetchBlanking();
     }
@@ -280,14 +286,20 @@ const ShortIntellegence = () => {
     setTradingLoading(true);
     setTradingError("");
     try {
-      const res = await fetch(`/api/short/activity?days=${days}`, { cache: "no-store" });
+      const res = await fetch(`/api/short/activity?days=${days}`, {
+        cache: "no-store",
+      });
       const json = await parseJsonResponse(res, { requireOk: false });
       setTradingItems(Array.isArray(json?.items) ? json.items : []);
       setLatestTrading(json?.latest ?? null);
-      setAggregateShare(Number.isFinite(json?.aggregateShare) ? json.aggregateShare : null);
+      setAggregateShare(
+        Number.isFinite(json?.aggregateShare) ? json.aggregateShare : null
+      );
     } catch (error) {
       console.error("Failed to fetch trading activity", error);
-      setTradingError(error instanceof Error ? error.message : "Kunde inte hämta handelsdata");
+      setTradingError(
+        error instanceof Error ? error.message : "Kunde inte hämta handelsdata"
+      );
     } finally {
       setTradingLoading(false);
     }
@@ -316,7 +328,9 @@ const ShortIntellegence = () => {
 
   const blankingDomain = useMemo(() => {
     if (!blankingSeries.length) return [0, 1];
-    const values = blankingSeries.map((item) => item.percent).filter(Number.isFinite);
+    const values = blankingSeries
+      .map((item) => item.percent)
+      .filter(Number.isFinite);
     if (!values.length) return [0, 1];
     let min = Math.min(...values);
     let max = Math.max(...values);
@@ -338,7 +352,10 @@ const ShortIntellegence = () => {
     return Math.max(Math.floor(length / divisor) - 1, 0);
   }, [blankingSeries, isMobile]);
 
-  const tradingSeries = useMemo(() => buildTradingSeries(tradingItems), [tradingItems]);
+  const tradingSeries = useMemo(
+    () => buildTradingSeries(tradingItems),
+    [tradingItems]
+  );
 
   const tradingAxisInterval = useMemo(() => {
     const length = tradingSeries.length;
@@ -355,12 +372,11 @@ const ShortIntellegence = () => {
         ? latestTrading.volumeShares / 1_000_000
         : null,
       shortPercent: formatPercent(latestTrading.shortShareOfVolumePercent),
-      netChange:
-        Number.isFinite(latestTrading.shortChangeShares)
-          ? `${latestTrading.shortChangeShares > 0 ? "+" : latestTrading.shortChangeShares < 0 ? "-" : ""}${formatNumber(
-              Math.abs(latestTrading.shortChangeShares)
-            )}`
-          : "–",
+      netChange: Number.isFinite(latestTrading.shortChangeShares)
+        ? `${latestTrading.shortChangeShares > 0 ? "+" : latestTrading.shortChangeShares < 0 ? "-" : ""}${formatNumber(
+            Math.abs(latestTrading.shortChangeShares)
+          )}`
+        : "–",
     };
   }, [latestTrading]);
 
@@ -396,16 +412,20 @@ const ShortIntellegence = () => {
           <Typography variant={isMobile ? "h5" : "h4"} sx={{ fontWeight: 700 }}>
             Blankning & daglig handel
           </Typography>
-          <Typography sx={{ color: "rgba(226,232,240,0.7)", mt: 1, maxWidth: 520 }}>
-            Växla mellan blankningsgrad och handelsdata för att se hur kortsiktiga
-            positioner utvecklas och påverkar likviditeten.
+          <Typography
+            sx={{ color: "rgba(226,232,240,0.7)", mt: 1, maxWidth: 520 }}
+          >
+            Växla mellan blankningsgrad och handelsdata för att se hur
+            kortsiktiga positioner utvecklas och påverkar likviditeten.
           </Typography>
         </Box>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
           {blankingUpdatedAt && (
             <Chip
-              label={`Blankning uppdaterad ${new Date(blankingUpdatedAt).toLocaleTimeString("sv-SE", {
+              label={`Blankning uppdaterad ${new Date(
+                blankingUpdatedAt
+              ).toLocaleTimeString("sv-SE", {
                 hour: "2-digit",
                 minute: "2-digit",
               })}`}
@@ -419,7 +439,10 @@ const ShortIntellegence = () => {
           )}
           {aggregateShare != null && (
             <Chip
-              label={`Blankare stod för ${formatPercent(aggregateShare, 1)} av handeln`}
+              label={`Blankare stod för ${formatPercent(
+                aggregateShare,
+                1
+              )} av handeln`}
               size="small"
               sx={{
                 backgroundColor: "rgba(250,204,21,0.15)",
@@ -435,7 +458,7 @@ const ShortIntellegence = () => {
             sx={{
               backgroundColor: "rgba(148,163,184,0.18)",
               color: "#f8fafc",
-              '&:hover': { backgroundColor: "rgba(148,163,184,0.28)" },
+              "&:hover": { backgroundColor: "rgba(148,163,184,0.28)" },
             }}
           >
             <RefreshIcon fontSize="small" />
@@ -466,7 +489,7 @@ const ShortIntellegence = () => {
               borderRadius: "999px!important",
               px: { xs: 1.75, md: 3 },
               py: 0.75,
-              '&.Mui-selected': {
+              "&.Mui-selected": {
                 color: "#f8fafc",
                 backgroundColor:
                   option.value === "blanking"
@@ -490,7 +513,7 @@ const ShortIntellegence = () => {
               right: 0,
               borderRadius: 999,
               backgroundColor: "rgba(148,163,184,0.12)",
-              '& .MuiLinearProgress-bar': {
+              "& .MuiLinearProgress-bar": {
                 background: "linear-gradient(90deg, #38bdf8, #818cf8)",
               },
             }}
@@ -498,15 +521,20 @@ const ShortIntellegence = () => {
         )}
 
         {view === "blanking" ? (
+          // ===== BLANKNING – FULLBLEED-KORT + BRED GRAF =====
           <Box
             sx={{
               background: "rgba(15,23,42,0.55)",
-              borderRadius: "16px",
               border: "1px solid rgba(148,163,184,0.18)",
-              p: { xs: 2, md: 3 },
+              borderRadius: { xs: 0, md: "16px" },
+              // fullbleed: ta ut kortet till kanterna
+              mx: { xs: -2, sm: -3, md: -4 },
+              px: { xs: 2, sm: 3, md: 4 },
+              py: { xs: 2, md: 3 },
               display: "flex",
               flexDirection: "column",
               gap: { xs: 2, md: 3 },
+              overflow: "visible",
             }}
           >
             <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
@@ -533,10 +561,10 @@ const ShortIntellegence = () => {
 
             <Box sx={{ height: isMobile ? 260 : 320 }}>
               {blankingSeries.length ? (
-                <ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={blankingSeries}
-                    margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
+                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }} // inga sidmarginaler
                   >
                     <defs>
                       <linearGradient id="blankingGradient" x1="0" y1="0" x2="0" y2="1">
@@ -607,14 +635,27 @@ const ShortIntellegence = () => {
                     p: 2.5,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
                     Senaste blankning
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {formatPercent(blankingSummary.latestPercent, 2)}
                   </Typography>
-                  <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem" }}>
-                    {blankingSummary.latestDate ? fullLabel(blankingSummary.latestDate) : "–"}
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.7)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {blankingSummary.latestDate
+                      ? fullLabel(blankingSummary.latestDate)
+                      : "–"}
                   </Typography>
                 </Box>
               </Grid>
@@ -627,7 +668,13 @@ const ShortIntellegence = () => {
                     p: 2.5,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(248,113,113,0.8)", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(248,113,113,0.8)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
                     Förändring senaste dag
                   </Typography>
                   <Typography
@@ -643,11 +690,22 @@ const ShortIntellegence = () => {
                     }}
                   >
                     {blankingSummary.deltaPP != null
-                      ? `${blankingSummary.deltaPP >= 0 ? "+" : ""}${blankingSummary.deltaPP.toFixed(2)} pp`
+                      ? `${blankingSummary.deltaPP >= 0 ? "+" : ""}${blankingSummary.deltaPP.toFixed(
+                          2
+                        )} pp`
                       : "–"}
                   </Typography>
-                  <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem" }}>
-                    motsvarar {blankingSummary.deltaShares != null ? formatNumber(Math.abs(blankingSummary.deltaShares)) : "–"} aktier
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.7)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    motsvarar{" "}
+                    {blankingSummary.deltaShares != null
+                      ? formatNumber(Math.abs(blankingSummary.deltaShares))
+                      : "–"}{" "}
+                    aktier
                   </Typography>
                 </Box>
               </Grid>
@@ -660,17 +718,34 @@ const ShortIntellegence = () => {
                     p: 2.5,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
                     Totalt blankat värde
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {blankingSummary.totalValue != null
-                      ? `${formatMillion(blankingSummary.totalValue / 1_000_000, 1)} MSEK`
+                      ? `${formatMillion(
+                          blankingSummary.totalValue / 1_000_000,
+                          1
+                        )} MSEK`
                       : "–"}
                   </Typography>
-                  <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem" }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.7)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
                     {blankingSummary.valueDelta != null
-                      ? `${blankingSummary.valueDelta >= 0 ? "+" : ""}${formatMillion(blankingSummary.valueDelta / 1_000_000, 1)} MSEK senast`
+                      ? `${blankingSummary.valueDelta >= 0 ? "+" : ""}${formatMillion(
+                          blankingSummary.valueDelta / 1_000_000,
+                          1
+                        )} MSEK senast`
                       : "–"}
                   </Typography>
                 </Box>
@@ -678,15 +753,20 @@ const ShortIntellegence = () => {
             </Grid>
           </Box>
         ) : (
+          // ===== TRADING – FULLBLEED-KORT + BRED GRAF =====
           <Box
             sx={{
               background: "rgba(15,23,42,0.55)",
-              borderRadius: "16px",
               border: "1px solid rgba(148,163,184,0.18)",
-              p: { xs: 2, md: 3 },
+              borderRadius: { xs: 0, md: "16px" },
+              // fullbleed: ta ut kortet till kanterna
+              mx: { xs: -2, sm: -3, md: -4 },
+              px: { xs: 2, sm: 3, md: 4 },
+              py: { xs: 2, md: 3 },
               display: "flex",
               flexDirection: "column",
               gap: { xs: 2, md: 3 },
+              overflow: "visible",
             }}
           >
             <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
@@ -725,10 +805,10 @@ const ShortIntellegence = () => {
                   <Typography>{tradingError}</Typography>
                 </Box>
               ) : tradingSeries.length ? (
-                <ResponsiveContainer>
+                <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart
                     data={tradingSeries}
-                    margin={{ top: 10, right: 16, left: -10, bottom: 0 }}
+                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }} // inga sidmarginaler
                   >
                     <CartesianGrid
                       stroke="rgba(148,163,184,0.15)"
@@ -828,13 +908,26 @@ const ShortIntellegence = () => {
                     p: 2.5,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(250,204,21,0.9)", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(250,204,21,0.9)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
                     Senaste handelsdag
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {latestTradingSummary ? latestTradingSummary.shortPercent : "–"}
+                    {latestTradingSummary
+                      ? latestTradingSummary.shortPercent
+                      : "–"}
                   </Typography>
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
                     {latestTradingSummary ? latestTradingSummary.date : "–"}
                   </Typography>
                 </Box>
@@ -848,7 +941,13 @@ const ShortIntellegence = () => {
                     p: 2.5,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(74,222,128,0.85)", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(74,222,128,0.85)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
                     Omsatt volym
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
@@ -856,8 +955,15 @@ const ShortIntellegence = () => {
                       ? `${formatMillion(latestTradingSummary.volumeM, 1)} M aktier`
                       : "–"}
                   </Typography>
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                    Netto blankning: {latestTradingSummary ? latestTradingSummary.netChange : "–"} aktier
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    Netto blankning:{" "}
+                    {latestTradingSummary ? latestTradingSummary.netChange : "–"}{" "}
+                    aktier
                   </Typography>
                 </Box>
               </Grid>
@@ -870,13 +976,26 @@ const ShortIntellegence = () => {
                     p: 2.5,
                   }}
                 >
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", fontWeight: 600 }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
                     Periodsnitt blankarandel
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                    {aggregateShare != null ? formatPercent(aggregateShare, 1) : "–"}
+                    {aggregateShare != null
+                      ? formatPercent(aggregateShare, 1)
+                      : "–"}
                   </Typography>
-                  <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
                     Andel av volym för vald period
                   </Typography>
                 </Box>
