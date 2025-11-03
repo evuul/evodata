@@ -246,7 +246,6 @@ const ShortIntellegence = () => {
         .map((item, idx, arr) => {
           const prev = idx > 0 ? arr[idx - 1] : null;
           const percent = Number(item.percent);
-          theconstprevPercent = prev != null ? Number(prev.percent) : null; // <— bara lokalt namn; tas bort i resultat
           const prevPercent = prev != null ? Number(prev.percent) : null;
           const delta =
             prevPercent != null &&
