@@ -11,6 +11,7 @@ import {
   ToggleButtonGroup,
   Divider,
   LinearProgress,
+  useMediaQuery,
 } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
@@ -21,6 +22,7 @@ import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH } from '@/lib/fairValueUtils';
+import { useTheme } from '@mui/material/styles';
 
 const currency0 = new Intl.NumberFormat('sv-SE', {
   style: 'currency',
@@ -69,6 +71,8 @@ const formatDateTime = (date) => {
 };
 
 export default function LiveAiFairValue({ reports = [], buyback }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const {
     rate: fxRate,
     loading: fxLoading,
@@ -202,15 +206,25 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
         py: { xs: 2.8, sm: 3.2, md: 3.4 },
       }}
     >
-      <Stack spacing={{ xs: 2.4, sm: 3 }}>
+      <Stack spacing={{ xs: 2.4, sm: 3 }} alignItems="center">
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction="column"
           spacing={{ xs: 1.4, sm: 2 }}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          justifyContent="space-between"
+          alignItems="center"
+          textAlign="center"
+          sx={{ width: '100%' }}
         >
-          <Stack direction="row" spacing={1.2} alignItems="center">
-            <Typography variant="h5" sx={{ fontWeight: 700, color: '#f8fafc' }}>
+          <Stack
+            direction="row"
+            spacing={1.2}
+            alignItems="center"
+            justifyContent="center"
+            flexWrap="wrap"
+          >
+            <Typography
+              variant={isMobile ? 'h5' : 'h4'}
+              sx={{ fontWeight: 700, color: '#f8fafc', textAlign: 'center' }}
+            >
               Live AI Fair Value
             </Typography>
             <Chip
@@ -241,7 +255,13 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
             )}
           </Stack>
 
-          <Stack direction="row" spacing={1.2} flexWrap="wrap">
+          <Stack
+            direction="row"
+            spacing={1.2}
+            flexWrap="wrap"
+            alignItems="center"
+            justifyContent="center"
+          >
             <Chip
               size="small"
               icon={<CurrencyExchangeIcon sx={{ color: '#c4b5fd !important' }} />}
@@ -279,51 +299,57 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
         </Stack>
 
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction="column"
           spacing={{ xs: 1.6, sm: 2.4 }}
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          justifyContent="space-between"
+          alignItems="center"
+          textAlign="center"
+          sx={{ width: '100%' }}
         >
-          <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.72)', maxWidth: 600 }}>
+          <Typography
+            variant="body2"
+            sx={{ color: 'rgba(226,232,240,0.72)', maxWidth: 600, textAlign: 'center' }}
+          >
             Normaliserad AI-modell väger samman 8Q EPS, clampad tillväxt och nettoåterköp för att uppskatta värderingsspann. Välj scenario för att se antaganden och potentiell uppsida.
           </Typography>
           {scenarioOptions.length > 0 && (
-            <ToggleButtonGroup
-              value={scenarioId}
-              exclusive
-              onChange={handleScenarioChange}
-              size="small"
-              sx={{
-                backgroundColor: 'rgba(15,23,42,0.6)',
-                borderRadius: '999px',
-                p: '4px',
-              }}
-            >
-              {scenarioOptions.map((option) => (
-                <ToggleButton
-                  key={option.id}
-                  value={option.id}
-                  sx={{
-                    px: 2.4,
-                    borderRadius: '999px !important',
-                    border: 'none',
-                    color: 'rgba(226,232,240,0.78)',
-                    textTransform: 'none',
-                    fontWeight: 600,
-                    '&.Mui-selected': {
-                      color: option.color,
-                      backgroundColor: `${option.color}1A`,
-                      border: `1px solid ${option.color}44`,
-                    },
-                    '&:not(.Mui-selected)': {
-                      backgroundColor: 'transparent',
-                    },
-                  }}
-                >
-                  {option.label}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+              <ToggleButtonGroup
+                value={scenarioId}
+                exclusive
+                onChange={handleScenarioChange}
+                size="small"
+                sx={{
+                  backgroundColor: 'rgba(15,23,42,0.6)',
+                  borderRadius: '999px',
+                  p: '4px',
+                }}
+              >
+                {scenarioOptions.map((option) => (
+                  <ToggleButton
+                    key={option.id}
+                    value={option.id}
+                    sx={{
+                      px: 2.4,
+                      borderRadius: '999px !important',
+                      border: 'none',
+                      color: 'rgba(226,232,240,0.78)',
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      '&.Mui-selected': {
+                        color: option.color,
+                        backgroundColor: `${option.color}1A`,
+                        border: `1px solid ${option.color}44`,
+                      },
+                      '&:not(.Mui-selected)': {
+                        backgroundColor: 'transparent',
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Box>
           )}
         </Stack>
 
@@ -344,7 +370,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
           </Box>
         ) : (
           <Stack spacing={{ xs: 2.4, sm: 3 }}>
-            <Grid container spacing={2.4}>
+            <Grid container spacing={2.4} justifyContent="center">
               <Grid item xs={12} md={4}>
                 <Box
                   sx={{
@@ -356,10 +382,12 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 1.6,
+                    textAlign: 'center',
+                    alignItems: 'center',
                   }}
                 >
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.8)' }}>
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
+                    <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.8)', textAlign: 'center' }}>
                       Aktuell kurs
                     </Typography>
                     {(priceLoading || priceError) && (
@@ -380,7 +408,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc' }}>
                     {currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', textAlign: 'center' }}>
                     Uppdaterad {formatDateTime(priceUpdated) ?? 'okänt'}
                   </Typography>
                 </Box>
@@ -399,6 +427,8 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     gap: 1.4,
                     position: 'relative',
                     overflow: 'hidden',
+                    textAlign: 'center',
+                    alignItems: 'center',
                   }}
                 >
                   <Box
@@ -409,7 +439,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                       pointerEvents: 'none',
                     }}
                   />
-                  <Stack direction="row" spacing={1} alignItems="center">
+                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
                     <scenarioInfo.Icon sx={{ color: scenarioInfo.color }} />
                     <Typography variant="subtitle2" sx={{ color: scenarioInfo.color, fontWeight: 600 }}>
                       AI {scenarioInfo.label}
@@ -430,7 +460,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
                     PE {activeScenario?.pe ?? '–'}x • 1Y fwd EPS {fwdEpsLabel}
                   </Typography>
-                  <Box>
+                  <Box sx={{ width: '100%' }}>
                     <LinearProgress
                       variant={upsideProgress != null ? 'determinate' : 'indeterminate'}
                       value={upsideProgress ?? 0}
@@ -459,12 +489,14 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 1.1,
+                    textAlign: 'center',
+                    alignItems: 'center',
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
                     Antaganden (scenario)
                   </Typography>
-                  <Stack direction="row" justifyContent="space-between">
+                  <Stack spacing={0.3} alignItems="center">
                     <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
                       Tillväxt (1Y)
                     </Typography>
@@ -472,7 +504,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                       {growthLabel}
                     </Typography>
                   </Stack>
-                  <Stack direction="row" justifyContent="space-between">
+                  <Stack spacing={0.3} alignItems="center">
                     <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
                       Nettoåterköp
                     </Typography>
@@ -480,7 +512,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                       {buybackLabel}
                     </Typography>
                   </Stack>
-                  <Stack direction="row" justifyContent="space-between">
+                  <Stack spacing={0.3} alignItems="center">
                     <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
                       EPS-boost (base)
                     </Typography>
@@ -488,14 +520,14 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                       {bbBoostLabel}
                     </Typography>
                   </Stack>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', textAlign: 'center' }}>
                     Modellen clampas mellan {(MIN_FWD_GROWTH * 100).toFixed(0)}% och {(MAX_FWD_GROWTH * 100).toFixed(0)}% tillväxt.
                   </Typography>
                 </Box>
               </Grid>
             </Grid>
 
-            <Grid container spacing={2.4}>
+            <Grid container spacing={2.4} justifyContent="center">
               <Grid item xs={12} sm={6} md={3}>
                 <Box
                   sx={{
@@ -503,6 +535,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     borderRadius: '16px',
                     border: '1px solid rgba(56,189,248,0.3)',
                     p: 2,
+                    textAlign: 'center',
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
@@ -521,6 +554,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     borderRadius: '16px',
                     border: '1px solid rgba(34,197,94,0.3)',
                     p: 2,
+                    textAlign: 'center',
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
@@ -539,6 +573,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     borderRadius: '16px',
                     border: '1px solid rgba(139,92,246,0.3)',
                     p: 2,
+                    textAlign: 'center',
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
@@ -557,6 +592,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     borderRadius: '16px',
                     border: '1px solid rgba(96,165,250,0.3)',
                     p: 2,
+                    textAlign: 'center',
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>

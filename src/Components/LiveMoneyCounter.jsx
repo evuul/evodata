@@ -182,19 +182,22 @@ const LiveMoneyCounter = () => {
       }}
     >
       <Stack
-        direction={isMobile ? 'column' : 'row'}
-        spacing={isMobile ? 1.5 : 2.5}
-        alignItems={isMobile ? 'flex-start' : 'center'}
-        justifyContent="space-between"
+        direction="column"
+        spacing={1.8}
+        alignItems="center"
+        textAlign="center"
       >
-        <Box>
+        <Box sx={{ maxWidth: 560 }}>
           <Typography
             variant="overline"
-            sx={{ letterSpacing: 1, color: 'rgba(148,163,184,0.75)' }}
+            sx={{ letterSpacing: 1, color: 'rgba(148,163,184,0.75)', textAlign: 'center' }}
           >
             Live Money
           </Typography>
-          <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontWeight: 700 }}>
+          <Typography
+            variant={isMobile ? 'h5' : 'h4'}
+            sx={{ fontWeight: 700, textAlign: 'center' }}
+          >
             Q3-vinstindikator
           </Typography>
           <Typography
@@ -202,6 +205,8 @@ const LiveMoneyCounter = () => {
               color: 'rgba(226,232,240,0.7)',
               mt: 1,
               maxWidth: 520,
+              mx: 'auto',
+              textAlign: 'center',
             }}
           >
             Realtidssimulering baserad på Evolution&apos;s rapporterade justerade
@@ -213,7 +218,8 @@ const LiveMoneyCounter = () => {
           direction="row"
           flexWrap="wrap"
           gap={1}
-          justifyContent={isMobile ? 'flex-start' : 'flex-end'}
+          justifyContent="center"
+          alignItems="center"
         >
           <Chip
             icon={
@@ -282,7 +288,7 @@ const LiveMoneyCounter = () => {
           }}
         />
         <Stack spacing={2}>
-          <Box>
+          <Box sx={{ textAlign: 'center' }}>
             <Typography
               sx={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.9rem' }}
             >
@@ -301,7 +307,7 @@ const LiveMoneyCounter = () => {
             </Typography>
           </Box>
 
-          <Stack direction="row" flexWrap="wrap" gap={1.2}>
+          <Stack direction="row" flexWrap="wrap" gap={1.2} justifyContent="center">
             {chips.map((chip) => (
               <Tooltip key={chip.label} title={chip.tooltip}>
                 <Box
@@ -311,6 +317,7 @@ const LiveMoneyCounter = () => {
                     border: `1px solid ${chip.color}44`,
                     p: 1.5,
                     minWidth: isMobile ? '100%' : 170,
+                    textAlign: 'center',
                   }}
                 >
                   <Typography
@@ -329,7 +336,7 @@ const LiveMoneyCounter = () => {
         </Stack>
       </Box>
 
-      <Grid container spacing={isMobile ? 1.5 : 2}>
+      <Grid container spacing={isMobile ? 1.5 : 2} justifyContent="center">
         {summaryCards.map((card) => (
           <Grid key={card.title} item xs={12} sm={6} md={3}>
             <Box
@@ -338,6 +345,7 @@ const LiveMoneyCounter = () => {
                 borderRadius: '12px',
                 border: '1px solid rgba(148,163,184,0.12)',
                 p: 2.5,
+                textAlign: 'center',
               }}
             >
               <Typography

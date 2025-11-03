@@ -457,25 +457,45 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       <Box
         sx={{
           display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          alignItems: isMobile ? "flex-start" : "center",
-          justifyContent: "space-between",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
           gap: 2,
+          textAlign: "center",
         }}
       >
-        <Box>
-          <Typography variant="overline" sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.75)" }}>
+        <Box sx={{ maxWidth: 560 }}>
+          <Typography
+            variant="overline"
+            sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.75)" }}
+          >
             Live Show Intelligence
           </Typography>
-          <Typography variant={isMobile ? "h5" : "h4"} sx={{ fontWeight: 700, color: "#f8fafc" }}>
+          <Typography
+            variant={isMobile ? "h5" : "h4"}
+            sx={{ fontWeight: 700, color: "#f8fafc" }}
+          >
             Gameshow Earnings Outlook
           </Typography>
-          <Typography sx={{ color: "rgba(226,232,240,0.65)", maxWidth: 460, mt: 1 }}>
+          <Typography
+            sx={{
+              color: "rgba(226,232,240,0.65)",
+              maxWidth: 460,
+              mt: 1,
+              mx: "auto",
+            }}
+          >
             Uppskattad live-omsättning baserad på lobbydata och historisk omsättning per spelare.
           </Typography>
         </Box>
 
-        <Stack direction={"row"} gap={1} flexWrap="wrap" alignItems="center">
+        <Stack
+          direction="row"
+          gap={1}
+          flexWrap="wrap"
+          alignItems="center"
+          justifyContent="center"
+        >
           {overviewGeneratedLabel && (
             <Chip
               label={`Lobby uppdaterad ${overviewGeneratedLabel}`}
@@ -503,7 +523,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
 
       {/* KPI-kort */}
-      <Grid container spacing={isMobile ? 2 : 3}>
+      <Grid container spacing={isMobile ? 2 : 3} justifyContent="center">
         {/* Kvartalsprogress */}
         <Grid item xs={12} md={4}>
           <Box
@@ -513,6 +533,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               border: "1px solid rgba(148,163,184,0.18)",
               p: 3,
               height: "100%",
+              textAlign: "center",
             }}
           >
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
@@ -547,6 +568,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               border: "1px solid rgba(96,165,250,0.3)",
               p: 3,
               height: "100%",
+              textAlign: "center",
             }}
           >
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
@@ -574,6 +596,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               border: "1px solid rgba(45,212,191,0.28)",
               p: 3,
               height: "100%",
+              textAlign: "center",
             }}
           >
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
@@ -609,7 +632,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         </Grid>
       </Grid>
 
-      <Typography sx={{ color: changeQoQColor, mt: { xs: 3, md: 4 } }}>
+      <Typography sx={{ color: changeQoQColor, mt: { xs: 3, md: 4 }, textAlign: "center" }}>
         {trendText}
       </Typography>
 
