@@ -50,6 +50,9 @@ const HistoryView = ({
   sortedData,
   sortConfig,
   onSort,
+  historicalPnL,
+  currentSharePrice,
+  historicalTotals,
 }) => {
   const areaFillId = `histArea-${useId()}`;
   const tickFontSize = isMobile ? 12 : 14;
@@ -91,6 +94,17 @@ const HistoryView = ({
           maximumFractionDigits: 2,
         })
       : "–";
+  const formatPercent = (value) =>
+    Number.isFinite(value)
+      ? `${value >= 0 ? "+" : "-"}${Math.abs(value).toFixed(1)}%`
+      : "–";
+
+  const pnlColor = (value) =>
+    !Number.isFinite(value) || value === 0
+      ? COLORS.textSecondary
+      : value > 0
+      ? "#34d399"
+      : "#f87171";
 
   const summary = useMemo(() => {
     if (!Array.isArray(historyChartData) || historyChartData.length === 0) {
@@ -194,20 +208,54 @@ const HistoryView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Genomsnittlig snittkurs
+              Genomsnittlig snittkurs (alla återköp)
             </Typography>
             <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 700 }}>
-              {formatPrice(summary.avgPrice)}
+              {formatPrice(historicalTotals?.averagePrice)}
             </Typography>
             <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-              {summary.count} {summary.count === 1 ? periodLabel.singular : periodLabel.plural} • {formatShares(summary.totalShares)} aktier
+              Totalt {formatShares(historicalTotals?.shares)} aktier
             </Typography>
-            {summary.totalValue > 0 && (
+            {historicalTotals?.value > 0 && (
               <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-                Totalt värde {formatCurrency(summary.totalValue)}
+                Investerat {formatCurrency(historicalTotals.value)}
               </Typography>
             )}
           </Box>
+
+          {historicalPnL && (
+            <Box
+              sx={{
+                flex: 1,
+                background: "linear-gradient(140deg, rgba(52,211,153,0.18), rgba(56,189,248,0.18))",
+                borderRadius: "16px",
+                border: "1px solid rgba(52,211,153,0.32)",
+                px: 2.2,
+                py: 1.8,
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.5,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+                Historiskt återköp – vinst/förlust
+              </Typography>
+              <Typography
+                variant="h5"
+                sx={{ color: pnlColor(historicalPnL.absolute), fontWeight: 700 }}
+              >
+                {formatCurrency(historicalPnL.absolute)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                Snitt {formatPrice(historicalPnL.averagePrice)} • Live {formatPrice(currentSharePrice)}
+                {" • "}
+                {formatPercent(historicalPnL.percent)}
+              </Typography>
+              <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                Totalt {formatShares(Math.round(historicalPnL.shares || 0))} aktier • Investering {formatCurrency(historicalPnL.invested)}
+              </Typography>
+            </Box>
+          )}
         </Stack>
       )}
 

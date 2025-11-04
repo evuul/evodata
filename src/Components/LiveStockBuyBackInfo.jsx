@@ -219,16 +219,46 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
       ? (remainingCash / (latestTotalSharesCount * currentSharePrice)) * 100
       : null;
 
+  const combinedBuybacks = useMemo(() => {
+    return [
+      ...(Array.isArray(oldData) ? oldData : []),
+      ...(Array.isArray(curData) ? curData : []),
+    ];
+  }, [oldData, curData]);
+
+  const historicalTotals = useMemo(() => {
+    const positive = combinedBuybacks.filter((row) => Number(row?.Antal_aktier) > 0);
+    if (!positive.length) return null;
+    const shares = positive.reduce((sum, row) => sum + (Number(row?.Antal_aktier) || 0), 0);
+    const value = positive.reduce((sum, row) => sum + (Number(row?.Transaktionsvärde) || 0), 0);
+    if (!Number.isFinite(shares) || shares <= 0 || !Number.isFinite(value) || value <= 0) return null;
+    return {
+      shares,
+      value,
+      averagePrice: value / shares,
+    };
+  }, [combinedBuybacks]);
+
+  const historicalPnL = useMemo(() => {
+    if (!historicalTotals) return null;
+    const { shares, averagePrice, value } = historicalTotals;
+    if (!Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
+    const diffPerShare = currentSharePrice - averagePrice;
+    const absolute = diffPerShare * shares;
+    const percent = (diffPerShare / averagePrice) * 100;
+    return { absolute, percent, shares, averagePrice, invested: value };
+  }, [historicalTotals, currentSharePrice]);
+
   const chartData = useMemo(() => {
     let base = [];
-    if (viewMode === 'daily') base = buildDaily(curData);
-    else if (viewMode === 'weekly') base = buildWeekly(curData);
-    else if (viewMode === 'monthly') base = buildMonthly(curData);
-    else base = buildYearly(curData);
+    if (viewMode === 'daily') base = buildDaily(combinedBuybacks);
+    else if (viewMode === 'weekly') base = buildWeekly(combinedBuybacks);
+    else if (viewMode === 'monthly') base = buildMonthly(combinedBuybacks);
+    else base = buildYearly(combinedBuybacks);
     return base
       .map((row) => ({ x: toLabel(row.Datum), sharesK: (row.Antal_aktier || 0) / 1_000 }))
       .filter((r) => Number.isFinite(r.sharesK));
-  }, [viewMode, curData]);
+  }, [viewMode, combinedBuybacks]);
 
   // ---- Subview derived data ----
   const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(oldData), [oldData]);
@@ -255,11 +285,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
   const directYieldPercentage = useMemo(() => (marketCap > 0 ? (returns.latestYearReturns / marketCap) * 100 : 0), [returns.latestYearReturns, marketCap]);
 
   const historyChartData = useMemo(() => {
-    if (viewMode === 'daily') return buildDaily(oldData);
-    if (viewMode === 'weekly') return buildWeekly(oldData);
-    if (viewMode === 'monthly') return buildMonthly(oldData);
-    return buildYearly(oldData);
-  }, [oldData, viewMode]);
+    if (viewMode === 'daily') return buildDaily(combinedBuybacks);
+    if (viewMode === 'weekly') return buildWeekly(combinedBuybacks);
+    if (viewMode === 'monthly') return buildMonthly(combinedBuybacks);
+    return buildYearly(combinedBuybacks);
+  }, [combinedBuybacks, viewMode]);
 
   const [chartTypeHistory, setChartTypeHistory] = useState('line');
   const [chartTypeOwnership, setChartTypeOwnership] = useState('line');
@@ -429,36 +459,44 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
             flexWrap="wrap"
           >
             <Stack spacing={0.75} sx={{ minWidth: { md: 220 }, flex: '1 1 220px' }}>
-              <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2, fontWeight: 600 }}>
+              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 Kassaläge
               </Typography>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                 {fmtCurrency(totalSpent)}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#e2e8f0',
+                  fontWeight: 600,
+                  letterSpacing: 0.2,
+                }}
+              >
                 Budget: {fmtEuroMillions(buybackCash)} (≈ {fmtCurrency(buybackBudgetSek)})
               </Typography>
             </Stack>
 
             <Stack spacing={0.8} sx={{ minWidth: { md: 260 }, flex: '1 1 260px' }}>
-              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Återstående kassa</Typography>
+              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>Återstående kassa</Typography>
               <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.15rem', md: '1.3rem' }, color: '#f8fafc' }}>{fmtCurrency(remainingCash)}</Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Utnyttjad budget</Typography>
               {Number.isFinite(cashUsagePercent) ? (
                 <>
+                  <Typography variant="caption" sx={{ color: '#cbd5f5', fontWeight: 600, letterSpacing: 0.3 }}>
+                    {cashUsagePercent.toFixed(1)}% utnyttjat
+                  </Typography>
                   <LinearProgress
                     variant="determinate"
                     value={cashUsagePercent}
                     sx={{
-                      height: 8,
+                      height: 6,
+                      width: { xs: '100%', md: '80%' },
                       borderRadius: 999,
                       backgroundColor: 'rgba(148,163,184,0.18)',
                       '& .MuiLinearProgress-bar': { borderRadius: 999, background: 'linear-gradient(90deg, #38bdf8, #34d399)' },
                     }}
                   />
-                    <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
-                      {cashUsagePercent.toFixed(1)}% utnyttjat
-                    </Typography>
+
                 </>
               ) : (
                 <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
@@ -468,14 +506,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
             </Stack>
 
             <Stack spacing={0.8} sx={{ minWidth: { md: 260 }, flex: '1 1 280px' }}>
-              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Kapacitet vid kurs</Typography>
+              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>Kapacitet vid kurs</Typography>
               <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                 {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
                   ? `≈ ${fmtNum(sharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`
                   : 'Ingen livekurs tillgänglig.'}
               </Typography>
-              <Typography variant="caption" sx={{ color: '#f8fafc', mt: 0.5 }}>Räckvidd i aktier</Typography>
-              <Typography sx={{ fontWeight: 700, color: '#f8fafc' }}>
+              <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: { xs: '1.05rem', md: '1.18rem' } }}>
                 {Number.isFinite(remainingCashSharePercent)
                   ? `${fmtPercent(remainingCashSharePercent)} av aktiestocken`
                   : 'Beräknas när kurs och budget finns.'}
@@ -483,7 +520,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
             </Stack>
 
             <Stack spacing={0.8} sx={{ minWidth: { md: 240 }, flex: '1 1 240px' }}>
-              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Framåtblick</Typography>
+              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>Framåtblick</Typography>
               <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                 {est && Number.isFinite(est.daysToCompletion)
                   ? `${fmtNum(est.daysToCompletion)} handelsdagar kvar`
@@ -491,7 +528,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
                   ? 'Budget förbrukad'
                   : 'Lägg till budget'}
               </Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.78)' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: '#cbd5f5',
+                  fontWeight: 600,
+                }}
+              >
                 {est?.estimatedCompletionDate
                   ? `Klar: ${est.estimatedCompletionDate}`
                   : Number.isFinite(remainingCash) && remainingCash <= 0
@@ -732,6 +775,9 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
             sortedData={sortedOldData}
             sortConfig={sortConfig}
             onSort={onSort}
+            historicalPnL={historicalPnL}
+            currentSharePrice={currentSharePrice}
+            historicalTotals={historicalTotals}
           />
         </Box>
       )}
