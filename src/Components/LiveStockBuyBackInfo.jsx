@@ -17,6 +17,8 @@ import useMediaQuery from '@/lib/useMuiMediaQuery';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useTheme } from '@mui/material/styles';
+import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -64,6 +66,11 @@ const SUB_VIEWS = [
 const fmtNum = (n) => (Number.isFinite(n) ? n.toLocaleString('sv-SE') : '–');
 const fmtThousands = (n, digits = 1) =>
   Number.isFinite(n) ? n.toLocaleString('sv-SE', { maximumFractionDigits: digits }) : '–';
+const fmtPercent = (value) => {
+  if (!Number.isFinite(value)) return '–';
+  const digits = value >= 0.1 ? 2 : 3;
+  return `${value.toLocaleString('sv-SE', { minimumFractionDigits: digits, maximumFractionDigits: digits })}%`;
+};
 
 const fmtCurrency = (value) =>
   Number.isFinite(value)
@@ -85,7 +92,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { marketCap, loading: loadingPrice, stockPrice } = useStockPriceContext();
-  const { rate: fxRate } = useFxRateContext();
+  const { rate: fxRate, meta: fxMeta, lastUpdated: fxUpdated } = useFxRateContext();
 
   const [subView, setSubView] = useState('overview');
   const [viewMode, setViewMode] = useState('weekly');
@@ -160,6 +167,57 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
     if (!Number.isFinite(remainingCash) || !Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
     return Math.floor(remainingCash / currentSharePrice);
   }, [remainingCash, currentSharePrice]);
+
+  const fxPairLabel = useMemo(() => {
+    const base = fxMeta?.base;
+    const quote = fxMeta?.quote;
+    if (base && quote) return `${base}/${quote}`;
+    return 'EUR/SEK';
+  }, [fxMeta]);
+  const fxRateDisplay = Number.isFinite(fxRate)
+    ? fxRate.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '–';
+  const fxUpdatedLabel =
+    fxUpdated instanceof Date && Number.isFinite(fxUpdated.getTime())
+      ? fxUpdated.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
+      : null;
+  const latestTotalSharesCount = useMemo(
+    () => totalSharesData[totalSharesData.length - 1]?.totalShares || null,
+    []
+  );
+  const getShareBaseForDate = useCallback(
+    (date) => {
+      if (!(date instanceof Date) || Number.isNaN(date.getTime())) return latestTotalSharesCount;
+      const year = date.getFullYear();
+      const match = totalSharesData.find((entry) => Number(entry.date) === year);
+      return match?.totalShares || latestTotalSharesCount;
+    },
+    [latestTotalSharesCount]
+  );
+  const weekNowShareBase = useMemo(
+    () => getShareBaseForDate(weekNow.periodStart),
+    [getShareBaseForDate, weekNow.periodStart?.getTime()]
+  );
+  const weekPrevShareBase = useMemo(
+    () => getShareBaseForDate(weekPrev.periodStart),
+    [getShareBaseForDate, weekPrev.periodStart?.getTime()]
+  );
+  const weekNowPercentOfShares =
+    Number.isFinite(weekNow.totalShares) && Number.isFinite(weekNowShareBase) && weekNowShareBase > 0
+      ? (weekNow.totalShares / weekNowShareBase) * 100
+      : null;
+  const weekPrevPercentOfShares =
+    Number.isFinite(weekPrev.totalShares) && Number.isFinite(weekPrevShareBase) && weekPrevShareBase > 0
+      ? (weekPrev.totalShares / weekPrevShareBase) * 100
+      : null;
+  const remainingCashSharePercent =
+    Number.isFinite(remainingCash) &&
+    Number.isFinite(currentSharePrice) &&
+    currentSharePrice > 0 &&
+    Number.isFinite(latestTotalSharesCount) &&
+    latestTotalSharesCount > 0
+      ? (remainingCash / (latestTotalSharesCount * currentSharePrice)) * 100
+      : null;
 
   const chartData = useMemo(() => {
     let base = [];
@@ -274,15 +332,53 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
         margin: '16px auto',
       }}
     >
-      <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 2 : 3} alignItems={isMobile ? 'flex-start' : 'center'} justifyContent="space-between">
-        <Box>
+      <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 2 : 3} alignItems="center" justifyContent="center">
+        <Box sx={{ textAlign: 'center', width: '100%' }}>
           <Typography variant="overline" sx={{ letterSpacing: 1, color: 'rgba(148,163,184,0.65)' }}>Live Buybacks</Typography>
           <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontWeight: 700 }}>Återköp – fart & takt</Typography>
-          <Typography sx={{ color: 'rgba(226,232,240,0.7)', mt: 1, maxWidth: 560 }}>
+          <Typography sx={{ color: 'rgba(226,232,240,0.7)', mt: 1, maxWidth: 560, mx: 'auto' }}>
             Senaste veckans återköp jämfört med föregående, genomsnittlig takt och en enkel tidslinje. Uppdateras automatiskt.
           </Typography>
         </Box>
       </Stack>
+
+      {(Number.isFinite(fxRate) || fxUpdatedLabel) && (
+        <Stack
+          direction="row"
+          spacing={1.2}
+          flexWrap="wrap"
+          alignItems="center"
+          justifyContent="center"
+          sx={{ mt: 1 }}
+        >
+          {Number.isFinite(fxRate) && (
+            <Chip
+              size="small"
+              icon={<CurrencyExchangeIcon sx={{ color: '#c4b5fd !important' }} />}
+              label={`${fxPairLabel} ${fxRateDisplay}`}
+              sx={{
+                backgroundColor: 'rgba(196,181,253,0.12)',
+                color: '#ddd6fe',
+                borderRadius: '10px',
+                border: '1px solid rgba(196,181,253,0.35)',
+              }}
+            />
+          )}
+          {fxUpdatedLabel && (
+            <Chip
+              size="small"
+              icon={<AccessTimeIcon sx={{ color: '#bfdbfe !important' }} />}
+              label={`FX uppd: ${fxUpdatedLabel}`}
+              sx={{
+                backgroundColor: 'rgba(96,165,250,0.12)',
+                color: '#bfdbfe',
+                borderRadius: '10px',
+                border: '1px solid rgba(96,165,250,0.35)',
+              }}
+            />
+          )}
+        </Stack>
+      )}
 
       {/* Subview menu row */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
@@ -312,6 +408,100 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
           ))}
         </ToggleButtonGroup>
       </Box>
+
+      {subView === 'overview' && Number.isFinite(buybackBudgetSek) && (
+        <Box
+          sx={{
+            mt: 2,
+            background: 'rgba(15,23,42,0.55)',
+            border: '1px solid rgba(148,163,184,0.18)',
+            borderRadius: { xs: 0, md: '16px' },
+            mx: { xs: -2, sm: -3, md: -4 },
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={{ xs: 1.5, md: 2.5 }}
+            alignItems="stretch"
+            justifyContent="space-between"
+            flexWrap="wrap"
+          >
+            <Stack spacing={0.75} sx={{ minWidth: { md: 220 }, flex: '1 1 220px' }}>
+              <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2, fontWeight: 600 }}>
+                Kassaläge
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {fmtCurrency(totalSpent)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+                Budget: {fmtEuroMillions(buybackCash)} (≈ {fmtCurrency(buybackBudgetSek)})
+              </Typography>
+            </Stack>
+
+            <Stack spacing={0.8} sx={{ minWidth: { md: 260 }, flex: '1 1 260px' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Återstående kassa</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.15rem', md: '1.3rem' }, color: '#f8fafc' }}>{fmtCurrency(remainingCash)}</Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Utnyttjad budget</Typography>
+              {Number.isFinite(cashUsagePercent) ? (
+                <>
+                  <LinearProgress
+                    variant="determinate"
+                    value={cashUsagePercent}
+                    sx={{
+                      height: 8,
+                      borderRadius: 999,
+                      backgroundColor: 'rgba(148,163,184,0.18)',
+                      '& .MuiLinearProgress-bar': { borderRadius: 999, background: 'linear-gradient(90deg, #38bdf8, #34d399)' },
+                    }}
+                  />
+                    <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
+                      {cashUsagePercent.toFixed(1)}% utnyttjat
+                    </Typography>
+                </>
+              ) : (
+                <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+                  Lägg till budget för att följa kassaanvändning.
+                </Typography>
+              )}
+            </Stack>
+
+            <Stack spacing={0.8} sx={{ minWidth: { md: 260 }, flex: '1 1 280px' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Kapacitet vid kurs</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
+                  ? `≈ ${fmtNum(sharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`
+                  : 'Ingen livekurs tillgänglig.'}
+              </Typography>
+              <Typography variant="caption" sx={{ color: '#f8fafc', mt: 0.5 }}>Räckvidd i aktier</Typography>
+              <Typography sx={{ fontWeight: 700, color: '#f8fafc' }}>
+                {Number.isFinite(remainingCashSharePercent)
+                  ? `${fmtPercent(remainingCashSharePercent)} av aktiestocken`
+                  : 'Beräknas när kurs och budget finns.'}
+              </Typography>
+            </Stack>
+
+            <Stack spacing={0.8} sx={{ minWidth: { md: 240 }, flex: '1 1 240px' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Framåtblick</Typography>
+              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                {est && Number.isFinite(est.daysToCompletion)
+                  ? `${fmtNum(est.daysToCompletion)} handelsdagar kvar`
+                  : Number.isFinite(remainingCash) && remainingCash <= 0
+                  ? 'Budget förbrukad'
+                  : 'Lägg till budget'}
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.78)' }}>
+                {est?.estimatedCompletionDate
+                  ? `Klar: ${est.estimatedCompletionDate}`
+                  : Number.isFinite(remainingCash) && remainingCash <= 0
+                  ? 'Återköpsbudgeten är förbrukad.'
+                  : 'Behöver kassainformation för prognos.'}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Box>
+      )}
 
       {/* ===== Overview chart (FULLBREDD) ===== */}
       {subView === 'overview' && (
@@ -369,19 +559,57 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
       )}
 
       {subView === 'overview' && (
-        <Grid container spacing={{ xs: 2, md: 3 }} sx={{ mt: 2 }}>
-          <Grid item xs={12} md={3}>
-            <Box sx={{ background: 'rgba(15,23,42,0.45)', borderRadius: '16px', border: '1px solid rgba(148,163,184,0.18)', p: { xs: 2, md: 2.5 } }}>
-              <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2, fontWeight: 600 }}>
+        <Box
+          sx={{
+            mt: 2,
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+        >
+          <Stack
+            direction={{ xs: 'column', lg: 'row' }}
+            spacing={{ xs: 2, lg: 3 }}
+            alignItems="stretch"
+            justifyContent="center"
+            sx={{ width: '100%', maxWidth: 1040 }}
+          >
+            <Box
+              sx={{
+                flex: '1 1 0',
+                minWidth: { xs: '100%', lg: 440 },
+                background: 'rgba(15,23,42,0.45)',
+                borderRadius: '16px',
+                border: '1px solid rgba(148,163,184,0.18)',
+                p: { xs: 1.8, md: 2 },
+              }}
+            >
+              <Typography
+                variant="overline"
+                sx={{
+                  color: 'rgba(148,163,184,0.85)',
+                  letterSpacing: 1.2,
+                  fontWeight: 600,
+                  display: 'block',
+                  textAlign: { xs: 'left', lg: 'center' },
+                }}
+              >
                 Denna vecka
               </Typography>
               {loading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: { xs: 'flex-start', lg: 'center' },
+                    gap: 1,
+                    minHeight: 90,
+                  }}
+                >
                   <CircularProgress size={18} sx={{ color: '#38bdf8' }} />
                   <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>Hämtar…</Typography>
                 </Box>
               ) : (
-                <Stack spacing={0.5}>
+                <Stack spacing={0.35} sx={{ textAlign: { xs: 'left', lg: 'center' } }}>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {fmtNum(weekNow.totalShares)} aktier
                   </Typography>
@@ -390,25 +618,52 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
                       ? `${weekNow.periodStart.toLocaleDateString('sv-SE')}–${weekNow.periodEnd.toLocaleDateString('sv-SE')}`
                       : '—'}
                   </Typography>
-                  <Divider sx={{ borderColor: 'rgba(148,163,184,0.18)', my: 1 }} />
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.8)' }}>Genomsnittlig daglig takt</Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Andel av aktiestocken</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>{fmtPercent(weekNowPercentOfShares)}</Typography>
+                  <Divider sx={{ borderColor: 'rgba(148,163,184,0.12)', my: 1 }} />
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Genomsnittlig daglig takt</Typography>
                   <Typography sx={{ fontWeight: 700 }}>{fmtNum(Math.round(avgDaily.averageDaily))} aktier/dag</Typography>
                 </Stack>
               )}
             </Box>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Box sx={{ background: 'rgba(15,23,42,0.45)', borderRadius: '16px', border: '1px solid rgba(148,163,184,0.18)', p: { xs: 2, md: 2.5 } }}>
-              <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2, fontWeight: 600 }}>
+
+            <Box
+              sx={{
+                flex: '1 1 0',
+                minWidth: { xs: '100%', lg: 440 },
+                background: 'rgba(15,23,42,0.45)',
+                borderRadius: '16px',
+                border: '1px solid rgba(148,163,184,0.18)',
+                p: { xs: 1.8, md: 2 },
+              }}
+            >
+              <Typography
+                variant="overline"
+                sx={{
+                  color: 'rgba(148,163,184,0.85)',
+                  letterSpacing: 1.2,
+                  fontWeight: 600,
+                  display: 'block',
+                  textAlign: { xs: 'left', lg: 'center' },
+                }}
+              >
                 Föregående vecka
               </Typography>
               {loading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: { xs: 'flex-start', lg: 'center' },
+                    gap: 1,
+                    minHeight: 90,
+                  }}
+                >
                   <CircularProgress size={18} sx={{ color: '#34d399' }} />
                   <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>Hämtar…</Typography>
                 </Box>
               ) : (
-                <Stack spacing={0.5}>
+                <Stack spacing={0.35} sx={{ textAlign: { xs: 'left', lg: 'center' } }}>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {fmtNum(weekPrev.totalShares)} aktier
                   </Typography>
@@ -417,95 +672,16 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
                       ? `${weekPrev.periodStart.toLocaleDateString('sv-SE')}–${weekPrev.periodEnd.toLocaleDateString('sv-SE')}`
                       : '—'}
                   </Typography>
-                  <Divider sx={{ borderColor: 'rgba(148,163,184,0.18)', my: 1 }} />
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.8)' }}>Snittpris i programmet</Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Andel av aktiestocken</Typography>
+                  <Typography sx={{ fontWeight: 700 }}>{fmtPercent(weekPrevPercentOfShares)}</Typography>
+                  <Divider sx={{ borderColor: 'rgba(148,163,184,0.12)', my: 1 }} />
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>Snittpris i programmet</Typography>
                   <Typography sx={{ fontWeight: 700 }}>{fmtNum(Math.round(stats.averagePrice))} SEK</Typography>
                 </Stack>
               )}
             </Box>
-          </Grid>
-          <Grid item xs={12} md={3}>
-            <Box sx={{ background: 'rgba(15,23,42,0.45)', borderRadius: '16px', border: '1px solid rgba(148,163,184,0.18)', p: { xs: 2, md: 2.5 } }}>
-              <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2, fontWeight: 600 }}>
-                Framåtblick
-              </Typography>
-              {loading ? (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CircularProgress size={18} sx={{ color: '#f59e0b' }} />
-                  <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>Hämtar…</Typography>
-                </Box>
-              ) : (
-                <Stack spacing={0.5}>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    {est
-                      ? `${fmtNum(est.daysToCompletion)} handelsdagar kvar`
-                      : Number.isFinite(remainingCash) && remainingCash <= 0
-                      ? 'Budget förbrukad'
-                      : '—'}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {est?.estimatedCompletionDate
-                      ? `Klar: ${est.estimatedCompletionDate}`
-                      : Number.isFinite(remainingCash) && remainingCash <= 0
-                      ? 'Återköpsbudgeten är förbrukad.'
-                      : 'Lägg till kontantbudget för uppskattning'}
-                  </Typography>
-                </Stack>
-              )}
-            </Box>
-          </Grid>
-          {Number.isFinite(buybackBudgetSek) && (
-            <Grid item xs={12} md={3}>
-              <Box sx={{ background: 'rgba(15,23,42,0.45)', borderRadius: '16px', border: '1px solid rgba(148,163,184,0.18)', p: { xs: 2, md: 2.5 }, display: 'flex', flexDirection: 'column', gap: 1.25 }}>
-                <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2, fontWeight: 600 }}>
-                  Kassaläge
-                </Typography>
-                <Stack spacing={0.5}>
-                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                    {fmtCurrency(totalSpent)}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    Budget: {fmtEuroMillions(buybackCash)} (≈ {fmtCurrency(buybackBudgetSek)})
-                  </Typography>
-                  {Number.isFinite(cashUsagePercent) ? (
-                    <Stack spacing={0.5}>
-                      <LinearProgress
-                        variant="determinate"
-                        value={cashUsagePercent}
-                        sx={{
-                          height: 8,
-                          borderRadius: 999,
-                          backgroundColor: 'rgba(148,163,184,0.18)',
-                          '& .MuiLinearProgress-bar': { borderRadius: 999, background: 'linear-gradient(90deg, #38bdf8, #34d399)' },
-                        }}
-                      />
-                      <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.8)' }}>
-                        {cashUsagePercent.toFixed(1)}% utnyttjat
-                      </Typography>
-                    </Stack>
-                  ) : (
-                    <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.8)' }}>
-                      Lägg till budget för att följa kassaanvändning.
-                    </Typography>
-                  )}
-                </Stack>
-                <Divider sx={{ borderColor: 'rgba(148,163,184,0.18)' }} />
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.8)' }}>Återstående kassa</Typography>
-                  <Typography sx={{ fontWeight: 700 }}>{fmtCurrency(remainingCash)}</Typography>
-                </Stack>
-                <Stack spacing={0.5}>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.8)' }}>Kapacitet vid kurs</Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
-                      ? `≈ ${fmtNum(sharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`
-                      : 'Ingen livekurs tillgänglig.'}
-                  </Typography>
-                </Stack>
-              </Box>
-            </Grid>
-          )}
-        </Grid>
+          </Stack>
+        </Box>
       )}
 
       {subView === 'ownership' && (
