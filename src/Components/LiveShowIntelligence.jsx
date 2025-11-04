@@ -283,16 +283,30 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         return date.getFullYear() === currentYear && getQuarter(date) === currentQuarter;
       })
       .sort((a, b) => new Date(a.Datum) - new Date(b.Datum))
-      .map((item) => ({ date: item.Datum, players: Number(item.Players) || 0 }));
+      .map((item) => {
+        const rawPlayers = Number(item.Players) || 0;
+        const adjustedPlayers = Math.round(rawPlayers * PLAYER_ADJUSTMENT_FACTOR);
+        return {
+          date: item.Datum,
+          players: adjustedPlayers,
+          rawPlayers,
+        };
+      });
   }, [mergedPlayersData, currentPeriod, currentYear, currentQuarter]);
 
-  const liveAveragePlayers = useMemo(() => {
+  const liveAveragePlayersRaw = useMemo(() => {
+    if (!qData.length) return null;
+    const sum = qData.reduce((acc, item) => acc + (Number(item.rawPlayers) || 0), 0);
+    return Math.round(sum / qData.length);
+  }, [qData]);
+
+  const liveAveragePlayersAdjusted = useMemo(() => {
     if (!qData.length) return null;
     const sum = qData.reduce((acc, item) => acc + (Number(item.players) || 0), 0);
     return Math.round(sum / qData.length);
   }, [qData]);
 
-  const baseAveragePlayers = liveAveragePlayers ?? currentQuarterPlayers ?? 0;
+  const baseAveragePlayers = liveAveragePlayersRaw ?? currentQuarterPlayers ?? 0;
   const adjustedAveragePlayers = Math.round(baseAveragePlayers * PLAYER_ADJUSTMENT_FACTOR);
 
   const estimatedRevenue = Number.isFinite(baselineRevenuePerPlayer)
@@ -578,8 +592,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               {adjustedAveragePlayers.toLocaleString("sv-SE")}
             </Typography>
             <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.95rem", mt: 0.5 }}>
-              {liveAveragePlayers
-                ? `Live-snitt ${liveAveragePlayers.toLocaleString("sv-SE")} spelare`
+              {liveAveragePlayersRaw
+                ? `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`
                 : currentQuarterPlayers
                 ? `Kvartalssnitt ${currentQuarterPlayers.toLocaleString("sv-SE")} spelare`
                 : "Inväntar kvartalsdata"}
@@ -697,7 +711,14 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                     borderRadius: 12,
                     color: "#f8fafc",
                   }}
-                  formatter={(value) => `${Number(value).toLocaleString("sv-SE")} spelare`}
+                  formatter={(value, _name, { payload }) => {
+                    const base = Number(value).toLocaleString("sv-SE");
+                    const raw = Number(payload?.rawPlayers);
+                    const subtitle = Number.isFinite(raw)
+                      ? `Justerat (live ${raw.toLocaleString("sv-SE")})`
+                      : "Justerade spelare";
+                    return [`${base} spelare`, subtitle];
+                  }}
                   labelStyle={{ color: "rgba(226,232,240,0.75)" }}
                 />
                 <Area

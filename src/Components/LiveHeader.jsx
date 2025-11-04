@@ -16,6 +16,7 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
+import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
 import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
@@ -393,6 +394,27 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   color: "#facc15",
                   borderRadius: "999px",
                   border: "1px solid rgba(250,204,21,0.35)",
+                }}
+              />
+              <Chip
+                component="a"
+                href="https://buymeacoffee.com/evuul"
+                target="_blank"
+                rel="noopener noreferrer"
+                clickable
+                size="small"
+                icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
+                label="Stötta sidan"
+                sx={{
+                  background: "linear-gradient(135deg, rgba(236,72,153,0.15), rgba(14,165,233,0.15))",
+                  color: "#f8fafc",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(236,72,153,0.35)",
+                  transition: "transform 120ms ease",
+                  "&:hover": {
+                    transform: "translateY(-1px)",
+                    background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(14,165,233,0.25))",
+                  },
                 }}
               />
             </Box>
