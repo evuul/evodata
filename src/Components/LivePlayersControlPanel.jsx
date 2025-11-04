@@ -1039,8 +1039,8 @@ const GameTrendSection = ({
       </Stack>
 
       <Stack spacing={1}>
-        <Typography variant="subtitle2" sx={{ color: activeColor, fontWeight: 700 }}>
-          {activeLabel}
+        <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
+          Välj spel att analysera
         </Typography>
         <Box
           sx={{
@@ -1083,17 +1083,14 @@ const GameTrendSection = ({
         direction={{ xs: "column", md: "row" }}
         spacing={{ xs: 0.75, md: 2 }}
         alignItems={{ xs: "flex-start", md: "center" }}
-        justifyContent="space-between"
-        sx={{ color: "rgba(148,163,184,0.75)" }}
+        justifyContent="center"
+        sx={{ color: "rgba(148,163,184,0.75)", textAlign: { xs: "left", md: "center" } }}
       >
         <Typography variant="caption">
           Start: <strong>{startText}</strong> ({startDateText})
         </Typography>
         <Typography variant="caption">
           Slut: <strong>{endText}</strong> ({endDateText})
-        </Typography>
-        <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
-          Förändring: {absoluteText} ({percentText})
         </Typography>
       </Stack>
 
@@ -1133,6 +1130,26 @@ const GameTrendSection = ({
           ))}
         </ToggleButtonGroup>
       </Stack>
+
+      {selectedSlug && (
+        <Stack spacing={0.4} alignItems="center" sx={{ mt: 0.5, textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            sx={{
+              color: activeColor,
+              fontWeight: 700,
+              textAlign: "center",
+            }}
+          >
+            {activeLabel}
+          </Typography>
+          {summary && (
+            <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
+              Förändring: {absoluteText} ({percentText})
+            </Typography>
+          )}
+        </Stack>
+      )}
 
       <Box sx={{ height: 260 }}>
         {overviewLoading ? (
