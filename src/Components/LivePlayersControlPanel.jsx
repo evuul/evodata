@@ -518,25 +518,9 @@ const LivePlayersControlPanel = () => {
       <Stack spacing={{ xs: 2.2, md: 3.2 }}>
         {/* Header */}
         <Stack spacing={{ xs: 1, md: 1.25 }} alignItems="center" textAlign="center">
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.8rem", sm: "2.3rem" } }}>
-              Gameshow live-data & historik
-            </Typography>
-            {/* Tydlig badge när boost är aktiv */}
-            {trendBoostOn && (
-              <Chip
-                label="Simulerar EVOS lobby +10%"
-                sx={{
-                  backgroundColor: "rgba(74,222,128,0.2)",
-                  color: "#22c55e",
-                  border: "1px solid rgba(74,222,128,0.5)",
-                  borderRadius: "999px",
-                  fontWeight: 700,
-                  height: 28
-                }}
-              />
-            )}
-          </Stack>
+          <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.8rem", sm: "2.3rem" } }}>
+            Gameshow live-data & historik
+          </Typography>
           <Typography variant="body1" sx={{ color: "rgba(226,232,240,0.75)", maxWidth: 760, lineHeight: 1.6 }}>
             En förädlad vy över live-spelare, trendutveckling, ranking och toppnoteringar. Uppdateras automatiskt med lobbydata.
           </Typography>
