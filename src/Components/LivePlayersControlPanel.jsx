@@ -90,6 +90,18 @@ const INITIAL_VISIBLE_LIVE = 10;
 const INITIAL_VISIBLE_ATH = 10;
 const TZ = "Europe/Stockholm";
 
+const ASIA_GAME_KEYS = [
+  "bac-bo",
+  "lightning-bac-bo",
+  "lightning-baccarat",
+  "super-sic-bo",
+  "fan-tan-live",
+  "super-andar-bahar",
+  "speed-baccarat-a",
+  "lightning-dice",
+];
+const ASIA_GAME_KEY_SET = new Set(ASIA_GAME_KEYS);
+
 const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
   year: "numeric",
@@ -203,6 +215,8 @@ const LivePlayersControlPanel = () => {
   const [trendDelta, setTrendDelta] = useState(null);
   const [gameTrendSlug, setGameTrendSlug] = useState(null);
   const [gameTrendDays, setGameTrendDays] = useState(TREND_DAY_OPTIONS[0]);
+  const [asiaTrackerSlug, setAsiaTrackerSlug] = useState(null);
+  const [asiaTrackerDays, setAsiaTrackerDays] = useState(TREND_DAY_OPTIONS[0]);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
 
   const [showAllLive, setShowAllLive] = useState(false);
@@ -483,6 +497,22 @@ const LivePlayersControlPanel = () => {
     [gameTrendOptions, gameTrendSlug]
   );
 
+  const asiaTrendOptions = useMemo(
+    () => gameTrendOptions.filter((opt) => ASIA_GAME_KEY_SET.has(opt.slug)),
+    [gameTrendOptions]
+  );
+
+  useEffect(() => {
+    if (!asiaTrendOptions.length) {
+      setAsiaTrackerSlug((prev) => (prev !== null ? null : prev));
+      return;
+    }
+    setAsiaTrackerSlug((prev) => {
+      if (prev && asiaTrendOptions.some((opt) => opt.slug === prev)) return prev;
+      return asiaTrendOptions[0].slug;
+    });
+  }, [asiaTrendOptions]);
+
   const gameTrendSeries = useMemo(() => {
     if (!gameTrendSlug || !slugDailyMap.size) return [];
     const series = slugDailyMap.get(gameTrendSlug) ?? [];
@@ -497,6 +527,82 @@ const LivePlayersControlPanel = () => {
     const fullSeries = slugDailyMap.get(gameTrendSlug) ?? [];
     return computeTrendDiff(fullSeries);
   }, [gameTrendSeries, gameTrendSlug, slugDailyMap]);
+
+  const selectedAsiaOption = useMemo(
+    () => asiaTrendOptions.find((opt) => opt.slug === asiaTrackerSlug) || null,
+    [asiaTrendOptions, asiaTrackerSlug]
+  );
+
+  const asiaTrackerSeries = useMemo(() => {
+    if (!asiaTrackerSlug || !slugDailyMap.size) return [];
+    const series = slugDailyMap.get(asiaTrackerSlug) ?? [];
+    const sliceCount = Math.min(series.length, Math.max(asiaTrackerDays, 1));
+    return series.slice(-sliceCount);
+  }, [slugDailyMap, asiaTrackerSlug, asiaTrackerDays]);
+
+  const asiaTrackerSummary = useMemo(() => {
+    const primary = computeTrendDiff(asiaTrackerSeries);
+    if (primary) return primary;
+    if (!asiaTrackerSlug) return null;
+    const fullSeries = slugDailyMap.get(asiaTrackerSlug) ?? [];
+    return computeTrendDiff(fullSeries);
+  }, [asiaTrackerSeries, asiaTrackerSlug, slugDailyMap]);
+
+  const asiaLiveRows = useMemo(
+    () => liveGamesList.filter((row) => ASIA_GAME_KEY_SET.has(row.id)),
+    [liveGamesList]
+  );
+
+  const asiaLiveTotal = useMemo(() => {
+    let hasValue = false;
+    const sum = asiaLiveRows.reduce((acc, row) => {
+      if (Number.isFinite(row.players)) {
+        hasValue = true;
+        return acc + row.players;
+      }
+      return acc;
+    }, 0);
+    return hasValue ? sum : null;
+  }, [asiaLiveRows]);
+
+  const asiaLiveShare = useMemo(() => {
+    if (!Number.isFinite(totalLivePlayers) || !Number.isFinite(asiaLiveTotal)) return null;
+    if (!totalLivePlayers || totalLivePlayers <= 0) return null;
+    return asiaLiveTotal / totalLivePlayers;
+  }, [asiaLiveTotal, totalLivePlayers]);
+
+  const asiaRankingRows = useMemo(
+    () => rankingRows.filter((row) => ASIA_GAME_KEY_SET.has(row.slug)),
+    [rankingRows]
+  );
+
+  const asiaTableRows = useMemo(() => {
+    const rows = [];
+    const liveMap = new Map(asiaLiveRows.map((row) => [row.id, row]));
+    const rankingMap = new Map(asiaRankingRows.map((row) => [row.slug, row]));
+    ASIA_GAME_KEYS.forEach((key) => {
+      const game = SLUG_TO_GAME.get(key);
+      if (!game) return;
+      const live = liveMap.get(game.id);
+      const ranking = rankingMap.get(key);
+      rows.push({
+        slug: key,
+        label: game.label || key,
+        color: GAME_COLORS?.[game.id] || "#38bdf8",
+        livePlayers: Number.isFinite(live?.players) ? live.players : null,
+        avgPlayers: Number.isFinite(ranking?.avgPlayers) ? ranking.avgPlayers : null,
+      });
+    });
+    rows.sort((a, b) => {
+      const aLive = a.livePlayers ?? -Infinity;
+      const bLive = b.livePlayers ?? -Infinity;
+      if (aLive !== bLive) return bLive - aLive;
+      const aAvg = a.avgPlayers ?? -Infinity;
+      const bAvg = b.avgPlayers ?? -Infinity;
+      return bAvg - aAvg;
+    });
+    return rows;
+  }, [asiaLiveRows, asiaRankingRows]);
 
   // ====================== RENDER ======================
   return (
@@ -680,6 +786,12 @@ const LivePlayersControlPanel = () => {
             Speltrend
           </ToggleButton>
           <ToggleButton
+            value="asia"
+            sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(248,250,133,0.28)" } }}
+          >
+            Asia Tracker
+          </ToggleButton>
+          <ToggleButton
             value="ranking"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}
           >
@@ -722,6 +834,26 @@ const LivePlayersControlPanel = () => {
             dayOptions={TREND_DAY_OPTIONS}
             days={gameTrendDays}
             onChangeDays={setGameTrendDays}
+          />
+        )}
+
+        {detailView === "asia" && (
+          <AsiaTrackerSection
+            overviewLoading={overviewLoading}
+            overviewError={overviewError}
+            lastUpdatedLabel={trendUpdatedLabel}
+            totalLive={asiaLiveTotal}
+            liveShare={asiaLiveShare}
+            tableRows={asiaTableRows}
+            options={asiaTrendOptions}
+            selectedSlug={asiaTrackerSlug}
+            onSelectSlug={setAsiaTrackerSlug}
+            chartData={asiaTrackerSeries}
+            summary={asiaTrackerSummary}
+            selectedOption={selectedAsiaOption}
+            dayOptions={TREND_DAY_OPTIONS}
+            days={asiaTrackerDays}
+            onChangeDays={setAsiaTrackerDays}
           />
         )}
 
@@ -1202,6 +1334,320 @@ const GameTrendSection = ({
           </Box>
         )}
       </Box>
+    </Box>
+  );
+};
+
+const AsiaTrackerSection = ({
+  overviewLoading,
+  overviewError,
+  lastUpdatedLabel,
+  totalLive,
+  liveShare,
+  tableRows,
+  options,
+  selectedSlug,
+  onSelectSlug,
+  chartData,
+  summary,
+  selectedOption,
+  dayOptions,
+  days,
+  onChangeDays,
+}) => {
+  const changeColor =
+    summary && Number.isFinite(summary?.absolute)
+      ? summary.absolute >= 0
+        ? "#34d399"
+        : "#f87171"
+      : "rgba(148,163,184,0.75)";
+  const percentText =
+    summary && Number.isFinite(summary?.percent)
+      ? `${summary.percent > 0 ? "+" : ""}${summary.percent.toLocaleString("sv-SE", {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })}%`
+      : "—";
+  const absoluteText =
+    summary && Number.isFinite(summary?.absolute)
+      ? `${summary.absolute > 0 ? "+" : ""}${summary.absolute.toLocaleString("sv-SE")}`
+      : "—";
+  const startText =
+    summary?.start?.value != null ? summary.start.value.toLocaleString("sv-SE") : "—";
+  const endText =
+    summary?.end?.value != null ? summary.end.value.toLocaleString("sv-SE") : "—";
+  const startDateText = formatDateOnly(summary?.start?.date) ?? "—";
+  const endDateText = formatDateOnly(summary?.end?.date) ?? "—";
+
+  const activeColor = selectedOption?.color ?? "#facc15";
+  const activeLabel = selectedOption?.label ?? "Välj Asien-spel";
+
+  const totalLiveText = Number.isFinite(totalLive) ? numberFormatter.format(totalLive) : "—";
+  const shareText =
+    Number.isFinite(liveShare) && liveShare != null
+      ? `${(liveShare * 100).toFixed(1)}%`
+      : "—";
+
+  return (
+    <Box
+      sx={{
+        background: "rgba(15,23,42,0.45)",
+        borderRadius: "16px",
+        border: "1px solid rgba(148,163,184,0.18)",
+        p: { xs: 2, md: 2.5 },
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.75,
+      }}
+    >
+      <Stack spacing={0.4}>
+        <Typography variant="overline" sx={{ color: "rgba(248,250,133,0.9)", letterSpacing: 1.2, fontWeight: 600 }}>
+          Asia Tracker
+        </Typography>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
+          {overviewLoading
+            ? "Hämtar Asien-data…"
+            : lastUpdatedLabel
+            ? `Senast uppdaterad ${lastUpdatedLabel}`
+            : overviewError || "Ingen data för Asien-spel ännu"}
+        </Typography>
+      </Stack>
+
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
+        <Chip
+          label={`Live just nu: ${totalLiveText}`}
+          sx={{
+            borderRadius: "999px",
+            backgroundColor: "rgba(248,250,133,0.18)",
+            color: "#fde68a",
+            fontWeight: 600,
+          }}
+        />
+        <Chip
+          label={`Andel av livevolym: ${shareText}`}
+          sx={{
+            borderRadius: "999px",
+            backgroundColor: "rgba(74,222,128,0.15)",
+            color: "#4ade80",
+            fontWeight: 600,
+          }}
+        />
+      </Stack>
+
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
+          Välj Asien-spel
+        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            flexWrap: "wrap",
+            maxHeight: { xs: 210, md: 120 },
+            overflowY: "auto",
+            pr: 0.5,
+          }}
+        >
+          {options.length ? (
+            options.map((option) => {
+              const isActive = option.slug === selectedSlug;
+              return (
+                <Chip
+                  key={option.slug}
+                  label={option.label}
+                  onClick={() => onSelectSlug && onSelectSlug(option.slug)}
+                  clickable
+                  sx={{
+                    borderRadius: "999px",
+                    backgroundColor: isActive ? `${option.color}33` : "rgba(148,163,184,0.1)",
+                    color: isActive ? option.color : "rgba(226,232,240,0.8)",
+                    border: `1px solid ${isActive ? option.color : "transparent"}`,
+                    fontWeight: isActive ? 600 : 500,
+                  }}
+                />
+              );
+            })
+          ) : (
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
+              Ingen speldata för Asien-portföljen ännu.
+            </Typography>
+          )}
+        </Box>
+      </Stack>
+
+      {selectedSlug && (
+        <Stack spacing={0.4} alignItems="center" sx={{ textAlign: "center" }}>
+          <Typography variant="h6" sx={{ color: activeColor, fontWeight: 700 }}>
+            {activeLabel}
+          </Typography>
+          {summary && (
+            <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
+              Förändring: {absoluteText} ({percentText})
+            </Typography>
+          )}
+        </Stack>
+      )}
+
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={{ xs: 0.75, md: 2 }}
+        alignItems={{ xs: "flex-start", md: "center" }}
+        justifyContent="center"
+        sx={{ color: "rgba(148,163,184,0.75)", textAlign: { xs: "left", md: "center" } }}
+      >
+        <Typography variant="caption">
+          Start: <strong>{startText}</strong> ({startDateText})
+        </Typography>
+        <Typography variant="caption">
+          Slut: <strong>{endText}</strong> ({endDateText})
+        </Typography>
+      </Stack>
+
+      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1}>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
+          Visa dagar
+        </Typography>
+        <ToggleButtonGroup
+          value={days}
+          exclusive
+          size="small"
+          onChange={(_, value) => value && onChangeDays(value)}
+          sx={{
+            backgroundColor: "rgba(148,163,184,0.12)",
+            borderRadius: "999px",
+            p: 0.5,
+          }}
+        >
+          {dayOptions.map((option) => (
+            <ToggleButton
+              key={option}
+              value={option}
+              sx={{
+                textTransform: "none",
+                color: "rgba(226,232,240,0.75)",
+                border: 0,
+                borderRadius: "999px!important",
+                px: { xs: 1.5, md: 2 },
+                "&.Mui-selected": {
+                  color: "#f8fafc",
+                  backgroundColor: "rgba(248,250,133,0.28)",
+                },
+              }}
+            >
+              {option} d
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Stack>
+
+      <Box sx={{ height: 260 }}>
+        {overviewLoading ? (
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
+            <CircularProgress size={20} sx={{ color: "#fde68a" }} />
+            <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              Laddar spelardata…
+            </Typography>
+          </Box>
+        ) : chartData.length ? (
+          <ResponsiveContainer>
+            <BarChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+              <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                tickFormatter={(value) => numberFormatter.format(value)}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                width={60}
+              />
+              <RechartsTooltip
+                contentStyle={{
+                  background: "rgba(15,23,42,0.92)",
+                  border: "1px solid rgba(250, 204, 21, 0.25)",
+                  borderRadius: 12,
+                  color: "#f8fafc",
+                }}
+                formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Snitt"]}
+              />
+              <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "rgba(148,163,184,0.75)",
+            }}
+          >
+            Ingen trenddata för Asien-portföljen.
+          </Box>
+        )}
+      </Box>
+
+      <Divider sx={{ borderColor: "rgba(148,163,184,0.15)" }} />
+
+      <Stack spacing={1}>
+        <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
+          Nyckeltal per spel
+        </Typography>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
+          Live just nu vs snitt spelare (30–90 d) för utvalda Asien-spel.
+        </Typography>
+        <Stack spacing={1}>
+          {tableRows.length ? (
+            tableRows.map((row) => (
+              <Box
+                key={row.slug}
+                sx={{
+                  background: "rgba(15,23,42,0.55)",
+                  borderRadius: "12px",
+                  border: `1px solid ${row.color}44`,
+                  p: 1.25,
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: row.color }} />
+                    <Typography sx={{ color: "#f8fafc", fontWeight: 600 }}>
+                      {row.label}
+                    </Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Stack spacing={0} alignItems="flex-end">
+                      <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
+                        Live
+                      </Typography>
+                      <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
+                        {row.livePlayers != null ? numberFormatter.format(row.livePlayers) : "—"}
+                      </Typography>
+                    </Stack>
+                    <Stack spacing={0} alignItems="flex-end">
+                      <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
+                        Snitt
+                      </Typography>
+                      <Typography sx={{ color: "#fde68a", fontWeight: 600 }}>
+                        {row.avgPlayers != null ? numberFormatter.format(row.avgPlayers) : "—"}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Stack>
+              </Box>
+            ))
+          ) : (
+            <Typography sx={{ color: "rgba(148,163,184,0.7)", textAlign: "center", py: 2 }}>
+              Ingen översikt tillgänglig för dessa spel ännu.
+            </Typography>
+          )}
+        </Stack>
+      </Stack>
     </Box>
   );
 };
