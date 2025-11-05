@@ -1400,8 +1400,8 @@ const AsiaTrackerSection = ({
         gap: 1.75,
       }}
     >
-      <Stack spacing={0.4}>
-        <Typography variant="overline" sx={{ color: "rgba(248,250,133,0.9)", letterSpacing: 1.2, fontWeight: 600 }}>
+      <Stack spacing={0.4} alignItems="center" sx={{ textAlign: "center" }}>
+        <Typography variant="overline" sx={{ color: "rgba(248,250,133,0.9)", letterSpacing: 1.4, fontWeight: 700, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}>
           Asia Tracker
         </Typography>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
@@ -1413,7 +1413,7 @@ const AsiaTrackerSection = ({
         </Typography>
       </Stack>
 
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="center" justifyContent="center" sx={{ textAlign: "center" }}>
         <Chip
           label={`Live just nu: ${totalLiveText}`}
           sx={{
@@ -1434,7 +1434,7 @@ const AsiaTrackerSection = ({
         />
       </Stack>
 
-      <Stack spacing={1}>
+      <Stack spacing={1} alignItems="center" sx={{ textAlign: "center" }}>
         <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
           Välj Asien-spel
         </Typography>
@@ -1446,6 +1446,7 @@ const AsiaTrackerSection = ({
             maxHeight: { xs: 210, md: 120 },
             overflowY: "auto",
             pr: 0.5,
+            justifyContent: "center",
           }}
         >
           {options.length ? (
