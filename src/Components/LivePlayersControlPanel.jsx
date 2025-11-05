@@ -101,6 +101,7 @@ const ASIA_GAME_KEYS = [
   "lightning-dice",
 ];
 const ASIA_GAME_KEY_SET = new Set(ASIA_GAME_KEYS);
+const ASIA_AGG_COLOR = "#fde047";
 
 const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
@@ -217,6 +218,7 @@ const LivePlayersControlPanel = () => {
   const [gameTrendDays, setGameTrendDays] = useState(TREND_DAY_OPTIONS[0]);
   const [asiaTrackerSlug, setAsiaTrackerSlug] = useState(null);
   const [asiaTrackerDays, setAsiaTrackerDays] = useState(TREND_DAY_OPTIONS[0]);
+  const [asiaViewMode, setAsiaViewMode] = useState("trend");
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
 
   const [showAllLive, setShowAllLive] = useState(false);
@@ -502,6 +504,38 @@ const LivePlayersControlPanel = () => {
     [gameTrendOptions]
   );
 
+  const asiaCombinedSeries = useMemo(() => {
+    if (!slugDailyMap.size) return [];
+    const totals = new Map();
+    let hasData = false;
+    ASIA_GAME_KEYS.forEach((slug) => {
+      const series = slugDailyMap.get(slug);
+      if (!Array.isArray(series) || !series.length) return;
+      series.forEach((row) => {
+        const date = row?.date;
+        const players = Number(row?.players);
+        if (!date || !Number.isFinite(players)) return;
+        hasData = true;
+        totals.set(date, (totals.get(date) ?? 0) + players);
+      });
+    });
+    if (!hasData) return [];
+    return Array.from(totals.entries())
+      .map(([date, players]) => ({ date, players: Math.round(players) }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [slugDailyMap]);
+
+  const asiaTrendChartData = useMemo(() => {
+    if (!asiaCombinedSeries.length) return [];
+    const sliceCount = Math.min(asiaCombinedSeries.length, Math.max(asiaTrackerDays, 1));
+    return asiaCombinedSeries.slice(-sliceCount);
+  }, [asiaCombinedSeries, asiaTrackerDays]);
+
+  const asiaTrendSummary = useMemo(
+    () => computeTrendDiff(asiaTrendChartData),
+    [asiaTrendChartData]
+  );
+
   useEffect(() => {
     if (!asiaTrendOptions.length) {
       setAsiaTrackerSlug((prev) => (prev !== null ? null : prev));
@@ -512,6 +546,12 @@ const LivePlayersControlPanel = () => {
       return asiaTrendOptions[0].slug;
     });
   }, [asiaTrendOptions]);
+
+  useEffect(() => {
+    if (asiaViewMode === "trend" && !asiaCombinedSeries.length && asiaTrendOptions.length > 0) {
+      setAsiaViewMode("games");
+    }
+  }, [asiaViewMode, asiaCombinedSeries.length, asiaTrendOptions.length]);
 
   const gameTrendSeries = useMemo(() => {
     if (!gameTrendSlug || !slugDailyMap.size) return [];
@@ -848,8 +888,12 @@ const LivePlayersControlPanel = () => {
             options={asiaTrendOptions}
             selectedSlug={asiaTrackerSlug}
             onSelectSlug={setAsiaTrackerSlug}
-            chartData={asiaTrackerSeries}
-            summary={asiaTrackerSummary}
+            viewMode={asiaViewMode}
+            onChangeViewMode={setAsiaViewMode}
+            trendChartData={asiaTrendChartData}
+            trendSummary={asiaTrendSummary}
+            gameChartData={asiaTrackerSeries}
+            gameSummary={asiaTrackerSummary}
             selectedOption={selectedAsiaOption}
             dayOptions={TREND_DAY_OPTIONS}
             days={asiaTrackerDays}
@@ -1211,11 +1255,11 @@ const GameTrendSection = ({
         </Box>
       </Stack>
 
-      <Stack
-        direction={{ xs: "column", md: "row" }}
-        spacing={{ xs: 0.75, md: 2 }}
-        alignItems={{ xs: "flex-start", md: "center" }}
-        justifyContent="center"
+  <Stack
+    direction={{ xs: "column", md: "row" }}
+    spacing={{ xs: 0.75, md: 2 }}
+    alignItems={{ xs: "flex-start", md: "center" }}
+    justifyContent="center"
         sx={{ color: "rgba(148,163,184,0.75)", textAlign: { xs: "left", md: "center" } }}
       >
         <Typography variant="caption">
@@ -1348,40 +1392,46 @@ const AsiaTrackerSection = ({
   options,
   selectedSlug,
   onSelectSlug,
-  chartData,
-  summary,
+  viewMode,
+  onChangeViewMode,
+  trendChartData,
+  trendSummary,
+  gameChartData,
+  gameSummary,
   selectedOption,
   dayOptions,
   days,
   onChangeDays,
 }) => {
+  const isTrendView = viewMode === "trend";
+  const currentSummary = isTrendView ? trendSummary : gameSummary;
+
   const changeColor =
-    summary && Number.isFinite(summary?.absolute)
-      ? summary.absolute >= 0
+    currentSummary && Number.isFinite(currentSummary?.absolute)
+      ? currentSummary.absolute >= 0
         ? "#34d399"
         : "#f87171"
       : "rgba(148,163,184,0.75)";
   const percentText =
-    summary && Number.isFinite(summary?.percent)
-      ? `${summary.percent > 0 ? "+" : ""}${summary.percent.toLocaleString("sv-SE", {
+    currentSummary && Number.isFinite(currentSummary?.percent)
+      ? `${currentSummary.percent > 0 ? "+" : ""}${currentSummary.percent.toLocaleString("sv-SE", {
           minimumFractionDigits: 1,
           maximumFractionDigits: 1,
         })}%`
       : "—";
   const absoluteText =
-    summary && Number.isFinite(summary?.absolute)
-      ? `${summary.absolute > 0 ? "+" : ""}${summary.absolute.toLocaleString("sv-SE")}`
+    currentSummary && Number.isFinite(currentSummary?.absolute)
+      ? `${currentSummary.absolute > 0 ? "+" : ""}${currentSummary.absolute.toLocaleString("sv-SE")}`
       : "—";
   const startText =
-    summary?.start?.value != null ? summary.start.value.toLocaleString("sv-SE") : "—";
+    currentSummary?.start?.value != null ? currentSummary.start.value.toLocaleString("sv-SE") : "—";
   const endText =
-    summary?.end?.value != null ? summary.end.value.toLocaleString("sv-SE") : "—";
-  const startDateText = formatDateOnly(summary?.start?.date) ?? "—";
-  const endDateText = formatDateOnly(summary?.end?.date) ?? "—";
+    currentSummary?.end?.value != null ? currentSummary.end.value.toLocaleString("sv-SE") : "—";
+  const startDateText = formatDateOnly(currentSummary?.start?.date) ?? "—";
+  const endDateText = formatDateOnly(currentSummary?.end?.date) ?? "—";
 
-  const activeColor = selectedOption?.color ?? "#facc15";
+  const activeColor = selectedOption?.color ?? ASIA_AGG_COLOR;
   const activeLabel = selectedOption?.label ?? "Välj Asien-spel";
-
   const totalLiveText = Number.isFinite(totalLive) ? numberFormatter.format(totalLive) : "—";
   const shareText =
     Number.isFinite(liveShare) && liveShare != null
@@ -1434,54 +1484,102 @@ const AsiaTrackerSection = ({
         />
       </Stack>
 
-      <Stack spacing={1} alignItems="center" sx={{ textAlign: "center" }}>
-        <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
-          Välj Asien-spel
-        </Typography>
-        <Box
+      <ToggleButtonGroup
+        value={viewMode}
+        exclusive
+        size="small"
+        onChange={(_, value) => value && onChangeViewMode(value)}
+        sx={{
+          alignSelf: "center",
+          backgroundColor: "rgba(148,163,184,0.12)",
+          borderRadius: "999px",
+          p: 0.5,
+        }}
+      >
+        <ToggleButton
+          value="trend"
           sx={{
-            display: "flex",
-            gap: 1,
-            flexWrap: "wrap",
-            maxHeight: { xs: 210, md: 120 },
-            overflowY: "auto",
-            pr: 0.5,
-            justifyContent: "center",
+            textTransform: "none",
+            color: "rgba(226,232,240,0.75)",
+            border: 0,
+            borderRadius: "999px!important",
+            px: { xs: 1.5, md: 2.2 },
+            "&.Mui-selected": {
+              color: "#f8fafc",
+              backgroundColor: "rgba(248,250,133,0.28)",
+            },
           }}
         >
-          {options.length ? (
-            options.map((option) => {
-              const isActive = option.slug === selectedSlug;
-              return (
-                <Chip
-                  key={option.slug}
-                  label={option.label}
-                  onClick={() => onSelectSlug && onSelectSlug(option.slug)}
-                  clickable
-                  sx={{
-                    borderRadius: "999px",
-                    backgroundColor: isActive ? `${option.color}33` : "rgba(148,163,184,0.1)",
-                    color: isActive ? option.color : "rgba(226,232,240,0.8)",
-                    border: `1px solid ${isActive ? option.color : "transparent"}`,
-                    fontWeight: isActive ? 600 : 500,
-                  }}
-                />
-              );
-            })
-          ) : (
-            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-              Ingen speldata för Asien-portföljen ännu.
-            </Typography>
-          )}
-        </Box>
-      </Stack>
+          Asien-trend
+        </ToggleButton>
+        <ToggleButton
+          value="games"
+          sx={{
+            textTransform: "none",
+            color: "rgba(226,232,240,0.75)",
+            border: 0,
+            borderRadius: "999px!important",
+            px: { xs: 1.5, md: 2.2 },
+            "&.Mui-selected": {
+              color: "#f8fafc",
+              backgroundColor: "rgba(56,189,248,0.28)",
+            },
+          }}
+        >
+          Spel
+        </ToggleButton>
+      </ToggleButtonGroup>
 
-      {selectedSlug && (
+      {!isTrendView && (
+        <Stack spacing={1} alignItems="center" sx={{ textAlign: "center" }}>
+          <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
+            Välj Asien-spel
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1,
+              flexWrap: "wrap",
+              maxHeight: { xs: 210, md: 120 },
+              overflowY: "auto",
+              pr: 0.5,
+              justifyContent: "center",
+            }}
+          >
+            {options.length ? (
+              options.map((option) => {
+                const isActive = option.slug === selectedSlug;
+                return (
+                  <Chip
+                    key={option.slug}
+                    label={option.label}
+                    onClick={() => onSelectSlug && onSelectSlug(option.slug)}
+                    clickable
+                    sx={{
+                      borderRadius: "999px",
+                      backgroundColor: isActive ? `${option.color}33` : "rgba(148,163,184,0.1)",
+                      color: isActive ? option.color : "rgba(226,232,240,0.8)",
+                      border: `1px solid ${isActive ? option.color : "transparent"}`,
+                      fontWeight: isActive ? 600 : 500,
+                    }}
+                  />
+                );
+              })
+            ) : (
+              <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
+                Ingen speldata för Asien-portföljen ännu.
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+      )}
+
+      {!isTrendView && selectedSlug && (
         <Stack spacing={0.4} alignItems="center" sx={{ textAlign: "center" }}>
           <Typography variant="h6" sx={{ color: activeColor, fontWeight: 700 }}>
             {activeLabel}
           </Typography>
-          {summary && (
+          {gameSummary && (
             <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
               Förändring: {absoluteText} ({percentText})
             </Typography>
@@ -1502,9 +1600,19 @@ const AsiaTrackerSection = ({
         <Typography variant="caption">
           Slut: <strong>{endText}</strong> ({endDateText})
         </Typography>
+        {(isTrendView || !selectedSlug) && (
+          <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
+            Förändring: {absoluteText} ({percentText})
+          </Typography>
+        )}
       </Stack>
 
-      <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1}>
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        justifyContent="space-between"
+        alignItems={{ xs: "flex-start", md: "center" }}
+        spacing={1}
+      >
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
           Visa dagar
         </Typography>
@@ -1531,7 +1639,7 @@ const AsiaTrackerSection = ({
                 px: { xs: 1.5, md: 2 },
                 "&.Mui-selected": {
                   color: "#f8fafc",
-                  backgroundColor: "rgba(248,250,133,0.28)",
+                  backgroundColor: isTrendView ? "rgba(248,250,133,0.28)" : "rgba(56,189,248,0.28)",
                 },
               }}
             >
@@ -1544,14 +1652,70 @@ const AsiaTrackerSection = ({
       <Box sx={{ height: 260 }}>
         {overviewLoading ? (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
-            <CircularProgress size={20} sx={{ color: "#fde68a" }} />
+            <CircularProgress size={20} sx={{ color: isTrendView ? "#fde68a" : "#38bdf8" }} />
             <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
               Laddar spelardata…
             </Typography>
           </Box>
-        ) : chartData.length ? (
+        ) : isTrendView ? (
+          trendChartData.length ? (
+            <ResponsiveContainer>
+              <AreaChart data={trendChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="asiaTrendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={ASIA_AGG_COLOR} stopOpacity={0.55} />
+                    <stop offset="95%" stopColor={ASIA_AGG_COLOR} stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                  tickFormatter={(value) => numberFormatter.format(value)}
+                  width={60}
+                />
+                <RechartsTooltip
+                  contentStyle={{
+                    background: "rgba(15,23,42,0.92)",
+                    border: "1px solid rgba(250, 204, 21, 0.25)",
+                    borderRadius: 12,
+                    color: "#f8fafc",
+                  }}
+                  formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Snitt"]}
+                />
+                <Area
+                  dataKey="players"
+                  type="monotone"
+                  stroke={ASIA_AGG_COLOR}
+                  strokeWidth={2.2}
+                  fill="url(#asiaTrendGradient)"
+                  fillOpacity={1}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "rgba(148,163,184,0.75)",
+              }}
+            >
+              Ingen sammanlagd trenddata för Asien-portföljen.
+            </Box>
+          )
+        ) : gameChartData.length ? (
           <ResponsiveContainer>
-            <BarChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+            <BarChart data={gameChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
               <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
               <XAxis
                 dataKey="date"
@@ -1588,7 +1752,7 @@ const AsiaTrackerSection = ({
               color: "rgba(148,163,184,0.75)",
             }}
           >
-            Ingen trenddata för Asien-portföljen.
+            Ingen trenddata för valt spel.
           </Box>
         )}
       </Box>
