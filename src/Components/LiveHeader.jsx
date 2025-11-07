@@ -340,6 +340,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   ]);
 
   const userEmail = user?.email ?? null;
+  const isLiveMoneyPanel = activePanel === "money";
+  const panelContent = renderActivePanel();
 
   return (
     <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
@@ -860,7 +862,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               sx={{
                 width: "100%",
                 mt: { xs: 1, sm: 1.5 },
-                mx: { xs: -3, sm: -5, md: -6 },
+                mx: isLiveMoneyPanel ? "auto" : { xs: -3, sm: -5, md: -6 },
+                maxWidth: isLiveMoneyPanel ? "min(1700px, 100%)" : "none",
+                display: isLiveMoneyPanel ? "flex" : "block",
+                justifyContent: isLiveMoneyPanel ? "center" : "flex-start",
                 "& > *": {
                   background: "transparent!important",
                   border: "none!important",
@@ -868,7 +873,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 },
               }}
             >
-              {renderActivePanel()}
+              {panelContent}
             </Box>
           </Stack>
         </Stack>
