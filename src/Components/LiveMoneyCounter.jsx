@@ -170,10 +170,11 @@ const LiveMoneyCounter = () => {
         color: '#f8fafc',
 
         // === FULLBREDD / BLEED ===
-        mx: { xs: -2, sm: -3, md: -4 },
+        mx: { xs: -2, sm: -3, md: 0 },
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 4 },
         width: '100%',
+        maxWidth: 'min(1700px, 100%)',
         overflow: 'visible',
 
         display: 'flex',
