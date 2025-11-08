@@ -9,6 +9,8 @@ import {
   getOverviewSnapshot,
   setOverviewSnapshot,
   getDailyAggregates,
+  getGlobalLobbyAth,
+  setGlobalLobbyAth,
 } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
@@ -166,6 +168,27 @@ function computeAthFromDailyRows(staticDaily, dynamicDaily) {
     }
   }
   return athValue != null ? { value: Math.round(athValue), date: athDate } : null;
+}
+
+function mergeAthWithTodayPeak(currentAth, todayPeak, todayYmd) {
+  const todayValue = Number(todayPeak?.value);
+  if (!Number.isFinite(todayValue)) return currentAth;
+  const shouldReplace =
+    !currentAth || !Number.isFinite(currentAth.value) || todayValue > Number(currentAth.value);
+  if (!shouldReplace) return currentAth;
+  return {
+    value: Math.round(todayValue),
+    date: todayYmd || currentAth?.date || null,
+    at: todayPeak?.at ?? null,
+  };
+}
+
+function pickBetterAth(a, b) {
+  const aVal = Number(a?.value);
+  const bVal = Number(b?.value);
+  if (!Number.isFinite(aVal)) return Number.isFinite(bVal) ? b : null;
+  if (!Number.isFinite(bVal)) return a;
+  return aVal >= bVal ? a : b;
 }
 
 function buildDailyTotals(perSlugSeries, today) {
@@ -562,6 +585,19 @@ export async function GET(req) {
       }));
       aggMs = Date.now() - fallbackAggStart;
     }
+
+    const storedAth = await getGlobalLobbyAth();
+    const athWithToday = mergeAthWithTodayPeak(ath, todayPeak, todayYmd);
+    let finalAth = pickBetterAth(athWithToday, storedAth);
+    if (!finalAth) finalAth = athWithToday ?? storedAth ?? null;
+    if (finalAth && (!storedAth || finalAth.value > storedAth.value)) {
+      await setGlobalLobbyAth({
+        value: finalAth.value,
+        date: finalAth.date ?? storedAth?.date ?? todayYmd ?? null,
+        at: finalAth.at ?? storedAth?.at ?? todayPeak?.at ?? null,
+      });
+    }
+    ath = finalAth ?? athWithToday ?? storedAth ?? ath;
 
     const slugDaily = Object.fromEntries(
       perSlugData.map(({ slug, daily }) => [slug, daily])

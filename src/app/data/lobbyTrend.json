@@ -34,11 +34,15 @@
       { "date": "2025-10-26", "avgPlayers": 48231.11 },
       { "date": "2025-10-27", "avgPlayers": 48546.9 },
       { "date": "2025-10-28", "avgPlayers": 47621.54 },
-      { "date": "2025-10-29",  "avgPlayers": 50071.86 },
+      { "date": "2025-10-29", "avgPlayers": 50071.86 },
       { "date": "2025-10-30", "avgPlayers": 53109.23},
       { "date": "2025-10-31", "avgPlayers": 50708.18},
       { "date": "2025-11-01", "avgPlayers": 54713.82},
       { "date": "2025-11-02", "avgPlayers": 51278.75},
-      { "date": "2025-11-03", "avgPlayers": 57019.78}
+      { "date": "2025-11-03", "avgPlayers": 57019.78},
+      { "date": "2025-11-04", "avgPlayers": 55276.98},
+      { "date": "2025-11-05", "avgPlayers": 56561.72},
+      { "date": "2025-11-06", "avgPlayers": 61316.44},
+      { "date": "2025-11-07", "avgPlayers": 63599.32}
     ]
   }
