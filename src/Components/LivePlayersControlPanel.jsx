@@ -117,6 +117,15 @@ const timeFormatter = new Intl.DateTimeFormat("sv-SE", {
 });
 const numberFormatter = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 });
 
+const getStockholmTodayYmd = () => {
+  try {
+    const formatted = dateFormatter.format(new Date());
+    return formatted.replace(/\//g, "-");
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+};
+
 const formatDateTime = (value) => {
   if (!value) return null;
   try {
@@ -423,9 +432,29 @@ const LivePlayersControlPanel = () => {
   }, [slugDailyMap]);
 
   // --------- Deriverad UI-data ----------
-  const mergedTodayPeak = lobbyStats?.todayPeak ?? todayPeak;
+  const rawTodayPeak = lobbyStats?.todayPeak ?? todayPeak;
   const mergedYesterdayPeak = lobbyStats?.yesterdayPeak ?? yesterdayPeak;
   const mergedLobbyAth = lobbyStats?.lobbyAth ?? lobbyAth;
+  const stockholmTodayYmd = getStockholmTodayYmd();
+
+  const stabilizedTodayPeak = useMemo(() => {
+    const athValue = Number(mergedLobbyAth?.value);
+    const todayValue = Number(rawTodayPeak?.value);
+    const athDate = mergedLobbyAth?.date ?? (mergedLobbyAth?.at ? mergedLobbyAth.at.slice(0, 10) : null);
+    const athIsToday = athDate && athDate === stockholmTodayYmd;
+    if (
+      athIsToday &&
+      Number.isFinite(athValue) &&
+      (!Number.isFinite(todayValue) || athValue > todayValue)
+    ) {
+      return {
+        value: athValue,
+        at: mergedLobbyAth?.at ?? rawTodayPeak?.at ?? null,
+        date: athDate ?? rawTodayPeak?.date ?? null,
+      };
+    }
+    return rawTodayPeak;
+  }, [rawTodayPeak, mergedLobbyAth, stockholmTodayYmd]);
 
   const playersUpdatedText = useMemo(() => {
     if (!lastUpdated) return "Uppdatering saknas";
@@ -434,9 +463,9 @@ const LivePlayersControlPanel = () => {
   }, [lastUpdated]);
 
   const todayPeakTimeInfo = useMemo(() => {
-    if (!mergedTodayPeak?.at) return null;
+    if (!stabilizedTodayPeak?.at) return null;
     try {
-      const date = new Date(mergedTodayPeak.at);
+      const date = new Date(stabilizedTodayPeak.at);
       if (!Number.isFinite(date.getTime())) return null;
       return {
         time: timeFormatter.format(date),
@@ -446,7 +475,7 @@ const LivePlayersControlPanel = () => {
     } catch {
       return null;
     }
-  }, [mergedTodayPeak]);
+  }, [stabilizedTodayPeak]);
 
   const liveGamesList = useMemo(() => {
     const sourceGames = contextGames ?? GAME_CONFIG ?? [];
@@ -492,25 +521,25 @@ const LivePlayersControlPanel = () => {
   }, [totalLivePlayers, lobbyBoostMultiplier]);
 
   const todayPeakDisplayValue = useMemo(() => {
-    const peakValue = Number.isFinite(mergedTodayPeak?.value) ? mergedTodayPeak.value : null;
+    const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;
     if (peakValue == null) return null;
     return Math.round(peakValue * lobbyBoostMultiplier);
-  }, [mergedTodayPeak, lobbyBoostMultiplier]);
+  }, [stabilizedTodayPeak, lobbyBoostMultiplier]);
 
   const todayPeakMetaText = useMemo(() => {
-    if (!mergedTodayPeak) return "Ingen peak registrerad";
+    if (!stabilizedTodayPeak) return "Ingen peak registrerad";
     return todayPeakTimeInfo?.full ? `Peak ${todayPeakTimeInfo.full}` : "Ingen tidsstämpel registrerad";
-  }, [mergedTodayPeak, todayPeakTimeInfo]);
+  }, [stabilizedTodayPeak, todayPeakTimeInfo]);
 
   const baseLobbyAth = useMemo(() => {
     const candidates = [];
     if (Number.isFinite(mergedLobbyAth?.value)) {
       candidates.push({ value: mergedLobbyAth.value, date: mergedLobbyAth?.date ?? null, type: "historical" });
     }
-    if (Number.isFinite(mergedTodayPeak?.value)) {
+    if (Number.isFinite(stabilizedTodayPeak?.value)) {
       candidates.push({
-        value: mergedTodayPeak.value,
-        date: mergedTodayPeak?.at ?? mergedTodayPeak?.date ?? null,
+        value: stabilizedTodayPeak.value,
+        date: stabilizedTodayPeak?.at ?? stabilizedTodayPeak?.date ?? null,
         type: "today",
       });
     }
@@ -519,7 +548,7 @@ const LivePlayersControlPanel = () => {
       if (!max || curr.value > max.value) return curr;
       return max;
     }, null);
-  }, [mergedLobbyAth, mergedTodayPeak]);
+  }, [mergedLobbyAth, stabilizedTodayPeak]);
 
   const lobbyAthDisplay = useMemo(() => {
     if (!baseLobbyAth) return null;
