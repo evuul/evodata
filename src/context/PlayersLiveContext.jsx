@@ -16,7 +16,35 @@ export function PlayersLiveProvider({ children, enabled = true }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [lobbyStats, setLobbyStats] = useState({ todayPeak: null, yesterdayPeak: null, lobbyAth: null, updatedAt: null });
   const lastFetchRef = useRef(0);
+  const lastLobbyStatsFetchRef = useRef(0);
+
+  const fetchLobbyStats = useCallback(
+    async (force = false) => {
+      if (!enabled) return;
+      const now = Date.now();
+      if (!force && now - lastLobbyStatsFetchRef.current < MIN_COOLDOWN_MS) {
+        return;
+      }
+      lastLobbyStatsFetchRef.current = now;
+      try {
+        const res = await fetch("/api/casinoscores/lobby/stats", { cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json?.ok) return;
+        setLobbyStats({
+          todayPeak: json.todayPeak ?? null,
+          yesterdayPeak: json.yesterdayPeak ?? null,
+          lobbyAth: json.lobbyAth ?? null,
+          updatedAt: json.updatedAt ?? null,
+        });
+      } catch {
+        // ignorerar statsfel
+      }
+    },
+    [enabled]
+  );
 
   const fetchAll = useCallback(async (force = false) => {
     if (!enabled) return;
@@ -79,12 +107,14 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       } else {
         setLastUpdated(new Date());
       }
+
+      fetchLobbyStats(force);
     } catch (e) {
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
     }
-  }, [enabled]);
+  }, [enabled, fetchLobbyStats]);
 
   const hydrateFromCache = useCallback(async () => {
     if (!enabled) return;
@@ -108,10 +138,11 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       if (json.updatedAt) {
         setLastUpdated((prev) => (prev ? prev : new Date(json.updatedAt)));
       }
+      fetchLobbyStats(true);
     } catch {
       // ignorerar cachefel
     }
-  }, [enabled]);
+  }, [enabled, fetchLobbyStats]);
 
   // initial + events
   useEffect(() => {
@@ -124,6 +155,10 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     }, 0);
     return () => clearTimeout(id);
   }, [hydrateFromCache, enabled]);
+
+  useEffect(() => {
+    fetchLobbyStats(true);
+  }, [fetchLobbyStats]);
 
   useEffect(() => {
     if (!enabled) {
@@ -156,8 +191,9 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       lastUpdated,
       refresh: (force = false) => fetchAll(force),
       GAMES,
+      lobbyStats,
     }),
-    [data, loading, error, lastUpdated, fetchAll]
+    [data, loading, error, lastUpdated, fetchAll, lobbyStats]
   );
 
   return <PlayersLiveContext.Provider value={value}>{children}</PlayersLiveContext.Provider>;

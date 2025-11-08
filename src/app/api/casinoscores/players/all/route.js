@@ -2,7 +2,14 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-import { normalizePlayers, saveSample, getLatestSample } from "@/lib/csStore";
+import {
+  normalizePlayers,
+  saveSample,
+  getLatestSample,
+  maybeUpdateDailyLobbyPeak,
+  getGlobalLobbyAth,
+  setGlobalLobbyAth,
+} from "@/lib/csStore";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
 
@@ -132,6 +139,33 @@ export async function GET(req) {
       entry.stale = true;
       newestTs = Math.max(newestTs, usable.ts);
     });
+  }
+
+  if (Number.isFinite(lobbyCreatedAt)) {
+    let totalPlayers = 0;
+    let countedGames = 0;
+    for (const entry of items) {
+      if (!entry?.stale && Number.isFinite(entry?.players)) {
+        totalPlayers += entry.players;
+        countedGames += 1;
+      }
+    }
+    if (countedGames > 0) {
+      try {
+        const updatedPeak = await maybeUpdateDailyLobbyPeak(totalPlayers, lobbyCreatedAt);
+        const existingAth = await getGlobalLobbyAth();
+        const existingValue = Number(existingAth?.value);
+        if (!Number.isFinite(existingValue) || totalPlayers > existingValue) {
+          await setGlobalLobbyAth({
+            value: totalPlayers,
+            date: updatedPeak?.date || (updatedPeak?.at ? updatedPeak.at.slice(0, 10) : null),
+            at: new Date(lobbyCreatedAt).toISOString(),
+          });
+        }
+      } catch {
+        // Ignorerar peak/Ath fel så live-endpointen alltid svarar
+      }
+    }
   }
 
   return resJSON({

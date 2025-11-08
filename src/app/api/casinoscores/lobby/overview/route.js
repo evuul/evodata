@@ -11,6 +11,7 @@ import {
   getDailyAggregates,
   getGlobalLobbyAth,
   setGlobalLobbyAth,
+  getDailyLobbyPeak,
 } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
 
@@ -189,6 +190,26 @@ function pickBetterAth(a, b) {
   if (!Number.isFinite(aVal)) return Number.isFinite(bVal) ? b : null;
   if (!Number.isFinite(bVal)) return a;
   return aVal >= bVal ? a : b;
+}
+
+function pickDailyPeakPreference(primary, fallback, defaultDate) {
+  const primaryValue = Number(primary?.value);
+  const fallbackValue = Number(fallback?.value);
+  if (Number.isFinite(primaryValue) && (!Number.isFinite(fallbackValue) || primaryValue >= fallbackValue)) {
+    return {
+      value: Math.round(primaryValue),
+      at: primary?.at ?? null,
+      date: primary?.date ?? defaultDate ?? null,
+    };
+  }
+  if (Number.isFinite(fallbackValue)) {
+    return {
+      value: Math.round(fallbackValue),
+      at: fallback?.at ?? null,
+      date: fallback?.date ?? defaultDate ?? null,
+    };
+  }
+  return null;
 }
 
 function buildDailyTotals(perSlugSeries, today) {
@@ -585,6 +606,9 @@ export async function GET(req) {
       }));
       aggMs = Date.now() - fallbackAggStart;
     }
+
+    const storedTodayPeak = await getDailyLobbyPeak(todayYmd);
+    todayPeak = pickDailyPeakPreference(storedTodayPeak, todayPeak, todayYmd);
 
     const storedAth = await getGlobalLobbyAth();
     const athWithToday = mergeAthWithTodayPeak(ath, todayPeak, todayYmd);

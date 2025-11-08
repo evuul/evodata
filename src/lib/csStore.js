@@ -73,6 +73,9 @@ const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
 const GLOBAL_ATH_KEY = "cs:lobby:global-ath";
 let globalAthCache = null;
 
+const DAILY_PEAK_PREFIX = "cs:lobby:today-peak:";
+const dailyPeakMem = new Map(); // key (ymd) -> entry
+
 function overviewKey(days) {
   const n = Number(days);
   const suffix = Number.isFinite(n) ? Math.round(n) : String(days ?? "default");
@@ -185,6 +188,81 @@ export async function setGlobalLobbyAth(entry) {
   } catch (err) {
     if (DEBUG) console.warn(`[csStore] KV set global ATH failed:`, err);
   }
+}
+
+function dailyPeakKey(ymd) {
+  return `${DAILY_PEAK_PREFIX}${ymd}`;
+}
+
+function normalizeDailyPeakEntry(entry, fallbackYmd) {
+  if (!entry || typeof entry !== "object") return null;
+  const value = normalizePlayers(entry.value);
+  if (value == null) return null;
+  const normalizedDate = normalizeYmd(entry.date) || normalizeYmd(fallbackYmd) || null;
+  return {
+    value,
+    date: normalizedDate,
+    at: typeof entry.at === "string" ? entry.at : null,
+    updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : null,
+  };
+}
+
+async function loadDailyPeakFromKv(ymd) {
+  const kv = await getKv();
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(dailyPeakKey(ymd));
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const normalized = normalizeDailyPeakEntry(parsed, ymd);
+    if (normalized) {
+      dailyPeakMem.set(ymd, normalized);
+      return normalized;
+    }
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV get daily peak failed ${ymd}:`, err);
+  }
+  return null;
+}
+
+export async function getDailyLobbyPeak(ymd) {
+  const normalizedYmd = normalizeYmd(ymd);
+  if (!normalizedYmd) return null;
+  const cached = dailyPeakMem.get(normalizedYmd);
+  if (cached) return cached;
+  return (await loadDailyPeakFromKv(normalizedYmd)) ?? null;
+}
+
+export async function maybeUpdateDailyLobbyPeak(totalPlayers, measuredAt) {
+  const normalizedValue = normalizePlayers(totalPlayers);
+  if (normalizedValue == null) return null;
+  const ts = typeof measuredAt === "number" ? measuredAt : Date.parse(measuredAt);
+  if (!Number.isFinite(ts)) return null;
+  const ymd = normalizeYmd(stockholmYMDFromTs(ts));
+  if (!ymd) return null;
+
+  const current = dailyPeakMem.get(ymd) ?? (await loadDailyPeakFromKv(ymd));
+  if (current && Number.isFinite(current.value) && current.value >= normalizedValue) {
+    return current;
+  }
+
+  const entry = {
+    value: normalizedValue,
+    date: ymd,
+    at: new Date(ts).toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  dailyPeakMem.set(ymd, entry);
+
+  const kv = await getKv();
+  if (kv) {
+    try {
+      await kv.set(dailyPeakKey(ymd), JSON.stringify(entry));
+    } catch (err) {
+      if (DEBUG) console.warn(`[csStore] KV set daily peak failed ${ymd}:`, err);
+    }
+  }
+  return entry;
 }
 
 // ---- Dagliga aggregat ----

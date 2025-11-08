@@ -218,7 +218,13 @@ const computeTrendDiff = (series, key = "players") => {
 };
 
 const LivePlayersControlPanel = () => {
-  const { data: liveGames, loading: loadingLive, GAMES: contextGames, lastUpdated } = usePlayersLive();
+  const {
+    data: liveGames,
+    loading: loadingLive,
+    GAMES: contextGames,
+    lastUpdated,
+    lobbyStats,
+  } = usePlayersLive();
 
   const [detailView, setDetailView] = useState("trend");
   const [trendDays, setTrendDays] = useState(TREND_DAY_OPTIONS[0]);
@@ -232,6 +238,7 @@ const LivePlayersControlPanel = () => {
   const [slugDailyMap, setSlugDailyMap] = useState(new Map());
   const [trendDelta, setTrendDelta] = useState(null);
   const [todayPeak, setTodayPeak] = useState(null);
+  const [yesterdayPeak, setYesterdayPeak] = useState(null);
   const [lobbyAth, setLobbyAth] = useState(null);
   const [gameTrendSlug, setGameTrendSlug] = useState(null);
   const [gameTrendDays, setGameTrendDays] = useState(TREND_DAY_OPTIONS[0]);
@@ -292,6 +299,7 @@ const LivePlayersControlPanel = () => {
       setSlugDailyMap(map);
       setTrendDelta(normalizeTrendDelta(cached.trendDelta));
       setTodayPeak(normalizeTodayPeak(cached.todayPeak));
+      setYesterdayPeak(normalizeTodayPeak(cached.yesterdayPeak));
       setLobbyAth(normalizeLobbyAth(cached.lobbyAth));
       setGameTrendSlug((prev) => {
         if (prev && map.has(prev)) return prev;
@@ -350,6 +358,7 @@ const LivePlayersControlPanel = () => {
       ]);
       const trendInfo = normalizeTrendDelta(json?.trendDelta);
       const todaysPeak = normalizeTodayPeak(json?.todayPeak);
+      const yesterdaysPeak = normalizeTodayPeak(json?.yesterdayPeak);
       const overviewAth = normalizeLobbyAth(json?.ath);
 
       const payload = {
@@ -359,6 +368,7 @@ const LivePlayersControlPanel = () => {
         slugDailyEntries,
         trendDelta: trendInfo,
         todayPeak: todaysPeak,
+        yesterdayPeak: yesterdaysPeak,
         lobbyAth: overviewAth,
         generatedAt: json?.generatedAt || null,
       };
@@ -371,6 +381,7 @@ const LivePlayersControlPanel = () => {
       setSlugDailyMap(map);
       setTrendDelta(trendInfo);
       setTodayPeak(todaysPeak);
+      setYesterdayPeak(yesterdaysPeak);
       setLobbyAth(overviewAth);
       setGameTrendSlug((prev) => {
         if (prev && map.has(prev)) return prev;
@@ -386,6 +397,7 @@ const LivePlayersControlPanel = () => {
       setSlugDailyMap(new Map());
       setTrendDelta(null);
       setTodayPeak(null);
+      setYesterdayPeak(null);
       setLobbyAth(null);
       setOverviewGeneratedAt(null);
     } finally {
@@ -411,6 +423,10 @@ const LivePlayersControlPanel = () => {
   }, [slugDailyMap]);
 
   // --------- Deriverad UI-data ----------
+  const mergedTodayPeak = lobbyStats?.todayPeak ?? todayPeak;
+  const mergedYesterdayPeak = lobbyStats?.yesterdayPeak ?? yesterdayPeak;
+  const mergedLobbyAth = lobbyStats?.lobbyAth ?? lobbyAth;
+
   const playersUpdatedText = useMemo(() => {
     if (!lastUpdated) return "Uppdatering saknas";
     const dateStr = formatDateTime(lastUpdated);
@@ -418,9 +434,9 @@ const LivePlayersControlPanel = () => {
   }, [lastUpdated]);
 
   const todayPeakTimeInfo = useMemo(() => {
-    if (!todayPeak?.at) return null;
+    if (!mergedTodayPeak?.at) return null;
     try {
-      const date = new Date(todayPeak.at);
+      const date = new Date(mergedTodayPeak.at);
       if (!Number.isFinite(date.getTime())) return null;
       return {
         time: timeFormatter.format(date),
@@ -430,7 +446,7 @@ const LivePlayersControlPanel = () => {
     } catch {
       return null;
     }
-  }, [todayPeak]);
+  }, [mergedTodayPeak]);
 
   const liveGamesList = useMemo(() => {
     const sourceGames = contextGames ?? GAME_CONFIG ?? [];
@@ -475,38 +491,27 @@ const LivePlayersControlPanel = () => {
     return Math.round(totalLivePlayers * lobbyBoostMultiplier);
   }, [totalLivePlayers, lobbyBoostMultiplier]);
 
-  const { mergedPeakValue, mergedPeakSource } = useMemo(() => {
-    const peakValue = Number.isFinite(todayPeak?.value) ? todayPeak.value : null;
-    const liveValue = Number.isFinite(totalLivePlayers) ? totalLivePlayers : null;
-    if (liveValue != null && (peakValue == null || liveValue > peakValue)) {
-      return { mergedPeakValue: liveValue, mergedPeakSource: "live" };
-    }
-    if (peakValue != null) {
-      return { mergedPeakValue: peakValue, mergedPeakSource: "peak" };
-    }
-    return { mergedPeakValue: null, mergedPeakSource: "none" };
-  }, [todayPeak, totalLivePlayers]);
-
   const todayPeakDisplayValue = useMemo(() => {
-    if (!Number.isFinite(mergedPeakValue)) return null;
-    return Math.round(mergedPeakValue * lobbyBoostMultiplier);
-  }, [mergedPeakValue, lobbyBoostMultiplier]);
+    const peakValue = Number.isFinite(mergedTodayPeak?.value) ? mergedTodayPeak.value : null;
+    if (peakValue == null) return null;
+    return Math.round(peakValue * lobbyBoostMultiplier);
+  }, [mergedTodayPeak, lobbyBoostMultiplier]);
 
   const todayPeakMetaText = useMemo(() => {
-    if (mergedPeakSource === "live") return playersUpdatedText;
+    if (!mergedTodayPeak) return "Ingen peak registrerad";
     return todayPeakTimeInfo?.full ? `Peak ${todayPeakTimeInfo.full}` : "Ingen tidsstämpel registrerad";
-  }, [mergedPeakSource, playersUpdatedText, todayPeakTimeInfo]);
+  }, [mergedTodayPeak, todayPeakTimeInfo]);
 
   const baseLobbyAth = useMemo(() => {
     const candidates = [];
-    if (Number.isFinite(lobbyAth?.value)) {
-      candidates.push({ value: lobbyAth.value, date: lobbyAth?.date ?? null, type: "historical" });
+    if (Number.isFinite(mergedLobbyAth?.value)) {
+      candidates.push({ value: mergedLobbyAth.value, date: mergedLobbyAth?.date ?? null, type: "historical" });
     }
-    if (Number.isFinite(mergedPeakValue)) {
+    if (Number.isFinite(mergedTodayPeak?.value)) {
       candidates.push({
-        value: mergedPeakValue,
-        date: mergedPeakSource === "peak" ? todayPeak?.at ?? todayPeak?.date ?? null : null,
-        type: mergedPeakSource,
+        value: mergedTodayPeak.value,
+        date: mergedTodayPeak?.at ?? mergedTodayPeak?.date ?? null,
+        type: "today",
       });
     }
     if (!candidates.length) return null;
@@ -514,7 +519,7 @@ const LivePlayersControlPanel = () => {
       if (!max || curr.value > max.value) return curr;
       return max;
     }, null);
-  }, [lobbyAth, mergedPeakValue, mergedPeakSource, todayPeak]);
+  }, [mergedLobbyAth, mergedTodayPeak]);
 
   const lobbyAthDisplay = useMemo(() => {
     if (!baseLobbyAth) return null;
@@ -532,6 +537,24 @@ const LivePlayersControlPanel = () => {
       isToday,
     };
   }, [baseLobbyAth, lobbyBoostMultiplier, todayPeakTimeInfo]);
+
+  const yesterdayPeakDisplayValue = useMemo(() => {
+    if (!Number.isFinite(mergedYesterdayPeak?.value)) return null;
+    return Math.round(mergedYesterdayPeak.value * lobbyBoostMultiplier);
+  }, [mergedYesterdayPeak, lobbyBoostMultiplier]);
+
+  const yesterdayPeakMetaText = useMemo(() => {
+    if (!mergedYesterdayPeak) return "Ingen peak registrerad";
+    if (mergedYesterdayPeak.at) {
+      const formatted = formatDateTime(mergedYesterdayPeak.at);
+      return formatted ? `Peak ${formatted}` : "Ingen tidsstämpel registrerad";
+    }
+    if (mergedYesterdayPeak.date) {
+      const formattedDate = formatDateOnly(mergedYesterdayPeak.date);
+      return formattedDate ? `Uppnåddes ${formattedDate}` : "Ingen tidsstämpel registrerad";
+    }
+    return "Ingen tidsstämpel registrerad";
+  }, [mergedYesterdayPeak]);
 
   const trendChartData = useMemo(() => {
     if (!dailyTotals.length) return [];
@@ -868,7 +891,7 @@ const LivePlayersControlPanel = () => {
                   sx={{
                     background: "rgba(15,23,42,0.45)",
                     borderRadius: "16px",
-                    border: "1px solid rgba(250,204,21,0.2)",
+                    border: "1px solid rgba(251,113,133,0.25)",
                     p: { xs: 2, md: 2.5 },
                     width: "100%",
                     maxWidth: { xs: "100%", sm: 320 },
@@ -880,21 +903,21 @@ const LivePlayersControlPanel = () => {
                 >
                   <Typography
                     variant="overline"
-                    sx={{ color: "rgba(250,204,21,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
+                    sx={{ color: "rgba(251,113,133,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
                   >
                     Dagens lobby-peak
                   </Typography>
                   {overviewLoading ? (
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
-                      <CircularProgress size={18} sx={{ color: "#facc15" }} />
-                      <Typography variant="body2" sx={{ color: "rgba(250,204,21,0.8)" }}>
+                      <CircularProgress size={18} sx={{ color: "#fb7185" }} />
+                      <Typography variant="body2" sx={{ color: "rgba(251,113,133,0.8)" }}>
                         Analyserar mätpunkter…
                       </Typography>
                     </Box>
                   ) : todayPeakDisplayValue != null ? (
                     <>
                       <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
-                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#facc15" }} />
+                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fb7185" }} />
                         <Typography variant="h4" sx={{ fontWeight: 700 }}>
                           {todayPeakDisplayValue.toLocaleString("sv-SE")}
                         </Typography>
@@ -916,17 +939,90 @@ const LivePlayersControlPanel = () => {
                           borderRadius: "999px",
                           mt: 0.5,
                           alignSelf: "center",
-                          backgroundColor: lobbyBoostOn ? "rgba(250,204,21,0.15)" : "rgba(15,23,42,0.6)",
-                          color: lobbyBoostOn ? "#facc15" : "rgba(248,250,252,0.85)",
-                          border: lobbyBoostOn ? "1px solid rgba(250,204,21,0.4)" : "1px solid rgba(148,163,184,0.35)",
+                          backgroundColor: lobbyBoostOn ? "rgba(251,113,133,0.18)" : "rgba(15,23,42,0.6)",
+                          color: lobbyBoostOn ? "#fb7185" : "rgba(248,250,252,0.85)",
+                          border: lobbyBoostOn ? "1px solid rgba(251,113,133,0.4)" : "1px solid rgba(148,163,184,0.35)",
                           fontWeight: 600,
                         }}
                       />
                     </>
                   ) : (
-                    <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                      Inga datapunkter registrerade för idag ännu.
-                    </Typography>
+                    <>
+                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                        Inga datapunkter registrerade för idag ännu.
+                      </Typography>
+                    </>
+                  )}
+                </Box>
+              </Grid>
+
+
+              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+                <Box
+                  sx={{
+                    background: "rgba(15,23,42,0.45)",
+                    borderRadius: "16px",
+                    border: "1px solid rgba(251,191,36,0.25)",
+                    p: { xs: 2, md: 2.5 },
+                    width: "100%",
+                    maxWidth: { xs: "100%", sm: 320 },
+                    minHeight: 180,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    sx={{ color: "rgba(251,191,36,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
+                  >
+                    Gårdagens peak
+                  </Typography>
+                  {overviewLoading ? (
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                      <CircularProgress size={18} sx={{ color: "#fbbf24" }} />
+                      <Typography variant="body2" sx={{ color: "rgba(251,191,36,0.85)" }}>
+                        Hämtar gårdagens mätning…
+                      </Typography>
+                    </Box>
+                  ) : yesterdayPeakDisplayValue != null ? (
+                    <>
+                      <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
+                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
+                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                          {yesterdayPeakDisplayValue.toLocaleString("sv-SE")}
+                        </Typography>
+                      </Stack>
+                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                        {yesterdayPeakMetaText}
+                      </Typography>
+                      {lobbyBoostOn && (
+                        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
+                          Visar simulerat värde (+10%).
+                        </Typography>
+                      )}
+                      <Chip
+                        size="small"
+                        label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
+                        onClick={toggleLobbyBoost}
+                        clickable
+                        sx={{
+                          borderRadius: "999px",
+                          mt: 0.5,
+                          alignSelf: "center",
+                          backgroundColor: lobbyBoostOn ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.6)",
+                          color: lobbyBoostOn ? "#fbbf24" : "rgba(248,250,252,0.85)",
+                          border: lobbyBoostOn ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(148,163,184,0.35)",
+                          fontWeight: 600,
+                        }}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                        Ingen peak registrerad för gårdagen.
+                      </Typography>
+                    </>
                   )}
                 </Box>
               </Grid>
@@ -998,9 +1094,11 @@ const LivePlayersControlPanel = () => {
                       />
                     </>
                   ) : (
-                    <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                      Ingen ATH-data kunde beräknas.
-                    </Typography>
+                    <>
+                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                        Ingen ATH-data kunde beräknas.
+                      </Typography>
+                    </>
                   )}
                 </Box>
               </Grid>
