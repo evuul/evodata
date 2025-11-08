@@ -11,6 +11,19 @@ export function normalizePlayers(value) {
   return Math.round(num);
 }
 
+const DEFAULT_LOBBY_ATH = (() => {
+  const valueFromEnv = normalizePlayers(process.env.CS_DEFAULT_LOBBY_ATH_VALUE);
+  if (valueFromEnv != null) {
+    return {
+      value: valueFromEnv,
+      date: process.env.CS_DEFAULT_LOBBY_ATH_DATE || "2025-11-07",
+      at: process.env.CS_DEFAULT_LOBBY_ATH_AT || null,
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  return null;
+})();
+
 let kvClient = null;
 
 // Prova använda @vercel/kv om env finns – dynamisk import så build inte bryr sig lokalt
@@ -57,6 +70,8 @@ const MAX_SAMPLES = 5000;
 
 const overviewMem = new Map(); // key -> { snapshot, exp }
 const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
+const GLOBAL_ATH_KEY = "cs:lobby:global-ath";
+let globalAthCache = null;
 
 function overviewKey(days) {
   const n = Number(days);
@@ -117,6 +132,58 @@ export async function setOverviewSnapshot(days, snapshot) {
     if (DEBUG) console.log(`[csStore] KV overview set ${key}`);
   } catch (err) {
     if (DEBUG) console.warn(`[csStore] KV overview set failed ${key}:`, err);
+  }
+}
+
+function normalizeAthEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const value = normalizePlayers(entry.value);
+  if (value === null) return null;
+  return {
+    value,
+    date: entry.date ?? null,
+    at: entry.at ?? null,
+    updatedAt: entry.updatedAt ?? null,
+  };
+}
+
+export async function getGlobalLobbyAth() {
+  if (globalAthCache) return globalAthCache;
+  const kv = await getKv();
+  if (!kv) {
+    if (!globalAthCache && DEFAULT_LOBBY_ATH) globalAthCache = DEFAULT_LOBBY_ATH;
+    return globalAthCache;
+  }
+  try {
+    const raw = await kv.get(GLOBAL_ATH_KEY);
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const normalized = normalizeAthEntry(parsed);
+    if (normalized) {
+      globalAthCache = normalized;
+      return normalized;
+    }
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV get global ATH failed:`, err);
+  }
+  if (!globalAthCache && DEFAULT_LOBBY_ATH) {
+    globalAthCache = DEFAULT_LOBBY_ATH;
+  }
+  return globalAthCache;
+}
+
+export async function setGlobalLobbyAth(entry) {
+  const normalized = normalizeAthEntry(entry);
+  if (!normalized) return;
+  normalized.updatedAt = new Date().toISOString();
+  globalAthCache = normalized;
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(GLOBAL_ATH_KEY, JSON.stringify(normalized));
+    if (DEBUG) console.log(`[csStore] KV set global ATH`);
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV set global ATH failed:`, err);
   }
 }
 
