@@ -28,6 +28,7 @@ import {
 } from "recharts";
 import { GAMES as GAME_LIST, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
+import { useTranslate } from "@/context/LocaleContext";
 
 const REPORT_LOOKBACK_DAYS = 90;
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
@@ -147,6 +148,7 @@ const findGameBySlug = (slug) =>
 const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const translate = useTranslate();
 
   const [dynamicPlayers, setDynamicPlayers] = useState([]);
   const [slugAverages, setSlugAverages] = useState([]);
@@ -426,23 +428,30 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       ? "#34d399"
       : "#f87171";
 
-  const trendText = (() => {
+  const trendText = useMemo(() => {
     if (!Number.isFinite(estimatedRevenue)) {
-      return "Uppskattad omsättning saknas – inväntar mer data.";
+      return translate("Uppskattad omsättning saknas – inväntar mer data.", "Estimated revenue missing – waiting for more data.");
     }
     const refLabel = labelFromPeriod(lastYearSameQuarterPeriod);
     if (changeYoY.percent == null) {
-      return `Taktar mot ${refLabel} på ungefär ${formatMillion(estimatedRevenue)} €M.`;
+      return translate(
+        `Taktar mot ${refLabel} på ungefär ${formatMillion(estimatedRevenue)} €M.`,
+        `Tracking toward ${refLabel} at roughly ${formatMillion(estimatedRevenue)} €M.`
+      );
     }
 
-    const descriptor = changeYoY.percent >= 0 ? "över" : "under";
+    const descriptorSv = changeYoY.percent >= 0 ? "över" : "under";
+    const descriptorEn = changeYoY.percent >= 0 ? "above" : "below";
     const amountSign = changeYoY.value < 0 ? "–" : "";
     const percentSign = changeYoY.percent < 0 ? "–" : "";
     const amountStr = `${amountSign}${formatMillion(Math.abs(changeYoY.value))} €M`;
     const percentStr = `${percentSign}${Math.abs(changeYoY.percent).toFixed(1)}%`;
 
-    return `Taktar ${descriptor} ${refLabel} med ${amountStr} (${percentStr}).`;
-  })();
+    return translate(
+      `Taktar ${descriptorSv} ${refLabel} med ${amountStr} (${percentStr}).`,
+      `Tracking ${descriptorEn} ${refLabel} by ${amountStr} (${percentStr}).`
+    );
+  }, [estimatedRevenue, changeYoY, lastYearSameQuarterPeriod, translate]);
 
   const chartYAxisMax = useMemo(() => {
     if (!qData.length) return undefined;
@@ -483,13 +492,13 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             variant="overline"
             sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.75)" }}
           >
-            Live Show Intelligence
+            {translate("Live Show Intelligence", "Live Show Intelligence")}
           </Typography>
           <Typography
             variant={isMobile ? "h5" : "h4"}
             sx={{ fontWeight: 700, color: "#f8fafc" }}
           >
-            Gameshow Earnings Outlook
+            {translate("Gameshow Earnings Outlook", "Gameshow Earnings Outlook")}
           </Typography>
           <Typography
             sx={{
@@ -499,7 +508,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               mx: "auto",
             }}
           >
-            Uppskattad live-omsättning baserad på lobbydata och historisk omsättning per spelare.
+            {translate(
+              "Uppskattad live-omsättning baserad på lobbydata och historisk omsättning per spelare.",
+              "Estimated live revenue based on lobby data and historical revenue per player."
+            )}
           </Typography>
         </Box>
 
@@ -512,21 +524,21 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         >
           {overviewGeneratedLabel && (
             <Chip
-              label={`Lobby uppdaterad ${overviewGeneratedLabel}`}
+              label={translate(`Lobby uppdaterad ${overviewGeneratedLabel}`, `Lobby updated ${overviewGeneratedLabel}`)}
               size="small"
               sx={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#93c5fd", fontWeight: 500 }}
             />
           )}
           {overviewLoading && (
             <Chip
-              label="Synkar live-data …"
+              label={translate("Synkar live-data …", "Syncing live data …")}
               size="small"
               sx={{ backgroundColor: "rgba(148,163,184,0.18)", color: "rgba(226,232,240,0.85)" }}
             />
           )}
           {overviewError && (
             <Chip
-              label={`Fel vid hämtning: ${overviewError}`}
+              label={translate(`Fel vid hämtning: ${overviewError}`, `Fetch error: ${overviewError}`)}
               size="small"
               sx={{ backgroundColor: "rgba(248,113,113,0.2)", color: "#fca5a5" }}
             />
@@ -554,10 +566,16 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               {`${currentQuarter} ${currentYear}`}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-              {quarterProgress.elapsedDays}/{quarterProgress.totalDays} dagar
+              {translate(
+                `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} dagar`,
+                `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} days`
+              )}
             </Typography>
             <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.95rem", mt: 0.5 }}>
-              {quarterProgress.progressPercent}% av kvartalet avklarat
+              {translate(
+                `${quarterProgress.progressPercent}% av kvartalet avklarat`,
+                `${quarterProgress.progressPercent}% of the quarter completed`
+              )}
             </Typography>
             <LinearProgress
               variant="determinate"
@@ -586,17 +604,23 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             }}
           >
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-              Genomsnittliga spelare (justerade)
+              {translate("Genomsnittliga spelare (justerade)", "Average players (adjusted)")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700, mt: 1, color: "#93c5fd" }}>
               {adjustedAveragePlayers.toLocaleString("sv-SE")}
             </Typography>
             <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.95rem", mt: 0.5 }}>
               {liveAveragePlayersRaw
-                ? `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`
+                ? translate(
+                    `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`,
+                    `Live avg ${liveAveragePlayersRaw.toLocaleString("sv-SE")} players`
+                  )
                 : currentQuarterPlayers
-                ? `Kvartalssnitt ${currentQuarterPlayers.toLocaleString("sv-SE")} spelare`
-                : "Inväntar kvartalsdata"}
+                ? translate(
+                    `Kvartalssnitt ${currentQuarterPlayers.toLocaleString("sv-SE")} spelare`,
+                    `Quarter avg ${currentQuarterPlayers.toLocaleString("sv-SE")} players`
+                  )
+                : translate("Inväntar kvartalsdata", "Waiting for quarterly data")}
             </Typography>
           </Box>
         </Grid>
@@ -614,7 +638,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             }}
           >
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-              Uppskattad omsättning
+              {translate("Uppskattad omsättning", "Estimated revenue")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
               {formatMillion(estimatedRevenue)} €M
@@ -633,13 +657,16 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               }}
             >
               {changeYoY.percent == null
-                ? "Inväntar jämförelsedata"
-                : `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`}
+                ? translate("Inväntar jämförelsedata", "Waiting for comparison data")
+                : translate(
+                    `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`,
+                    `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`
+                  )}
             </Typography>
 
             {Number.isFinite(revenueSoFar) && (
               <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem", mt: 1 }}>
-                Takt hittills: {formatMillion(revenueSoFar)} €M
+                {translate("Takt hittills", "Run-rate so far")}: {formatMillion(revenueSoFar)} €M
               </Typography>
             )}
           </Box>
@@ -673,10 +700,12 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           }}
         >
           <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Live-snitt spelare · {labelFromPeriod(currentPeriod)}
+            {translate("Live-snitt spelare", "Live avg players")} · {labelFromPeriod(currentPeriod)}
           </Typography>
           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-            {qData.length > 0 ? `${qData.length} uppdateringar` : "Inväntar live-data"}
+            {qData.length > 0
+              ? translate(`${qData.length} uppdateringar`, `${qData.length} updates`)
+              : translate("Inväntar live-data", "Waiting for live data")}
           </Typography>
         </Box>
 
@@ -715,9 +744,15 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                     const base = Number(value).toLocaleString("sv-SE");
                     const raw = Number(payload?.rawPlayers);
                     const subtitle = Number.isFinite(raw)
-                      ? `Justerat (live ${raw.toLocaleString("sv-SE")})`
-                      : "Justerade spelare";
-                    return [`${base} spelare`, subtitle];
+                      ? translate(
+                          `Justerat (live ${raw.toLocaleString("sv-SE")})`,
+                          `Adjusted (live ${raw.toLocaleString("sv-SE")})`
+                        )
+                      : translate("Justerade spelare", "Adjusted players");
+                    return [
+                      translate(`${base} spelare`, `${base} players`),
+                      subtitle,
+                    ];
                   }}
                   labelStyle={{ color: "rgba(226,232,240,0.75)" }}
                 />
@@ -744,7 +779,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 color: "rgba(148,163,184,0.65)",
               }}
             >
-              <Typography>Ingen live-data att visa ännu.</Typography>
+              <Typography>{translate("Ingen live-data att visa ännu.", "No live data to display yet.")}</Typography>
             </Box>
           )}
         </Box>
@@ -752,18 +787,18 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         {/* Tabell */}
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-            Kvartalsjämförelse
+            {translate("Kvartalsjämförelse", "Quarterly comparison")}
           </Typography>
           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
-            Estimerad vs faktisk live-omsättning (Meuro)
+            {translate("Estimerad vs faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
           </Typography>
           <Table size="small" sx={{ minWidth: 360 }}>
             <TableHead>
               <TableRow sx={{ "& th": { color: "rgba(148,163,184,0.75)", fontWeight: 600 } }}>
-                <TableCell>Period</TableCell>
-                <TableCell align="right">Spelare</TableCell>
-                <TableCell align="right">Est.</TableCell>
-                <TableCell align="right">Faktisk</TableCell>
+                <TableCell>{translate("Period", "Period")}</TableCell>
+                <TableCell align="right">{translate("Spelare", "Players")}</TableCell>
+                <TableCell align="right">{translate("Est.", "Est.")}</TableCell>
+                <TableCell align="right">{translate("Faktisk", "Actual")}</TableCell>
                 <TableCell align="right">Δ</TableCell>
               </TableRow>
             </TableHead>
@@ -771,7 +806,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               {tableRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
-                    Ingen kvartalsdata tillgänglig ännu.
+                    {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
                   </TableCell>
                 </TableRow>
               )}
@@ -827,10 +862,13 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             }}
           >
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Topp 3 liveshower senaste {REPORT_LOOKBACK_DAYS} dagarna
+              {translate(
+                `Topp 3 liveshower senaste ${REPORT_LOOKBACK_DAYS} dagarna`,
+                `Top 3 live shows over the past ${REPORT_LOOKBACK_DAYS} days`
+              )}
             </Typography>
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-              Andelar baserat på lobby-snitt
+              {translate("Andelar baserat på lobby-snitt", "Shares based on lobby average")}
             </Typography>
           </Box>
 
@@ -863,15 +901,24 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                     </Typography>
                   </Stack>
                   <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                    {game.avgPlayers.toLocaleString("sv-SE")} snittspelare
+                    {translate(
+                      `${game.avgPlayers.toLocaleString("sv-SE")} snittspelare`,
+                      `${game.avgPlayers.toLocaleString("sv-SE")} avg players`
+                    )}
                   </Typography>
                   <Typography sx={{ color: "#93c5fd", fontSize: "0.9rem" }}>
-                    {(game.share * 100).toFixed(1)}% av lobbyvolymen
+                    {translate(
+                      `${(game.share * 100).toFixed(1)}% av lobbyvolymen`,
+                      `${(game.share * 100).toFixed(1)}% of lobby volume`
+                    )}
                   </Typography>
                   <Typography sx={{ color: "#34d399", fontSize: "0.9rem" }}>
                     {Number.isFinite(game.estimatedRevenue)
-                      ? `${formatMillion(game.estimatedRevenue)} €M i takt`
-                      : "Omsättning estimeras"}
+                      ? translate(
+                          `${formatMillion(game.estimatedRevenue)} €M i takt`,
+                          `${formatMillion(game.estimatedRevenue)} €M run-rate`
+                        )
+                      : translate("Omsättning estimeras", "Revenue being estimated")}
                   </Typography>
                 </Box>
               </Grid>

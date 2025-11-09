@@ -30,10 +30,11 @@ import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { totalSharesData } from "./buybacks/utils";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { parseJsonResponse } from "@/lib/apiResponse";
+import { useTranslate } from "@/context/LocaleContext";
 
 const VIEW_OPTIONS = [
-  { value: "blanking", label: "Blankningstrend" },
-  { value: "trading", label: "Handel & andelar" },
+  { value: "blanking", labelSv: "Blankningstrend", labelEn: "Short interest trend" },
+  { value: "trading", labelSv: "Handel & andelar", labelEn: "Trading & short share" },
 ];
 
 const BLANKING_RANGES = [7, 30, 90];
@@ -138,6 +139,7 @@ const computeBlankingSummary = (series, stockPrice) => {
 };
 
 const ShortTooltip = ({ active, payload }) => {
+  const translate = useTranslate();
   if (!active || !payload?.length) return null;
   const datum = payload[0]?.payload ?? {};
   const change = datum.delta;
@@ -154,15 +156,20 @@ const ShortTooltip = ({ active, payload }) => {
         {fullLabel(datum.date)}
       </Typography>
       <Typography variant="body2" sx={{ color: "#f8fafc", mt: 0.5 }}>
-        {formatPercent(datum.percent, 2)} blankade aktier
+        {translate(
+          `${formatPercent(datum.percent, 2)} blankade aktier`,
+          `${formatPercent(datum.percent, 2)} shorted shares`
+        )}
       </Typography>
       {change != null && (
         <Typography
           variant="body2"
           sx={{ color: change >= 0 ? "#f87171" : "#34d399" }}
         >
-          {change >= 0 ? "+" : ""}
-          {change.toFixed(2)} pp mot föregående dag
+          {translate(
+            `${change >= 0 ? "+" : ""}${change.toFixed(2)} pp mot föregående dag`,
+            `${change >= 0 ? "+" : ""}${change.toFixed(2)} pp vs previous day`
+          )}
         </Typography>
       )}
     </Box>
@@ -170,6 +177,7 @@ const ShortTooltip = ({ active, payload }) => {
 };
 
 const TradingTooltip = ({ active, payload }) => {
+  const translate = useTranslate();
   if (!active || !payload?.length) return null;
   const datum = payload[0]?.payload ?? {};
   return (
@@ -186,12 +194,18 @@ const TradingTooltip = ({ active, payload }) => {
       </Typography>
       {Number.isFinite(datum.volumeM) && (
         <Typography variant="body2" sx={{ color: "#34d399", mt: 0.5 }}>
-          Volym: {formatMillion(datum.volumeM, 1)} M aktier
+          {translate(
+            `Volym: ${formatMillion(datum.volumeM, 1)} M aktier`,
+            `Volume: ${formatMillion(datum.volumeM, 1)} M shares`
+          )}
         </Typography>
       )}
       {Number.isFinite(datum.shortSharePct) && (
         <Typography variant="body2" sx={{ color: "#facc15" }}>
-          Blankarnas andel: {formatPercent(datum.shortSharePct)}
+          {translate(
+            `Blankarnas andel: ${formatPercent(datum.shortSharePct)}`,
+            `Short share of volume: ${formatPercent(datum.shortSharePct)}`
+          )}
         </Typography>
       )}
       {Number.isFinite(datum.shortChangeShares) &&
@@ -200,8 +214,14 @@ const TradingTooltip = ({ active, payload }) => {
             variant="body2"
             sx={{ color: datum.shortChangeShares > 0 ? "#f87171" : "#34d399" }}
           >
-            Netto: {datum.shortChangeShares > 0 ? "+" : "-"}
-            {formatNumber(Math.abs(datum.shortChangeShares))} aktier
+            {translate(
+              `Netto: ${datum.shortChangeShares > 0 ? "+" : "-"}${formatNumber(
+                Math.abs(datum.shortChangeShares)
+              )} aktier`,
+              `Net: ${datum.shortChangeShares > 0 ? "+" : "-"}${formatNumber(
+                Math.abs(datum.shortChangeShares)
+              )} shares`
+            )}
           </Typography>
         )}
     </Box>
@@ -212,6 +232,7 @@ const ShortIntellegence = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { stockPrice } = useStockPriceContext();
+  const translate = useTranslate();
 
   const [view, setView] = useState("blanking");
 
@@ -297,7 +318,9 @@ const ShortIntellegence = () => {
     } catch (error) {
       console.error("Failed to fetch trading activity", error);
       setTradingError(
-        error instanceof Error ? error.message : "Kunde inte hämta handelsdata"
+        error instanceof Error
+          ? error.message
+          : translate("Kunde inte hämta handelsdata", "Could not fetch trading data")
       );
     } finally {
       setTradingLoading(false);
@@ -406,28 +429,34 @@ const ShortIntellegence = () => {
             variant="overline"
             sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.65)" }}
           >
-            Short Intelligence
+            {translate("Short Intelligence", "Short Intelligence")}
           </Typography>
           <Typography variant={isMobile ? "h5" : "h4"} sx={{ fontWeight: 700 }}>
-            Blankning & daglig handel
+            {translate("Blankning & daglig handel", "Short interest & daily trading")}
           </Typography>
           <Typography
             sx={{ color: "rgba(226,232,240,0.7)", mt: 1, maxWidth: 520 }}
           >
-            Växla mellan blankningsgrad och handelsdata för att se hur
-            kortsiktiga positioner utvecklas och påverkar likviditeten.
+            {translate(
+              "Växla mellan blankningsgrad och handelsdata för att se hur kortsiktiga positioner utvecklas och påverkar likviditeten.",
+              "Switch between short interest and trading data to see how short-term positions evolve and impact liquidity."
+            )}
           </Typography>
         </Box>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
           {blankingUpdatedAt && (
             <Chip
-              label={`Blankning uppdaterad ${new Date(
-                blankingUpdatedAt
-              ).toLocaleTimeString("sv-SE", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}`}
+              label={translate(
+                `Blankning uppdaterad ${new Date(blankingUpdatedAt).toLocaleTimeString("sv-SE", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`,
+                `Short data updated ${new Date(blankingUpdatedAt).toLocaleTimeString("sv-SE", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}`
+              )}
               size="small"
               sx={{
                 backgroundColor: "rgba(59,130,246,0.15)",
@@ -438,10 +467,10 @@ const ShortIntellegence = () => {
           )}
           {aggregateShare != null && (
             <Chip
-              label={`Blankare stod för ${formatPercent(
-                aggregateShare,
-                1
-              )} av handeln`}
+              label={translate(
+                `Blankare stod för ${formatPercent(aggregateShare, 1)} av handeln`,
+                `Shorts accounted for ${formatPercent(aggregateShare, 1)} of trading`
+              )}
               size="small"
               sx={{
                 backgroundColor: "rgba(250,204,21,0.15)",
@@ -451,7 +480,7 @@ const ShortIntellegence = () => {
             />
           )}
           <IconButton
-            aria-label="Uppdatera blankningsdata"
+            aria-label={translate("Uppdatera blankningsdata", "Refresh short data")}
             onClick={refreshBlanking}
             size="small"
             sx={{
@@ -497,7 +526,7 @@ const ShortIntellegence = () => {
               },
             }}
           >
-            {option.label}
+            {translate(option.labelSv, option.labelEn)}
           </ToggleButton>
         ))}
       </ToggleButtonGroup>
@@ -618,10 +647,12 @@ const ShortIntellegence = () => {
                     justifyContent: "center",
                     color: "rgba(148,163,184,0.65)",
                   }}
-                >
-                  <Typography>Ingen blankningshistorik att visa.</Typography>
-                </Box>
-              )}
+              >
+                  <Typography>
+                    {translate("Ingen blankningshistorik att visa.", "No short history to display.")}
+                  </Typography>
+              </Box>
+            )}
             </Box>
 
             <Grid container spacing={isMobile ? 2 : 3}>
@@ -641,7 +672,7 @@ const ShortIntellegence = () => {
                       fontWeight: 600,
                     }}
                   >
-                    Senaste blankning
+                    {translate("Senaste blankning", "Latest short interest")}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {formatPercent(blankingSummary.latestPercent, 2)}
@@ -674,7 +705,7 @@ const ShortIntellegence = () => {
                       fontWeight: 600,
                     }}
                   >
-                    Förändring senaste dag
+                    {translate("Förändring senaste dag", "Change since last day")}
                   </Typography>
                   <Typography
                     variant="h5"
@@ -700,11 +731,10 @@ const ShortIntellegence = () => {
                       fontSize: "0.85rem",
                     }}
                   >
-                    motsvarar{" "}
-                    {blankingSummary.deltaShares != null
-                      ? formatNumber(Math.abs(blankingSummary.deltaShares))
-                      : "–"}{" "}
-                    aktier
+                    {translate(
+                      `motsvarar ${blankingSummary.deltaShares != null ? formatNumber(Math.abs(blankingSummary.deltaShares)) : "–"} aktier`,
+                      `equals ${blankingSummary.deltaShares != null ? formatNumber(Math.abs(blankingSummary.deltaShares)) : "–"} shares`
+                    )}
                   </Typography>
                 </Box>
               </Grid>
@@ -724,7 +754,7 @@ const ShortIntellegence = () => {
                       fontWeight: 600,
                     }}
                   >
-                    Totalt blankat värde
+                    {translate("Totalt blankat värde", "Total shorted value")}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {blankingSummary.totalValue != null
@@ -741,10 +771,16 @@ const ShortIntellegence = () => {
                     }}
                   >
                     {blankingSummary.valueDelta != null
-                      ? `${blankingSummary.valueDelta >= 0 ? "+" : ""}${formatMillion(
-                          blankingSummary.valueDelta / 1_000_000,
-                          1
-                        )} MSEK senast`
+                      ? translate(
+                          `${blankingSummary.valueDelta >= 0 ? "+" : ""}${formatMillion(
+                            blankingSummary.valueDelta / 1_000_000,
+                            1
+                          )} MSEK senast`,
+                          `${blankingSummary.valueDelta >= 0 ? "+" : ""}${formatMillion(
+                            blankingSummary.valueDelta / 1_000_000,
+                            1
+                          )} MSEK latest`
+                        )
                       : "–"}
                   </Typography>
                 </Box>
@@ -835,7 +871,7 @@ const ShortIntellegence = () => {
                       width={isMobile ? 46 : 56}
                       tickFormatter={(value) => `${formatMillion(value, 0)}`}
                       label={{
-                        value: "Miljoner aktier",
+                        value: translate("Miljoner aktier", "Million shares"),
                         angle: -90,
                         position: "insideLeft",
                         offset: 12,
@@ -892,7 +928,9 @@ const ShortIntellegence = () => {
                     color: "rgba(148,163,184,0.65)",
                   }}
                 >
-                  <Typography>Ingen handelsstatistik för vald period.</Typography>
+                  <Typography>
+                    {translate("Ingen handelsstatistik för vald period.", "No trading data for the selected period.")}
+                  </Typography>
                 </Box>
               )}
             </Box>
@@ -914,7 +952,7 @@ const ShortIntellegence = () => {
                       fontWeight: 600,
                     }}
                   >
-                    Senaste handelsdag
+                    {translate("Senaste handelsdag", "Latest trading day")}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {latestTradingSummary
@@ -947,7 +985,7 @@ const ShortIntellegence = () => {
                       fontWeight: 600,
                     }}
                   >
-                    Omsatt volym
+                    {translate("Omsatt volym", "Volume traded")}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {latestTradingSummary && latestTradingSummary.volumeM != null
@@ -960,9 +998,10 @@ const ShortIntellegence = () => {
                       fontSize: "0.85rem",
                     }}
                   >
-                    Netto blankning:{" "}
-                    {latestTradingSummary ? latestTradingSummary.netChange : "–"}{" "}
-                    aktier
+                    {translate(
+                      `Netto blankning: ${latestTradingSummary ? latestTradingSummary.netChange : "–"} aktier`,
+                      `Net shorting: ${latestTradingSummary ? latestTradingSummary.netChange : "–"} shares`
+                    )}
                   </Typography>
                 </Box>
               </Grid>
@@ -982,7 +1021,7 @@ const ShortIntellegence = () => {
                       fontWeight: 600,
                     }}
                   >
-                    Periodsnitt blankarandel
+                    {translate("Periodsnitt blankarandel", "Average short share for period")}
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 700 }}>
                     {aggregateShare != null
@@ -995,7 +1034,7 @@ const ShortIntellegence = () => {
                       fontSize: "0.85rem",
                     }}
                   >
-                    Andel av volym för vald period
+                    {translate("Andel av volym för vald period", "Share of volume for selected period")}
                   </Typography>
                 </Box>
               </Grid>

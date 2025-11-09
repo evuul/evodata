@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Box, Typography, Stack } from "@mui/material";
+import { useTranslate } from "@/context/LocaleContext";
 import {
   ResponsiveContainer,
   BarChart,
@@ -24,9 +25,6 @@ const COLORS = {
   tooltipBg: "rgba(15,23,42,0.92)",
 };
 
-const formatMillions = (value) =>
-  Number.isFinite(value) ? `${value.toLocaleString("sv-SE")} Mkr` : "-";
-
 const ReturnsView = ({
   isMobile,
   chartData,
@@ -38,16 +36,27 @@ const ReturnsView = ({
   marketCap,
   latestYear,
 }) => {
+  const translate = useTranslate();
   const hasData = Array.isArray(chartData) && chartData.length > 0;
+  const formatMillionsLocalized = (value) =>
+    Number.isFinite(value)
+      ? `${value.toLocaleString("sv-SE")} ${translate("Mkr", "MSEK")}`
+      : "-";
   const totalReturnsM = (totalReturns / 1_000_000).toLocaleString("sv-SE");
   const totalDividendsM = (totalDividends / 1_000_000).toLocaleString("sv-SE");
   const totalBuybacksM = (totalBuybacks / 1_000_000).toLocaleString("sv-SE");
   const directYieldLabel = loadingPrice
-    ? "Laddar direktavkastning…"
-    : `Direktavkastning ${latestYear}: ${directYieldPercentage.toLocaleString("sv-SE", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}%`;
+    ? translate("Laddar direktavkastning…", "Loading dividend yield…")
+    : translate(
+        `Direktavkastning ${latestYear}: ${directYieldPercentage.toLocaleString("sv-SE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}%`,
+        `Dividend yield ${latestYear}: ${directYieldPercentage.toLocaleString("sv-SE", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}%`
+      );
 
   return (
     <Box
@@ -72,7 +81,7 @@ const ReturnsView = ({
           fontSize: { xs: "1.1rem", sm: "1.4rem", md: "1.6rem" },
         }}
       >
-        Återinvestering till investerare
+        {translate("Återinvestering till investerare", "Capital returned to investors")}
       </Typography>
 
       <Stack
@@ -101,7 +110,7 @@ const ReturnsView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Totalt återförd kapital
+              {translate("Totalt återförd kapital", "Total capital returned")}
             </Typography>
             <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
               {totalReturnsM} Mkr
@@ -122,7 +131,7 @@ const ReturnsView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Utdelningar
+              {translate("Utdelningar", "Dividends")}
             </Typography>
             <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
               {totalDividendsM} Mkr
@@ -143,7 +152,7 @@ const ReturnsView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Återköp
+              {translate("Återköp", "Buybacks")}
             </Typography>
             <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
               {totalBuybacksM} Mkr
@@ -164,7 +173,7 @@ const ReturnsView = ({
           }}
         >
           <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-            Direktavkastning
+            {translate("Direktavkastning", "Dividend yield")}
           </Typography>
           <Typography
             variant="body1"
@@ -176,7 +185,10 @@ const ReturnsView = ({
             {directYieldLabel}
           </Typography>
           <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-            Marknadsvärde ≈ {(marketCap / 1_000_000_000).toLocaleString("sv-SE")} Mdkr
+            {translate(
+              `Marknadsvärde ≈ ${(marketCap / 1_000_000_000).toLocaleString("sv-SE")} Mdkr`,
+              `Market cap ≈ ${(marketCap / 1_000_000_000).toLocaleString("sv-SE")} BSEK`
+            )}
           </Typography>
         </Box>
       </Stack>
@@ -212,7 +224,7 @@ const ReturnsView = ({
             >
               {!isMobile && (
                 <Label
-                  value="År"
+                  value={translate("År", "Years")}
                   offset={-10}
                   position="insideBottom"
                   fill={COLORS.textSecondary}
@@ -242,10 +254,12 @@ const ReturnsView = ({
             </YAxis>
             <Tooltip
               formatter={(value, _name, entry) => [
-                formatMillions(value),
-                entry?.dataKey === "dividends" ? "Utdelningar" : "Aktieåterköp",
+                formatMillionsLocalized(value),
+                entry?.dataKey === "dividends"
+                  ? translate("Utdelningar", "Dividends")
+                  : translate("Aktieåterköp", "Share buybacks"),
               ]}
-              labelFormatter={(label) => `År ${label}`}
+              labelFormatter={(label) => translate(`År ${label}`, `Year ${label}`)}
               contentStyle={{
                 backgroundColor: COLORS.tooltipBg,
                 color: COLORS.textPrimary,
@@ -262,26 +276,28 @@ const ReturnsView = ({
                 paddingBottom: 8,
               }}
               formatter={(_value, entry) =>
-                entry?.dataKey === "dividends" ? "Utdelningar" : "Aktieåterköp"
+                entry?.dataKey === "dividends"
+                  ? translate("Utdelningar", "Dividends")
+                  : translate("Aktieåterköp", "Share buybacks")
               }
             />
             <Bar
               dataKey="dividends"
               fill="url(#dividendsGradient)"
-              name="Utdelningar"
+              name={translate("Utdelningar", "Dividends")}
               radius={[8, 8, 0, 0]}
             />
             <Bar
               dataKey="buybacks"
               fill="url(#buybacksGradient)"
-              name="Aktieåterköp"
+              name={translate("Aktieåterköp", "Share buybacks")}
               radius={[8, 8, 0, 0]}
             />
           </BarChart>
         </ResponsiveContainer>
       ) : (
         <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-          Laddar data…
+          {translate("Laddar data…", "Loading data…")}
         </Typography>
       )}
     </Box>

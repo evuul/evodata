@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useFxRateContext } from "../context/FxRateContext";
+import { useTranslate } from "@/context/LocaleContext";
 import {
   Box,
   Typography,
@@ -78,9 +79,10 @@ const toSortedDividends = (items) =>
     })
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-const metricConfigs = {
+const BASE_METRIC_CONFIGS = {
   revenue: {
-    label: "Nettoomsättning",
+    labelSv: "Nettoomsättning",
+    labelEn: "Net revenue",
     valueKey: "revenue",
     decimals: 1,
     unit: "€M",
@@ -90,7 +92,8 @@ const metricConfigs = {
     border: "rgba(96,165,250,0.25)",
   },
   margin: {
-    label: "Rörelsemarginal (justerad)",
+    labelSv: "Rörelsemarginal (justerad)",
+    labelEn: "Operating margin (adjusted)",
     valueKey: "margin",
     decimals: 1,
     unit: "%",
@@ -100,7 +103,8 @@ const metricConfigs = {
     border: "rgba(52,211,153,0.25)",
   },
   eps: {
-    label: "Intjäning per aktie (EPS)",
+    labelSv: "Intjäning per aktie (EPS)",
+    labelEn: "Earnings per share (EPS)",
     valueKey: "eps",
     decimals: 2,
     unit: "€",
@@ -110,7 +114,8 @@ const metricConfigs = {
     border: "rgba(251,146,60,0.25)",
   },
   dividend: {
-    label: "Utdelning per aktie",
+    labelSv: "Utdelning per aktie",
+    labelEn: "Dividend per share",
     valueKey: "dividend",
     decimals: 2,
     unit: "€",
@@ -120,7 +125,8 @@ const metricConfigs = {
     border: "rgba(196,181,253,0.25)",
   },
   geo: {
-    label: "Geografisk översikt",
+    labelSv: "Geografisk översikt",
+    labelEn: "Geographic overview",
     valueKey: null,
     decimals: 1,
     unit: "%",
@@ -131,7 +137,8 @@ const metricConfigs = {
     custom: true,
   },
   productMix: {
-    label: "Live vs RNG",
+    labelSv: "Live vs RNG",
+    labelEn: "Live vs RNG",
     valueKey: null,
     decimals: 1,
     unit: "%",
@@ -143,7 +150,7 @@ const metricConfigs = {
   },
 };
 
-const formatMetricValue = (metric, value) => {
+const formatMetricValue = (metricConfigs, metric, value) => {
   if (!Number.isFinite(value)) return "–";
   const config = metricConfigs[metric];
   if (metric === "revenue") {
@@ -155,7 +162,7 @@ const formatMetricValue = (metric, value) => {
   return `${value.toFixed(config.decimals)} ${config.unit}`;
 };
 
-const computeChangeValue = (metric, current, reference) => {
+const computeChangeValue = (metricConfigs, metric, current, reference) => {
   if (!Number.isFinite(current) || !Number.isFinite(reference)) return null;
   const config = metricConfigs[metric];
   if (config.changeMode === "points") {
@@ -164,9 +171,11 @@ const computeChangeValue = (metric, current, reference) => {
   return computeDeltaPercent(current, reference);
 };
 
-const formatChangeValue = (metric, value, label) => {
+const formatChangeValue = (metricConfigs, metric, value, label, translate) => {
   const hasLabel = typeof label === "string" && label.length > 0;
-  if (value == null) return hasLabel ? `${label} saknas` : "Saknas";
+  if (value == null) {
+    return hasLabel ? translate(`${label} saknas`, `${label} missing`) : translate("Saknas", "Missing");
+  }
   const config = metricConfigs[metric];
   if (config.changeMode === "points") {
     const core = `${value >= 0 ? "+" : ""}${value.toFixed(1)} pp`;
@@ -176,18 +185,26 @@ const formatChangeValue = (metric, value, label) => {
   return hasLabel ? `${label} ${core}` : core;
 };
 
-const metricToggleOptions = [
-  { value: "revenue", label: "Omsättning" },
-  { value: "margin", label: "Marginal" },
-  { value: "eps", label: "EPS" },
-  { value: "dividend", label: "Utdelning" },
-  { value: "geo", label: "Geografisk översikt" },
-  { value: "productMix", label: "Live vs RNG" },
+const METRIC_TOGGLE_OPTIONS = [
+  { value: "revenue", labelSv: "Omsättning", labelEn: "Revenue" },
+  { value: "margin", labelSv: "Marginal", labelEn: "Margin" },
+  { value: "eps", labelSv: "EPS", labelEn: "EPS" },
+  { value: "dividend", labelSv: "Utdelning", labelEn: "Dividend" },
+  { value: "geo", labelSv: "Geografisk översikt", labelEn: "Geographic overview" },
+  { value: "productMix", labelSv: "Live vs RNG", labelEn: "Live vs RNG" },
 ];
 
-const viewToggleOptions = [
-  { value: "quarterly", label: "Kvartal" },
-  { value: "annual", label: "Helår" },
+const VIEW_TOGGLE_OPTIONS = [
+  { value: "quarterly", labelSv: "Kvartal", labelEn: "Quarter" },
+  { value: "annual", labelSv: "Helår", labelEn: "Full year" },
+];
+
+const REGION_OPTIONS = [
+  { key: "europe", labelSv: "Europa", labelEn: "Europe" },
+  { key: "asia", labelSv: "Asien", labelEn: "Asia" },
+  { key: "northAmerica", labelSv: "Nordamerika", labelEn: "North America" },
+  { key: "latAm", labelSv: "Latinamerika", labelEn: "Latin America" },
+  { key: "other", labelSv: "Övrigt", labelEn: "Other" },
 ];
 
 const FinancialOverviewCard = ({ financialReports, dividendData }) => {
@@ -195,6 +212,36 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [metric, setMetric] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
+  const translate = useTranslate();
+
+  const metricConfigs = useMemo(() => {
+    const entries = {};
+    Object.entries(BASE_METRIC_CONFIGS).forEach(([key, config]) => {
+      entries[key] = {
+        ...config,
+        label: translate(config.labelSv, config.labelEn),
+      };
+    });
+    return entries;
+  }, [translate]);
+
+  const metricToggleOptions = useMemo(
+    () =>
+      METRIC_TOGGLE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: translate(option.labelSv, option.labelEn),
+      })),
+    [translate]
+  );
+
+  const viewToggleOptions = useMemo(
+    () =>
+      VIEW_TOGGLE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: translate(option.labelSv, option.labelEn),
+      })),
+    [translate]
+  );
 
   useEffect(() => {
     if (metric === "dividend" && viewMode !== "annual") {
@@ -349,7 +396,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       ...item,
       xLabel: item.xLabel || item.period,
     }));
-  }, [metric, viewMode, dividendSeries, annualSeries, quarterlySeries]);
+  }, [metric, viewMode, dividendSeries, annualSeries, quarterlySeries, metricConfigs]);
 
   const chartDomain = useMemo(() => {
     const config = metricConfigs[metric];
@@ -385,7 +432,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     }
 
     return [min, max];
-  }, [metric, selectedSeries]);
+  }, [metric, selectedSeries, metricConfigs]);
 
   const xAxisInterval = useMemo(() => {
     const config = metricConfigs[metric];
@@ -431,7 +478,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         highLabel: null,
         lowValue: null,
         lowLabel: null,
-        trendText: "Ingen data att visa ännu.",
+        trendText: translate("Ingen data att visa ännu.", "No data to display yet."),
       };
     }
 
@@ -453,8 +500,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     const previousValue = previous && Number.isFinite(previous[key]) ? previous[key] : null;
     const yoyValue = yoyReference && Number.isFinite(yoyReference[key]) ? yoyReference[key] : null;
 
-    const changeQoQ = computeChangeValue(metric, latestValue, previousValue);
-    const changeYoY = computeChangeValue(metric, latestValue, yoyValue);
+    const changeQoQ = computeChangeValue(metricConfigs, metric, latestValue, previousValue);
+    const changeYoY = computeChangeValue(metricConfigs, metric, latestValue, yoyValue);
 
     let highValue = null;
     let lowValue = null;
@@ -477,16 +524,22 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     const primaryChange = changeYoY != null ? changeYoY : changeQoQ;
     const primaryLabel = changeYoY != null ? "YoY" : changeQoQ != null ? "QoQ" : null;
 
-    const trendText = primaryLabel && primaryChange != null
-      ? (() => {
-          const direction = primaryChange >= 0 ? "upp" : "ned";
-          const amount =
-            config.changeMode === "points"
-              ? `${Math.abs(primaryChange).toFixed(1)} pp`
-              : `${Math.abs(primaryChange).toFixed(1)}%`;
-          return `${config.label} är ${direction} ${amount} ${primaryLabel} (senaste: ${formatMetricValue(metric, latestValue)} – ${latest.period}).`;
-        })()
-      : "Saknar referens för att visa trend.";
+    const trendText =
+      primaryLabel && primaryChange != null
+        ? (() => {
+            const directionSv = primaryChange >= 0 ? "upp" : "ned";
+            const directionEn = primaryChange >= 0 ? "up" : "down";
+            const amount =
+              config.changeMode === "points"
+                ? `${Math.abs(primaryChange).toFixed(1)} pp`
+                : `${Math.abs(primaryChange).toFixed(1)}%`;
+            const latestValueLabel = formatMetricValue(metricConfigs, metric, latestValue);
+            return translate(
+              `${config.label} är ${directionSv} ${amount} ${primaryLabel} (senaste: ${latestValueLabel} – ${latest.period}).`,
+              `${config.label} is ${directionEn} ${amount} ${primaryLabel} (latest: ${latestValueLabel} – ${latest.period}).`
+            );
+          })()
+        : translate("Saknar referens för att visa trend.", "Missing reference to show trend.");
 
     return {
       latestLabel: latest.period,
@@ -501,7 +554,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       lowLabel,
       trendText,
     };
-  }, [metric, viewMode, selectedSeries]);
+  }, [metric, viewMode, selectedSeries, metricConfigs, translate]);
 
   const metricSummaries = useMemo(() => {
     return metricToggleOptions
@@ -515,7 +568,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
             metric: value,
             label: config.label,
             valueLabel: "–",
-            changeText: "Δ saknas",
+            changeText: translate("Δ saknas", "Δ missing"),
             periodLabel: null,
             active: value === metric,
             accent: config.accent,
@@ -525,13 +578,18 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         }
         const latest = filtered[filtered.length - 1];
         const previous = filtered.length > 1 ? filtered[filtered.length - 2] : null;
-        const change = computeChangeValue(value, latest[config.valueKey], previous?.[config.valueKey]);
+        const change = computeChangeValue(
+          metricConfigs,
+          value,
+          latest[config.valueKey],
+          previous?.[config.valueKey]
+        );
         const changeLabel = value === "dividend" ? "Δ" : "QoQ";
         return {
           metric: value,
           label: config.label,
-          valueLabel: formatMetricValue(value, latest[config.valueKey]),
-          changeText: formatChangeValue(value, change, changeLabel),
+          valueLabel: formatMetricValue(metricConfigs, value, latest[config.valueKey]),
+          changeText: formatChangeValue(metricConfigs, value, change, changeLabel, translate),
           periodLabel: latest.period,
           active: value === metric,
           accent: config.accent,
@@ -539,16 +597,9 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
           border: config.border,
         };
       });
-  }, [metric, quarterlySeries, dividendSeries]);
+  }, [metric, quarterlySeries, dividendSeries, metricConfigs, translate, metricToggleOptions]);
 
   const geoQuarterlySeries = useMemo(() => {
-    const regionKeys = [
-      { key: "europe", label: "Europa" },
-      { key: "asia", label: "Asien" },
-      { key: "northAmerica", label: "Nordamerika" },
-      { key: "latAm", label: "Latinamerika" },
-      { key: "other", label: "Övrigt" },
-    ];
     return reportsAscending
       .map((report) => {
         const entry = {
@@ -558,7 +609,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
           quarter: report.quarter,
         };
         let total = 0;
-        regionKeys.forEach(({ key }) => {
+        REGION_OPTIONS.forEach(({ key }) => {
           const raw = Number(report?.[key]);
           const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
           entry[key] = value;
@@ -588,7 +639,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         });
       }
       const target = map.get(entry.year);
-      ["europe", "asia", "northAmerica", "latAm", "other"].forEach((key) => {
+      REGION_OPTIONS.forEach(({ key }) => {
         const value = Number(entry[key]);
         if (Number.isFinite(value)) {
           target[key] += value;
@@ -659,19 +710,11 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     const dataset = viewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries;
     if (!dataset.length) return null;
     const latestEntry = dataset[dataset.length - 1];
-    const regions = [
-      { key: "europe", label: "Europa" },
-      { key: "asia", label: "Asien" },
-      { key: "northAmerica", label: "Nordamerika" },
-      { key: "latAm", label: "Latinamerika" },
-      { key: "other", label: "Övrigt" },
-    ]
-      .map(({ key, label }) => {
-        const raw = Number(latestEntry?.[key]);
-        const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
-        return { key, label, value };
-      })
-      .filter((item) => item.value > 0);
+    const regions = REGION_OPTIONS.map(({ key, labelSv, labelEn }) => {
+      const raw = Number(latestEntry?.[key]);
+      const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
+      return { key, label: translate(labelSv, labelEn), value };
+    }).filter((item) => item.value > 0);
     const total = regions.reduce((sum, item) => sum + item.value, 0);
     if (total === 0) return null;
     return {
@@ -684,7 +727,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         }))
         .sort((a, b) => b.value - a.value),
     };
-  }, [geoAnnualSeries, geoQuarterlySeries, viewMode]);
+  }, [geoAnnualSeries, geoQuarterlySeries, viewMode, translate]);
 
   const productMixSnapshot = useMemo(() => {
     const dataset = viewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries;
@@ -756,23 +799,29 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
             variant="overline"
             sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.65)" }}
           >
-            Financial Intelligence
+            {translate("Finansiell intelligens", "Financial intelligence")}
           </Typography>
           <Typography
             variant={isMobile ? "h5" : "h4"}
             sx={{ fontWeight: 700, color: "#f8fafc" }}
           >
-            Finansiell översikt
+            {translate("Finansiell översikt", "Financial overview")}
           </Typography>
           <Typography sx={{ color: "rgba(226,232,240,0.7)", mt: 1, maxWidth: 520 }}>
-            Navigera mellan nyckeltal och följ utvecklingen för Evolution genom interaktiva grafer och sammanfattande statistik.
+            {translate(
+              "Navigera mellan nyckeltal och följ utvecklingen för Evolution genom interaktiva grafer och sammanfattande statistik.",
+              "Navigate between key metrics and track Evolution through interactive charts and summary statistics."
+            )}
           </Typography>
         </Box>
 
         <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
           {latestReport && (
             <Chip
-              label={`Senaste kvartal: ${latestReport.quarter} ${latestReport.year}`}
+              label={translate(
+                `Senaste kvartal: ${latestReport.quarter} ${latestReport.year}`,
+                `Latest quarter: ${latestReport.quarter} ${latestReport.year}`
+              )}
               size="small"
               sx={{
                 backgroundColor: "rgba(59,130,246,0.15)",
@@ -783,7 +832,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
           )}
           {previousYearReport && (
             <Chip
-              label={`YoY-jämförelse: ${previousYearReport.quarter} ${previousYearReport.year}`}
+              label={translate(
+                `YoY-jämförelse: ${previousYearReport.quarter} ${previousYearReport.year}`,
+                `YoY comparison: ${previousYearReport.quarter} ${previousYearReport.year}`
+              )}
               size="small"
               sx={{
                 backgroundColor: "rgba(168,85,247,0.15)",
@@ -823,7 +875,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                     textTransform: "uppercase",
                   }}
                 >
-                  Årets justerade vinst
+                  {translate("Årets justerade vinst", "Adjusted profit YTD")}
                 </Typography>
                 <Typography
                   variant={isMobile ? "h6" : "h5"}
@@ -974,7 +1026,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                           const original = payload && payload[0] && payload[0].payload?.period;
                           return original || _label;
                         }}
-                        formatter={(value) => [formatMetricValue(metric, Number(value)), metricConfigs[metric].label]}
+                        formatter={(value) => [
+                          formatMetricValue(metricConfigs, metric, Number(value)),
+                          metricConfigs[metric].label,
+                        ]}
                       />
                       <Area
                         type="monotone"
@@ -998,7 +1053,9 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       color: "rgba(148,163,184,0.65)",
                     }}
                   >
-                    <Typography>Ingen data att visualisera för valt läge.</Typography>
+                    <Typography>
+                      {translate("Ingen data att visualisera för valt läge.", "No data to visualize for this mode.")}
+                    </Typography>
                   </Box>
                 )
               ) : metric === "geo" ? (
@@ -1038,11 +1095,56 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                         height={36}
                         wrapperStyle={{ color: "rgba(226,232,240,0.78)" }}
                       />
-                      <Area type="monotone" dataKey="europe" name="Europa" stroke="#60a5fa" fill="#60a5fa44" strokeWidth={2} stackId="regions" dot={false} />
-                      <Area type="monotone" dataKey="asia" name="Asien" stroke="#fbbf24" fill="#fbbf2444" strokeWidth={2} stackId="regions" dot={false} />
-                      <Area type="monotone" dataKey="northAmerica" name="Nordamerika" stroke="#34d399" fill="#34d39944" strokeWidth={2} stackId="regions" dot={false} />
-                      <Area type="monotone" dataKey="latAm" name="Latinamerika" stroke="#f97316" fill="#f9731644" strokeWidth={2} stackId="regions" dot={false} />
-                      <Area type="monotone" dataKey="other" name="Övrigt" stroke="#a855f7" fill="#a855f744" strokeWidth={2} stackId="regions" dot={false} />
+                      <Area
+                        type="monotone"
+                        dataKey="europe"
+                        name={translate("Europa", "Europe")}
+                        stroke="#60a5fa"
+                        fill="#60a5fa44"
+                        strokeWidth={2}
+                        stackId="regions"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="asia"
+                        name={translate("Asien", "Asia")}
+                        stroke="#fbbf24"
+                        fill="#fbbf2444"
+                        strokeWidth={2}
+                        stackId="regions"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="northAmerica"
+                        name={translate("Nordamerika", "North America")}
+                        stroke="#34d399"
+                        fill="#34d39944"
+                        strokeWidth={2}
+                        stackId="regions"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="latAm"
+                        name={translate("Latinamerika", "Latin America")}
+                        stroke="#f97316"
+                        fill="#f9731644"
+                        strokeWidth={2}
+                        stackId="regions"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="other"
+                        name={translate("Övrigt", "Other")}
+                        stroke="#a855f7"
+                        fill="#a855f744"
+                        strokeWidth={2}
+                        stackId="regions"
+                        dot={false}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
@@ -1055,7 +1157,9 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       color: "rgba(148,163,184,0.65)",
                     }}
                   >
-                    <Typography>Ingen geografisk data tillgänglig.</Typography>
+                    <Typography>
+                      {translate("Ingen geografisk data tillgänglig.", "No geographic data available.")}
+                    </Typography>
                   </Box>
                 )
               ) : metric === "productMix" ? (
@@ -1095,8 +1199,26 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                         height={36}
                         wrapperStyle={{ color: "rgba(226,232,240,0.78)" }}
                       />
-                      <Area type="monotone" dataKey="liveCasino" name="Live Casino" stroke="#38bdf8" fill="#38bdf844" strokeWidth={2.2} stackId="products" dot={false} />
-                      <Area type="monotone" dataKey="rng" name="RNG" stroke="#f87171" fill="#f8717144" strokeWidth={2.2} stackId="products" dot={false} />
+                      <Area
+                        type="monotone"
+                        dataKey="liveCasino"
+                        name={translate("Live Casino", "Live Casino")}
+                        stroke="#38bdf8"
+                        fill="#38bdf844"
+                        strokeWidth={2.2}
+                        stackId="products"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="rng"
+                        name={translate("RNG", "RNG")}
+                        stroke="#f87171"
+                        fill="#f8717144"
+                        strokeWidth={2.2}
+                        stackId="products"
+                        dot={false}
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : (
@@ -1109,7 +1231,9 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       color: "rgba(148,163,184,0.65)",
                     }}
                   >
-                    <Typography>Ingen produktmix-data tillgänglig.</Typography>
+                    <Typography>
+                      {translate("Ingen produktmix-data tillgänglig.", "No product mix data available.")}
+                    </Typography>
                   </Box>
                 )
               ) : null}
@@ -1131,10 +1255,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                     }}
                   >
                     <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                      Senaste
+                      {translate("Senaste", "Latest")}
                     </Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                      {formatMetricValue(metric, selectedSummary.latestValue)}
+                      {formatMetricValue(metricConfigs, metric, selectedSummary.latestValue)}
                     </Typography>
                     <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
                       {selectedSummary.latestLabel || "–"}
@@ -1164,10 +1288,21 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                           : "rgba(226,232,240,0.75)",
                       }}
                     >
-                      {formatChangeValue(metric, selectedSummary.changeQoQ, "").replace(/\s$/, "")}
+                      {formatChangeValue(
+                        metricConfigs,
+                        metric,
+                        selectedSummary.changeQoQ,
+                        "",
+                        translate
+                      ).replace(/\s$/, "")}
                     </Typography>
                     <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
-                      {selectedSummary.previousLabel ? `vs ${selectedSummary.previousLabel}` : "–"}
+                      {selectedSummary.previousLabel
+                        ? translate(
+                            `vs ${selectedSummary.previousLabel}`,
+                            `vs ${selectedSummary.previousLabel}`
+                          )
+                        : "–"}
                     </Typography>
                   </Box>
 
@@ -1194,10 +1329,18 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                           : "rgba(226,232,240,0.75)",
                       }}
                     >
-                      {formatChangeValue(metric, selectedSummary.changeYoY, "").replace(/\s$/, "")}
+                      {formatChangeValue(
+                        metricConfigs,
+                        metric,
+                        selectedSummary.changeYoY,
+                        "",
+                        translate
+                      ).replace(/\s$/, "")}
                     </Typography>
                     <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
-                      {selectedSummary.yoyLabel ? `vs ${selectedSummary.yoyLabel}` : "–"}
+                      {selectedSummary.yoyLabel
+                        ? translate(`vs ${selectedSummary.yoyLabel}`, `vs ${selectedSummary.yoyLabel}`)
+                        : "–"}
                     </Typography>
                   </Box>
 
@@ -1211,10 +1354,14 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                     }}
                   >
                     <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                      Spann
+                      {translate("Spann", "Range")}
                     </Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                      {`${formatMetricValue(metric, selectedSummary.lowValue)} → ${formatMetricValue(metric, selectedSummary.highValue)}`}
+                      {`${formatMetricValue(metricConfigs, metric, selectedSummary.lowValue)} → ${formatMetricValue(
+                        metricConfigs,
+                        metric,
+                        selectedSummary.highValue
+                      )}`}
                     </Typography>
                     <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem", mt: 0.5 }}>
                       {selectedSummary.lowLabel && selectedSummary.highLabel
@@ -1231,7 +1378,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
             ) : metric === "geo" ? (
               <>
                 <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                  Fördelning per region baserat på rapporterade segmentintäkter. Värden anges i miljoner euro ({geoSnapshot?.period ?? "–"}).
+                  {translate(
+                    `Fördelning per region baserat på rapporterade segmentintäkter. Värden anges i miljoner euro (${geoSnapshot?.period ?? "–"}).`,
+                    `Regional split based on reported segment revenue. Values are in millions of euro (${geoSnapshot?.period ?? "–"}).`
+                  )}
                 </Typography>
                 {geoSnapshot ? (
                   <Stack
@@ -1257,21 +1407,27 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                           {`${formatMillion(region.value, region.value >= 100 ? 0 : 1)} €M`}
                         </Typography>
                         <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
-                          {formatShare(region.share)} av perioden
+                          {translate(
+                            `${formatShare(region.share)} av perioden`,
+                            `${formatShare(region.share)} of the period`
+                          )}
                         </Typography>
                       </Box>
                     ))}
                   </Stack>
                 ) : (
                   <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem", mt: 1 }}>
-                    Ingen geografisk data tillgänglig.
+                    {translate("Ingen geografisk data tillgänglig.", "No geographic data available.")}
                   </Typography>
                 )}
               </>
             ) : metric === "productMix" ? (
               <>
                 <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                  Produktmix visar fördelningen mellan Live Casino och RNG-intäkter ({productMixSnapshot?.period ?? "–"}).
+                  {translate(
+                    `Produktmix visar fördelningen mellan Live Casino och RNG-intäkter (${productMixSnapshot?.period ?? "–"}).`,
+                    `Product mix shows the split between Live Casino and RNG revenue (${productMixSnapshot?.period ?? "–"}).`
+                  )}
                 </Typography>
                 {productMixSnapshot ? (
                   <Stack
@@ -1289,13 +1445,16 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       }}
                     >
                       <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                        Live Casino
+                        {translate("Live Casino", "Live Casino")}
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
                         {`${formatMillion(productMixSnapshot.live, productMixSnapshot.live >= 100 ? 0 : 1)} €M`}
                       </Typography>
                       <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
-                        {formatShare(productMixSnapshot.liveShare)} av mixen
+                        {translate(
+                          `${formatShare(productMixSnapshot.liveShare)} av mixen`,
+                          `${formatShare(productMixSnapshot.liveShare)} of the mix`
+                        )}
                       </Typography>
                     </Box>
                     <Box
@@ -1308,19 +1467,22 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       }}
                     >
                       <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                        RNG
+                        {translate("RNG", "RNG")}
                       </Typography>
                       <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
                         {`${formatMillion(productMixSnapshot.rng, productMixSnapshot.rng >= 100 ? 0 : 1)} €M`}
                       </Typography>
                       <Typography sx={{ color: "rgba(226,232,240,0.65)", fontSize: "0.8rem" }}>
-                        {formatShare(productMixSnapshot.rngShare)} av mixen
+                        {translate(
+                          `${formatShare(productMixSnapshot.rngShare)} av mixen`,
+                          `${formatShare(productMixSnapshot.rngShare)} of the mix`
+                        )}
                       </Typography>
                     </Box>
                   </Stack>
                 ) : (
                   <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem", mt: 1 }}>
-                    Ingen produktmix-data tillgänglig.
+                    {translate("Ingen produktmix-data tillgänglig.", "No product mix data available.")}
                   </Typography>
                 )}
               </>
@@ -1358,7 +1520,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                 </Typography>
                 {summary.periodLabel && (
                   <Typography sx={{ color: "rgba(148,163,184,0.65)", fontSize: "0.8rem" }}>
-                    Senast: {summary.periodLabel}
+                    {translate("Senast", "Latest")}: {summary.periodLabel}
                   </Typography>
                 )}
               </Box>

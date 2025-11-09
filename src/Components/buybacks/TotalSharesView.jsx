@@ -25,6 +25,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { useTranslate } from "@/context/LocaleContext";
 
 const COLORS = {
   surface: "rgba(15,23,42,0.62)",
@@ -46,6 +47,7 @@ const TotalSharesView = ({
   yTicks,
   formatYAxisTick,
 }) => {
+  const translate = useTranslate();
   const areaFillId = `totalSharesArea-${useId()}`;
   const data = totalSharesData || [];
   const tickFontSize = isMobile ? 12 : 14;
@@ -75,7 +77,7 @@ const TotalSharesView = ({
           fontSize: { xs: "1.05rem", sm: "1.35rem", md: "1.5rem" },
         }}
       >
-        Totala aktier
+        {translate("Totala aktier", "Total shares")}
       </Typography>
 
       <Box
@@ -94,7 +96,7 @@ const TotalSharesView = ({
         }}
       >
         <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-          Totalt antal aktier
+          {translate("Totalt antal aktier", "Total share count")}
         </Typography>
         <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
           {latestTotalShares.toLocaleString("sv-SE")}
@@ -102,7 +104,7 @@ const TotalSharesView = ({
       </Box>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
-        Totala aktier över tid
+        {translate("Totala aktier över tid", "Total shares over time")}
       </Typography>
 
       <Box sx={{ display: "flex", justifyContent: "center", width: "100%", mb: 2 }}>
@@ -137,8 +139,8 @@ const TotalSharesView = ({
           scrollButtons="auto"
           allowScrollButtonsMobile
         >
-          <Tab label="Linje" value="line" />
-          <Tab label="Stapel" value="bar" />
+          <Tab label={translate("Linje", "Line")} value="line" />
+          <Tab label={translate("Stapel", "Bar")} value="bar" />
         </Tabs>
       </Box>
 
@@ -170,7 +172,7 @@ const TotalSharesView = ({
             >
               {!isMobile && (
                 <Label
-                  value="År"
+                  value={translate("År", "Years")}
                   offset={-10}
                   position="insideBottom"
                   fill={COLORS.textSecondary}
@@ -188,7 +190,7 @@ const TotalSharesView = ({
             >
               {!isMobile && (
                 <Label
-                  value="Antal aktier"
+                  value={translate("Antal aktier", "Number of shares")}
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
@@ -242,7 +244,7 @@ const TotalSharesView = ({
             >
               {!isMobile && (
                 <Label
-                  value="År"
+                  value={translate("År", "Years")}
                   offset={-10}
                   position="insideBottom"
                   fill={COLORS.textSecondary}
@@ -260,7 +262,7 @@ const TotalSharesView = ({
             >
               {!isMobile && (
                 <Label
-                  value="Antal aktier"
+                  value={translate("Antal aktier", "Number of shares")}
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
@@ -282,7 +284,7 @@ const TotalSharesView = ({
             <Bar
               dataKey="totalShares"
               fill={COLORS.accent}
-              name="Antal aktier"
+              name={translate("Antal aktier", "Number of shares")}
               radius={[6, 6, 0, 0]}
             />
           </BarChart>
@@ -290,7 +292,7 @@ const TotalSharesView = ({
       </ResponsiveContainer>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
-        Historisk data
+        {translate("Historisk data", "Historical data")}
       </Typography>
       <TableContainer
         sx={{
@@ -312,7 +314,7 @@ const TotalSharesView = ({
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}
               >
-                År
+                {translate("År", "Year")}
               </TableCell>
               <TableCell
                 sx={{
@@ -322,7 +324,7 @@ const TotalSharesView = ({
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}
               >
-                Totala aktier
+                {translate("Totala aktier", "Total shares")}
               </TableCell>
             </TableRow>
           </TableHead>

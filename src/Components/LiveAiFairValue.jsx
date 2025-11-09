@@ -21,6 +21,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
+import { useTranslate } from '@/context/LocaleContext';
 import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH } from '@/lib/fairValueUtils';
 import { useTheme } from '@mui/material/styles';
 
@@ -41,13 +42,13 @@ const pct1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
 const num1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
 const int0 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 });
 
-const scenarioPalette = {
-  fair: { color: '#22c55e', Icon: TrendingUpIcon, label: 'Fair' },
-  bull: { color: '#38bdf8', Icon: TrendingUpIcon, label: 'Bull' },
-  bear: { color: '#ef4444', Icon: TrendingDownIcon, label: 'Bear' },
+const SCENARIO_PALETTE_BASE = {
+  fair: { color: '#22c55e', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' },
+  bull: { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Bull', labelEn: 'Bull' },
+  bear: { color: '#ef4444', Icon: TrendingDownIcon, labelSv: 'Bear', labelEn: 'Bear' },
 };
 
-const defaultScenario = { color: '#38bdf8', Icon: TrendingUpIcon, label: 'Fair' };
+const DEFAULT_SCENARIO_BASE = { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' };
 
 const toPriceNumber = (value) => {
   const raw = Number(value?.raw ?? value);
@@ -73,6 +74,24 @@ const formatDateTime = (date) => {
 export default function LiveAiFairValue({ reports = [], buyback }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const translate = useTranslate();
+  const scenarioPalette = useMemo(() => {
+    const entries = {};
+    Object.entries(SCENARIO_PALETTE_BASE).forEach(([key, config]) => {
+      entries[key] = {
+        ...config,
+        label: translate(config.labelSv, config.labelEn),
+      };
+    });
+    return entries;
+  }, [translate]);
+  const defaultScenario = useMemo(
+    () => ({
+      ...DEFAULT_SCENARIO_BASE,
+      label: translate(DEFAULT_SCENARIO_BASE.labelSv, DEFAULT_SCENARIO_BASE.labelEn),
+    }),
+    [translate]
+  );
   const {
     rate: fxRate,
     loading: fxLoading,
@@ -188,12 +207,34 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
     const palette = scenarioPalette[scenario.id] ?? defaultScenario;
     return {
       id: scenario.id,
-      label: palette.label ?? scenario.label,
+      label: palette.label ?? translate(scenario.label ?? scenario.id, scenario.label ?? scenario.id),
       color: palette.color,
     };
   });
 
   const dataUnavailable = fairValue.scenarios.length === 0;
+  const priceUpdatedTime = formatTime(priceUpdated) ?? translate('saknas', 'missing');
+  const fxUpdatedTime = formatTime(fxUpdated) ?? translate('saknas', 'missing');
+  const priceUpdatedDetailed = formatDateTime(priceUpdated) ?? translate('okänt', 'unknown');
+  const liveChipLabel = translate('Live', 'Live');
+  const errorChipLabel = translate('Fel', 'Error');
+  const updatedPrefix = translate('Uppdaterad', 'Updated');
+  const descriptionText = translate(
+    'Normaliserad AI-modell väger samman 8Q EPS, clampad tillväxt och nettoåterköp för att uppskatta värderingsspann. Välj scenario för att se antaganden och potentiell uppsida.',
+    'Normalized AI model blends 8Q EPS, clamped growth, and net buybacks to estimate the valuation range. Pick a scenario to view assumptions and potential upside.'
+  );
+  const dataUnavailableText = translate(
+    'AI:n saknar tillräcklig kvartalsdata för att beräkna ett värde. Säkerställ att minst 8 kvartal med EPS finns i underlaget.',
+    'The AI lacks sufficient quarterly data to compute a value. Make sure at least 8 quarters of EPS are included.'
+  );
+  const clampMin = (MIN_FWD_GROWTH * 100).toFixed(0);
+  const clampMax = (MAX_FWD_GROWTH * 100).toFixed(0);
+  const clampRangeNote = translate(
+    `Modellen clampas mellan ${clampMin}% och ${clampMax}% tillväxt.`,
+    `The model clamps growth between ${clampMin}% and ${clampMax}% growth.`
+  );
+  const priceStatusText = priceError ? translate('fel vid hämtning', 'fetch error') : translate('OK', 'OK');
+  const fxStatusText = fxError ? translate('fel vid hämtning', 'fetch error') : translate('OK', 'OK');
 
   return (
     <Box
@@ -225,12 +266,12 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
               variant={isMobile ? 'h5' : 'h4'}
               sx={{ fontWeight: 700, color: '#f8fafc', textAlign: 'center' }}
             >
-              Live AI Fair Value
+              {translate('Live AI Fair Value', 'Live AI Fair Value')}
             </Typography>
             <Chip
               size="small"
               icon={<AutoAwesomeIcon sx={{ color: '#fef9c3 !important' }} />}
-              label="AI"
+              label={translate('AI', 'AI')}
               sx={{
                 backgroundColor: 'rgba(250,204,21,0.16)',
                 color: '#fde047',
@@ -243,7 +284,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
               <Chip
                 size="small"
                 icon={<InfoOutlinedIcon sx={{ color: '#bae6fd !important' }} />}
-                label={`Rapport: ${fairValue.latestLabel}`}
+                label={translate(`Rapport: ${fairValue.latestLabel}`, `Report: ${fairValue.latestLabel}`)}
                 sx={{
                   backgroundColor: 'rgba(56,189,248,0.12)',
                   color: '#bae6fd',
@@ -276,7 +317,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
             <Chip
               size="small"
               icon={<AccessTimeIcon sx={{ color: '#fda4af !important' }} />}
-              label={`Kurs uppd: ${formatTime(priceUpdated) ?? '–'}`}
+              label={translate(`Kurs uppd: ${priceUpdatedTime}`, `Price updated: ${priceUpdatedTime}`)}
               sx={{
                 backgroundColor: 'rgba(244,114,182,0.12)',
                 color: '#fda4af',
@@ -287,7 +328,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
             <Chip
               size="small"
               icon={<AccessTimeIcon sx={{ color: '#bfdbfe !important' }} />}
-              label={`FX uppd: ${formatTime(fxUpdated) ?? '–'}`}
+              label={translate(`FX uppd: ${fxUpdatedTime}`, `FX updated: ${fxUpdatedTime}`)}
               sx={{
                 backgroundColor: 'rgba(96,165,250,0.12)',
                 color: '#bfdbfe',
@@ -309,7 +350,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
             variant="body2"
             sx={{ color: 'rgba(226,232,240,0.72)', maxWidth: 600, textAlign: 'center' }}
           >
-            Normaliserad AI-modell väger samman 8Q EPS, clampad tillväxt och nettoåterköp för att uppskatta värderingsspann. Välj scenario för att se antaganden och potentiell uppsida.
+            {descriptionText}
           </Typography>
           {scenarioOptions.length > 0 && (
             <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -365,7 +406,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
             }}
           >
             <Typography variant="body1" sx={{ color: 'rgba(226,232,240,0.82)', fontWeight: 500 }}>
-              AI:n saknar tillräcklig kvartalsdata för att beräkna ett värde. Säkerställ att minst 8 kvartal med EPS finns i underlaget.
+              {dataUnavailableText}
             </Typography>
           </Box>
         ) : (
@@ -388,12 +429,12 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                 >
                   <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
                     <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.8)', textAlign: 'center' }}>
-                      Aktuell kurs
+                      {translate('Aktuell kurs', 'Current price')}
                     </Typography>
                     {(priceLoading || priceError) && (
                       <Chip
                         size="small"
-                        label={priceLoading ? 'Live' : 'Fel'}
+                        label={priceLoading ? liveChipLabel : errorChipLabel}
                         sx={{
                           height: 22,
                           backgroundColor: priceError
@@ -409,7 +450,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                     {currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}
                   </Typography>
                   <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', textAlign: 'center' }}>
-                    Uppdaterad {formatDateTime(priceUpdated) ?? 'okänt'}
+                    {updatedPrefix} {priceUpdatedDetailed}
                   </Typography>
                 </Box>
               </Grid>
@@ -442,7 +483,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
                     <scenarioInfo.Icon sx={{ color: scenarioInfo.color }} />
                     <Typography variant="subtitle2" sx={{ color: scenarioInfo.color, fontWeight: 600 }}>
-                      AI {scenarioInfo.label}
+                      {translate('AI', 'AI')} {scenarioInfo.label}
                     </Typography>
                   </Stack>
                   <Typography variant="h3" sx={{ fontWeight: 800, color: '#f8fafc' }}>
@@ -455,7 +496,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                       fontWeight: 600,
                     }}
                   >
-                    {upsideLabel} mot aktuell kurs
+                    {upsideLabel} {translate('mot aktuell kurs', 'vs current price')}
                   </Typography>
                   <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
                     PE {activeScenario?.pe ?? '–'}x • 1Y fwd EPS {fwdEpsLabel}
@@ -494,11 +535,11 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    Antaganden (scenario)
+                    {translate('Antaganden (scenario)', 'Assumptions (scenario)')}
                   </Typography>
                   <Stack spacing={0.3} alignItems="center">
                     <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                      Tillväxt (1Y)
+                      {translate('Tillväxt (1Y)', 'Growth (1Y)')}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
                       {growthLabel}
@@ -506,7 +547,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   </Stack>
                   <Stack spacing={0.3} alignItems="center">
                     <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                      Nettoåterköp
+                      {translate('Nettoåterköp', 'Net buybacks')}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
                       {buybackLabel}
@@ -514,14 +555,14 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   </Stack>
                   <Stack spacing={0.3} alignItems="center">
                     <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                      EPS-boost (base)
+                      {translate('EPS-boost (base)', 'EPS boost (base)')}
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
                       {bbBoostLabel}
                     </Typography>
                   </Stack>
                   <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', textAlign: 'center' }}>
-                    Modellen clampas mellan {(MIN_FWD_GROWTH * 100).toFixed(0)}% och {(MAX_FWD_GROWTH * 100).toFixed(0)}% tillväxt.
+                    {clampRangeNote}
                   </Typography>
                 </Box>
               </Grid>
@@ -539,7 +580,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    EPS (TTM, SEK)
+                    {translate('EPS (TTM, SEK)', 'EPS (TTM, SEK)')}
                   </Typography>
                   <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
                     {ttmEpsLabel}
@@ -558,7 +599,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    EPS (Normaliserad)
+                    {translate('EPS (Normaliserad)', 'EPS (Normalized)')}
                   </Typography>
                   <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
                     {normEpsLabel}
@@ -577,7 +618,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    Rörelsemarginal (4Q snitt)
+                    {translate('Rörelsemarginal (4Q snitt)', 'Operating margin (4Q avg)')}
                   </Typography>
                   <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
                     {marginLabel}
@@ -596,7 +637,7 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    Omsättning TTM
+                    {translate('Omsättning TTM', 'Revenue TTM')}
                   </Typography>
                   <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
                     {revenueLabel}
@@ -613,14 +654,29 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
           <Stack direction="row" spacing={0.8} alignItems="center">
             <InfoOutlinedIcon sx={{ fontSize: 18, color: '#93c5fd' }} />
             <Typography variant="subtitle2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
-              Metod & begränsningar
+              {translate('Metod & begränsningar', 'Method & limitations')}
             </Typography>
           </Stack>
           <Typography variant="body2" sx={{ color: 'rgba(203,213,225,0.8)' }}>
-            • AI-normaliserad EPS baseras på 8 kvartal och förlängs 12 månader framåt.<br />
-            • Tillväxt clampas mellan {(MIN_FWD_GROWTH * 100).toFixed(0)}% och {(MAX_FWD_GROWTH * 100).toFixed(0)}%, multipeln justeras efter marginalkvalitet.<br />
-            • Nettoåterköp antas öka EPS enligt 1/(1−y); scenarier varierar både multipel och kassaanvändning.<br />
-            • Datahämtning live: aktiekurs {priceError ? 'fel vid hämtning' : 'OK'}, FX {fxError ? 'fel vid hämtning' : 'OK'}.
+            {translate(
+              '• AI-normaliserad EPS baseras på 8 kvartal och förlängs 12 månader framåt.',
+              '• AI-normalized EPS uses 8 quarters and projects 12 months forward.'
+            )}
+            <br />
+            {translate(
+              `• Tillväxt clampas mellan ${(MIN_FWD_GROWTH * 100).toFixed(0)}% och ${(MAX_FWD_GROWTH * 100).toFixed(0)}%, multipeln justeras efter marginalkvalitet.`,
+              `• Growth is clamped between ${(MIN_FWD_GROWTH * 100).toFixed(0)}% and ${(MAX_FWD_GROWTH * 100).toFixed(0)}%, with multiples adjusted for margin quality.`
+            )}
+            <br />
+            {translate(
+              '• Nettoåterköp antas öka EPS enligt 1/(1−y); scenarier varierar både multipel och kassaanvändning.',
+              '• Net buybacks are assumed to boost EPS via 1/(1−y); scenarios vary both multiples and cash usage.'
+            )}
+            <br />
+            {translate(
+              `• Datahämtning live: aktiekurs ${priceStatusText}, FX ${fxStatusText}.`,
+              `• Live data: stock price ${priceStatusText}, FX ${fxStatusText}.`
+            )}
           </Typography>
         </Stack>
 
