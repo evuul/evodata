@@ -11,6 +11,18 @@ const LocaleContext = createContext({
   setLocale: () => {},
 });
 
+const resolveBrowserLocale = () => {
+  if (typeof navigator === "undefined") return DEFAULT_LOCALE;
+  const candidates = [];
+  if (Array.isArray(navigator.languages) && navigator.languages.length) {
+    candidates.push(...navigator.languages);
+  }
+  if (navigator.language) candidates.push(navigator.language);
+  if (navigator.userLanguage) candidates.push(navigator.userLanguage);
+  const match = candidates.find((value) => typeof value === "string" && value.toLowerCase().startsWith("sv"));
+  return match ? "sv" : "en";
+};
+
 function normalizeLocale(value) {
   if (!value || typeof value !== "string") return DEFAULT_LOCALE;
   const normalized = value.toLowerCase();
@@ -21,7 +33,8 @@ export const LocaleProvider = ({ children }) => {
   const [locale, setLocaleState] = useState(() => {
     if (typeof window === "undefined") return DEFAULT_LOCALE;
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    return normalizeLocale(stored);
+    if (stored) return normalizeLocale(stored);
+    return resolveBrowserLocale();
   });
 
   useEffect(() => {
@@ -29,7 +42,9 @@ export const LocaleProvider = ({ children }) => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     if (stored) {
       setLocaleState(normalizeLocale(stored));
+      return;
     }
+    setLocaleState(resolveBrowserLocale());
   }, []);
 
   useEffect(() => {

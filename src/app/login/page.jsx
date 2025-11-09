@@ -16,9 +16,12 @@ import {
   Link,
   Paper,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
+import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 
@@ -41,6 +44,8 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, requestPasswordReset, isAuthenticated, initialized, authDisabled } = useAuth();
+  const translate = useTranslate();
+  const { locale, setLocale } = useLocale();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -50,6 +55,38 @@ function LoginPageContent() {
   const [resetSubmitting, setResetSubmitting] = useState(false);
   const [resetError, setResetError] = useState("");
   const [resetSuccess, setResetSuccess] = useState("");
+
+  const defaultLoginError = translate("Något gick fel. Försök igen.", "Something went wrong. Please try again.");
+  const defaultResetSuccess = translate(
+    "Om e-postadressen finns registrerad skickar vi en återställningslänk inom kort.",
+    "If the email exists we will send a reset link shortly."
+  );
+  const defaultResetError = translate(
+    "Kunde inte skicka återställningslänken. Försök igen.",
+    "Could not send the reset link. Please try again."
+  );
+  const emailLabel = translate("E-post", "Email");
+  const passwordLabel = translate("Lösenord", "Password");
+  const loginTitle = translate("Logga in", "Log in");
+  const loginSubtitle = translate("Ange dina uppgifter för att fortsätta.", "Enter your details to continue.");
+  const coldStartNotice = translate(
+    "Obs! Inloggningen kan ta upp till 20 sekunder vid kallstart av databasen eftersom vi kör ett budgetvänligt upplägg då jag är student och tjänar inga pengar på dashboarden.",
+    "Heads up! Login may take up to 20 seconds on a cold database start because I keep infrastructure lean while running this student project."
+  );
+  const loginButtonLabel = translate("Logga in", "Log in");
+  const loginLoadingLabel = translate("Loggar in...", "Logging in...");
+  const forgotPasswordLabel = translate("Glömt ditt lösenord?", "Forgot your password?");
+  const noAccountLabel = translate("Inget konto än?", "No account yet?");
+  const registerHereLabel = translate("Registrera dig här", "Register here");
+  const skipLoginLabel = translate("Gå vidare utan att logga in", "Continue without logging in");
+  const resetTitle = translate("Återställ lösenord", "Reset password");
+  const resetDescription = translate(
+    "Ange din e-postadress så skickar vi en länk för att återställa ditt lösenord.",
+    "Enter your email and we'll send you a link to reset your password."
+  );
+  const closeLabel = translate("Stäng", "Close");
+  const sendingLabel = translate("Skickar...", "Sending...");
+  const sendLinkLabel = translate("Skicka länk", "Send link");
 
   useEffect(() => {
     if (authDisabled) {
@@ -79,7 +116,7 @@ function LoginPageContent() {
       const next = searchParams?.get("next");
       router.replace(next || "/");
     } catch (err) {
-      setError(err?.message || "Något gick fel. Försök igen.");
+      setError(err?.message || defaultLoginError);
     } finally {
       setSubmitting(false);
     }
@@ -110,11 +147,9 @@ function LoginPageContent() {
           ? `${window.location.origin}/reset-password`
           : "/reset-password";
       await requestPasswordReset({ email: resetEmail.trim(), resetUrlBase });
-      setResetSuccess(
-        "Om e-postadressen finns registrerad skickar vi en återställningslänk inom kort."
-      );
+      setResetSuccess(defaultResetSuccess);
     } catch (err) {
-      setResetError(err?.message || "Kunde inte skicka återställningslänken. Försök igen.");
+      setResetError(err?.message || defaultResetError);
     } finally {
       setResetSubmitting(false);
     }
@@ -164,12 +199,46 @@ function LoginPageContent() {
           border: "1px solid rgba(255,255,255,0.05)",
         }}
       >
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            value={locale}
+            onChange={(_, value) => value && setLocale(value)}
+            sx={{
+              backgroundColor: "rgba(148,163,184,0.15)",
+              borderRadius: "999px",
+              p: 0.3,
+            }}
+          >
+            {LOCALE_OPTIONS.map((option) => (
+              <ToggleButton
+                key={option.value}
+                value={option.value}
+                sx={{
+                  textTransform: "none",
+                  border: 0,
+                  borderRadius: "999px!important",
+                  color: "rgba(226,232,240,0.75)",
+                  "&.Mui-selected": {
+                    color: "#0f172a",
+                    backgroundColor: "#f8fafc",
+                    fontWeight: 700,
+                  },
+                }}
+              >
+                {option.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+
         <Box component="header" sx={{ textAlign: "center", mb: 3 }}>
           <Typography variant="h4" component="h1" sx={{ fontWeight: 600, color: "#fff" }}>
-            Logga in
+            {loginTitle}
           </Typography>
           <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1 }}>
-            Ange dina uppgifter för att fortsätta.
+            {loginSubtitle}
           </Typography>
           <Typography
             variant="caption"
@@ -180,8 +249,7 @@ function LoginPageContent() {
               fontStyle: "italic",
             }}
           >
-            Obs! Inloggningen kan ta upp till 20 sekunder vid kallstart av databasen eftersom vi kör ett budgetvänligt
-            upplägg då jag är student och tjänar inga pengar på dashboarden.
+            {coldStartNotice}
           </Typography>
         </Box>
 
@@ -193,7 +261,7 @@ function LoginPageContent() {
           )}
 
           <TextField
-            label="E-post"
+            label={emailLabel}
             name="email"
             type="email"
             value={form.email}
@@ -206,7 +274,7 @@ function LoginPageContent() {
           />
 
           <TextField
-            label="Lösenord"
+            label={passwordLabel}
             name="password"
             type="password"
             value={form.password}
@@ -229,7 +297,7 @@ function LoginPageContent() {
               background: "linear-gradient(135deg, #4a90e2, #0077ff)",
             }}
           >
-            {submitting ? "Loggar in..." : "Logga in"}
+            {submitting ? loginLoadingLabel : loginButtonLabel}
           </Button>
         </Box>
 
@@ -241,15 +309,15 @@ function LoginPageContent() {
             underline="hover"
             sx={{ color: "#4a90e2", fontWeight: 500 }}
           >
-            Glömt ditt lösenord?
+            {forgotPasswordLabel}
           </Link>
         </Box>
 
         <Box sx={{ mt: 3, textAlign: "center" }}>
           <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)" }}>
-            Inget konto än?{" "}
+            {noAccountLabel}{" "}
             <Link component={NextLink} href="/register" underline="hover" sx={{ color: "#4a90e2" }}>
-              Registrera dig här
+              {registerHereLabel}
             </Link>
           </Typography>
         </Box>
@@ -268,17 +336,17 @@ function LoginPageContent() {
               },
             }}
           >
-            Gå vidare utan att logga in
+            {skipLoginLabel}
           </Button>
         </Box>
       </Paper>
 
       <Dialog open={resetDialogOpen} onClose={handleCloseReset} fullWidth maxWidth="xs">
         <Box component="form" onSubmit={handleResetPassword}>
-          <DialogTitle>Återställ lösenord</DialogTitle>
+          <DialogTitle>{resetTitle}</DialogTitle>
           <DialogContent sx={{ display: "grid", gap: 2, pt: 1 }}>
             <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              Ange din e-postadress så skickar vi en länk för att återställa ditt lösenord.
+              {resetDescription}
             </Typography>
             {resetError && (
               <Alert severity="error" onClose={() => setResetError("")}>
@@ -291,7 +359,7 @@ function LoginPageContent() {
               </Alert>
             )}
             <TextField
-              label="E-post"
+              label={emailLabel}
               name="reset-email"
               type="email"
               value={resetEmail}
@@ -304,14 +372,14 @@ function LoginPageContent() {
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={handleCloseReset} disabled={resetSubmitting}>
-              Stäng
+              {closeLabel}
             </Button>
             <Button
               type="submit"
               variant="contained"
               disabled={resetSubmitting || !resetEmail.trim()}
             >
-              {resetSubmitting ? "Skickar..." : "Skicka länk"}
+              {resetSubmitting ? sendingLabel : sendLinkLabel}
             </Button>
           </DialogActions>
         </Box>

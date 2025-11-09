@@ -10,6 +10,8 @@ import {
   Chip,
   IconButton,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
   useMediaQuery,
   useTheme,
@@ -34,14 +36,22 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
 
 const quarterOrder = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
-const formatCurrency = (value) =>
-  `${Number(value ?? 0).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MEUR`;
+const NUMBER_LOCALE_MAP = {
+  sv: "sv-SE",
+  en: "en-US",
+};
 
-const formatPercent = (value) =>
-  `${Number(value ?? 0).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+const resolveNumberLocale = (locale) => NUMBER_LOCALE_MAP[locale] ?? NUMBER_LOCALE_MAP.sv;
+
+const formatCurrency = (value, locale = NUMBER_LOCALE_MAP.sv) =>
+  `${Number(value ?? 0).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MEUR`;
+
+const formatPercent = (value, locale = NUMBER_LOCALE_MAP.sv) =>
+  `${Number(value ?? 0).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 const pickLatestReports = (reports) => {
   if (!Array.isArray(reports) || reports.length === 0) return { latest: null, previous: null };
@@ -71,26 +81,36 @@ const pickLatestDividend = (data) => {
   return history[history.length - 1];
 };
 
-const formatNumberCompact = (value, options = {}) =>
-  Number(value ?? 0).toLocaleString("sv-SE", { notation: "compact", maximumFractionDigits: 1, ...options });
+const formatNumberCompact = (value, locale = NUMBER_LOCALE_MAP.sv, options = {}) =>
+  Number(value ?? 0).toLocaleString(locale, { notation: "compact", maximumFractionDigits: 1, ...options });
 
-const formatCurrencySek = (value) =>
+const formatCurrencySek = (value, locale = NUMBER_LOCALE_MAP.sv) =>
   typeof value === "number"
-    ? new Intl.NumberFormat("sv-SE", { style: "currency", currency: "SEK", maximumFractionDigits: value >= 1_000_000 ? 0 : 2 }).format(value)
+    ? new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: "SEK",
+        maximumFractionDigits: value >= 1_000_000 ? 0 : 2,
+      }).format(value)
     : null;
 
-const formatSekAbbrev = (value) => {
-  if (!Number.isFinite(value)) return null;
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} Mdkr`;
-  }
-  return `${(value / 1_000_000).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} MSEK`;
+const SEK_UNIT_LABELS = {
+  sv: { billion: "Mdkr", million: "MSEK" },
+  en: { billion: "B SEK", million: "M SEK" },
 };
 
-const formatSignedPercent = (value) => {
+const formatSekAbbrev = (value, locale = NUMBER_LOCALE_MAP.sv, language = "sv") => {
+  if (!Number.isFinite(value)) return null;
+  const labels = SEK_UNIT_LABELS[language] ?? SEK_UNIT_LABELS.sv;
+  if (value >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${labels.billion}`;
+  }
+  return `${(value / 1_000_000).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${labels.million}`;
+};
+
+const formatSignedPercent = (value, locale = NUMBER_LOCALE_MAP.sv) => {
   if (!Number.isFinite(value)) return null;
   if (value === 0) return "±0%";
-  const abs = Math.abs(value).toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const abs = Math.abs(value).toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return `${value > 0 ? "+" : "-"}${abs}%`;
 };
 
@@ -202,11 +222,11 @@ const pickLatestInsiderBuy = (data) => {
   return items.find((item) => item.direction === "buy") ?? null;
 };
 
-const formatPlayers = (value) => Number(value ?? 0).toLocaleString("sv-SE");
+const formatPlayers = (value, locale = NUMBER_LOCALE_MAP.sv) => Number(value ?? 0).toLocaleString(locale);
 
-const formatSignedNumber = (value, suffix = "") => {
+const formatSignedNumber = (value, suffix = "", locale = NUMBER_LOCALE_MAP.sv) => {
   if (!Number.isFinite(value) || value === 0) return value === 0 ? `±0${suffix}` : null;
-  const formatted = Math.abs(value).toLocaleString("sv-SE");
+  const formatted = Math.abs(value).toLocaleString(locale);
   return `${value > 0 ? "+" : "-"}${formatted}${suffix}`;
 };
 
@@ -278,6 +298,15 @@ export default function LiveLoggedOutPreview({
   insiderTransactions,
   buybackData,
 }) {
+  const translate = useTranslate();
+  const { locale, setLocale } = useLocale();
+  const numberLocale = resolveNumberLocale(locale);
+  const dateLocale = locale === "en" ? "en-GB" : "sv-SE";
+  const formatDate = (value) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.valueOf()) ? null : date.toLocaleDateString(dateLocale);
+  };
   const { latest, previous } = pickLatestReports(financialReports?.financialReports ?? []);
   const { latestDay, weeklyAvg } = computePlayersPreview(averagePlayersData ?? []);
   const latestDividend = pickLatestDividend(dividendData);
@@ -291,11 +320,11 @@ export default function LiveLoggedOutPreview({
 
   const regionEntries = latest
     ? [
-        { label: "Europa", value: Number(latest.europe ?? 0) },
-        { label: "Asien", value: Number(latest.asia ?? 0) },
-        { label: "Nordamerika", value: Number(latest.northAmerica ?? 0) },
-        { label: "Latinamerika", value: Number(latest.latAm ?? 0) },
-        { label: "Övrigt", value: Number(latest.other ?? 0) },
+        { label: translate("Europa", "Europe"), value: Number(latest.europe ?? 0) },
+        { label: translate("Asien", "Asia"), value: Number(latest.asia ?? 0) },
+        { label: translate("Nordamerika", "North America"), value: Number(latest.northAmerica ?? 0) },
+        { label: translate("Latinamerika", "Latin America"), value: Number(latest.latAm ?? 0) },
+        { label: translate("Övrigt", "Other"), value: Number(latest.other ?? 0) },
       ].filter((entry) => entry.value > 0)
     : [];
   regionEntries.sort((a, b) => b.value - a.value);
@@ -323,40 +352,65 @@ export default function LiveLoggedOutPreview({
     : [];
   const shortWindowRange =
     shortTrend && shortWindowPercents.length >= 2
-      ? `${Math.min(...shortWindowPercents).toFixed(2)}–${Math.max(...shortWindowPercents).toFixed(2)}%`
+      ? `${Math.min(...shortWindowPercents).toLocaleString(numberLocale, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}–${Math.max(...shortWindowPercents).toLocaleString(numberLocale, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}%`
       : null;
-  const latestShortDate = shortTrend?.latest?.date
-    ? new Date(shortTrend.latest.date).toLocaleDateString("sv-SE")
-    : null;
+  const latestShortDate = shortTrend?.latest?.date ? formatDate(shortTrend.latest.date) : null;
 
   const topGameValue = topGames.length ? `#1 ${topGames[0].name}` : "—";
   const topGameBadge =
-    topGames.length && topGames[0].change != null ? `D/d ${formatSignedNumber(topGames[0].change, " spelare")}` : null;
+    topGames.length && topGames[0].change != null
+      ? translate(
+          `D/d ${formatSignedNumber(topGames[0].change, " spelare", numberLocale)}`,
+          `D/d ${formatSignedNumber(topGames[0].change, " players", numberLocale)}`
+        )
+      : null;
   const topGamesSubtitle = topGames.length
-    ? topGames
-        .map((game, index) => `#${index + 1} ${game.name} (${formatPlayers(game.latestPlayers)} spelare)`)
-        .join(" • ")
-    : "Live-ranking med realtidsdata per spel.";
+    ? translate(
+        topGames
+          .map((game, index) => `#${index + 1} ${game.name} (${formatPlayers(game.latestPlayers, numberLocale)} spelare)`)
+          .join(" • "),
+        topGames
+          .map((game, index) => `#${index + 1} ${game.name} (${formatPlayers(game.latestPlayers, numberLocale)} players)`)
+          .join(" • ")
+      )
+    : translate("Live-ranking med realtidsdata per spel.", "Live ranking with real-time data per game.");
 
-  const shortBadge =
+  const shortDeltaDisplay =
     shortTrend?.delta != null
-      ? `${shortTrend.delta >= 0 ? "+" : ""}${shortTrend.delta.toFixed(2)} %-enheter senaste ${shortTrend.window?.length ?? 0} dagarna`
+      ? `${shortTrend.delta >= 0 ? "+" : ""}${Math.abs(shortTrend.delta).toLocaleString(numberLocale, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}`
+      : null;
+  const shortBadge =
+    shortDeltaDisplay != null
+      ? translate(
+          `${shortDeltaDisplay} %-enheter senaste ${shortTrend.window?.length ?? 0} dagarna`,
+          `${shortDeltaDisplay} pp over the last ${shortTrend.window?.length ?? 0} days`
+        )
       : null;
   const shortSubtitle =
     shortTrend?.latest && shortWindowRange
-      ? `Intervall ${shortWindowRange} under ${shortTrend.window?.length ?? 0} dagar • Senast ${latestShortDate}.`
+      ? translate(
+          `Intervall ${shortWindowRange} under ${shortTrend.window?.length ?? 0} dagar • Senast ${latestShortDate}.`,
+          `Range ${shortWindowRange} across ${shortTrend.window?.length ?? 0} days • Latest ${latestShortDate}.`
+        )
       : shortTrend?.latest
-        ? `Senast rapporterad ${latestShortDate}.`
-        : "Senaste FI-uppdateringar på blankningsdata.";
+        ? translate(`Senast rapporterad ${latestShortDate}.`, `Last reported ${latestShortDate}.`)
+        : translate("Senaste FI-uppdateringar på blankningsdata.", "Latest FI updates on short data.");
 
   const insiderVolume =
     latestInsiderBuy?.volumeText ??
-    (Number.isFinite(latestInsiderBuy?.volume) ? formatPlayers(latestInsiderBuy.volume) : null);
+    (Number.isFinite(latestInsiderBuy?.volume) ? formatPlayers(latestInsiderBuy.volume, numberLocale) : null);
   const insiderUnit = (latestInsiderBuy?.volumeUnit ?? "st").toLowerCase();
-  const insiderDate = latestInsiderBuy?.transactionDate
-    ? new Date(latestInsiderBuy.transactionDate).toLocaleDateString("sv-SE")
-    : null;
-  const insiderValue = formatCurrencySek(latestInsiderBuy?.valueSek);
+  const insiderDate = latestInsiderBuy?.transactionDate ? formatDate(latestInsiderBuy.transactionDate) : null;
+  const insiderValue = formatCurrencySek(latestInsiderBuy?.valueSek, numberLocale);
 
   const revenueAth = computeRevenueAth(financialReports?.financialReports ?? []);
   const lobbyTrend = computeLobbyTrend(averagePlayersData ?? []);
@@ -364,30 +418,61 @@ export default function LiveLoggedOutPreview({
   const shareholderReturn = computeShareholderReturn(dividendData, buybackData);
 
   const revenueAthMargin =
-    revenueAth && Number.isFinite(revenueAth.margin) ? formatPercent(revenueAth.margin) : null;
+    revenueAth && Number.isFinite(revenueAth.margin) ? formatPercent(revenueAth.margin, numberLocale) : null;
 
-  const lobbyValue = lobbyTrend ? `${formatPlayers(Math.round(lobbyTrend.latestAvg))} spelare` : null;
-  const lobbyBadge = lobbyTrend ? formatSignedNumber(Math.round(lobbyTrend.diff), " spelare") : null;
+  const playersChangeText = lobbyTrend?.pct != null ? formatSignedPercent(lobbyTrend.pct, numberLocale) : null;
+
+  const lobbyValue = lobbyTrend
+    ? translate(
+        `${formatPlayers(Math.round(lobbyTrend.latestAvg), numberLocale)} spelare`,
+        `${formatPlayers(Math.round(lobbyTrend.latestAvg), numberLocale)} players`
+      )
+    : null;
+  const lobbyBadge = lobbyTrend
+    ? translate(
+        formatSignedNumber(Math.round(lobbyTrend.diff), " spelare", numberLocale),
+        formatSignedNumber(Math.round(lobbyTrend.diff), " players", numberLocale)
+      )
+    : null;
   const lobbySubtitle = lobbyTrend
-    ? `Föregående: ${formatPlayers(Math.round(lobbyTrend.prevAvg))} • Förändring ${
-        lobbyTrend.pct != null ? `${lobbyTrend.pct >= 0 ? "+" : ""}${lobbyTrend.pct.toFixed(1)}%` : "N/A"
-      }.`
+    ? translate(
+        `Föregående: ${formatPlayers(Math.round(lobbyTrend.prevAvg), numberLocale)} • Förändring ${
+          playersChangeText ?? "N/A"
+        }.`,
+        `Previous: ${formatPlayers(Math.round(lobbyTrend.prevAvg), numberLocale)} • Change ${
+          playersChangeText ?? "N/A"
+        }.`
+      )
     : null;
 
   const buybackSharesDisplay = buybackSummary
-    ? formatNumberCompact(buybackSummary.shares, { maximumFractionDigits: 1 })
+    ? formatNumberCompact(buybackSummary.shares, numberLocale, { maximumFractionDigits: 1 })
     : null;
-  const buybackValueDisplay = buybackSummary ? formatSekAbbrev(buybackSummary.value) : null;
+  const buybackValueDisplay = buybackSummary ? formatSekAbbrev(buybackSummary.value, numberLocale, locale) : null;
   const buybackAvgPriceDisplay =
     buybackSummary && Number.isFinite(buybackSummary.avgPrice)
-      ? `${buybackSummary.avgPrice.toLocaleString("sv-SE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} SEK`
+      ? `${buybackSummary.avgPrice.toLocaleString(numberLocale, { minimumFractionDigits: 0, maximumFractionDigits: 0 })} ${
+          locale === "en" ? "SEK" : "kr"
+        }`
       : null;
-  const buybackLatestDate = buybackSummary?.latestDate ? buybackSummary.latestDate.toLocaleDateString("sv-SE") : null;
+  const buybackLatestDate = buybackSummary?.latestDate ? formatDate(buybackSummary.latestDate) : null;
 
-  const shareholderValueDisplay = shareholderReturn ? formatSekAbbrev(shareholderReturn.totalBuybackValue) : null;
-  const shareholderDividendDisplay =
+  const shareholderValueDisplay = shareholderReturn
+    ? formatSekAbbrev(shareholderReturn.totalBuybackValue, numberLocale, locale)
+    : null;
+  const shareholderDividendValue =
     shareholderReturn && Number.isFinite(shareholderReturn.totalDividendPerShare)
-      ? `${shareholderReturn.totalDividendPerShare.toFixed(1)} kr/aktie`
+      ? Number(shareholderReturn.totalDividendPerShare).toLocaleString(numberLocale, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })
+      : null;
+  const shareholderDividendCopy =
+    shareholderDividendValue != null
+      ? {
+          sv: `${shareholderDividendValue} kr/aktie`,
+          en: `${shareholderDividendValue} SEK/share`,
+        }
       : null;
 
   const eps = Number(latest?.adjustedEarningsPerShare);
@@ -408,7 +493,6 @@ export default function LiveLoggedOutPreview({
     : null;
   const liveShareChange = liveShare != null && prevLiveShare != null ? liveShare - prevLiveShare : null;
 
-  const playersChangeText = lobbyTrend?.pct != null ? formatSignedPercent(lobbyTrend.pct) : null;
   const forecastRevenue =
     lobbyTrend && Number.isFinite(lobbyTrend?.pct) && Number.isFinite(latest?.operatingRevenues)
       ? latest.operatingRevenues * (1 + lobbyTrend.pct / 100)
@@ -426,29 +510,65 @@ export default function LiveLoggedOutPreview({
       }, null)
     : null;
 
+  const dividendPerShareFormatted =
+    latestDividend != null && Number.isFinite(Number(latestDividend.dividendPerShare))
+      ? Number(latestDividend.dividendPerShare).toLocaleString(numberLocale, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })
+      : null;
+  const dividendDateDisplay = latestDividend?.date ? formatDate(latestDividend.date) : null;
+
   const cards = [];
+
+  const revenueGrowthDisplay =
+    revenueGrowth != null
+      ? `${revenueGrowth >= 0 ? "+" : ""}${Math.abs(revenueGrowth).toLocaleString(numberLocale, {
+          minimumFractionDigits: 1,
+          maximumFractionDigits: 1,
+        })}`
+      : null;
 
   cards.push({
     key: "revenue",
     icon: <ShowChartIcon />,
-    title: "Omsättning per kvartal",
-    value: latest ? formatCurrency(latest.operatingRevenues) : "—",
+    title: translate("Omsättning per kvartal", "Revenue per quarter"),
+    value: latest ? formatCurrency(latest.operatingRevenues, numberLocale) : "—",
     subtitle: latest
-      ? `${latest.quarter} ${latest.year} med ${formatPercent(latest.adjustedOperatingMargin)} rörelsemarginal och full regionfördelning.`
-      : "Kvartalsvis omsättning och marginaler med historik.",
-    badge: revenueGrowth != null ? `${revenueGrowth >= 0 ? "+" : ""}${revenueGrowth.toFixed(1)}% vs föregående kvartal` : null,
+      ? translate(
+          `${latest.quarter} ${latest.year} med ${formatPercent(latest.adjustedOperatingMargin, numberLocale)} rörelsemarginal och full regionfördelning.`,
+          `${latest.quarter} ${latest.year} with ${formatPercent(latest.adjustedOperatingMargin, numberLocale)} operating margin and complete regional split.`
+        )
+      : translate("Kvartalsvis omsättning och marginaler med historik.", "Quarterly revenue and margins with history."),
+    badge:
+      revenueGrowthDisplay != null
+        ? translate(
+            `${revenueGrowthDisplay}% vs föregående kvartal`,
+            `${revenueGrowthDisplay}% vs prior quarter`
+          )
+        : null,
   });
 
   if (Number.isFinite(latest?.adjustedOperatingMargin)) {
-    const marginBadge =
-      marginChange != null ? formatSignedNumber(Number(marginChange.toFixed(1)), " %-enheter") : null;
+    const marginBadgeCopy =
+      marginChange != null
+        ? {
+            sv: formatSignedNumber(Number(marginChange.toFixed(1)), " %-enheter", numberLocale),
+            en: formatSignedNumber(Number(marginChange.toFixed(1)), " pp", numberLocale),
+          }
+        : null;
     cards.push({
       key: "margin-trend",
-      icon: <EqualizerIcon />,
-      title: "Rörelsemarginal",
-      value: formatPercent(latest.adjustedOperatingMargin),
-      subtitle: marginBadge ? `Förändring ${marginBadge} mot föregående kvartal.` : "Håller koll på marginaltrenden kvartalsvis.",
-      badge: marginBadge,
+      icon: <EqualizerIcon />, 
+      title: translate("Rörelsemarginal", "Operating margin"),
+      value: formatPercent(latest.adjustedOperatingMargin, numberLocale),
+      subtitle: marginBadgeCopy
+        ? translate(
+            `Förändring ${marginBadgeCopy.sv} mot föregående kvartal.`,
+            `Change ${marginBadgeCopy.en} vs previous quarter.`
+          )
+        : translate("Håller koll på marginaltrenden kvartalsvis.", "Track margin trend quarter by quarter."),
+      badge: marginBadgeCopy ? (locale === "en" ? marginBadgeCopy.en : marginBadgeCopy.sv) : null,
     });
   }
 
@@ -456,10 +576,13 @@ export default function LiveLoggedOutPreview({
     cards.push({
       key: "revenue-ath",
       icon: <EmojiEventsIcon />,
-      title: "All time high",
-      value: formatCurrency(revenueAth.value),
-      subtitle: `${revenueAth.quarter} ${revenueAth.year}${revenueAthMargin ? ` • Rörelsemarginal ${revenueAthMargin}` : ""}.`,
-      badge: "Historisk topp",
+      title: translate("All time high", "All-time high"),
+      value: formatCurrency(revenueAth.value, numberLocale),
+      subtitle: translate(
+        `${revenueAth.quarter} ${revenueAth.year}${revenueAthMargin ? ` • Rörelsemarginal ${revenueAthMargin}` : ""}.`,
+        `${revenueAth.quarter} ${revenueAth.year}${revenueAthMargin ? ` • Operating margin ${revenueAthMargin}` : ""}.`
+      ),
+      badge: translate("Historisk topp", "Historic peak"),
     });
   }
 
@@ -467,9 +590,10 @@ export default function LiveLoggedOutPreview({
     cards.push({
       key: "lobby-trend",
       icon: <AutoGraphIcon />,
-      title: "Lobbytrend (7d)",
+      title: translate("Lobbytrend (7d)", "Lobby trend (7d)"),
       value: lobbyValue ?? "—",
-      subtitle: lobbySubtitle ?? "Trend jämfört med föregående 7 dagar.",
+      subtitle:
+        lobbySubtitle ?? translate("Trend jämfört med föregående 7 dagar.", "Trend vs previous 7 days."),
       badge: lobbyBadge,
     });
   }
@@ -478,31 +602,36 @@ export default function LiveLoggedOutPreview({
     cards.push({
       key: "forecast",
       icon: <InsightsIcon />,
-      title: "Intelligence-prognos",
-      value: formatCurrency(forecastRevenue),
+      title: translate("Intelligence-prognos", "Intelligence forecast"),
+      value: formatCurrency(forecastRevenue, numberLocale),
       subtitle: playersChangeText
-        ? `Lobbytrenden ${playersChangeText} mot föregående 7 dagar.`
-        : "Prognos baserad på senaste lobbytrenden.",
-      badge: "Prognos",
+        ? translate(`Lobbytrenden ${playersChangeText} mot föregående 7 dagar.`, `Lobby trend ${playersChangeText} vs previous 7 days.`)
+        : translate("Prognos baserad på senaste lobbytrenden.", "Forecast based on latest lobby trend."),
+      badge: translate("Prognos", "Forecast"),
     });
   }
 
   cards.push({
     key: "live-players",
     icon: <GroupsIcon />,
-    title: "Live-spelare",
-    value: latestDay ? `${formatPlayers(latestDay.Players)}` : "—",
+    title: translate("Live-spelare", "Live players"),
+    value: latestDay ? `${formatPlayers(latestDay.Players, numberLocale)}` : "—",
     subtitle: weeklyAvg
-      ? `Snitt senaste veckan: ${Math.round(weeklyAvg).toLocaleString("sv-SE")} samtidiga spelare över Evolution Live.`
-      : "Följ daglig live-trafik per spel i realtid.",
-    badge: latestDay ? `Senaste uppdatering ${new Date(latestDay.Datum).toLocaleDateString("sv-SE")}` : null,
+      ? translate(
+          `Snitt senaste veckan: ${Math.round(weeklyAvg).toLocaleString(numberLocale)} samtidiga spelare över Evolution Live.`,
+          `Weekly average: ${Math.round(weeklyAvg).toLocaleString(numberLocale)} concurrent players across Evolution Live.`
+        )
+      : translate("Följ daglig live-trafik per spel i realtid.", "Track daily live traffic per game in real time."),
+    badge: latestDay
+      ? translate(`Senaste uppdatering ${formatDate(latestDay.Datum)}`, `Updated ${formatDate(latestDay.Datum)}`)
+      : null,
   });
 
   if (topGames.length) {
     cards.push({
       key: "leaderboard",
       icon: <LeaderboardIcon />,
-      title: "Ranking av spel",
+      title: translate("Ranking av spel", "Game leaderboard"),
       value: topGameValue,
       subtitle: topGamesSubtitle,
       badge: topGameBadge,
@@ -510,46 +639,65 @@ export default function LiveLoggedOutPreview({
   }
 
   if (lobbyRecord) {
-    const recordDate = new Date(lobbyRecord.date).toLocaleDateString("sv-SE");
+    const recordDate = formatDate(lobbyRecord.date);
     cards.push({
       key: "lobby-peak",
       icon: <BarChartIcon />,
-      title: "Lobbytoppen",
-      value: `${formatPlayers(lobbyRecord.players)} spelare`,
-      subtitle: `Rekordnotering ${recordDate}.`,
-      badge: "All time high",
+      title: translate("Lobbytoppen", "Lobby peak"),
+      value: translate(
+        `${formatPlayers(lobbyRecord.players, numberLocale)} spelare`,
+        `${formatPlayers(lobbyRecord.players, numberLocale)} players`
+      ),
+      subtitle: translate(`Rekordnotering ${recordDate}.`, `Record on ${recordDate}.`),
+      badge: translate("All time high", "All-time high"),
     });
   }
 
   cards.push({
     key: "dividends",
     icon: <PaidIcon />,
-    title: "Utdelningar",
+    title: translate("Utdelningar", "Dividends"),
     value:
-      latestDividend != null
-        ? `${latestDividend.dividendPerShare.toLocaleString("sv-SE", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })} kr`
+      dividendPerShareFormatted != null
+        ? translate(`${dividendPerShareFormatted} kr`, `${dividendPerShareFormatted} SEK`)
         : "—",
     subtitle:
       latestDividend != null
-        ? `Totalt ${latestDividend.dividendPerShare.toLocaleString("sv-SE", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })} kr per aktie inför bolagsstämman ${new Date(latestDividend.date).toLocaleDateString("sv-SE")}.${dividendYield != null ? ` Direktavkastning vid utbetalning: ${formatPercent(dividendYield)}.` : ""}`
-        : "Full historik över utdelningar, återköp och direktavkastning.",
-    badge: "Historiska och planerade utdelningar",
+        ? translate(
+            `Totalt ${dividendPerShareFormatted ?? "—"} kr per aktie inför bolagsstämman ${
+              dividendDateDisplay ?? "—"
+            }.${dividendYield != null ? ` Direktavkastning vid utbetalning: ${formatPercent(dividendYield, numberLocale)}.` : ""}`,
+            `Total ${dividendPerShareFormatted ?? "—"} SEK per share ahead of the AGM ${
+              dividendDateDisplay ?? "—"
+            }.${dividendYield != null ? ` Yield at payout: ${formatPercent(dividendYield, numberLocale)}.` : ""}`
+          )
+        : translate(
+            "Full historik över utdelningar, återköp och direktavkastning.",
+            "Full history of dividends, buybacks, and yields."
+          ),
+    badge: translate("Historiska och planerade utdelningar", "Historical and planned dividends"),
   });
 
   if (shareholderReturn) {
     cards.push({
       key: "shareholder-return",
       icon: <SavingsIcon />,
-      title: "Återfört kapital",
+      title: translate("Återfört kapital", "Capital returned"),
       value: shareholderValueDisplay ?? "—",
-      subtitle: `Återköp totalt: ${shareholderValueDisplay ?? "—"}${shareholderDividendDisplay ? ` • Utdelningar ${shareholderDividendDisplay}` : ""}`,
-      badge: shareholderDividendDisplay ?? "Utdelning + återköp",
+      subtitle: translate(
+        `Återköp totalt: ${shareholderValueDisplay ?? "—"}${
+          shareholderDividendCopy ? ` • Utdelningar ${shareholderDividendCopy.sv}` : ""
+        }`,
+        `Buybacks total: ${shareholderValueDisplay ?? "—"}${
+          shareholderDividendCopy ? ` • Dividends ${shareholderDividendCopy.en}` : ""
+        }`
+      ),
+      badge:
+        shareholderDividendCopy != null
+          ? locale === "en"
+            ? shareholderDividendCopy.en
+            : shareholderDividendCopy.sv
+          : translate("Utdelning + återköp", "Dividend + buybacks"),
     });
   }
 
@@ -557,71 +705,124 @@ export default function LiveLoggedOutPreview({
     cards.push({
       key: "buybacks",
       icon: <Inventory2Icon />,
-      title: "Återköp (30 dagar)",
-      value: buybackSharesDisplay ? `${buybackSharesDisplay} aktier` : "—",
-      subtitle: `${buybackValueDisplay ?? "—"} senaste 30 dagarna${buybackAvgPriceDisplay ? ` • Snitt ${buybackAvgPriceDisplay}` : ""}.`,
-      badge: buybackLatestDate ? `Senast ${buybackLatestDate}` : null,
+      title: translate("Återköp (30 dagar)", "Buybacks (30 days)"),
+      value: buybackSharesDisplay
+        ? translate(`${buybackSharesDisplay} aktier`, `${buybackSharesDisplay} shares`)
+        : "—",
+      subtitle: translate(
+        `${buybackValueDisplay ?? "—"} senaste 30 dagarna${buybackAvgPriceDisplay ? ` • Snitt ${buybackAvgPriceDisplay}` : ""}.`,
+        `${buybackValueDisplay ?? "—"} over the last 30 days${buybackAvgPriceDisplay ? ` • Avg ${buybackAvgPriceDisplay}` : ""}.`
+      ),
+      badge: buybackLatestDate
+        ? translate(`Senast ${buybackLatestDate}`, `Latest ${buybackLatestDate}`)
+        : null,
     });
   }
 
   cards.push({
     key: "ebitda",
     icon: <TrendingUpIcon />,
-    title: "EBITDA & marginal",
-    value: ebitdaValue != null ? formatCurrency(ebitdaValue) : "—",
+    title: translate("EBITDA & marginal", "EBITDA & margin"),
+    value: ebitdaValue != null ? formatCurrency(ebitdaValue, numberLocale) : "—",
     subtitle:
       ebitdaValue != null
-        ? `${latest?.quarter ?? ""} ${latest?.year ?? ""} med operativ hävstång spårad tillbaka till 2015.`
-        : "Detaljerad EBITDA-historik och marginalspårning.",
-    badge: ebitdaMargin != null ? `EBITDA-marginal ${formatPercent(ebitdaMargin)}` : null,
+        ? translate(
+            `${latest?.quarter ?? ""} ${latest?.year ?? ""} med operativ hävstång spårad tillbaka till 2015.`,
+            `${latest?.quarter ?? ""} ${latest?.year ?? ""} with operational leverage tracked back to 2015.`
+          )
+        : translate("Detaljerad EBITDA-historik och marginalspårning.", "Detailed EBITDA history and margin tracking."),
+    badge:
+      ebitdaMargin != null
+        ? translate(
+            `EBITDA-marginal ${formatPercent(ebitdaMargin, numberLocale)}`,
+            `EBITDA margin ${formatPercent(ebitdaMargin, numberLocale)}`
+          )
+        : null,
   });
 
   if (Number.isFinite(eps)) {
+    const epsDisplay = Number(eps).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const epsPrevDisplay = Number.isFinite(epsPrev)
+      ? Number(epsPrev).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : null;
+    const epsChangeDisplay =
+      epsChange != null
+        ? `${epsChange >= 0 ? "+" : "-"}${Math.abs(epsChange).toLocaleString(numberLocale, {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`
+        : null;
     cards.push({
       key: "eps",
       icon: <RequestQuoteIcon />,
-      title: "Justerad EPS",
-      value: `${eps.toFixed(2)} kr`,
-      subtitle: Number.isFinite(epsPrev)
-        ? `Föregående kvartal ${epsPrev.toFixed(2)} kr per aktie.`
-        : "Justerat resultat per aktie senaste kvartalet.",
-      badge: epsChange != null ? `${epsChange >= 0 ? "+" : "-"}${Math.abs(epsChange).toFixed(2)} kr` : null,
+      title: translate("Justerad EPS", "Adjusted EPS"),
+      value: translate(`${epsDisplay} kr`, `${epsDisplay} SEK`),
+      subtitle: epsPrevDisplay
+        ? translate(`Föregående kvartal ${epsPrevDisplay} kr per aktie.`, `Previous quarter ${epsPrevDisplay} SEK per share.`)
+        : translate("Justerat resultat per aktie senaste kvartalet.", "Adjusted earnings per share last quarter."),
+      badge: epsChangeDisplay ? translate(`${epsChangeDisplay} kr`, `${epsChangeDisplay} SEK`) : null,
     });
   }
 
   cards.push({
     key: "region",
     icon: <PublicIcon />,
-    title: "Största region",
-    value: topRegion ? `${topRegion.label} • ${formatCurrency(topRegion.value)}` : "—",
+    title: translate("Största region", "Largest region"),
+    value: topRegion
+      ? `${topRegion.label} • ${formatCurrency(topRegion.value, numberLocale)}`
+      : "—",
     subtitle: topRegion
-      ? `Reglerade marknader står för ${regulatedShare != null ? formatPercent(regulatedShare) : "—"} av intäkterna samma kvartal.`
-      : "Region- och marknadsmix uppdateras varje kvartal.",
-    badge: topCustomersShare != null ? `Top 5 kunder: ${formatPercent(topCustomersShare)}` : null,
+      ? translate(
+          `Reglerade marknader står för ${regulatedShare != null ? formatPercent(regulatedShare, numberLocale) : "—"} av intäkterna samma kvartal.`,
+          `Regulated markets account for ${regulatedShare != null ? formatPercent(regulatedShare, numberLocale) : "—"} of revenue this quarter.`
+        )
+      : translate("Region- och marknadsmix uppdateras varje kvartal.", "Regional mix updates every quarter."),
+    badge:
+      topCustomersShare != null
+        ? translate(
+            `Top 5 kunder: ${formatPercent(topCustomersShare, numberLocale)}`,
+            `Top 5 customers: ${formatPercent(topCustomersShare, numberLocale)}`
+          )
+        : null,
   });
 
   cards.push({
     key: "product-mix",
     icon: <HubIcon />,
-    title: "Produktmix",
-    value: liveShare != null ? `${formatPercent(liveShare)} Live` : "—",
+    title: translate("Produktmix", "Product mix"),
+    value: liveShare != null ? `${formatPercent(liveShare, numberLocale)} Live` : "—",
     subtitle:
       liveShare != null
-        ? `RNG står för ${formatPercent(rngShare ?? 0)} av intäkterna samma kvartal – följ utvecklingen spel för spel.`
-        : "Fördjupa dig i hur Live Casino och RNG utvecklas över tid.",
-    badge: "Daglig uppdatering per spelkategori",
+        ? translate(
+            `RNG står för ${formatPercent(rngShare ?? 0, numberLocale)} av intäkterna samma kvartal – följ utvecklingen spel för spel.`,
+            `RNG accounts for ${formatPercent(rngShare ?? 0, numberLocale)} of revenue this quarter – track it game by game.`
+          )
+        : translate("Fördjupa dig i hur Live Casino och RNG utvecklas över tid.", "Dive into how Live Casino and RNG evolve over time."),
+    badge: translate("Daglig uppdatering per spelkategori", "Daily update per category"),
   });
 
   if (liveShare != null) {
-    const liveBadge =
-      liveShareChange != null ? formatSignedNumber(Number(liveShareChange.toFixed(1)), " %-enheter") : null;
+    const liveBadgeCopy =
+      liveShareChange != null
+        ? {
+            sv: formatSignedNumber(Number(liveShareChange.toFixed(1)), " %-enheter", numberLocale),
+            en: formatSignedNumber(Number(liveShareChange.toFixed(1)), " pp", numberLocale),
+          }
+        : null;
     cards.push({
       key: "live-share-change",
       icon: <DonutLargeIcon />,
-      title: "Live vs RNG Δ",
-      value: `${formatPercent(liveShare)}`,
-      subtitle: `RNG ${formatPercent(rngShare ?? 0)} denna period${prevLiveShare != null ? ` • Föregående live ${formatPercent(prevLiveShare)}` : ""}.`,
-      badge: liveBadge,
+      title: translate("Live vs RNG Δ", "Live vs RNG Δ"),
+      value: `${formatPercent(liveShare, numberLocale)}`,
+      subtitle: translate(
+        `RNG ${formatPercent(rngShare ?? 0, numberLocale)} denna period${
+          prevLiveShare != null ? ` • Föregående live ${formatPercent(prevLiveShare, numberLocale)}` : ""
+        }.`,
+        `RNG ${formatPercent(rngShare ?? 0, numberLocale)} this period${
+          prevLiveShare != null ? ` • Previous live ${formatPercent(prevLiveShare, numberLocale)}` : ""
+        }.`
+      ),
+      badge: liveBadgeCopy ? (locale === "en" ? liveBadgeCopy.en : liveBadgeCopy.sv) : null,
     });
   }
 
@@ -629,8 +830,11 @@ export default function LiveLoggedOutPreview({
     cards.push({
       key: "short-interest",
       icon: <TimelineIcon />,
-      title: "Blankning (FI)",
-      value: `${shortTrend.latest.percent.toFixed(2)}%`,
+      title: translate("Blankning (FI)", "Short interest (FI)"),
+      value: `${Number(shortTrend.latest.percent).toLocaleString(numberLocale, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}%`,
       subtitle: shortSubtitle,
       badge: shortBadge,
     });
@@ -639,13 +843,23 @@ export default function LiveLoggedOutPreview({
   if (latestInsiderBuy) {
     cards.push({
       key: "insider",
-      icon: <PersonSearchIcon />,
-      title: "Senaste insiderköp",
-      value: insiderVolume ? `+${insiderVolume} ${insiderUnit}` : latestInsiderBuy.type ?? "Förvärv",
-      subtitle: `${latestInsiderBuy.person ?? "Ledningsperson"}${insiderDate ? ` • ${insiderDate}` : ""}${
-        latestInsiderBuy.position ? ` (${latestInsiderBuy.position})` : ""
-      }${insiderValue ? ` • ${insiderValue}` : ""}`,
-      badge: latestInsiderBuy.instrumentName ?? latestInsiderBuy.type ?? "Insynsaffär",
+      icon: <PersonSearchIcon />, 
+      title: translate("Senaste insiderköp", "Latest insider buy"),
+      value: insiderVolume
+        ? translate(`+${insiderVolume} ${insiderUnit}`, `+${insiderVolume} ${insiderUnit}`)
+        : translate(latestInsiderBuy.type ?? "Förvärv", latestInsiderBuy.type ?? "Acquisition"),
+      subtitle: translate(
+        `${latestInsiderBuy.person ?? "Ledningsperson"}${insiderDate ? ` • ${insiderDate}` : ""}${
+          latestInsiderBuy.position ? ` (${latestInsiderBuy.position})` : ""
+        }${insiderValue ? ` • ${insiderValue}` : ""}`,
+        `${latestInsiderBuy.person ?? "Executive"}${insiderDate ? ` • ${insiderDate}` : ""}${
+          latestInsiderBuy.position ? ` (${latestInsiderBuy.position})` : ""
+        }${insiderValue ? ` • ${insiderValue}` : ""}`
+      ),
+      badge: translate(
+        latestInsiderBuy.instrumentName ?? latestInsiderBuy.type ?? "Insynsaffär",
+        latestInsiderBuy.instrumentName ?? latestInsiderBuy.type ?? "Insider trade"
+      ),
     });
   }
 
@@ -688,6 +902,46 @@ export default function LiveLoggedOutPreview({
         mx: "auto",
       }}
     >
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: { xs: "center", sm: "flex-end" },
+          mb: { xs: 2, sm: 3 },
+        }}
+      >
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={locale}
+          onChange={(_, value) => value && setLocale(value)}
+          sx={{
+            backgroundColor: "rgba(15,23,42,0.45)",
+            borderRadius: "999px",
+            p: 0.3,
+          }}
+        >
+          {LOCALE_OPTIONS.map((option) => (
+            <ToggleButton
+              key={option.value}
+              value={option.value}
+              sx={{
+                textTransform: "none",
+                border: 0,
+                borderRadius: "999px!important",
+                color: "rgba(226,232,240,0.75)",
+                "&.Mui-selected": {
+                  color: "#0f172a",
+                  backgroundColor: "#f8fafc",
+                  fontWeight: 700,
+                },
+              }}
+            >
+              {option.label}
+            </ToggleButton>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+
       <Box sx={{ textAlign: "center", mb: { xs: 3, sm: 4 } }}>
         <Typography
           variant="overline"
@@ -699,7 +953,7 @@ export default function LiveLoggedOutPreview({
             textTransform: "uppercase",
           }}
         >
-          Smakprov ur dashboards
+          {translate("Smakprov ur dashboards", "Dashboard sneak peek")}
         </Typography>
         <Typography
           variant="h4"
@@ -711,7 +965,7 @@ export default function LiveLoggedOutPreview({
             letterSpacing: 0.8,
           }}
         >
-          Live-uppdaterad data när du loggar in
+          {translate("Live-uppdaterad data när du loggar in", "Live-updated data once you log in")}
         </Typography>
         <Typography
           variant="body1"
@@ -722,8 +976,10 @@ export default function LiveLoggedOutPreview({
             lineHeight: 1.6,
           }}
         >
-          Få detaljerade grafer, realtidsstatistik över spelare och djupgående utdelningshistorik för Evolution.
-          Allt samlat på ett ställe, uppdaterat varje dag.
+          {translate(
+            "Få detaljerade grafer, realtidsstatistik över spelare och djupgående utdelningshistorik för Evolution. Allt samlat på ett ställe, uppdaterat varje dag.",
+            "Get detailed charts, real-time player stats, and deep dividend history for Evolution — all in one place, updated daily."
+          )}
         </Typography>
         <Stack
           direction={{ xs: "column", sm: "row" }}
@@ -743,7 +999,7 @@ export default function LiveLoggedOutPreview({
               boxShadow: "0px 16px 35px rgba(14,165,233,0.25)",
             }}
           >
-            Logga in
+            {translate("Logga in", "Log in")}
           </Button>
           <Button
             component={NextLink}
@@ -763,7 +1019,7 @@ export default function LiveLoggedOutPreview({
               },
             }}
           >
-            Skapa konto
+            {translate("Skapa konto", "Create account")}
           </Button>
         </Stack>
         <Typography
@@ -775,8 +1031,10 @@ export default function LiveLoggedOutPreview({
             fontStyle: "italic",
           }}
         >
-          Obs! Inloggningen kan dröja upp till 20 sekunder vid kallstart av databasen – Jag håller nere kostnaderna så länge
-          sajten är studentdriven.
+          {translate(
+            "Obs! Inloggningen kan dröja upp till 20 sekunder vid kallstart av databasen – Jag håller nere kostnaderna så länge sajten är studentdriven.",
+            "Heads up! Login may take up to 20 seconds on a cold start while I keep infrastructure costs low for this student-run site."
+          )}
         </Typography>
       </Box>
 
@@ -791,7 +1049,7 @@ export default function LiveLoggedOutPreview({
           size="small"
           onClick={handlePrev}
           disabled={page === 0}
-          aria-label="Visa föregående smakprov"
+          aria-label={translate("Visa föregående smakprov", "Show previous preview")}
           sx={{
             backgroundColor: "rgba(255,255,255,0.08)",
             color: "#ffffff",
@@ -824,7 +1082,7 @@ export default function LiveLoggedOutPreview({
           size="small"
           onClick={handleNext}
           disabled={page >= totalPages - 1}
-          aria-label="Visa fler smakprov"
+          aria-label={translate("Visa fler smakprov", "Show more previews")}
           sx={{
             backgroundColor: "rgba(255,255,255,0.08)",
             color: "#ffffff",
