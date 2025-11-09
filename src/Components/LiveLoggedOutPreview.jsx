@@ -866,9 +866,20 @@ export default function LiveLoggedOutPreview({
   const theme = useTheme();
   const isSmUp = useMediaQuery(theme.breakpoints.up("sm"));
   const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const columns = isMdUp ? 3 : isSmUp ? 2 : 1;
   const rows = 2;
   const cardsPerPage = Math.max(1, columns * rows);
+
+  const desktopColdStartCopy = translate(
+    "Obs! Inloggningen kan dröja upp till 20 sekunder vid kallstart av databasen – Jag håller nere kostnaderna så länge sajten är studentdriven.",
+    "Heads up! Login may take up to 20 seconds on a cold start while I keep infrastructure costs low for this student-run site."
+  );
+  const mobileColdStartCopy = translate(
+    "Mobilhint: Låt fliken vara öppen. Vid kallstart kan inloggningen ta upp till 20 sekunder innan databasen vaknar.",
+    "Mobile heads-up: keep the tab open. On a cold start the login can take up to 20 seconds while the database wakes up."
+  );
+  const coldStartCopy = isMobile ? mobileColdStartCopy : desktopColdStartCopy;
 
   const [page, setPage] = useState(0);
   const totalPages = Math.max(1, Math.ceil(cards.length / cardsPerPage));
@@ -1031,10 +1042,7 @@ export default function LiveLoggedOutPreview({
             fontStyle: "italic",
           }}
         >
-          {translate(
-            "Obs! Inloggningen kan dröja upp till 20 sekunder vid kallstart av databasen – Jag håller nere kostnaderna så länge sajten är studentdriven.",
-            "Heads up! Login may take up to 20 seconds on a cold start while I keep infrastructure costs low for this student-run site."
-          )}
+          {coldStartCopy}
         </Typography>
       </Box>
 
