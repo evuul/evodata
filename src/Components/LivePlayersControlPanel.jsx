@@ -103,6 +103,7 @@ const ASIA_GAME_KEYS = [
 ];
 const ASIA_GAME_KEY_SET = new Set(ASIA_GAME_KEYS);
 const ASIA_AGG_COLOR = "#fde047";
+const SHOW_YESTERDAY_PEAK_CARD = false;
 
 const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
@@ -984,78 +985,77 @@ const LivePlayersControlPanel = () => {
                   )}
                 </Box>
               </Grid>
-
-
-              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
-                <Box
-                  sx={{
-                    background: "rgba(15,23,42,0.45)",
-                    borderRadius: "16px",
-                    border: "1px solid rgba(251,191,36,0.25)",
-                    p: { xs: 2, md: 2.5 },
-                    width: "100%",
-                    maxWidth: { xs: "100%", sm: 320 },
-                    minHeight: 180,
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 1,
-                  }}
-                >
-                  <Typography
-                    variant="overline"
-                    sx={{ color: "rgba(251,191,36,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
+              {SHOW_YESTERDAY_PEAK_CARD && (
+                <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+                  <Box
+                    sx={{
+                      background: "rgba(15,23,42,0.45)",
+                      borderRadius: "16px",
+                      border: "1px solid rgba(251,191,36,0.25)",
+                      p: { xs: 2, md: 2.5 },
+                      width: "100%",
+                      maxWidth: { xs: "100%", sm: 320 },
+                      minHeight: 180,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1,
+                    }}
                   >
-                    Gårdagens peak
-                  </Typography>
-                  {overviewLoading ? (
-                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
-                      <CircularProgress size={18} sx={{ color: "#fbbf24" }} />
-                      <Typography variant="body2" sx={{ color: "rgba(251,191,36,0.85)" }}>
-                        Hämtar gårdagens mätning…
-                      </Typography>
-                    </Box>
-                  ) : yesterdayPeakDisplayValue != null ? (
-                    <>
-                      <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
-                        <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
-                        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                          {yesterdayPeakDisplayValue.toLocaleString("sv-SE")}
+                    <Typography
+                      variant="overline"
+                      sx={{ color: "rgba(251,191,36,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
+                    >
+                      Gårdagens peak
+                    </Typography>
+                    {overviewLoading ? (
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                        <CircularProgress size={18} sx={{ color: "#fbbf24" }} />
+                        <Typography variant="body2" sx={{ color: "rgba(251,191,36,0.85)" }}>
+                          Hämtar gårdagens mätning…
                         </Typography>
-                      </Stack>
-                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                        {yesterdayPeakMetaText}
-                      </Typography>
-                      {lobbyBoostOn && (
-                        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                          Visar simulerat värde (+10%).
+                      </Box>
+                    ) : yesterdayPeakDisplayValue != null ? (
+                      <>
+                        <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
+                          <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
+                          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+                            {yesterdayPeakDisplayValue.toLocaleString("sv-SE")}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                          {yesterdayPeakMetaText}
                         </Typography>
-                      )}
-                      <Chip
-                        size="small"
-                        label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
-                        onClick={toggleLobbyBoost}
-                        clickable
-                        sx={{
-                          borderRadius: "999px",
-                          mt: 0.5,
-                          alignSelf: "center",
-                          backgroundColor: lobbyBoostOn ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.6)",
-                          color: lobbyBoostOn ? "#fbbf24" : "rgba(248,250,252,0.85)",
-                          border: lobbyBoostOn ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(148,163,184,0.35)",
-                          fontWeight: 600,
-                        }}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                        Ingen peak registrerad för gårdagen.
-                      </Typography>
-                    </>
-                  )}
-                </Box>
-              </Grid>
-
+                        {lobbyBoostOn && (
+                          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
+                            Visar simulerat värde (+10%).
+                          </Typography>
+                        )}
+                        <Chip
+                          size="small"
+                          label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
+                          onClick={toggleLobbyBoost}
+                          clickable
+                          sx={{
+                            borderRadius: "999px",
+                            mt: 0.5,
+                            alignSelf: "center",
+                            backgroundColor: lobbyBoostOn ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.6)",
+                            color: lobbyBoostOn ? "#fbbf24" : "rgba(248,250,252,0.85)",
+                            border: lobbyBoostOn ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(148,163,184,0.35)",
+                            fontWeight: 600,
+                          }}
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                          Ingen peak registrerad för gårdagen.
+                        </Typography>
+                      </>
+                    )}
+                  </Box>
+                </Grid>
+              )}
               <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
                 <Box
                   sx={{
