@@ -21,6 +21,7 @@ import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
 import { COLORS as GAME_COLORS } from "@/config/games";
+import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 
@@ -74,15 +75,20 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   } = usePlayersLive();
 
   const { isAuthenticated, user, logout } = useAuth();
+  const { locale, setLocale } = useLocale();
+  const translate = useTranslate();
 
-  const fmtCap = useCallback((value) => {
-    if (!Number.isFinite(value)) return "N/A";
-    const billions = value / 1_000_000_000;
-    return `${billions.toLocaleString("sv-SE", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1,
-    })} B SEK`;
-  }, []);
+  const fmtCap = useCallback(
+    (value) => {
+      if (!Number.isFinite(value)) return translate("Saknas", "N/A");
+      const billions = value / 1_000_000_000;
+      return `${billions.toLocaleString("sv-SE", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })} B SEK`;
+    },
+    [translate]
+  );
 
   const isMarketOpen = useCallback(() => {
     const now = new Date();
@@ -216,7 +222,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })} SEK`
-    : "N/A";
+    : translate("Saknas", "N/A");
   const changeDisplay = Number.isFinite(stockChangeValue)
     ? `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}%`
     : "—";
@@ -229,50 +235,58 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     : "rgba(148,163,184,0.75)";
 
   const ytdLabel = Number.isFinite(ytdChangePercent)
-    ? `YTD ${ytdChangePercent >= 0 ? "+" : ""}${ytdChangePercent.toFixed(2)}%`
+    ? translate(
+        `YTD ${ytdChangePercent >= 0 ? "+" : ""}${ytdChangePercent.toFixed(2)}%`,
+        `YTD ${ytdChangePercent >= 0 ? "+" : ""}${ytdChangePercent.toFixed(2)}%`
+      )
     : null;
   const gainsLossLabel =
     Number.isFinite(daysWithGains) && Number.isFinite(daysWithLosses)
-      ? `${daysWithGains} upp · ${daysWithLosses} ned`
+      ? translate(`${daysWithGains} upp · ${daysWithLosses} ned`, `${daysWithGains} up · ${daysWithLosses} down`)
       : null;
 
   const playersUpdatedLabel = playersLastUpdated ? formatTime(playersLastUpdated) : null;
   const stockUpdatedLabel = stockLastUpdated ? formatTime(stockLastUpdated) : null;
 
   const blankningChipLabel = loadingShort
-    ? "Blankning: hämtar…"
+    ? translate("Blankning: hämtar…", "Short interest: loading…")
     : Number.isFinite(shortPercent)
-    ? `Blankning: ${shortPercent.toFixed(2)}%`
-    : "Blankning: –";
+    ? translate(
+        `Blankning: ${shortPercent.toFixed(2)}%`,
+        `Short interest: ${shortPercent.toFixed(2)}%`
+      )
+    : translate("Blankning: –", "Short interest: –");
   const marketStatusChip = isMarketOpen()
     ? {
-        label: "Marknaden öppen",
+        label: translate("Marknaden öppen", "Market open"),
         bg: "rgba(16,185,129,0.18)",
         color: "#86efac",
         border: "1px solid rgba(134,239,172,0.35)",
       }
     : {
-        label: "Marknaden stängd",
+        label: translate("Marknaden stängd", "Market closed"),
         bg: "rgba(239,68,68,0.18)",
         color: "#fecaca",
         border: "1px solid rgba(252,165,165,0.35)",
       };
 
-    const simulateButtonLabel = simulateLobby ? "Stäng av simulering" : "Simulera lobby (+10%)";
+  const simulateButtonLabel = simulateLobby
+    ? translate("Stäng av simulering", "Disable simulation")
+    : translate("Simulera lobby (+10%)", "Simulate lobby (+10%)");
 
   const [activePanel, setActivePanel] = useState("live");
   const panelOptions = useMemo(
     () => [
-      { value: "live", label: "Live Intelligence" },
-      { value: "financial", label: "Finansiell översikt" },
-      { value: "fairvalue", label: "AI Fair Value" },
-      { value: "gameshow", label: "Gameshow Earnings" },
-      { value: "money", label: "Live Money" },
-      { value: "buybacks", label: "Återköp (live)" },
-      { value: "short", label: "Blankning & handel" },
-      { value: "investment", label: "Live Investment" },
+      { value: "live", label: translate("Live Intelligence", "Live Intelligence") },
+      { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
+      { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
+      { value: "gameshow", label: translate("Gameshow Earnings", "Gameshow earnings") },
+      { value: "money", label: translate("Live Money", "Live money") },
+      { value: "buybacks", label: translate("Återköp (live)", "Buybacks (live)") },
+      { value: "short", label: translate("Blankning & handel", "Short interest & trading") },
+      { value: "investment", label: translate("Live Investment", "Live investment") },
     ],
-    []
+    [translate]
   );
 
   const handlePanelChange = useCallback((_, value) => {
@@ -286,7 +300,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       if (!financialReports || !dividendData) {
         return (
           <Box sx={{ color: "rgba(148,163,184,0.75)", p: 3 }}>
-            Finansiella rapporter saknas för denna vy.
+            {translate("Finansiella rapporter saknas för denna vy.", "Financial reports are missing for this view.")}
           </Box>
         );
       }
@@ -298,7 +312,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       if (!reports.length) {
         return (
           <Box sx={{ color: "rgba(148,163,184,0.75)", p: 3 }}>
-            Kräver kvartalsdata för att visa AI Fair Value.
+            {translate("Kräver kvartalsdata för att visa AI Fair Value.", "Quarterly data is required to show AI Fair Value.")}
           </Box>
         );
       }
@@ -309,7 +323,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       if (!financialReports || !averagePlayersData) {
         return (
           <Box sx={{ color: "rgba(148,163,184,0.75)", p: 3 }}>
-            Kräver finansiella rapporter och spelardata.
+            {translate("Kräver finansiella rapporter och spelardata.", "Requires financial reports and player data.")}
           </Box>
         );
       }
@@ -332,12 +346,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       return <LiveInvestmentCalculatorPanel dividendData={dividendData} />;
 
     return <ShortIntelligencePanel />;
-  }, [
-    activePanel,
-    averagePlayersData,
-    dividendData,
-    financialReports,
-  ]);
+  }, [activePanel, averagePlayersData, dividendData, financialReports, translate]);
 
   const userEmail = user?.email ?? null;
   const isLiveMoneyPanel = activePanel === "money";
@@ -406,7 +415,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 clickable
                 size="small"
                 icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
-                label="Stötta sidan"
+                label={translate("Stötta sidan", "Support the site")}
                 sx={{
                   background: "linear-gradient(135deg, rgba(236,72,153,0.15), rgba(14,165,233,0.15))",
                   color: "#f8fafc",
@@ -421,15 +430,53 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               />
             </Box>
 
-            {isAuthenticated && (
-              <Stack direction="row" spacing={1.5} alignItems="center">
-                {userEmail && (
-                  <Chip
-                    size="small"
-                    label={userEmail}
-                    sx={{ backgroundColor: "rgba(15,23,42,0.55)", color: "#cbd5f5", borderRadius: "999px" }}
-                  />
-                )}
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="flex-end"
+              flexWrap="wrap"
+            >
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={locale}
+                onChange={(_, value) => value && setLocale(value)}
+                sx={{
+                  backgroundColor: "rgba(15,23,42,0.35)",
+                  borderRadius: "999px",
+                  p: 0.3,
+                }}
+              >
+                {LOCALE_OPTIONS.map((option) => (
+                  <ToggleButton
+                    key={option.value}
+                    value={option.value}
+                    sx={{
+                      textTransform: "none",
+                      border: 0,
+                      borderRadius: "999px!important",
+                      color: "rgba(226,232,240,0.75)",
+                      "&.Mui-selected": {
+                        color: "#0f172a",
+                        backgroundColor: "#f8fafc",
+                        fontWeight: 700,
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+
+              {isAuthenticated && userEmail && (
+                <Chip
+                  size="small"
+                  label={userEmail}
+                  sx={{ backgroundColor: "rgba(15,23,42,0.55)", color: "#cbd5f5", borderRadius: "999px" }}
+                />
+              )}
+              {isAuthenticated && (
                 <Button
                   size="small"
                   variant="outlined"
@@ -444,10 +491,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     },
                   }}
                 >
-                  Logga ut
+                  {translate("Logga ut", "Log out")}
                 </Button>
-              </Stack>
-            )}
+              )}
+            </Stack>
           </Box>
 
           <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
@@ -461,7 +508,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 textTransform: "uppercase",
               }}
             >
-              Evolution Control Center
+              {translate("Evolution Control Center", "Evolution Control Center")}
             </Typography>
             <Typography
               variant="h3"
@@ -471,7 +518,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 color: "#f8fafc",
               }}
             >
-              Spårning i realtid för kurs, lobby och blankning
+              {translate(
+                "Spårning i realtid för kurs, lobby och blankning",
+                "Real-time tracking for price, lobby, and short interest"
+              )}
             </Typography>
             <Typography
               variant="body1"
@@ -481,8 +531,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 lineHeight: 1.6,
               }}
             >
-              Växla mellan finansiella dashboards utan att lämna kontrollrummet. Aktiekurs, live-spelare och
-              marknadsvärde visas alltid längst upp.
+              {translate(
+                "Växla mellan finansiella dashboards utan att lämna kontrollrummet. Aktiekurs, live-spelare och marknadsvärde visas alltid längst upp.",
+                "Switch between financial dashboards without leaving the control room. Stock price, live players, and market cap stay pinned to the top."
+              )}
             </Typography>
           </Stack>
 
@@ -522,7 +574,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               >
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
-                    Live · spelare
+                    {translate("Live · spelare", "Live · players")}
                   </Typography>
                   <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#22c55e" }} />
                 </Stack>
@@ -538,10 +590,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 </Typography>
                 <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
                   {playersUpdatedLabel
-                    ? `Senast ${playersUpdatedLabel}`
+                    ? translate(`Senast ${playersUpdatedLabel}`, `Latest ${playersUpdatedLabel}`)
                     : loadingPlayers
-                    ? "Hämtar live-data…"
-                    : "Ingen uppdatering ännu"}
+                    ? translate("Hämtar live-data…", "Fetching live data…")
+                    : translate("Ingen uppdatering ännu", "No update yet")}
                 </Typography>
                 <Button
                   size="small"
@@ -564,7 +616,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               </Button>
               {simulateLobby && Number.isFinite(playersValue) && (
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                  EVOs riktiga lobby ligger ca 10% över min.
+                  {translate("EVOs riktiga lobby ligger ca 10% över min.", "EVO's real lobby is about 10% above mine.")}
                 </Typography>
               )}
             </Box>
@@ -592,7 +644,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               >
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
-                    Aktiekurs
+                    {translate("Aktiekurs", "Stock price")}
                   </Typography>
                   <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#38bdf8" }} />
                 </Stack>
@@ -609,11 +661,13 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 </Typography>
                 <Typography sx={{ color: changeColor, fontWeight: 700 }}>{changeDisplay}</Typography>
                 <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-                  {ytdLabel || "YTD saknas"}
+                  {ytdLabel || translate("YTD saknas", "YTD missing")}
                   {gainsLossLabel ? ` · ${gainsLossLabel}` : ""}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                  {stockUpdatedLabel ? `Uppdaterad ${stockUpdatedLabel}` : "Senaste kurs saknas"}
+                  {stockUpdatedLabel
+                    ? translate(`Uppdaterad ${stockUpdatedLabel}`, `Updated ${stockUpdatedLabel}`)
+                    : translate("Senaste kurs saknas", "Latest quote missing")}
                 </Typography>
             </Box>
           </Box>
@@ -640,7 +694,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               >
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
-                    Marknadsvärde
+                    {translate("Marknadsvärde", "Market cap")}
                   </Typography>
                   <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#c084fc" }} />
                 </Stack>
@@ -659,7 +713,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   {marketStatusChip.label}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                  Uppdateras tillsammans med kursdata.
+                  {translate("Uppdateras tillsammans med kursdata.", "Updates alongside price data.")}
                 </Typography>
               </Box>
             </Box>
@@ -686,7 +740,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 textAlign: "center",
               }}
             >
-              Topp 3 liveshower just nu
+              {translate("Topp 3 liveshower just nu", "Top 3 live shows right now")}
             </Typography>
             {top3.length ? (
               isMobileMenu ? (
@@ -780,7 +834,9 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                             </Typography>
                           </Stack>
                           <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                            {updatedLabel ? `Senast ${updatedLabel}` : "Ingen tidsstämpel"}
+                            {updatedLabel
+                              ? translate(`Senast ${updatedLabel}`, `Latest ${updatedLabel}`)
+                              : translate("Ingen tidsstämpel", "No timestamp")}
                           </Typography>
                         </Box>
                       </Grid>
@@ -790,7 +846,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               )
             ) : (
               <Typography sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                Ingen live-data tillgänglig just nu.
+                {translate("Ingen live-data tillgänglig just nu.", "No live data available right now.")}
               </Typography>
             )}
           </Box>

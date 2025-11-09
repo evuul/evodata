@@ -14,6 +14,7 @@ import {
   Divider,
 } from "@mui/material";
 import { useStockPriceContext } from "@/context/StockPriceContext";
+import { useTranslate } from "@/context/LocaleContext";
 
 const parseNumericInput = (value) => {
   if (typeof value === "number") {
@@ -75,115 +76,131 @@ const pickLatestDividend = (dividendData) => {
   return Number(dividendData?.currentDividendPerShare) || 0;
 };
 
-const ScenarioCard = ({ title, accent, data }) => (
-  <Box
-    sx={{
-      background: "linear-gradient(135deg, rgba(15,23,42,0.7), rgba(30,41,59,0.72))",
-      borderRadius: "16px",
-      border: `1px solid ${accent}33`,
-      boxShadow: "0 20px 40px rgba(15,23,42,0.35)",
-      p: { xs: 2.5, md: 3 },
-      display: "flex",
-      flexDirection: "column",
-      gap: 1.5,
-      color: "#f8fafc",
-      height: "100%",
-    }}
-  >
-    <Typography variant="overline" sx={{ letterSpacing: 1.5, color: `${accent}cc`, fontWeight: 600 }}>
-      {title}
-    </Typography>
-    <Stack spacing={1}>
-      <Typography variant="h5" sx={{ fontWeight: 700 }}>
-        {formatSekCompact(data.finalValue)}
+const ScenarioCard = ({ title, accent, data }) => {
+  const translate = useTranslate();
+  const projectionText = data.reinvest
+    ? translate(
+        "Projekterat portföljvärde inklusive återinvesterade utdelningar.",
+        "Projected portfolio value including reinvested dividends."
+      )
+    : translate(
+        "Projekterat portföljvärde inklusive utbetalda utdelningar.",
+        "Projected portfolio value including dividends paid out."
+      );
+  return (
+    <Box
+      sx={{
+        background: "linear-gradient(135deg, rgba(15,23,42,0.7), rgba(30,41,59,0.72))",
+        borderRadius: "16px",
+        border: `1px solid ${accent}33`,
+        boxShadow: "0 20px 40px rgba(15,23,42,0.35)",
+        p: { xs: 2.5, md: 3 },
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+        color: "#f8fafc",
+        height: "100%",
+      }}
+    >
+      <Typography variant="overline" sx={{ letterSpacing: 1.5, color: `${accent}cc`, fontWeight: 600 }}>
+        {title}
       </Typography>
-      <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
-        Projekterat portföljvärde inklusive {data.reinvest ? "återinvesterade" : "utbetalda"} utdelningar.
-      </Typography>
-    </Stack>
-    <Grid container spacing={1.5}>
-      <Grid item xs={6}>
-        <Stack spacing={0.5}>
-          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-            Total avkastning
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, color: data.totalReturn >= 0 ? "#34d399" : "#f87171" }}>
-            {formatPercent(data.totalReturn)}
-          </Typography>
-        </Stack>
+      <Stack spacing={1}>
+        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+          {formatSekCompact(data.finalValue)}
+        </Typography>
+        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
+          {projectionText}
+        </Typography>
+      </Stack>
+      <Grid container spacing={1.5}>
+        <Grid item xs={6}>
+          <Stack spacing={0.5}>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              {translate("Total avkastning", "Total return")}
+            </Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, color: data.totalReturn >= 0 ? "#34d399" : "#f87171" }}>
+              {formatPercent(data.totalReturn)}
+            </Typography>
+          </Stack>
+        </Grid>
+        <Grid item xs={6}>
+          <Stack spacing={0.5}>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              CAGR
+            </Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {formatPercent(data.cagr)}
+            </Typography>
+          </Stack>
+        </Grid>
+        <Grid item xs={6}>
+          <Stack spacing={0.5}>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              {translate("Totala utdelningar", "Total dividends")}
+            </Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {formatSekCompact(data.dividends)}
+            </Typography>
+          </Stack>
+        </Grid>
+        <Grid item xs={6}>
+          <Stack spacing={0.5}>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              {translate("Aktier efter perioden", "Shares after period")}
+            </Typography>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              {formatShares(Number.isFinite(data.finalShares) ? Math.round(data.finalShares) : NaN)}
+            </Typography>
+          </Stack>
+        </Grid>
+        {typeof data.buybacks === "number" && Number.isFinite(data.buybacks) && (
+          <Grid item xs={6}>
+            <Stack spacing={0.5}>
+              <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+                {translate("Återköpta aktier (totalt)", "Total shares repurchased")}
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {formatShares(Math.round(data.buybacks))}
+              </Typography>
+            </Stack>
+          </Grid>
+        )}
+        {typeof data.remainingShares === "number" && Number.isFinite(data.remainingShares) && (
+          <Grid item xs={6}>
+            <Stack spacing={0.5}>
+              <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+                {translate("Utestående efter perioden", "Shares outstanding after period")}
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {formatShares(Math.round(data.remainingShares))}
+              </Typography>
+            </Stack>
+          </Grid>
+        )}
       </Grid>
-      <Grid item xs={6}>
-        <Stack spacing={0.5}>
-          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-            CAGR
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            {formatPercent(data.cagr)}
-          </Typography>
-        </Stack>
-      </Grid>
-      <Grid item xs={6}>
-        <Stack spacing={0.5}>
-          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-            Totala utdelningar
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            {formatSekCompact(data.dividends)}
-          </Typography>
-        </Stack>
-      </Grid>
-      <Grid item xs={6}>
-        <Stack spacing={0.5}>
-          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-            Aktier efter perioden
-          </Typography>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-            {formatShares(Number.isFinite(data.finalShares) ? Math.round(data.finalShares) : NaN)}
-          </Typography>
-        </Stack>
-      </Grid>
+      <Stack spacing={0.5}>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
+          {translate("Kapitalinsats inkl. sparande", "Capital invested incl. savings")}
+        </Typography>
+        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)" }}>
+          {formatSekCompact(data.totalInvested)}
+        </Typography>
+      </Stack>
       {typeof data.buybacks === "number" && Number.isFinite(data.buybacks) && (
-        <Grid item xs={6}>
-          <Stack spacing={0.5}>
-            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-              Återköpta aktier (totalt)
-            </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              {formatShares(Math.round(data.buybacks))}
-            </Typography>
-          </Stack>
-        </Grid>
+        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
+          {translate(
+            "Återköp beräknade utifrån dagens uppskattade antal utestående aktier.",
+            "Buybacks estimated using today’s outstanding share count."
+          )}
+        </Typography>
       )}
-      {typeof data.remainingShares === "number" && Number.isFinite(data.remainingShares) && (
-        <Grid item xs={6}>
-          <Stack spacing={0.5}>
-            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-              Utestående efter perioden
-            </Typography>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              {formatShares(Math.round(data.remainingShares))}
-            </Typography>
-          </Stack>
-        </Grid>
-      )}
-    </Grid>
-    <Stack spacing={0.5}>
-      <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-        Kapitalinsats inkl. sparande
-      </Typography>
-      <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)" }}>
-        {formatSekCompact(data.totalInvested)}
-      </Typography>
-    </Stack>
-    {typeof data.buybacks === "number" && Number.isFinite(data.buybacks) && (
-      <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-        Återköp beräknade utifrån dagens uppskattade antal utestående aktier.
-      </Typography>
-    )}
-  </Box>
-);
+    </Box>
+  );
+};
 
 export default function LiveInvestmentCalculator({ dividendData }) {
+  const translate = useTranslate();
   const { stockPrice, marketCap, loading: priceLoading, error: priceError } = useStockPriceContext();
 
   const [shares, setShares] = useState("200");
@@ -346,93 +363,113 @@ export default function LiveInvestmentCalculator({ dividendData }) {
 
   const baseScenario = scenarios.base;
 
-  const summaryCards = [
-    {
-      key: "current",
-      title: "Nuvarande värde",
-      value: formatSekCompact(currentValue),
-      subtitle:
-        shareCount > 0 && currentPrice > 0
-          ? `${shareCount.toLocaleString("sv-SE")} aktier × ${formatSharePrice(currentPrice)}`
-          : "Ange antal aktier och GAV.",
-      accent: "rgba(56,189,248,0.35)",
-    },
-    {
-      key: "result",
-      title: "Resultat vs GAV",
-      value: formatSekCompact(gain),
-      subtitle: gainPercent != null ? formatPercent(gainPercent) : "–",
-      accent: gain >= 0 ? "rgba(52,211,153,0.35)" : "rgba(248,113,113,0.35)",
-    },
-    {
-      key: "yield",
-      title: "Direktavkastning",
-      value: formatPercent(dividendYield),
-      subtitle: latestDividend > 0 ? `${formatSharePrice(latestDividend)} i utdelning per aktie` : "Ingen utdelning registrerad",
-      accent: "rgba(192,132,252,0.35)",
-    },
-    {
-      key: "projection",
-      title: "Bas-scenario",
-      value: formatSekCompact(baseScenario?.finalValue),
-      subtitle:
-        baseScenario && Number.isFinite(baseScenario.totalReturn)
-          ? `${years} år • ${formatPercent(baseScenario.totalReturn)} total avkastning`
-          : `${years} år`,
-      accent: "rgba(251,191,36,0.35)",
-    },
-  ];
+  const summaryCards = useMemo(() => {
+    const currentSubtitle =
+      shareCount > 0 && currentPrice > 0
+        ? translate(
+            `${shareCount.toLocaleString("sv-SE")} aktier × ${formatSharePrice(currentPrice)}`,
+            `${shareCount.toLocaleString("sv-SE")} shares × ${formatSharePrice(currentPrice)}`
+          )
+        : translate("Ange antal aktier och GAV.", "Enter number of shares and cost basis.");
+    const yieldSubtitle =
+      latestDividend > 0
+        ? translate(
+            `${formatSharePrice(latestDividend)} i utdelning per aktie`,
+            `${formatSharePrice(latestDividend)} dividend per share`
+          )
+        : translate("Ingen utdelning registrerad", "No dividend recorded.");
+    const projectionSubtitle =
+      baseScenario && Number.isFinite(baseScenario.totalReturn)
+        ? translate(
+            `${years} år • ${formatPercent(baseScenario.totalReturn)} total avkastning`,
+            `${years} years • ${formatPercent(baseScenario.totalReturn)} total return`
+          )
+        : translate(`${years} år`, `${years} years`);
+    return [
+      {
+        key: "current",
+        title: translate("Nuvarande värde", "Current value"),
+        value: formatSekCompact(currentValue),
+        subtitle: currentSubtitle,
+        accent: "rgba(56,189,248,0.35)",
+      },
+      {
+        key: "result",
+        title: translate("Resultat vs GAV", "Performance vs cost basis"),
+        value: formatSekCompact(gain),
+        subtitle: gainPercent != null ? formatPercent(gainPercent) : "–",
+        accent: gain >= 0 ? "rgba(52,211,153,0.35)" : "rgba(248,113,113,0.35)",
+      },
+      {
+        key: "yield",
+        title: translate("Direktavkastning", "Dividend yield"),
+        value: formatPercent(dividendYield),
+        subtitle: yieldSubtitle,
+        accent: "rgba(192,132,252,0.35)",
+      },
+      {
+        key: "projection",
+        title: translate("Bas-scenario", "Base scenario"),
+        value: formatSekCompact(baseScenario?.finalValue),
+        subtitle: projectionSubtitle,
+        accent: "rgba(251,191,36,0.35)",
+      },
+    ];
+  }, [translate, shareCount, currentPrice, gavAmount, gain, gainPercent, dividendYield, latestDividend, baseScenario, years]);
 
-  const scenarioCards = [
-    {
-      key: "bear",
-      title: "Bear-case (−5%)",
-      accent: "#f87171",
-      data: scenarios.bear ?? {
-        finalValue: 0,
-        totalReturn: null,
-        cagr: null,
-        dividends: 0,
-        finalShares: null,
-        totalInvested: capitalOutlay,
-        reinvest: reinvestDividends,
-        buybacks: null,
-        remainingShares: null,
+  const scenarioCards = useMemo(
+    () => [
+      {
+        key: "bear",
+        title: translate("Bear-case (−5%)", "Bear case (−5%)"),
+        accent: "#f87171",
+        data: scenarios.bear ?? {
+          finalValue: 0,
+          totalReturn: null,
+          cagr: null,
+          dividends: 0,
+          finalShares: null,
+          totalInvested: capitalOutlay,
+          reinvest: reinvestDividends,
+          buybacks: null,
+          remainingShares: null,
+        },
       },
-    },
-    {
-      key: "base",
-      title: "Bas-scenario",
-      accent: "#38bdf8",
-      data: baseScenario ?? {
-        finalValue: 0,
-        totalReturn: null,
-        cagr: null,
-        dividends: 0,
-        finalShares: null,
-        totalInvested: capitalOutlay,
-        reinvest: reinvestDividends,
-        buybacks: null,
-        remainingShares: null,
+      {
+        key: "base",
+        title: translate("Bas-scenario", "Base scenario"),
+        accent: "#38bdf8",
+        data: baseScenario ?? {
+          finalValue: 0,
+          totalReturn: null,
+          cagr: null,
+          dividends: 0,
+          finalShares: null,
+          totalInvested: capitalOutlay,
+          reinvest: reinvestDividends,
+          buybacks: null,
+          remainingShares: null,
+        },
       },
-    },
-    {
-      key: "bull",
-      title: "Bull-case (+5%)",
-      accent: "#34d399",
-      data: scenarios.bull ?? {
-        finalValue: 0,
-        totalReturn: null,
-        cagr: null,
-        dividends: 0,
-        finalShares: null,
-        totalInvested: capitalOutlay,
-        reinvest: reinvestDividends,
-        buybacks: null,
-        remainingShares: null,
+      {
+        key: "bull",
+        title: translate("Bull-case (+5%)", "Bull case (+5%)"),
+        accent: "#34d399",
+        data: scenarios.bull ?? {
+          finalValue: 0,
+          totalReturn: null,
+          cagr: null,
+          dividends: 0,
+          finalShares: null,
+          totalInvested: capitalOutlay,
+          reinvest: reinvestDividends,
+          buybacks: null,
+          remainingShares: null,
+        },
       },
-    },
-  ];
+    ],
+    [translate, scenarios, capitalOutlay, reinvestDividends, baseScenario]
+  );
 
   return (
     <Box
@@ -456,13 +493,16 @@ export default function LiveInvestmentCalculator({ dividendData }) {
     >
       <Stack spacing={1.5}>
         <Typography variant="overline" sx={{ letterSpacing: 2, color: "rgba(148,163,184,0.72)", fontWeight: 700 }}>
-          Live Investment
+          {translate("Live Investment", "Live Investment")}
         </Typography>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Investment Studio
+          {translate("Investment Studio", "Investment Studio")}
         </Typography>
         <Typography variant="body1" sx={{ color: "rgba(226,232,240,0.72)", maxWidth: 720 }}>
-          Kalkylera scenarier med livekurs, prognoser för tillväxt, utdelningar och månadssparande. Resultaten uppdateras i realtid när du ändrar antaganden.
+          {translate(
+            "Kalkylera scenarier med livekurs, prognoser för tillväxt, utdelningar och månadssparande. Resultaten uppdateras i realtid när du ändrar antaganden.",
+            "Model scenarios with the live price, growth, dividends, and monthly savings. Results update instantly as you tweak assumptions."
+          )}
         </Typography>
       </Stack>
 
@@ -470,8 +510,11 @@ export default function LiveInvestmentCalculator({ dividendData }) {
         <Chip
           label={
             priceLoading && !priceError
-              ? "Livekurs hämtas…"
-              : `Livekurs: ${formatSharePrice(currentPrice || gavAmount || 0)}`
+              ? translate("Livekurs hämtas…", "Fetching live price…")
+              : translate(
+                  `Livekurs: ${formatSharePrice(currentPrice || gavAmount || 0)}`,
+                  `Live price: ${formatSharePrice(currentPrice || gavAmount || 0)}`
+                )
           }
           sx={{
             backgroundColor: "rgba(56,189,248,0.2)",
@@ -481,7 +524,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
           }}
         />
         <Chip
-          label={`GAV: ${formatSharePrice(gavAmount)}`}
+          label={translate(`GAV: ${formatSharePrice(gavAmount)}`, `Cost basis: ${formatSharePrice(gavAmount)}`)}
           sx={{
             backgroundColor: "rgba(192,132,252,0.18)",
             color: "#e9d5ff",
@@ -490,7 +533,10 @@ export default function LiveInvestmentCalculator({ dividendData }) {
           }}
         />
         <Chip
-          label={`Planerat sparande: ${formatSekCompact(totalPlannedContributions)}`}
+          label={translate(
+            `Planerat sparande: ${formatSekCompact(totalPlannedContributions)}`,
+            `Planned savings: ${formatSekCompact(totalPlannedContributions)}`
+          )}
           sx={{
             backgroundColor: "rgba(244,114,182,0.18)",
             color: "#fbcfe8",
@@ -499,7 +545,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
           }}
         />
         <Chip
-          label={`Återköp: ${buybackRate.toFixed(1)}%/år`}
+          label={translate(`Återköp: ${buybackRate.toFixed(1)}%/år`, `Buybacks: ${buybackRate.toFixed(1)}%/yr`)}
           sx={{
             backgroundColor: "rgba(45,212,191,0.18)",
             color: "#5eead4",
@@ -509,7 +555,10 @@ export default function LiveInvestmentCalculator({ dividendData }) {
         />
         {Number.isFinite(estimatedAnnualBuybacks) && (
           <Chip
-            label={`≈ ${formatShares(estimatedAnnualBuybacks)} aktier/år`}
+            label={translate(
+              `≈ ${formatShares(estimatedAnnualBuybacks)} aktier/år`,
+              `≈ ${formatShares(estimatedAnnualBuybacks)} shares/yr`
+            )}
             sx={{
               backgroundColor: "rgba(16,185,129,0.18)",
               color: "#bbf7d0",
@@ -519,7 +568,10 @@ export default function LiveInvestmentCalculator({ dividendData }) {
           />
         )}
         <Chip
-          label={`Break-even diff: ${formatSharePrice(breakEvenDiff)}`}
+          label={translate(
+            `Break-even diff: ${formatSharePrice(breakEvenDiff)}`,
+            `Break-even diff: ${formatSharePrice(breakEvenDiff)}`
+          )}
           sx={{
             backgroundColor: "rgba(254,215,170,0.18)",
             color: "#fed7aa",
@@ -544,12 +596,12 @@ export default function LiveInvestmentCalculator({ dividendData }) {
           >
             <Stack spacing={2}>
               <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700, letterSpacing: 0.5 }}>
-                Utgångsläge
+                {translate("Utgångsläge", "Starting point")}
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="Antal aktier"
+                    label={translate("Antal aktier", "Number of shares")}
                     type="number"
                     value={shares}
                     onChange={(event) => setShares(event.target.value)}
@@ -566,7 +618,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="GAV (SEK)"
+                    label={translate("GAV (SEK)", "Cost basis (SEK)")}
                     type="number"
                     value={gav}
                     onChange={(event) => setGav(event.target.value)}
@@ -583,7 +635,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
-                    label="Månadssparande (SEK)"
+                    label={translate("Månadssparande (SEK)", "Monthly contribution (SEK)")}
                     type="number"
                     value={monthlyContribution}
                     onChange={(event) => setMonthlyContribution(event.target.value)}
@@ -601,7 +653,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
                 <Grid item xs={12} sm={6}>
                   <Stack spacing={1}>
                     <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                      Tidshorisont: {years} år
+                      {translate(`Tidshorisont: ${years} år`, `Time horizon: ${years} years`)}
                     </Typography>
                     <Slider
                       value={years}
@@ -620,11 +672,11 @@ export default function LiveInvestmentCalculator({ dividendData }) {
 
             <Stack spacing={2.5}>
               <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700, letterSpacing: 0.5 }}>
-                Antaganden
+                {translate("Antaganden", "Assumptions")}
               </Typography>
               <Stack spacing={1}>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  Årlig vinsttillväxt: {growthRate}%
+                  {translate(`Årlig vinsttillväxt: ${growthRate}%`, `Annual profit growth: ${growthRate}%`)}
                 </Typography>
                 <Slider
                   value={growthRate}
@@ -637,7 +689,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
               </Stack>
               <Stack spacing={1}>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  Utdelningstillväxt: {dividendGrowth}%
+                  {translate(`Utdelningstillväxt: ${dividendGrowth}%`, `Dividend growth: ${dividendGrowth}%`)}
                 </Typography>
                 <Slider
                   value={dividendGrowth}
@@ -650,7 +702,10 @@ export default function LiveInvestmentCalculator({ dividendData }) {
               </Stack>
               <Stack spacing={1}>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  Återköp & makulering: {buybackRate.toFixed(1)}%
+                  {translate(
+                    `Återköp & makulering: ${buybackRate.toFixed(1)}%`,
+                    `Buybacks & cancellations: ${buybackRate.toFixed(1)}%`
+                  )}
                 </Typography>
                 <Slider
                   value={buybackRate}
@@ -663,7 +718,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
               </Stack>
               <Stack spacing={1.5}>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  Hantering av utdelningar
+                  {translate("Hantering av utdelningar", "Dividend handling")}
                 </Typography>
                 <ToggleButtonGroup
                   exclusive
@@ -690,7 +745,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
                       },
                     }}
                   >
-                    Återinvestera
+                    {translate("Återinvestera", "Reinvest")}
                   </ToggleButton>
                   <ToggleButton
                     value="cash"
@@ -706,7 +761,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
                       },
                     }}
                   >
-                    Ta ut
+                    {translate("Ta ut", "Pay out")}
                   </ToggleButton>
                 </ToggleButtonGroup>
               </Stack>

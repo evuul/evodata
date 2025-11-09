@@ -26,6 +26,7 @@ import {
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
+import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
 
 // ===================== LocalStorage-backed cache with TTL =====================
 class PersistentCache {
@@ -116,8 +117,6 @@ const timeFormatter = new Intl.DateTimeFormat("sv-SE", {
   hour: "2-digit",
   minute: "2-digit",
 });
-const numberFormatter = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 });
-
 const getStockholmTodayYmd = () => {
   try {
     const formatted = dateFormatter.format(new Date());
@@ -235,6 +234,23 @@ const LivePlayersControlPanel = () => {
     lastUpdated,
     lobbyStats,
   } = usePlayersLive();
+  const { locale } = useLocale();
+  const translate = useTranslate();
+  const numberFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale === "en" ? "en-US" : "sv-SE", {
+        maximumFractionDigits: 0,
+      }),
+    [locale]
+  );
+  const percentFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(locale === "en" ? "en-US" : "sv-SE", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
+    [locale]
+  );
 
   const [detailView, setDetailView] = useState("trend");
   const [trendDays, setTrendDays] = useState(TREND_DAY_OPTIONS[0]);
@@ -458,10 +474,12 @@ const LivePlayersControlPanel = () => {
   }, [rawTodayPeak, mergedLobbyAth, stockholmTodayYmd]);
 
   const playersUpdatedText = useMemo(() => {
-    if (!lastUpdated) return "Uppdatering saknas";
+    if (!lastUpdated) return translate("Uppdatering saknas", "No update available");
     const dateStr = formatDateTime(lastUpdated);
-    return dateStr ? `Senast ${dateStr}` : "Uppdatering saknas";
-  }, [lastUpdated]);
+    return dateStr
+      ? translate(`Senast ${dateStr}`, `Last updated ${dateStr}`)
+      : translate("Uppdatering saknas", "No update available");
+  }, [lastUpdated, translate]);
 
   const todayPeakTimeInfo = useMemo(() => {
     if (!stabilizedTodayPeak?.at) return null;
@@ -528,9 +546,11 @@ const LivePlayersControlPanel = () => {
   }, [stabilizedTodayPeak, lobbyBoostMultiplier]);
 
   const todayPeakMetaText = useMemo(() => {
-    if (!stabilizedTodayPeak) return "Ingen peak registrerad";
-    return todayPeakTimeInfo?.full ? `Peak ${todayPeakTimeInfo.full}` : "Ingen tidsstämpel registrerad";
-  }, [stabilizedTodayPeak, todayPeakTimeInfo]);
+    if (!stabilizedTodayPeak) return translate("Ingen peak registrerad", "No peak recorded");
+    return todayPeakTimeInfo?.full
+      ? translate(`Peak ${todayPeakTimeInfo.full}`, `Peak ${todayPeakTimeInfo.full}`)
+      : translate("Ingen tidsstämpel registrerad", "No timestamp available");
+  }, [stabilizedTodayPeak, todayPeakTimeInfo, translate]);
 
   const baseLobbyAth = useMemo(() => {
     const candidates = [];
@@ -574,17 +594,21 @@ const LivePlayersControlPanel = () => {
   }, [mergedYesterdayPeak, lobbyBoostMultiplier]);
 
   const yesterdayPeakMetaText = useMemo(() => {
-    if (!mergedYesterdayPeak) return "Ingen peak registrerad";
+    if (!mergedYesterdayPeak) return translate("Ingen peak registrerad", "No peak recorded");
     if (mergedYesterdayPeak.at) {
       const formatted = formatDateTime(mergedYesterdayPeak.at);
-      return formatted ? `Peak ${formatted}` : "Ingen tidsstämpel registrerad";
+      return formatted
+        ? translate(`Peak ${formatted}`, `Peak ${formatted}`)
+        : translate("Ingen tidsstämpel registrerad", "No timestamp available");
     }
     if (mergedYesterdayPeak.date) {
       const formattedDate = formatDateOnly(mergedYesterdayPeak.date);
-      return formattedDate ? `Uppnåddes ${formattedDate}` : "Ingen tidsstämpel registrerad";
+      return formattedDate
+        ? translate(`Uppnåddes ${formattedDate}`, `Reached ${formattedDate}`)
+        : translate("Ingen tidsstämpel registrerad", "No timestamp available");
     }
-    return "Ingen tidsstämpel registrerad";
-  }, [mergedYesterdayPeak]);
+    return translate("Ingen tidsstämpel registrerad", "No timestamp available");
+  }, [mergedYesterdayPeak, translate]);
 
   const trendChartData = useMemo(() => {
     if (!dailyTotals.length) return [];
@@ -843,10 +867,13 @@ const LivePlayersControlPanel = () => {
         {/* Header */}
         <Stack spacing={{ xs: 1, md: 1.25 }} alignItems="center" textAlign="center">
           <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.8rem", sm: "2.3rem" } }}>
-            Gameshow live-data & historik
+            {translate("Gameshow live-data & historik", "Gameshow live data & history")}
           </Typography>
           <Typography variant="body1" sx={{ color: "rgba(226,232,240,0.75)", maxWidth: 760, lineHeight: 1.6 }}>
-            En förädlad vy över live-spelare, trendutveckling, ranking och toppnoteringar. Uppdateras automatiskt med lobbydata.
+            {translate(
+              "En förädlad vy över live-spelare, trendutveckling, ranking och toppnoteringar. Uppdateras automatiskt med lobbydata.",
+              "A refined view of live players, trend development, rankings and peak records. Updates automatically with lobby data."
+            )}
           </Typography>
         </Stack>
 
@@ -867,17 +894,17 @@ const LivePlayersControlPanel = () => {
                     display: "flex",
                     flexDirection: "column",
                     gap: 1,
-                    textAlign: "center",
-                  }}
-                >
-                  <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
-                    Totalt live
-                  </Typography>
+                  textAlign: "center",
+                }}
+              >
+                <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
+                  {translate("Totalt live", "Total live players")}
+                </Typography>
                   {loadingLive ? (
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                       <CircularProgress size={18} sx={{ color: "#22c55e" }} />
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-                        Hämtar live-data…
+                        {translate("Hämtar live-data…", "Fetching live data…")}
                       </Typography>
                     </Box>
                   ) : (
@@ -885,7 +912,7 @@ const LivePlayersControlPanel = () => {
                       <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
                         <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#34d399" }} />
                         <Typography variant="h4" sx={{ fontWeight: 700, color: "#f8fafc" }}>
-                          {totalLiveDisplayValue != null ? totalLiveDisplayValue.toLocaleString("sv-SE") : "—"}
+                          {totalLiveDisplayValue != null ? numberFormatter.format(totalLiveDisplayValue) : "—"}
                         </Typography>
                       </Stack>
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
@@ -893,12 +920,12 @@ const LivePlayersControlPanel = () => {
                       </Typography>
                       {lobbyBoostOn && (
                         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-                          Visar simulerat värde (+10%).
+                          {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
                         </Typography>
                       )}
                       <Chip
                         size="small"
-                        label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
+                        label={lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")}
                         onClick={toggleLobbyBoost}
                         clickable
                         sx={{
@@ -935,13 +962,13 @@ const LivePlayersControlPanel = () => {
                     variant="overline"
                     sx={{ color: "rgba(251,113,133,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
                   >
-                    Dagens lobby-peak
+                    {translate("Dagens lobby-peak", "Today's lobby peak")}
                   </Typography>
                   {overviewLoading ? (
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                       <CircularProgress size={18} sx={{ color: "#fb7185" }} />
                       <Typography variant="body2" sx={{ color: "rgba(251,113,133,0.8)" }}>
-                        Analyserar mätpunkter…
+                        {translate("Analyserar mätpunkter…", "Analysing datapoints…")}
                       </Typography>
                     </Box>
                   ) : todayPeakDisplayValue != null ? (
@@ -949,7 +976,7 @@ const LivePlayersControlPanel = () => {
                       <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
                         <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fb7185" }} />
                         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                          {todayPeakDisplayValue.toLocaleString("sv-SE")}
+                          {numberFormatter.format(todayPeakDisplayValue)}
                         </Typography>
                       </Stack>
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
@@ -957,12 +984,14 @@ const LivePlayersControlPanel = () => {
                       </Typography>
                       {lobbyBoostOn && (
                         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                          Visar simulerat värde (+10%).
+                          {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
                         </Typography>
                       )}
                       <Chip
                         size="small"
-                        label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
+                        label={
+                          lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")
+                        }
                         onClick={toggleLobbyBoost}
                         clickable
                         sx={{
@@ -979,7 +1008,7 @@ const LivePlayersControlPanel = () => {
                   ) : (
                     <>
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                        Inga datapunkter registrerade för idag ännu.
+                        {translate("Inga datapunkter registrerade för idag ännu.", "No datapoints registered yet today.")}
                       </Typography>
                     </>
                   )}
@@ -1005,13 +1034,13 @@ const LivePlayersControlPanel = () => {
                       variant="overline"
                       sx={{ color: "rgba(251,191,36,0.9)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
                     >
-                      Gårdagens peak
+                      {translate("Gårdagens peak", "Yesterday's peak")}
                     </Typography>
                     {overviewLoading ? (
                       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                         <CircularProgress size={18} sx={{ color: "#fbbf24" }} />
                         <Typography variant="body2" sx={{ color: "rgba(251,191,36,0.85)" }}>
-                          Hämtar gårdagens mätning…
+                          {translate("Hämtar gårdagens mätning…", "Fetching yesterday's measurement…")}
                         </Typography>
                       </Box>
                     ) : yesterdayPeakDisplayValue != null ? (
@@ -1019,7 +1048,7 @@ const LivePlayersControlPanel = () => {
                         <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
                           <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#fbbf24" }} />
                           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                            {yesterdayPeakDisplayValue.toLocaleString("sv-SE")}
+                            {numberFormatter.format(yesterdayPeakDisplayValue)}
                           </Typography>
                         </Stack>
                         <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
@@ -1027,12 +1056,16 @@ const LivePlayersControlPanel = () => {
                         </Typography>
                         {lobbyBoostOn && (
                           <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                            Visar simulerat värde (+10%).
+                            {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
                           </Typography>
                         )}
                         <Chip
                           size="small"
-                          label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
+                          label={
+                            lobbyBoostOn
+                              ? translate("+10% aktiv", "+10% active")
+                              : translate("Simulera +10%", "Simulate +10%")
+                          }
                           onClick={toggleLobbyBoost}
                           clickable
                           sx={{
@@ -1049,7 +1082,7 @@ const LivePlayersControlPanel = () => {
                     ) : (
                       <>
                         <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                          Ingen peak registrerad för gårdagen.
+                          {translate("Ingen peak registrerad för gårdagen.", "No peak recorded for yesterday.")}
                         </Typography>
                       </>
                     )}
@@ -1075,13 +1108,13 @@ const LivePlayersControlPanel = () => {
                     variant="overline"
                     sx={{ color: "rgba(191,219,254,0.95)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
                   >
-                    Lobbyns ATH
+                    {translate("Lobbyns ATH", "Lobby ATH")}
                   </Typography>
                   {overviewLoading ? (
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                       <CircularProgress size={18} sx={{ color: "#93c5fd" }} />
                       <Typography variant="body2" sx={{ color: "rgba(191,219,254,0.85)" }}>
-                        Hämtar historik…
+                        {translate("Hämtar historik…", "Fetching history…")}
                       </Typography>
                     </Box>
                   ) : lobbyAthDisplay ? (
@@ -1089,26 +1122,28 @@ const LivePlayersControlPanel = () => {
                       <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
                         <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#93c5fd" }} />
                         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                          {lobbyAthDisplay.value.toLocaleString("sv-SE")}
+                          {numberFormatter.format(lobbyAthDisplay.value)}
                         </Typography>
                       </Stack>
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
                         {lobbyAthDisplay.isToday
                           ? lobbyAthDisplay.dateLabel
-                            ? `Ny topp idag (${lobbyAthDisplay.dateLabel})`
-                            : "Ny topp idag"
+                            ? translate(`Ny topp idag (${lobbyAthDisplay.dateLabel})`, `New high today (${lobbyAthDisplay.dateLabel})`)
+                            : translate("Ny topp idag", "New high today")
                           : lobbyAthDisplay.dateLabel
-                          ? `Uppnåddes ${lobbyAthDisplay.dateLabel}`
-                          : "Datum okänt"}
+                          ? translate(`Uppnåddes ${lobbyAthDisplay.dateLabel}`, `Reached ${lobbyAthDisplay.dateLabel}`)
+                          : translate("Datum okänt", "Date unknown")}
                       </Typography>
                       {lobbyBoostOn && (
                         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                          Visar simulerat värde (+10%).
+                          {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
                         </Typography>
                       )}
                       <Chip
                         size="small"
-                        label={lobbyBoostOn ? "+10% aktiv" : "Simulera +10%"}
+                        label={
+                          lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")
+                        }
                         onClick={toggleLobbyBoost}
                         clickable
                         sx={{
@@ -1125,7 +1160,7 @@ const LivePlayersControlPanel = () => {
                   ) : (
                     <>
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                        Ingen ATH-data kunde beräknas.
+                        {translate("Ingen ATH-data kunde beräknas.", "No ATH data could be calculated.")}
                       </Typography>
                     </>
                   )}
@@ -1148,10 +1183,12 @@ const LivePlayersControlPanel = () => {
             >
               <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between">
                 <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
-                  Liveshower just nu
+                  {translate("Liveshower just nu", "Live shows right now")}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                  {loadingLive ? "Uppdaterar…" : `Totalt ${liveGamesList.length} spel`}
+                  {loadingLive
+                    ? translate("Uppdaterar…", "Updating…")
+                    : translate(`Totalt ${liveGamesList.length} spel`, `Total ${liveGamesList.length} games`)}
                 </Typography>
               </Stack>
               <Grid container spacing={1.5}>
@@ -1160,7 +1197,7 @@ const LivePlayersControlPanel = () => {
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                       <CircularProgress size={18} sx={{ color: "#22c55e" }} />
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-                        Hämtar live-data…
+                        {translate("Hämtar live-data…", "Fetching live data…")}
                       </Typography>
                     </Box>
                   </Grid>
@@ -1198,7 +1235,12 @@ const LivePlayersControlPanel = () => {
                           {item.label}
                         </Typography>
                         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                          {item.updated ? `Senast ${timeFormatter.format(new Date(item.updated))}` : "Ingen tidsstämpel"}
+                          {item.updated
+                            ? translate(
+                                `Senast ${timeFormatter.format(new Date(item.updated))}`,
+                                `Last updated ${timeFormatter.format(new Date(item.updated))}`
+                              )
+                            : translate("Ingen tidsstämpel", "No timestamp")}
                         </Typography>
                       </Box>
                     </Grid>
@@ -1206,14 +1248,14 @@ const LivePlayersControlPanel = () => {
                 {!loadingLive && !liveGamesList.length && (
                   <Grid item xs={12}>
                     <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                      Ingen live-data tillgänglig just nu.
+                      {translate("Ingen live-data tillgänglig just nu.", "No live data available right now.")}
                     </Typography>
                   </Grid>
                 )}
                 {!loadingLive && liveGamesList.length > visibleLiveGames.length && (
                   <Grid item xs={12} sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
                     <Chip
-                      label={showAllLive ? "Visa mindre" : "Visa fler"}
+                      label={showAllLive ? translate("Visa mindre", "Show less") : translate("Visa fler", "Show more")}
                       onClick={() => setShowAllLive((prev) => !prev)}
                       clickable
                       sx={{
@@ -1244,31 +1286,31 @@ const LivePlayersControlPanel = () => {
             value="trend"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}
           >
-            Trend
+            {translate("Trend", "Trend")}
           </ToggleButton>
           <ToggleButton
             value="gameTrend"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(74,222,128,0.28)" } }}
           >
-            Speltrend
+            {translate("Speltrend", "Game trend")}
           </ToggleButton>
           <ToggleButton
             value="asia"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(248,250,133,0.28)" } }}
           >
-            Asia Tracker
+            {translate("Asia Tracker", "Asia Tracker")}
           </ToggleButton>
           <ToggleButton
             value="ranking"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}
           >
-            Ranking
+            {translate("Ranking", "Ranking")}
           </ToggleButton>
           <ToggleButton
             value="ath"
             sx={{ textTransform: "none", color: "rgba(226,232,240,0.75)", border: 0, borderRadius: "999px!important", px: { xs: 1.75, md: 3 }, py: 0.75, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(192,132,252,0.28)" } }}
           >
-            ATH
+            {translate("ATH", "ATH")}
           </ToggleButton>
         </ToggleButtonGroup>
 
@@ -1284,6 +1326,9 @@ const LivePlayersControlPanel = () => {
             onChangeDays={setTrendDays}
             boostOn={trendBoostOn}
             onToggleBoost={() => setTrendBoostOn((v) => !v)}
+            numberFormatter={numberFormatter}
+            translate={translate}
+            percentFormatter={percentFormatter}
           />
         )}
 
@@ -1301,6 +1346,9 @@ const LivePlayersControlPanel = () => {
             dayOptions={TREND_DAY_OPTIONS}
             days={gameTrendDays}
             onChangeDays={setGameTrendDays}
+            numberFormatter={numberFormatter}
+            translate={translate}
+            percentFormatter={percentFormatter}
           />
         )}
 
@@ -1325,6 +1373,9 @@ const LivePlayersControlPanel = () => {
             dayOptions={TREND_DAY_OPTIONS}
             days={asiaTrackerDays}
             onChangeDays={setAsiaTrackerDays}
+            numberFormatter={numberFormatter}
+            translate={translate}
+            percentFormatter={percentFormatter}
           />
         )}
 
@@ -1332,6 +1383,8 @@ const LivePlayersControlPanel = () => {
           <RankingSection
             rankingRows={rankingRows}
             overviewLoading={overviewLoading}
+            numberFormatter={numberFormatter}
+            translate={translate}
           />
         )}
 
@@ -1344,6 +1397,8 @@ const LivePlayersControlPanel = () => {
             overviewError={overviewError}
             showAllAth={showAllAth}
             toggleShowAll={() => setShowAllAth((prev) => !prev)}
+            numberFormatter={numberFormatter}
+            translate={translate}
           />
         )}
       </Stack>
@@ -1363,7 +1418,17 @@ const TrendSection = ({
   // NEW:
   boostOn,
   onToggleBoost,
+  numberFormatter,
+  translate,
+  percentFormatter,
 }) => {
+  const formatSigned = (value) => {
+    if (!Number.isFinite(value)) return "—";
+    const abs = numberFormatter.format(Math.abs(value));
+    if (value > 0) return `+${abs}`;
+    if (value < 0) return `-${abs}`;
+    return abs;
+  };
   const changeColor =
     trendSummary && Number.isFinite(trendSummary.absolute)
       ? trendSummary.absolute >= 0
@@ -1372,23 +1437,14 @@ const TrendSection = ({
       : "rgba(148,163,184,0.75)";
   const percentText =
     trendSummary && Number.isFinite(trendSummary.percent)
-      ? `${trendSummary.percent > 0 ? "+" : ""}${trendSummary.percent.toLocaleString("sv-SE", {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        })}%`
+      ? `${trendSummary.percent > 0 ? "+" : ""}${percentFormatter.format(trendSummary.percent)}%`
       : "—";
   const absoluteText =
-    trendSummary && Number.isFinite(trendSummary.absolute)
-      ? `${trendSummary.absolute > 0 ? "+" : ""}${trendSummary.absolute.toLocaleString("sv-SE")}`
-      : "—";
+    trendSummary && Number.isFinite(trendSummary.absolute) ? formatSigned(trendSummary.absolute) : "—";
   const startText =
-    trendSummary?.start?.value != null
-      ? trendSummary.start.value.toLocaleString("sv-SE")
-      : "—";
+    trendSummary?.start?.value != null ? numberFormatter.format(trendSummary.start.value) : "—";
   const endText =
-    trendSummary?.end?.value != null
-      ? trendSummary.end.value.toLocaleString("sv-SE")
-      : "—";
+    trendSummary?.end?.value != null ? numberFormatter.format(trendSummary.end.value) : "—";
   const startDateText = formatDateOnly(trendSummary?.start?.date) ?? "—";
   const endDateText = formatDateOnly(trendSummary?.end?.date) ?? "—";
 
@@ -1407,21 +1463,21 @@ const TrendSection = ({
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1}>
       <Stack spacing={0.4}>
         <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
-          Trend – genomsnittliga spelare
+          {translate("Trend – genomsnittliga spelare", "Trend – average players")}
         </Typography>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
           {overviewLoading
-            ? "Hämtar trenddata…"
+            ? translate("Hämtar trenddata…", "Fetching trend data…")
             : trendUpdatedLabel
-            ? `Senast uppdaterad ${trendUpdatedLabel}`
-            : overviewError || "Ingen trenddata"}
+            ? translate(`Senast uppdaterad ${trendUpdatedLabel}`, `Last updated ${trendUpdatedLabel}`)
+            : overviewError || translate("Ingen trenddata", "No trend data")}
         </Typography>
       </Stack>
 
       <Stack direction="row" spacing={1}>
         {/* +10% boost toggle */}
         <Chip
-          label={boostOn ? "Boost +10% (på)" : "Boost +10%"}
+          label={boostOn ? translate("Boost +10% (på)", "Boost +10% (on)") : translate("Boost +10%", "Boost +10%")}
           onClick={onToggleBoost}
           clickable
           sx={{
@@ -1481,7 +1537,10 @@ const TrendSection = ({
         }}
       >
         <Typography variant="caption" sx={{ color: "#34d399", fontWeight: 700 }}>
-          Simulerar EVOS riktiga lobby: +10% ökning på trenden (visas i graf & tooltip)
+          {translate(
+            "Simulerar EVOS riktiga lobby: +10% ökning på trenden (visas i graf & tooltip)",
+            "Simulating EVOS real lobby: +10% boost applied to the trend (shown in chart & tooltip)"
+          )}
         </Typography>
       </Box>
     )}
@@ -1494,13 +1553,13 @@ const TrendSection = ({
       sx={{ color: "rgba(148,163,184,0.75)" }}
     >
       <Typography variant="caption">
-        Start: <strong>{startText}</strong> ({startDateText})
+        {translate("Start", "Start")}: <strong>{startText}</strong> ({startDateText})
       </Typography>
       <Typography variant="caption">
-        Slut: <strong>{endText}</strong> ({endDateText})
+        {translate("Slut", "End")}: <strong>{endText}</strong> ({endDateText})
       </Typography>
       <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
-        Förändring: {absoluteText} ({percentText}) {boostOn ? "• (boost +10%)" : ""}
+        {translate("Förändring", "Change")}: {absoluteText} ({percentText}) {boostOn ? translate("• (boost +10%)", "• (boost +10%)") : ""}
       </Typography>
     </Stack>
 
@@ -1509,7 +1568,7 @@ const TrendSection = ({
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
           <CircularProgress size={20} sx={{ color: "#38bdf8" }} />
           <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-            Laddar spelardata…
+            {translate("Laddar spelardata…", "Loading player data…")}
           </Typography>
         </Box>
       ) : trendChartData.length ? (
@@ -1543,8 +1602,8 @@ const TrendSection = ({
                 color: "#f8fafc",
               }}
               formatter={(value) => [
-                `${numberFormatter.format(value)} spelare${boostOn ? " (boost +10%)" : ""}`,
-                "Genomsnitt",
+                `${numberFormatter.format(value)} ${translate("spelare", "players")}${boostOn ? " (boost +10%)" : ""}`,
+                translate("Genomsnitt", "Average"),
               ]}
             />
             <Area
@@ -1568,7 +1627,7 @@ const TrendSection = ({
             color: "rgba(148,163,184,0.75)",
           }}
         >
-          Ingen trenddata tillgänglig.
+          {translate("Ingen trenddata tillgänglig.", "No trend data available.")}
         </Box>
       )}
     </Box>
@@ -1589,7 +1648,17 @@ const GameTrendSection = ({
   dayOptions,
   days,
   onChangeDays,
+  numberFormatter,
+  translate,
+  percentFormatter,
 }) => {
+  const formatSigned = (value) => {
+    if (!Number.isFinite(value)) return "—";
+    const abs = numberFormatter.format(Math.abs(value));
+    if (value > 0) return `+${abs}`;
+    if (value < 0) return `-${abs}`;
+    return abs;
+  };
   const changeColor =
     summary && Number.isFinite(summary.absolute)
       ? summary.absolute >= 0
@@ -1598,23 +1667,17 @@ const GameTrendSection = ({
       : "rgba(148,163,184,0.75)";
   const percentText =
     summary && Number.isFinite(summary.percent)
-      ? `${summary.percent > 0 ? "+" : ""}${summary.percent.toLocaleString("sv-SE", {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        })}%`
+      ? `${summary.percent > 0 ? "+" : ""}${percentFormatter.format(summary.percent)}%`
       : "—";
-  const absoluteText =
-    summary && Number.isFinite(summary.absolute)
-      ? `${summary.absolute > 0 ? "+" : ""}${summary.absolute.toLocaleString("sv-SE")}`
-      : "—";
+  const absoluteText = summary && Number.isFinite(summary.absolute) ? formatSigned(summary.absolute) : "—";
   const startText =
-    summary?.start?.value != null ? summary.start.value.toLocaleString("sv-SE") : "—";
+    summary?.start?.value != null ? numberFormatter.format(summary.start.value) : "—";
   const endText =
-    summary?.end?.value != null ? summary.end.value.toLocaleString("sv-SE") : "—";
+    summary?.end?.value != null ? numberFormatter.format(summary.end.value) : "—";
   const startDateText = formatDateOnly(summary?.start?.date) ?? "—";
   const endDateText = formatDateOnly(summary?.end?.date) ?? "—";
   const activeColor = selectedOption?.color ?? "#38bdf8";
-  const activeLabel = selectedOption?.label ?? "Välj spel";
+  const activeLabel = selectedOption?.label ?? translate("Välj spel", "Select game");
 
   return (
     <Box
@@ -1630,20 +1693,20 @@ const GameTrendSection = ({
     >
       <Stack spacing={0.4}>
         <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
-          Speltrend – dagligt snitt
+          {translate("Speltrend – dagligt snitt", "Game trend – daily average")}
         </Typography>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
           {overviewLoading
-            ? "Hämtar speltrend…"
+            ? translate("Hämtar speltrend…", "Fetching game trend…")
             : trendUpdatedLabel
-            ? `Senast uppdaterad ${trendUpdatedLabel}`
-            : overviewError || "Ingen speltrenddata"}
+            ? translate(`Senast uppdaterad ${trendUpdatedLabel}`, `Last updated ${trendUpdatedLabel}`)
+            : overviewError || translate("Ingen speltrenddata", "No game trend data")}
         </Typography>
       </Stack>
 
       <Stack spacing={1}>
         <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
-          Välj spel att analysera
+          {translate("Välj spel att analysera", "Select a game to analyse")}
         </Typography>
         <Box
           sx={{
@@ -1676,7 +1739,7 @@ const GameTrendSection = ({
             })
           ) : (
             <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-              Ingen speldata tillgänglig ännu.
+              {translate("Ingen speldata tillgänglig ännu.", "No game data available yet.")}
             </Typography>
           )}
         </Box>
@@ -1690,16 +1753,16 @@ const GameTrendSection = ({
         sx={{ color: "rgba(148,163,184,0.75)", textAlign: { xs: "left", md: "center" } }}
       >
         <Typography variant="caption">
-          Start: <strong>{startText}</strong> ({startDateText})
+          {translate("Start", "Start")}: <strong>{startText}</strong> ({startDateText})
         </Typography>
         <Typography variant="caption">
-          Slut: <strong>{endText}</strong> ({endDateText})
+          {translate("Slut", "End")}: <strong>{endText}</strong> ({endDateText})
         </Typography>
       </Stack>
 
       <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1}>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-          Visa dagar
+          {translate("Visa dagar", "Show days")}
         </Typography>
         <ToggleButtonGroup
           value={days}
@@ -1748,7 +1811,7 @@ const GameTrendSection = ({
           </Typography>
           {summary && (
             <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
-              Förändring: {absoluteText} ({percentText})
+              {translate("Förändring", "Change")}: {absoluteText} ({percentText})
             </Typography>
           )}
         </Stack>
@@ -1786,7 +1849,10 @@ const GameTrendSection = ({
                   borderRadius: 12,
                   color: "#f8fafc",
                 }}
-                formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Snitt"]}
+                formatter={(value) => [
+                  `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
+                  translate("Snitt", "Average"),
+                ]}
               />
               <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -1801,7 +1867,7 @@ const GameTrendSection = ({
               color: "rgba(148,163,184,0.75)",
             }}
           >
-            Ingen trenddata för valt spel.
+            {translate("Ingen trenddata för valt spel.", "No trend data for the selected game.")}
           </Box>
         )}
       </Box>
@@ -1829,9 +1895,19 @@ const AsiaTrackerSection = ({
   dayOptions,
   days,
   onChangeDays,
+  numberFormatter,
+  translate,
+  percentFormatter,
 }) => {
   const isTrendView = viewMode === "trend";
   const currentSummary = isTrendView ? trendSummary : gameSummary;
+  const formatSigned = (value) => {
+    if (!Number.isFinite(value)) return "—";
+    const abs = numberFormatter.format(Math.abs(value));
+    if (value > 0) return `+${abs}`;
+    if (value < 0) return `-${abs}`;
+    return abs;
+  };
 
   const changeColor =
     currentSummary && Number.isFinite(currentSummary?.absolute)
@@ -1841,29 +1917,22 @@ const AsiaTrackerSection = ({
       : "rgba(148,163,184,0.75)";
   const percentText =
     currentSummary && Number.isFinite(currentSummary?.percent)
-      ? `${currentSummary.percent > 0 ? "+" : ""}${currentSummary.percent.toLocaleString("sv-SE", {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        })}%`
+      ? `${currentSummary.percent > 0 ? "+" : ""}${percentFormatter.format(currentSummary.percent)}%`
       : "—";
   const absoluteText =
-    currentSummary && Number.isFinite(currentSummary?.absolute)
-      ? `${currentSummary.absolute > 0 ? "+" : ""}${currentSummary.absolute.toLocaleString("sv-SE")}`
-      : "—";
+    currentSummary && Number.isFinite(currentSummary?.absolute) ? formatSigned(currentSummary.absolute) : "—";
   const startText =
-    currentSummary?.start?.value != null ? currentSummary.start.value.toLocaleString("sv-SE") : "—";
+    currentSummary?.start?.value != null ? numberFormatter.format(currentSummary.start.value) : "—";
   const endText =
-    currentSummary?.end?.value != null ? currentSummary.end.value.toLocaleString("sv-SE") : "—";
+    currentSummary?.end?.value != null ? numberFormatter.format(currentSummary.end.value) : "—";
   const startDateText = formatDateOnly(currentSummary?.start?.date) ?? "—";
   const endDateText = formatDateOnly(currentSummary?.end?.date) ?? "—";
 
   const activeColor = selectedOption?.color ?? ASIA_AGG_COLOR;
-  const activeLabel = selectedOption?.label ?? "Välj Asien-spel";
+  const activeLabel = selectedOption?.label ?? translate("Välj Asien-spel", "Select Asia game");
   const totalLiveText = Number.isFinite(totalLive) ? numberFormatter.format(totalLive) : "—";
   const shareText =
-    Number.isFinite(liveShare) && liveShare != null
-      ? `${(liveShare * 100).toFixed(1)}%`
-      : "—";
+    Number.isFinite(liveShare) && liveShare != null ? `${percentFormatter.format(liveShare * 100)}%` : "—";
 
   return (
     <Box
@@ -1879,20 +1948,20 @@ const AsiaTrackerSection = ({
     >
       <Stack spacing={0.4} alignItems="center" sx={{ textAlign: "center" }}>
         <Typography variant="overline" sx={{ color: "rgba(248,250,133,0.9)", letterSpacing: 1.4, fontWeight: 700, fontSize: { xs: "0.7rem", sm: "0.8rem" } }}>
-          Asia Tracker
+          {translate("Asia Tracker", "Asia Tracker")}
         </Typography>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
           {overviewLoading
-            ? "Hämtar Asien-data…"
+            ? translate("Hämtar Asien-data…", "Fetching Asia data…")
             : lastUpdatedLabel
-            ? `Senast uppdaterad ${lastUpdatedLabel}`
-            : overviewError || "Ingen data för Asien-spel ännu"}
+            ? translate(`Senast uppdaterad ${lastUpdatedLabel}`, `Last updated ${lastUpdatedLabel}`)
+            : overviewError || translate("Ingen data för Asien-spel ännu", "No data for Asia games yet")}
         </Typography>
       </Stack>
 
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems="center" justifyContent="center" sx={{ textAlign: "center" }}>
         <Chip
-          label={`Live just nu: ${totalLiveText}`}
+          label={translate(`Live just nu: ${totalLiveText}`, `Live right now: ${totalLiveText}`)}
           sx={{
             borderRadius: "999px",
             backgroundColor: "rgba(248,250,133,0.18)",
@@ -1901,7 +1970,7 @@ const AsiaTrackerSection = ({
           }}
         />
         <Chip
-          label={`Andel av livevolym: ${shareText}`}
+          label={translate(`Andel av livevolym: ${shareText}`, `Share of live volume: ${shareText}`)}
           sx={{
             borderRadius: "999px",
             backgroundColor: "rgba(74,222,128,0.15)",
@@ -1937,7 +2006,7 @@ const AsiaTrackerSection = ({
             },
           }}
         >
-          Asien-trend
+          {translate("Asien-trend", "Asia trend")}
         </ToggleButton>
         <ToggleButton
           value="games"
@@ -1953,15 +2022,15 @@ const AsiaTrackerSection = ({
             },
           }}
         >
-          Spel
+          {translate("Spel", "Games")}
         </ToggleButton>
       </ToggleButtonGroup>
 
       {!isTrendView && (
         <Stack spacing={1} alignItems="center" sx={{ textAlign: "center" }}>
-          <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
-            Välj Asien-spel
-          </Typography>
+        <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
+          {translate("Välj Asien-spel", "Select Asia game")}
+        </Typography>
           <Box
             sx={{
               display: "flex",
@@ -1994,7 +2063,7 @@ const AsiaTrackerSection = ({
               })
             ) : (
               <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-                Ingen speldata för Asien-portföljen ännu.
+                {translate("Ingen speldata för Asien-portföljen ännu.", "No game data for the Asia portfolio yet.")}
               </Typography>
             )}
           </Box>
@@ -2008,7 +2077,7 @@ const AsiaTrackerSection = ({
           </Typography>
           {gameSummary && (
             <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
-              Förändring: {absoluteText} ({percentText})
+              {translate("Förändring", "Change")}: {absoluteText} ({percentText})
             </Typography>
           )}
         </Stack>
@@ -2022,14 +2091,14 @@ const AsiaTrackerSection = ({
         sx={{ color: "rgba(148,163,184,0.75)", textAlign: { xs: "left", md: "center" } }}
       >
         <Typography variant="caption">
-          Start: <strong>{startText}</strong> ({startDateText})
+          {translate("Start", "Start")}: <strong>{startText}</strong> ({startDateText})
         </Typography>
         <Typography variant="caption">
-          Slut: <strong>{endText}</strong> ({endDateText})
+          {translate("Slut", "End")}: <strong>{endText}</strong> ({endDateText})
         </Typography>
         {(isTrendView || !selectedSlug) && (
-          <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
-            Förändring: {absoluteText} ({percentText})
+           <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
+            {translate("Förändring", "Change")}: {absoluteText} ({percentText})
           </Typography>
         )}
       </Stack>
@@ -2041,7 +2110,7 @@ const AsiaTrackerSection = ({
         spacing={1}
       >
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-          Visa dagar
+          {translate("Visa dagar", "Show days")}
         </Typography>
         <ToggleButtonGroup
           value={days}
@@ -2081,7 +2150,7 @@ const AsiaTrackerSection = ({
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
             <CircularProgress size={20} sx={{ color: isTrendView ? "#fde68a" : "#38bdf8" }} />
             <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-              Laddar spelardata…
+              {translate("Laddar spelardata…", "Loading player data…")}
             </Typography>
           </Box>
         ) : isTrendView ? (
@@ -2115,7 +2184,10 @@ const AsiaTrackerSection = ({
                     borderRadius: 12,
                     color: "#f8fafc",
                   }}
-                  formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Snitt"]}
+                  formatter={(value) => [
+                    `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
+                    translate("Snitt", "Average"),
+                  ]}
                 />
                 <Area
                   dataKey="players"
@@ -2137,7 +2209,10 @@ const AsiaTrackerSection = ({
                 color: "rgba(148,163,184,0.75)",
               }}
             >
-              Ingen sammanlagd trenddata för Asien-portföljen.
+              {translate(
+                "Ingen sammanlagd trenddata för Asien-portföljen.",
+                "No aggregated trend data for the Asia portfolio."
+              )}
             </Box>
           )
         ) : gameChartData.length ? (
@@ -2164,7 +2239,10 @@ const AsiaTrackerSection = ({
                   borderRadius: 12,
                   color: "#f8fafc",
                 }}
-                formatter={(value) => [`${numberFormatter.format(value)} spelare`, "Snitt"]}
+                formatter={(value) => [
+                  `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
+                  translate("Snitt", "Average"),
+                ]}
               />
               <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
             </BarChart>
@@ -2179,7 +2257,7 @@ const AsiaTrackerSection = ({
               color: "rgba(148,163,184,0.75)",
             }}
           >
-            Ingen trenddata för valt spel.
+            {translate("Ingen trenddata för valt spel.", "No trend data for the selected game.")}
           </Box>
         )}
       </Box>
@@ -2188,10 +2266,13 @@ const AsiaTrackerSection = ({
 
       <Stack spacing={1}>
         <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
-          Nyckeltal per spel
+          {translate("Nyckeltal per spel", "Key metrics per game")}
         </Typography>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-          Live just nu vs snitt spelare (30–90 d) för utvalda Asien-spel.
+          {translate(
+            "Live just nu vs snitt spelare (30–90 d) för utvalda Asien-spel.",
+            "Live right now vs average players (30–90 d) for selected Asia games."
+          )}
         </Typography>
         <Stack spacing={1}>
           {tableRows.length ? (
@@ -2215,7 +2296,7 @@ const AsiaTrackerSection = ({
                   <Stack direction="row" spacing={2} alignItems="center">
                     <Stack spacing={0} alignItems="flex-end">
                       <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                        Live
+                        {translate("Live", "Live")}
                       </Typography>
                       <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
                         {row.livePlayers != null ? numberFormatter.format(row.livePlayers) : "—"}
@@ -2223,7 +2304,7 @@ const AsiaTrackerSection = ({
                     </Stack>
                     <Stack spacing={0} alignItems="flex-end">
                       <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                        Snitt
+                        {translate("Snitt", "Average")}
                       </Typography>
                       <Typography sx={{ color: "#fde68a", fontWeight: 600 }}>
                         {row.avgPlayers != null ? numberFormatter.format(row.avgPlayers) : "—"}
@@ -2235,7 +2316,7 @@ const AsiaTrackerSection = ({
             ))
           ) : (
             <Typography sx={{ color: "rgba(148,163,184,0.7)", textAlign: "center", py: 2 }}>
-              Ingen översikt tillgänglig för dessa spel ännu.
+              {translate("Ingen översikt tillgänglig för dessa spel ännu.", "No overview available for these games yet.")}
             </Typography>
           )}
         </Stack>
@@ -2244,7 +2325,7 @@ const AsiaTrackerSection = ({
   );
 };
 
-const RankingSection = ({ rankingRows, overviewLoading }) => (
+const RankingSection = ({ rankingRows, overviewLoading, numberFormatter, translate }) => (
   <Box
     sx={{
       background: "rgba(15,23,42,0.45)",
@@ -2258,10 +2339,12 @@ const RankingSection = ({ rankingRows, overviewLoading }) => (
   >
     <Stack direction={{ xs: "column", md: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }} spacing={1.5}>
       <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
-        Ranking
+        {translate("Ranking", "Ranking")}
       </Typography>
       <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-        {overviewLoading ? "Uppdaterar ranking…" : `${rankingRows.length} spel listade`}
+        {overviewLoading
+          ? translate("Uppdaterar ranking…", "Updating ranking…")
+          : translate(`${rankingRows.length} spel listade`, `${rankingRows.length} games listed`)}
       </Typography>
     </Stack>
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
@@ -2291,14 +2374,24 @@ const RankingSection = ({ rankingRows, overviewLoading }) => (
       ))}
       {rankingRows.length === 0 && (
         <Typography sx={{ color: "rgba(148,163,184,0.7)", textAlign: "center", py: 2 }}>
-          Ingen rankingdata tillgänglig.
+          {translate("Ingen rankingdata tillgänglig.", "No ranking data available.")}
         </Typography>
       )}
     </Box>
   </Box>
 );
 
-const AthSection = ({ athRows, athDays, onChangeDays, overviewLoading, overviewError, showAllAth, toggleShowAll }) => {
+const AthSection = ({
+  athRows,
+  athDays,
+  onChangeDays,
+  overviewLoading,
+  overviewError,
+  showAllAth,
+  toggleShowAll,
+  numberFormatter,
+  translate,
+}) => {
   const visibleRows = useMemo(() => (showAllAth ? athRows : athRows.slice(0, INITIAL_VISIBLE_ATH)), [athRows, showAllAth]);
   const isLoading = overviewLoading && athRows.length === 0;
   const showError = Boolean(overviewError) && athRows.length === 0;
@@ -2324,16 +2417,19 @@ const AthSection = ({ athRows, athDays, onChangeDays, overviewLoading, overviewE
       >
         <Stack spacing={0.4}>
           <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2, fontWeight: 600 }}>
-            All-Time High (ATH) & Senaste
+            {translate("All-Time High (ATH) & Senaste", "All-Time High (ATH) & Latest")}
           </Typography>
           <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
             {isLoading
-              ? "Hämtar toppdata…"
+              ? translate("Hämtar toppdata…", "Fetching peak data…")
               : showError
-              ? `Fel: ${overviewError}`
+              ? translate(`Fel: ${overviewError}`, `Error: ${overviewError}`)
               : athRows.length
-              ? `Topplista baserad på de senaste ${athDays} dagarna`
-              : "Ingen toppdata tillgänglig ännu."}
+              ? translate(
+                  `Topplista baserad på de senaste ${athDays} dagarna`,
+                  `Leaderboard based on the past ${athDays} days`
+                )
+              : translate("Ingen toppdata tillgänglig ännu.", "No peak data available yet.")}
           </Typography>
         </Stack>
         <ToggleButtonGroup
@@ -2373,14 +2469,16 @@ const AthSection = ({ athRows, athDays, onChangeDays, overviewLoading, overviewE
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", py: 3, gap: 1.2 }}>
           <CircularProgress size={20} sx={{ color: "#c084fc" }} />
           <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-            Hämtar toppdata…
+            {translate("Hämtar toppdata…", "Fetching peak data…")}
           </Typography>
         </Box>
       ) : showError ? (
-        <Typography sx={{ color: "#fecaca" }}>Fel: {overviewError}</Typography>
+        <Typography sx={{ color: "#fecaca" }}>
+          {translate(`Fel: ${overviewError}`, `Error: ${overviewError}`)}
+        </Typography>
       ) : isEmpty ? (
         <Typography sx={{ color: "rgba(148,163,184,0.7)", textAlign: "center", py: 2 }}>
-          Ingen ATH-data tillgänglig.
+          {translate("Ingen ATH-data tillgänglig.", "No ATH data available.")}
         </Typography>
       ) : (
         <Stack spacing={1}>
@@ -2404,7 +2502,7 @@ const AthSection = ({ athRows, athDays, onChangeDays, overviewLoading, overviewE
                 <Stack direction="row" spacing={2} alignItems="center">
                   <Stack spacing={0} alignItems="flex-end">
                     <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-                      ATH
+                      {translate("ATH", "ATH")}
                     </Typography>
                     <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>
                       {row.ath?.value != null ? numberFormatter.format(row.ath.value) : "—"}
@@ -2416,7 +2514,7 @@ const AthSection = ({ athRows, athDays, onChangeDays, overviewLoading, overviewE
                   <Divider orientation="vertical" flexItem sx={{ borderColor: "rgba(148,163,184,0.2)" }} />
                   <Stack spacing={0} alignItems="flex-end">
                     <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
-                      Senaste
+                      {translate("Senaste", "Latest")}
                     </Typography>
                     <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>
                       {row.latest?.value != null ? numberFormatter.format(row.latest.value) : "—"}
@@ -2433,7 +2531,7 @@ const AthSection = ({ athRows, athDays, onChangeDays, overviewLoading, overviewE
           {athRows.length > visibleRows.length && (
             <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
               <Chip
-                label={showAllAth ? "Visa mindre" : "Visa fler"}
+                label={showAllAth ? translate("Visa mindre", "Show less") : translate("Visa fler", "Show more")}
                 onClick={toggleShowAll}
                 clickable
                 sx={{

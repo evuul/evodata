@@ -26,6 +26,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { useTranslate } from "@/context/LocaleContext";
 
 const COLORS = {
   surface: "rgba(15,23,42,0.62)",
@@ -50,6 +51,7 @@ const OwnershipView = ({
   yTicks,
   formatYAxisTick,
 }) => {
+  const translate = useTranslate();
   const areaFillId = `ownAreaFill-${useId()}`;
   const data = evolutionOwnershipData || [];
   const tickFontSize = isMobile ? 12 : 14;
@@ -79,7 +81,7 @@ const OwnershipView = ({
           fontSize: { xs: "1.05rem", sm: "1.35rem", md: "1.5rem" },
         }}
       >
-        Evolutions ägande
+        {translate("Evolutions ägande", "Evolution ownership")}
       </Typography>
 
       <Stack
@@ -102,13 +104,13 @@ const OwnershipView = ({
           }}
         >
           <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-            Aktieinnehav
+            {translate("Aktieinnehav", "Shareholding")}
           </Typography>
           <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
             {latestEvolutionShares.toLocaleString("sv-SE")}
           </Typography>
           <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-            Totalt antal Evolution-ägda aktier
+            {translate("Totalt antal Evolution-ägda aktier", "Total Evolution-owned shares")}
           </Typography>
         </Box>
         <Box
@@ -126,13 +128,13 @@ const OwnershipView = ({
           }}
         >
           <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-            Ägarandel
+            {translate("Ägarandel", "Ownership share")}
           </Typography>
           <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
             {latestOwnershipPercentage.toFixed(2)}%
           </Typography>
           <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-            Baserat på senaste totala aktiestocken
+            {translate("Baserat på senaste totala aktiestocken", "Based on latest total share count")}
           </Typography>
         </Box>
         {cancelledShares > 0 && (
@@ -151,20 +153,20 @@ const OwnershipView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Makulerade aktier
+              {translate("Makulerade aktier", "Cancelled shares")}
             </Typography>
             <Typography variant="h6" sx={{ color: "#fca5a5", fontWeight: 600 }}>
               {cancelledShares.toLocaleString("sv-SE")}
             </Typography>
             <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-              Historiskt indragna sedan programstart
+              {translate("Historiskt indragna sedan programstart", "Retired since program start")}
             </Typography>
           </Box>
         )}
       </Stack>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
-        Antal aktier över tid
+        {translate("Antal aktier över tid", "Shares over time")}
       </Typography>
 
       <Box
@@ -201,8 +203,8 @@ const OwnershipView = ({
           scrollButtons="auto"
           allowScrollButtonsMobile
         >
-          <Tab label="Linje" value="line" />
-          <Tab label="Stapel" value="bar" />
+          <Tab label={translate("Linje", "Line")} value="line" />
+          <Tab label={translate("Stapel", "Bar")} value="bar" />
         </Tabs>
       </Box>
 
@@ -234,7 +236,7 @@ const OwnershipView = ({
             >
               {!isMobile && (
                 <Label
-                  value="År"
+                  value={translate("År", "Years")}
                   offset={-10}
                   position="insideBottom"
                   fill={COLORS.textSecondary}
@@ -252,7 +254,7 @@ const OwnershipView = ({
             >
               {!isMobile && (
                 <Label
-                  value="Antal aktier"
+                  value={translate("Antal aktier", "Number of shares")}
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
@@ -307,7 +309,7 @@ const OwnershipView = ({
             >
               {!isMobile && (
                 <Label
-                  value="År"
+                  value={translate("År", "Years")}
                   offset={-10}
                   position="insideBottom"
                   fill={COLORS.textSecondary}
@@ -325,7 +327,7 @@ const OwnershipView = ({
             >
               {!isMobile && (
                 <Label
-                  value="Antal aktier"
+                  value={translate("Antal aktier", "Number of shares")}
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
@@ -347,7 +349,7 @@ const OwnershipView = ({
             <Bar
               dataKey="shares"
               fill={COLORS.accent}
-              name="Antal aktier"
+              name={translate("Antal aktier", "Number of shares")}
               radius={[6, 6, 0, 0]}
             />
           </BarChart>
@@ -355,7 +357,7 @@ const OwnershipView = ({
       </ResponsiveContainer>
 
       <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
-        Detaljer per år
+        {translate("Detaljer per år", "Details per year")}
       </Typography>
       <TableContainer
         sx={{
@@ -377,7 +379,7 @@ const OwnershipView = ({
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}
               >
-                År
+                {translate("År", "Year")}
               </TableCell>
               <TableCell
                 sx={{
@@ -387,7 +389,7 @@ const OwnershipView = ({
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}
               >
-                Aktier
+                {translate("Aktier", "Shares")}
               </TableCell>
               <TableCell
                 sx={{
@@ -397,7 +399,7 @@ const OwnershipView = ({
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}
               >
-                % ägande
+                {translate("% ägande", "% ownership")}
               </TableCell>
             </TableRow>
           </TableHead>

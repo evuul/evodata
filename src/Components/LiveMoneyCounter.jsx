@@ -14,6 +14,7 @@ import useMediaQuery from '@/lib/useMuiMediaQuery';
 import financialReports from '@/app/data/financialReports.json';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
+import { useTranslate } from '@/context/LocaleContext';
 
 const Q3_DAYS = 92; // approx number of days in Q3
 
@@ -40,6 +41,7 @@ const findLatestQ3Report = (reports) => {
 const LiveMoneyCounter = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const translate = useTranslate();
   const { rate: fxRate } = useFxRateContext();
   const { stockPrice, marketCap } = useStockPriceContext();
 
@@ -103,27 +105,29 @@ const LiveMoneyCounter = () => {
 
   const chips = [
     {
-      label: `≈ ${formatSEK(perSecond, 0)} SEK / sekund`,
-      tooltip:
+      label: translate(`≈ ${formatSEK(perSecond, 0)} SEK / sekund`, `≈ ${formatSEK(perSecond, 0)} SEK / second`),
+      tooltip: translate(
         'Genomsnitt baserat på total Q3-vinst dividerat med kvartalets sekunder.',
+        "Average based on total Q3 earnings divided by the quarter's seconds."
+      ),
       color: '#38bdf8',
       value: perSecond,
     },
     {
-      label: `≈ ${formatSEK(perMinute, 0)} SEK / minut`,
-      tooltip: 'Genomsnitt per minut.',
+      label: translate(`≈ ${formatSEK(perMinute, 0)} SEK / minut`, `≈ ${formatSEK(perMinute, 0)} SEK / minute`),
+      tooltip: translate('Genomsnitt per minut.', 'Average per minute.'),
       color: '#f97316',
       value: perMinute,
     },
     {
-      label: `≈ ${formatSEK(perHour, 0)} SEK / timme`,
-      tooltip: 'Genomsnitt per timme.',
+      label: translate(`≈ ${formatSEK(perHour, 0)} SEK / timme`, `≈ ${formatSEK(perHour, 0)} SEK / hour`),
+      tooltip: translate('Genomsnitt per timme.', 'Average per hour.'),
       color: '#34d399',
       value: perHour,
     },
     {
-      label: `≈ ${formatSEK(perDay, 0)} SEK / dag`,
-      tooltip: `Antag ${Q3_DAYS} dagar i Q3.`,
+      label: translate(`≈ ${formatSEK(perDay, 0)} SEK / dag`, `≈ ${formatSEK(perDay, 0)} SEK / day`),
+      tooltip: translate(`Antag ${Q3_DAYS} dagar i Q3.`, `Assumes ${Q3_DAYS} days in Q3.`),
       color: '#c084fc',
       value: perDay,
     },
@@ -131,12 +135,12 @@ const LiveMoneyCounter = () => {
 
   const summaryCards = [
     {
-      title: 'Totalt Q3',
+      title: translate('Totalt Q3', 'Total Q3'),
       value: formatCurrency(totalProfitSEK),
-      subtitle: `${profitMEUR.toFixed(2)} M€`,
+      subtitle: translate(`${profitMEUR.toFixed(2)} M€`, `${profitMEUR.toFixed(2)} M€`),
     },
     {
-      title: 'Årets justerade vinst',
+      title: translate('Årets justerade vinst', 'Adjusted profit YTD'),
       value:
         currentYearProfitMEUR != null
           ? `${formatSEK(currentYearProfitMEUR, 1)} M€`
@@ -144,19 +148,19 @@ const LiveMoneyCounter = () => {
       subtitle:
         currentYearProfitMEUR != null
           ? `${formatCurrency(currentYearProfitMEUR * 1_000_000 * fx)}`
-          : 'Data saknas',
+          : translate('Data saknas', 'Data missing'),
     },
     {
-      title: 'Per aktie',
+      title: translate('Per aktie', 'Per share'),
       value: perShare != null ? `${formatSEK(perShare, 2)} SEK` : '–',
       subtitle: totalSharesOutstanding
-        ? `${formatSEK(totalSharesOutstanding)} aktier`
-        : 'Antal aktier saknas',
+        ? translate(`${formatSEK(totalSharesOutstanding)} aktier`, `${formatSEK(totalSharesOutstanding)} shares`)
+        : translate('Antal aktier saknas', 'Share count missing'),
     },
     {
-      title: 'Period',
-      value: latestQ3 ? `${latestQ3.quarter} ${latestQ3.year}` : 'Okänt',
-      subtitle: 'Finansiell rapport',
+      title: translate('Period', 'Period'),
+      value: latestQ3 ? `${latestQ3.quarter} ${latestQ3.year}` : translate('Okänt', 'Unknown'),
+      subtitle: translate('Finansiell rapport', 'Financial report'),
     },
   ];
 
@@ -193,13 +197,13 @@ const LiveMoneyCounter = () => {
             variant="overline"
             sx={{ letterSpacing: 1, color: 'rgba(148,163,184,0.75)', textAlign: 'center' }}
           >
-            Live Money
+            {translate('Live Money', 'Live Money')}
           </Typography>
           <Typography
             variant={isMobile ? 'h5' : 'h4'}
             sx={{ fontWeight: 700, textAlign: 'center' }}
           >
-            Q3-vinstindikator
+            {translate('Q3-vinstindikator', 'Q3 profit indicator')}
           </Typography>
           <Typography
             sx={{
@@ -210,8 +214,10 @@ const LiveMoneyCounter = () => {
               textAlign: 'center',
             }}
           >
-            Realtidssimulering baserad på Evolution&apos;s rapporterade justerade
-            nettovinst för senaste Q3.
+            {translate(
+              "Realtidssimulering baserad på Evolution's rapporterade justerade nettovinst för senaste Q3.",
+              "Real-time simulation based on Evolution's reported adjusted net profit for the latest Q3."
+            )}
           </Typography>
         </Box>
 
@@ -236,8 +242,8 @@ const LiveMoneyCounter = () => {
             }
             label={
               latestQ3
-                ? `Datakälla: ${latestQ3.quarter} ${latestQ3.year}`
-                : 'Datakälla saknas'
+                ? translate(`Datakälla: ${latestQ3.quarter} ${latestQ3.year}`, `Data source: ${latestQ3.quarter} ${latestQ3.year}`)
+                : translate('Datakälla saknas', 'Data source missing')
             }
             size="small"
             sx={{
@@ -258,7 +264,7 @@ const LiveMoneyCounter = () => {
                 }}
               />
             }
-            label={`FX EUR/SEK: ${fx.toFixed(2)}`}
+            label={`${translate('FX EUR/SEK', 'FX EUR/SEK')}: ${fx.toFixed(2)}`}
             size="small"
             sx={{
               backgroundColor: 'rgba(96,165,250,0.18)',
@@ -293,7 +299,7 @@ const LiveMoneyCounter = () => {
             <Typography
               sx={{ color: 'rgba(148,163,184,0.7)', fontSize: '0.9rem' }}
             >
-              Ackumulerat (simulerat)
+              {translate('Ackumulerat (simulerat)', 'Accumulated (simulated)')}
             </Typography>
             <Typography
               variant={isMobile ? 'h3' : 'h2'}

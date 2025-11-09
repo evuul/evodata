@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { StockPriceProvider } from "@/context/StockPriceContext";
 import { PlayersLiveProvider } from "@/context/PlayersLiveContext";
 import { FxRateProvider } from "@/context/FxRateContext";
+import { LocaleProvider } from "@/context/LocaleContext";
 
 function InnerProviders({ children }) {
   const { isAuthenticated } = useAuth();
@@ -19,8 +20,10 @@ function InnerProviders({ children }) {
 
 export default function Providers({ children }) {
   return (
-    <AuthProvider>
-      <InnerProviders>{children}</InnerProviders>
-    </AuthProvider>
+    <LocaleProvider>
+      <AuthProvider>
+        <InnerProviders>{children}</InnerProviders>
+      </AuthProvider>
+    </LocaleProvider>
   );
 }

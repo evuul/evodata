@@ -26,6 +26,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
+import { useTranslate } from "@/context/LocaleContext";
 
 const COLORS = {
   surface: "rgba(15,23,42,0.62)",
@@ -35,6 +36,13 @@ const COLORS = {
   accent: "#38bdf8",
   grid: "rgba(148,163,184,0.14)",
   tooltipBg: "rgba(15,23,42,0.92)",
+};
+
+const PERIOD_LABELS = {
+  daily: { singular: { sv: "dag", en: "day" }, plural: { sv: "dagar", en: "days" } },
+  weekly: { singular: { sv: "vecka", en: "week" }, plural: { sv: "veckor", en: "weeks" } },
+  monthly: { singular: { sv: "månad", en: "month" }, plural: { sv: "månader", en: "months" } },
+  yearly: { singular: { sv: "år", en: "year" }, plural: { sv: "år", en: "years" } },
 };
 
 const HistoryView = ({
@@ -54,16 +62,15 @@ const HistoryView = ({
   currentSharePrice,
   historicalTotals,
 }) => {
+  const translate = useTranslate();
   const areaFillId = `histArea-${useId()}`;
   const tickFontSize = isMobile ? 12 : 14;
   const yTickWidth = isMobile ? 40 : 60;
   const xHeight = isMobile ? 40 : 60;
-
-  const periodLabels = {
-    daily: { singular: "dag", plural: "dagar" },
-    weekly: { singular: "vecka", plural: "veckor" },
-    monthly: { singular: "månad", plural: "månader" },
-    yearly: { singular: "år", plural: "år" },
+  const periodLabelBase = PERIOD_LABELS[viewMode] ?? PERIOD_LABELS.daily;
+  const periodLabel = {
+    singular: translate(periodLabelBase.singular.sv, periodLabelBase.singular.en),
+    plural: translate(periodLabelBase.plural.sv, periodLabelBase.plural.en),
   };
 
   const formatShares = (value, decimals = 0) =>
@@ -130,16 +137,38 @@ const HistoryView = ({
     };
   }, [historyChartData]);
 
-  const periodLabel = periodLabels[viewMode] ?? periodLabels.daily;
-
-  const xLabel =
+  const xLabel = translate(
     viewMode === "daily"
       ? "Datum"
       : viewMode === "weekly"
       ? "Vecka"
       : viewMode === "monthly"
       ? "Månad"
-      : "År";
+      : "År",
+    viewMode === "daily"
+      ? "Date"
+      : viewMode === "weekly"
+      ? "Week"
+      : viewMode === "monthly"
+      ? "Month"
+      : "Year"
+  );
+  const datasetTitle = translate(
+    viewMode === "daily"
+      ? "Dagliga återköp"
+      : viewMode === "weekly"
+      ? "Veckovisa återköp"
+      : viewMode === "monthly"
+      ? "Månadsvisa återköp"
+      : "Årliga återköp",
+    viewMode === "daily"
+      ? "Daily buybacks"
+      : viewMode === "weekly"
+      ? "Weekly buybacks"
+      : viewMode === "monthly"
+      ? "Monthly buybacks"
+      : "Yearly buybacks"
+  );
 
   return (
     <Box
@@ -165,7 +194,7 @@ const HistoryView = ({
           fontSize: { xs: "1.05rem", sm: "1.35rem", md: "1.55rem" },
         }}
       >
-        Återköpshistorik
+        {translate("Återköpshistorik", "Buyback history")}
       </Typography>
 
       {summary && (
@@ -184,13 +213,22 @@ const HistoryView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Genomsnitt per {periodLabel.singular}
+              {translate(
+                `Genomsnitt per ${periodLabel.singular}`,
+                `Average per ${periodLabel.singular}`
+              )}
             </Typography>
             <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
-              {formatShares(summary.avgShares, summary.avgShares < 10 ? 1 : 0)} aktier
+              {translate(
+                `${formatShares(summary.avgShares, summary.avgShares < 10 ? 1 : 0)} aktier`,
+                `${formatShares(summary.avgShares, summary.avgShares < 10 ? 1 : 0)} shares`
+              )}
             </Typography>
             <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-              ≈ {formatCurrency(summary.avgValue)} per {periodLabel.singular}
+              {translate(
+                `≈ ${formatCurrency(summary.avgValue)} per ${periodLabel.singular}`,
+                `≈ ${formatCurrency(summary.avgValue)} per ${periodLabel.singular}`
+              )}
             </Typography>
           </Box>
 
@@ -208,17 +246,23 @@ const HistoryView = ({
             }}
           >
             <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              Genomsnittlig snittkurs (alla återköp)
+              {translate("Genomsnittlig snittkurs (alla återköp)", "Average buyback price")}
             </Typography>
             <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 700 }}>
               {formatPrice(historicalTotals?.averagePrice)}
             </Typography>
             <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-              Totalt {formatShares(historicalTotals?.shares)} aktier
+              {translate(
+                `Totalt ${formatShares(historicalTotals?.shares)} aktier`,
+                `Total ${formatShares(historicalTotals?.shares)} shares`
+              )}
             </Typography>
             {historicalTotals?.value > 0 && (
               <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-                Investerat {formatCurrency(historicalTotals.value)}
+                {translate(
+                  `Investerat ${formatCurrency(historicalTotals.value)}`,
+                  `Invested ${formatCurrency(historicalTotals.value)}`
+                )}
               </Typography>
             )}
           </Box>
@@ -238,7 +282,7 @@ const HistoryView = ({
               }}
             >
               <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-                Historiskt återköp – vinst/förlust
+                {translate("Historiskt återköp – vinst/förlust", "Historical buybacks – P&L")}
               </Typography>
               <Typography
                 variant="h5"
@@ -247,12 +291,16 @@ const HistoryView = ({
                 {formatCurrency(historicalPnL.absolute)}
               </Typography>
               <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
-                Snitt {formatPrice(historicalPnL.averagePrice)} • Live {formatPrice(currentSharePrice)}
-                {" • "}
-                {formatPercent(historicalPnL.percent)}
+                {translate(
+                  `Snitt ${formatPrice(historicalPnL.averagePrice)} • Live ${formatPrice(currentSharePrice)} • ${formatPercent(historicalPnL.percent)}`,
+                  `Avg ${formatPrice(historicalPnL.averagePrice)} • Live ${formatPrice(currentSharePrice)} • ${formatPercent(historicalPnL.percent)}`
+                )}
               </Typography>
               <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-                Totalt {formatShares(Math.round(historicalPnL.shares || 0))} aktier • Investering {formatCurrency(historicalPnL.invested)}
+                {translate(
+                  `Totalt ${formatShares(Math.round(historicalPnL.shares || 0))} aktier • Investering ${formatCurrency(historicalPnL.invested)}`,
+                  `Total ${formatShares(Math.round(historicalPnL.shares || 0))} shares • Invested ${formatCurrency(historicalPnL.invested)}`
+                )}
               </Typography>
             </Box>
           )}
@@ -290,10 +338,10 @@ const HistoryView = ({
           scrollButtons="auto"
           allowScrollButtonsMobile
         >
-          <Tab label="Daglig" value="daily" />
-          <Tab label="Veckovis" value="weekly" />
-          <Tab label="Månadsvis" value="monthly" />
-          <Tab label="Årlig" value="yearly" />
+          <Tab label={translate("Daglig", "Daily")} value="daily" />
+          <Tab label={translate("Veckovis", "Weekly")} value="weekly" />
+          <Tab label={translate("Månadsvis", "Monthly")} value="monthly" />
+          <Tab label={translate("Årlig", "Yearly")} value="yearly" />
         </Tabs>
       </Box>
 
@@ -328,19 +376,13 @@ const HistoryView = ({
           scrollButtons="auto"
           allowScrollButtonsMobile
         >
-          <Tab label="Linje" value="line" />
-          <Tab label="Stapel" value="bar" />
+          <Tab label={translate("Linje", "Line")} value="line" />
+          <Tab label={translate("Stapel", "Bar")} value="bar" />
         </Tabs>
       </Box>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
-        {viewMode === "daily"
-          ? "Dagliga återköp"
-          : viewMode === "weekly"
-          ? "Veckovisa återköp"
-          : viewMode === "monthly"
-          ? "Månadsvisa återköp"
-          : "Årliga återköp"}
+        {datasetTitle}
       </Typography>
 
       <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
@@ -391,7 +433,7 @@ const HistoryView = ({
             >
               {!isMobile && (
                 <Label
-                  value="Antal aktier"
+                  value={translate("Antal aktier", "Number of shares")}
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
@@ -467,7 +509,7 @@ const HistoryView = ({
             >
               {!isMobile && (
                 <Label
-                  value="Antal aktier"
+                  value={translate("Antal aktier", "Number of shares")}
                   angle={-90}
                   offset={-10}
                   position="insideLeft"
@@ -489,7 +531,7 @@ const HistoryView = ({
             <Bar
               dataKey="Antal_aktier"
               fill={COLORS.accent}
-              name="Antal aktier"
+              name={translate("Antal aktier", "Number of shares")}
               radius={[6, 6, 0, 0]}
             />
             {/* Brush borttagen */}
@@ -498,7 +540,7 @@ const HistoryView = ({
       </ResponsiveContainer>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
-        Transaktioner
+        {translate("Transaktioner", "Transactions")}
       </Typography>
       <TableContainer
         sx={{
@@ -527,7 +569,7 @@ const HistoryView = ({
                 }}
                 onClick={() => onSort("Datum")}
               >
-                Datum {sortConfig.key === "Datum" && (sortConfig.direction === "asc" ? "↑" : "↓")}
+                {translate("Datum", "Date")} {sortConfig.key === "Datum" && (sortConfig.direction === "asc" ? "↑" : "↓")}
               </TableCell>
               <TableCell
                 sx={{
@@ -540,7 +582,7 @@ const HistoryView = ({
                 }}
                 onClick={() => onSort("Antal_aktier")}
               >
-                Antal aktier {sortConfig.key === "Antal_aktier" && (sortConfig.direction === "asc" ? "↑" : "↓")}
+                {translate("Antal aktier", "Number of shares")} {sortConfig.key === "Antal_aktier" && (sortConfig.direction === "asc" ? "↑" : "↓")}
               </TableCell>
               <TableCell
                 sx={{
@@ -553,7 +595,7 @@ const HistoryView = ({
                 }}
                 onClick={() => onSort("Transaktionsvärde")}
               >
-                Transaktionsvärde (SEK){" "}
+                {translate("Transaktionsvärde (SEK)", "Transaction value (SEK)")}{" "}
                 {sortConfig.key === "Transaktionsvärde" && (sortConfig.direction === "asc" ? "↑" : "↓")}
               </TableCell>
             </TableRow>
