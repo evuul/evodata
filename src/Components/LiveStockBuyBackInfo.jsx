@@ -222,10 +222,18 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
       : null;
 
   const combinedBuybacks = useMemo(() => {
-    return [
-      ...(Array.isArray(oldData) ? oldData : []),
-      ...(Array.isArray(curData) ? curData : []),
-    ];
+    const normalized = new Map();
+    const pushRow = (row) => {
+      if (!row || !row.Datum) return;
+      const safeDate = row.Datum;
+      const existing = normalized.get(safeDate) || {};
+      normalized.set(safeDate, { ...existing, ...row });
+    };
+    (Array.isArray(oldData) ? oldData : []).forEach(pushRow);
+    (Array.isArray(curData) ? curData : []).forEach(pushRow);
+    return Array.from(normalized.values()).sort(
+      (a, b) => new Date(a.Datum) - new Date(b.Datum),
+    );
   }, [oldData, curData]);
 
   const historicalTotals = useMemo(() => {
