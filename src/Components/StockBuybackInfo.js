@@ -800,6 +800,7 @@ const StockBuybackInfo = ({
           isMobile={isMobile}
           totalSharesData={totalSharesData}
           latestTotalShares={latestTotalShares}
+          latestEvolutionShares={latestEvolutionShares}
           chartTypeTotalShares={chartTypeTotalShares}
           onChangeChartTypeTotalShares={handleChartTypeChange("totalShares")}
           yDomain={getYDomain(totalSharesData, "totalShares")}

@@ -11,6 +11,7 @@ import {
   TableRow,
   TableCell,
   TableContainer,
+  Stack,
 } from "@mui/material";
 import {
   ResponsiveContainer,
@@ -41,6 +42,7 @@ const TotalSharesView = ({
   isMobile,
   totalSharesData,
   latestTotalShares,
+  latestEvolutionShares = 0,
   chartTypeTotalShares,
   onChangeChartTypeTotalShares,
   yDomain,
@@ -53,6 +55,8 @@ const TotalSharesView = ({
   const tickFontSize = isMobile ? 12 : 14;
   const yTickWidth = isMobile ? 40 : 60;
   const xHeight = isMobile ? 30 : 40;
+  const evolutionShares = Number.isFinite(latestEvolutionShares) ? latestEvolutionShares : 0;
+  const adjustedShareCount = Math.max(latestTotalShares - evolutionShares, 0);
 
   return (
     <Box
@@ -80,28 +84,63 @@ const TotalSharesView = ({
         {translate("Totala aktier", "Total shares")}
       </Typography>
 
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          background: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,118,110,0.2))",
-          borderRadius: "16px",
-          border: `1px solid rgba(56,189,248,0.35)`,
-          px: 2.2,
-          py: 1.8,
-          mb: 1,
-          width: { xs: "100%", sm: "fit-content" },
-          alignSelf: { xs: "stretch", sm: "flex-start" },
-          maxWidth: { sm: 320 },
-        }}
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={{ xs: 1.2, sm: 1.6 }}
+        sx={{ flexWrap: "wrap" }}
       >
-        <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-          {translate("Totalt antal aktier", "Total share count")}
-        </Typography>
-        <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
-          {latestTotalShares.toLocaleString("sv-SE")}
-        </Typography>
-      </Box>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: { xs: "100%", sm: 220 },
+            background: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,118,110,0.2))",
+            borderRadius: "16px",
+            border: `1px solid rgba(56,189,248,0.35)`,
+            px: 2.2,
+            py: 1.8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.4,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+            {translate("Totalt antal aktier", "Total share count")}
+          </Typography>
+          <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+            {latestTotalShares.toLocaleString("sv-SE")}
+          </Typography>
+          <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+            {translate("Senaste registrerade aktiestocken", "Latest registered share count")}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: { xs: "100%", sm: 220 },
+            background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(16,185,129,0.18))",
+            borderRadius: "16px",
+            border: `1px solid rgba(34,197,94,0.32)`,
+            px: 2.2,
+            py: 1.8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.4,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+            {translate("Aktier exkl. EVO:s innehav", "Shares excl. EVO ownership")}
+          </Typography>
+          <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+            {adjustedShareCount.toLocaleString("sv-SE")}
+          </Typography>
+          <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+            {translate(
+              "Totalt antal aktier minus Evolutions egna innehav",
+              "Total share count minus Evolution-held stock"
+            )}
+          </Typography>
+        </Box>
+      </Stack>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         {translate("Totala aktier över tid", "Total shares over time")}
