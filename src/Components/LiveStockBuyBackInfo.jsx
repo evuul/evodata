@@ -810,6 +810,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
             isMobile={isMobile}
             totalSharesData={totalSharesData}
             latestTotalShares={totalSharesData.slice(-1)[0]?.totalShares || 0}
+            latestEvolutionShares={latestEvolutionShares}
             chartTypeTotalShares={chartTypeTotalShares}
             onChangeChartTypeTotalShares={(_e, v) => v && setChartTypeTotalShares(v)}
             yDomain={getYDomain(totalSharesData, 'totalShares')}
