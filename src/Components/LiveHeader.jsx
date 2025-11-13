@@ -49,6 +49,7 @@ const ShortIntelligencePanel = dynamic(() => import("./ShortIntellegence"), { ss
 const LivePlayersControlPanel = dynamic(() => import("./LivePlayersControlPanel"), { ssr: false, loading: PanelLoader });
 const LiveMoneyCounterPanel = dynamic(() => import("./LiveMoneyCounter"), { ssr: false, loading: PanelLoader });
 const LiveStockBuyBackInfoPanel = dynamic(() => import("./LiveStockBuyBackInfo"), { ssr: false, loading: PanelLoader });
+const LiveTop3Panel = dynamic(() => import("./LiveTop3"), { ssr: false, loading: PanelLoader });
 const LiveInvestmentCalculatorPanel = dynamic(() => import("./LiveInvestmentCalculator"), {
   ssr: false,
   loading: PanelLoader,
@@ -281,6 +282,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
       { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
       { value: "gameshow", label: translate("Gameshow Earnings", "Gameshow earnings") },
+      { value: "topwins", label: translate("Top wins", "Top wins") },
       { value: "money", label: translate("Live Money", "Live money") },
       { value: "buybacks", label: translate("Återköp (live)", "Buybacks (live)") },
       { value: "short", label: translate("Blankning & handel", "Short interest & trading") },
@@ -333,6 +335,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           averagePlayersData={averagePlayersData}
         />
       );
+    }
+
+    if (activePanel === "topwins") {
+      return <LiveTop3Panel variant="embedded" />;
     }
 
     if (activePanel === "money") return <LiveMoneyCounterPanel />;
