@@ -14,6 +14,8 @@ import {
   TableHead,
   TableRow,
   Stack,
+  Tabs,
+  Tab,
   useTheme,
 } from "@mui/material";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
@@ -29,6 +31,7 @@ import {
 import { GAMES as GAME_LIST, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import { useTranslate } from "@/context/LocaleContext";
+import LiveTop3 from "./LiveTop3";
 
 const REPORT_LOOKBACK_DAYS = 90;
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
@@ -150,6 +153,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const translate = useTranslate();
 
+  const [activeTab, setActiveTab] = useState("outlook");
   const [dynamicPlayers, setDynamicPlayers] = useState([]);
   const [slugAverages, setSlugAverages] = useState([]);
   const [overviewError, setOverviewError] = useState("");
@@ -546,384 +550,422 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         </Stack>
       </Box>
 
-      <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          mt: { xs: 2.5, md: 3 },
+        }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={(_, value) => value && setActiveTab(value)}
+          variant="scrollable"
+          allowScrollButtonsMobile
+          textColor="inherit"
+          TabIndicatorProps={{ style: { backgroundColor: "#38bdf8" } }}
+          sx={{
+            "& .MuiTab-root": {
+              color: "rgba(226,232,240,0.65)",
+              textTransform: "none",
+              fontWeight: 600,
+            },
+            "& .Mui-selected": {
+              color: "#f8fafc",
+            },
+          }}
+        >
+          <Tab value="outlook" label={translate("Prognos", "Outlook")} />
+          <Tab value="top3" label={translate("Top wins", "Top wins")} />
+        </Tabs>
+      </Box>
 
-      {/* KPI-kort */}
-      <Grid container spacing={isMobile ? 2 : 3} justifyContent="center">
-        {/* Kvartalsprogress */}
-        <Grid item xs={12} md={4}>
+      {activeTab === "top3" ? (
+        <Box sx={{ mt: { xs: 3, md: 4 } }}>
+          <LiveTop3 variant="embedded" />
+        </Box>
+      ) : (
+        <Box component="div">
+          <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
+
+          {/* KPI-kort */}
+          <Grid container spacing={isMobile ? 2 : 3} justifyContent="center">
+            {/* Kvartalsprogress */}
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  background: "rgba(15,23,42,0.55)",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(148,163,184,0.18)",
+                  p: 3,
+                  height: "100%",
+                  textAlign: "center",
+                }}
+              >
+                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
+                  {`${currentQuarter} ${currentYear}`}
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
+                  {translate(
+                    `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} dagar`,
+                    `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} days`
+                  )}
+                </Typography>
+                <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.95rem", mt: 0.5 }}>
+                  {translate(
+                    `${quarterProgress.progressPercent}% av kvartalet avklarat`,
+                    `${quarterProgress.progressPercent}% of the quarter completed`
+                  )}
+                </Typography>
+                <LinearProgress
+                  variant="determinate"
+                  value={quarterProgress.progressPercent}
+                  sx={{
+                    mt: 2,
+                    height: 6,
+                    borderRadius: 4,
+                    backgroundColor: "rgba(148,163,184,0.25)",
+                    "& .MuiLinearProgress-bar": { background: "linear-gradient(90deg, #34d399, #38bdf8)" },
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            {/* Justerade spelare */}
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  background: "rgba(26,46,89,0.55)",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(96,165,250,0.3)",
+                  p: 3,
+                  height: "100%",
+                  textAlign: "center",
+                }}
+              >
+                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
+                  {translate("Genomsnittliga spelare (justerade)", "Average players (adjusted)")}
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700, mt: 1, color: "#93c5fd" }}>
+                  {adjustedAveragePlayers.toLocaleString("sv-SE")}
+                </Typography>
+                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.95rem", mt: 0.5 }}>
+                  {liveAveragePlayersRaw
+                    ? translate(
+                        `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`,
+                        `Live avg ${liveAveragePlayersRaw.toLocaleString("sv-SE")} players`
+                      )
+                    : currentQuarterPlayers
+                    ? translate(
+                        `Kvartalssnitt ${currentQuarterPlayers.toLocaleString("sv-SE")} spelare`,
+                        `Quarter avg ${currentQuarterPlayers.toLocaleString("sv-SE")} players`
+                      )
+                    : translate("Inväntar kvartalsdata", "Waiting for quarterly data")}
+                </Typography>
+              </Box>
+            </Grid>
+
+            {/* Uppskattad omsättning (YoY) */}
+            <Grid item xs={12} md={4}>
+              <Box
+                sx={{
+                  background: "rgba(14,116,144,0.55)",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(45,212,191,0.28)",
+                  p: 3,
+                  height: "100%",
+                  textAlign: "center",
+                }}
+              >
+                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
+                  {translate("Uppskattad omsättning", "Estimated revenue")}
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
+                  {formatMillion(estimatedRevenue)} €M
+                </Typography>
+
+                <Typography
+                  sx={{
+                    color:
+                      changeYoY.percent == null
+                        ? "rgba(226,232,240,0.75)"
+                        : changeYoY.percent >= 0
+                        ? "#34d399"
+                        : "#f87171",
+                    fontSize: "0.95rem",
+                    mt: 0.5,
+                  }}
+                >
+                  {changeYoY.percent == null
+                    ? translate("Inväntar jämförelsedata", "Waiting for comparison data")
+                    : translate(
+                        `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`,
+                        `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`
+                      )}
+                </Typography>
+
+                {Number.isFinite(revenueSoFar) && (
+                  <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem", mt: 1 }}>
+                    {translate("Takt hittills", "Run-rate so far")}: {formatMillion(revenueSoFar)} €M
+                  </Typography>
+                )}
+              </Box>
+            </Grid>
+          </Grid>
+
+          <Typography sx={{ color: changeQoQColor, mt: { xs: 3, md: 4 }, textAlign: "center" }}>
+            {trendText}
+          </Typography>
+
+          {/* Graf */}
           <Box
             sx={{
               background: "rgba(15,23,42,0.55)",
-              borderRadius: "14px",
+              borderRadius: "16px",
               border: "1px solid rgba(148,163,184,0.18)",
-              p: 3,
-              height: "100%",
-              textAlign: "center",
+              p: { xs: 2, md: 3 },
+              mt: { xs: 3, md: 4 },
+              display: "flex",
+              flexDirection: "column",
+              gap: { xs: 2, md: 3 },
             }}
           >
-            <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-              {`${currentQuarter} ${currentYear}`}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-              {translate(
-                `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} dagar`,
-                `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} days`
-              )}
-            </Typography>
-            <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.95rem", mt: 0.5 }}>
-              {translate(
-                `${quarterProgress.progressPercent}% av kvartalet avklarat`,
-                `${quarterProgress.progressPercent}% of the quarter completed`
-              )}
-            </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={quarterProgress.progressPercent}
-              sx={{
-                mt: 2,
-                height: 6,
-                borderRadius: 4,
-                backgroundColor: "rgba(148,163,184,0.25)",
-                "& .MuiLinearProgress-bar": { background: "linear-gradient(90deg, #34d399, #38bdf8)" },
-              }}
-            />
-          </Box>
-        </Grid>
-
-        {/* Justerade spelare */}
-        <Grid item xs={12} md={4}>
-          <Box
-            sx={{
-              background: "rgba(26,46,89,0.55)",
-              borderRadius: "14px",
-              border: "1px solid rgba(96,165,250,0.3)",
-              p: 3,
-              height: "100%",
-              textAlign: "center",
-            }}
-          >
-            <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-              {translate("Genomsnittliga spelare (justerade)", "Average players (adjusted)")}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, mt: 1, color: "#93c5fd" }}>
-              {adjustedAveragePlayers.toLocaleString("sv-SE")}
-            </Typography>
-            <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.95rem", mt: 0.5 }}>
-              {liveAveragePlayersRaw
-                ? translate(
-                    `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`,
-                    `Live avg ${liveAveragePlayersRaw.toLocaleString("sv-SE")} players`
-                  )
-                : currentQuarterPlayers
-                ? translate(
-                    `Kvartalssnitt ${currentQuarterPlayers.toLocaleString("sv-SE")} spelare`,
-                    `Quarter avg ${currentQuarterPlayers.toLocaleString("sv-SE")} players`
-                  )
-                : translate("Inväntar kvartalsdata", "Waiting for quarterly data")}
-            </Typography>
-          </Box>
-        </Grid>
-
-        {/* Uppskattad omsättning (YoY) */}
-        <Grid item xs={12} md={4}>
-          <Box
-            sx={{
-              background: "rgba(14,116,144,0.55)",
-              borderRadius: "14px",
-              border: "1px solid rgba(45,212,191,0.28)",
-              p: 3,
-              height: "100%",
-              textAlign: "center",
-            }}
-          >
-            <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-              {translate("Uppskattad omsättning", "Estimated revenue")}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-              {formatMillion(estimatedRevenue)} €M
-            </Typography>
-
-            <Typography
-              sx={{
-                color:
-                  changeYoY.percent == null
-                    ? "rgba(226,232,240,0.75)"
-                    : changeYoY.percent >= 0
-                    ? "#34d399"
-                    : "#f87171",
-                fontSize: "0.95rem",
-                mt: 0.5,
-              }}
-            >
-              {changeYoY.percent == null
-                ? translate("Inväntar jämförelsedata", "Waiting for comparison data")
-                : translate(
-                    `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`,
-                    `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`
-                  )}
-            </Typography>
-
-            {Number.isFinite(revenueSoFar) && (
-              <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem", mt: 1 }}>
-                {translate("Takt hittills", "Run-rate so far")}: {formatMillion(revenueSoFar)} €M
-              </Typography>
-            )}
-          </Box>
-        </Grid>
-      </Grid>
-
-      <Typography sx={{ color: changeQoQColor, mt: { xs: 3, md: 4 }, textAlign: "center" }}>
-        {trendText}
-      </Typography>
-
-      {/* Graf */}
-      <Box
-        sx={{
-          background: "rgba(15,23,42,0.55)",
-          borderRadius: "16px",
-          border: "1px solid rgba(148,163,184,0.18)",
-          p: { xs: 2, md: 3 },
-          mt: { xs: 3, md: 4 },
-          display: "flex",
-          flexDirection: "column",
-          gap: { xs: 2, md: 3 },
-        }}
-      >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: 1.5,
-          }}
-        >
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            {translate("Live-snitt spelare", "Live avg players")} · {labelFromPeriod(currentPeriod)}
-          </Typography>
-          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-            {qData.length > 0
-              ? translate(`${qData.length} uppdateringar`, `${qData.length} updates`)
-              : translate("Inväntar live-data", "Waiting for live data")}
-          </Typography>
-        </Box>
-
-        <Box sx={{ height: isMobile ? 260 : 320 }}>
-          {qData.length ? (
-            <ResponsiveContainer>
-              <AreaChart data={qData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="playersGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3182ce" stopOpacity={0.5} />
-                    <stop offset="100%" stopColor="#0f172a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
-                  tickLine={false}
-                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                />
-                <YAxis
-                  tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
-                  tickLine={false}
-                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                  domain={[0, chartYAxisMax]}
-                  width={isMobile ? 40 : 48}
-                />
-                <RechartsTooltip
-                  contentStyle={{
-                    background: "rgba(15,23,42,0.9)",
-                    border: "1px solid rgba(96,165,250,0.25)",
-                    borderRadius: 12,
-                    color: "#f8fafc",
-                  }}
-                  formatter={(value, _name, { payload }) => {
-                    const base = Number(value).toLocaleString("sv-SE");
-                    const raw = Number(payload?.rawPlayers);
-                    const subtitle = Number.isFinite(raw)
-                      ? translate(
-                          `Justerat (live ${raw.toLocaleString("sv-SE")})`,
-                          `Adjusted (live ${raw.toLocaleString("sv-SE")})`
-                        )
-                      : translate("Justerade spelare", "Adjusted players");
-                    return [
-                      translate(`${base} spelare`, `${base} players`),
-                      subtitle,
-                    ];
-                  }}
-                  labelStyle={{ color: "rgba(226,232,240,0.75)" }}
-                />
-                <Area
-                  dataKey="players"
-                  type="monotone"
-                  stroke="#60a5fa"
-                  strokeWidth={2.5}
-                  fill="url(#playersGradient)"
-                  fillOpacity={1}
-                  animationDuration={900}
-                  isAnimationActive
-                  dot={false}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
             <Box
               sx={{
-                height: "100%",
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "rgba(148,163,184,0.65)",
+                alignItems: "baseline",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 1.5,
               }}
             >
-              <Typography>{translate("Ingen live-data att visa ännu.", "No live data to display yet.")}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {translate("Live-snitt spelare", "Live avg players")} · {labelFromPeriod(currentPeriod)}
+              </Typography>
+              <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                {qData.length > 0
+                  ? translate(`${qData.length} uppdateringar`, `${qData.length} updates`)
+                  : translate("Inväntar live-data", "Waiting for live data")}
+              </Typography>
             </Box>
-          )}
-        </Box>
 
-        {/* Tabell */}
-        <Box>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-            {translate("Kvartalsjämförelse", "Quarterly comparison")}
-          </Typography>
-          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
-            {translate("Estimerad vs faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
-          </Typography>
-          <Table size="small" sx={{ minWidth: 360 }}>
-            <TableHead>
-              <TableRow sx={{ "& th": { color: "rgba(148,163,184,0.75)", fontWeight: 600 } }}>
-                <TableCell>{translate("Period", "Period")}</TableCell>
-                <TableCell align="right">{translate("Spelare", "Players")}</TableCell>
-                <TableCell align="right">{translate("Est.", "Est.")}</TableCell>
-                <TableCell align="right">{translate("Faktisk", "Actual")}</TableCell>
-                <TableCell align="right">Δ</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {tableRows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
-                    {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
-                  </TableCell>
-                </TableRow>
-              )}
-              {tableRows.map((row) => (
-                <TableRow
-                  key={row.period}
-                  sx={{
-                    backgroundColor: row.highlight ? "rgba(37,99,235,0.12)" : "transparent",
-                    "&:last-of-type td": { borderBottom: 0 },
-                  }}
-                >
-                  <TableCell sx={{ color: "#f8fafc" }}>{row.label}</TableCell>
-                  <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
-                    {row.playersUsed.toLocaleString("sv-SE")}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: "#93c5fd" }}>
-                    {formatMillion(row.estimated)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
-                    {formatMillion(row.actual)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171" }}>
-                    {Number.isFinite(row.diff)
-                      ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
-                      : "–"}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </Box>
-      </Box>
-
-      {/* Topp 3-spel */}
-      {topGames.length > 0 && (
-        <Box
-          sx={{
-            mt: { xs: 3, md: 4 },
-            background: "rgba(15,23,42,0.55)",
-            borderRadius: "14px",
-            border: "1px solid rgba(148,163,184,0.18)",
-            p: { xs: 2, md: 3 },
-          }}
-        >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "baseline",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 1.5,
-              mb: 2,
-            }}
-          >
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {translate(
-                `Topp 3 liveshower senaste ${REPORT_LOOKBACK_DAYS} dagarna`,
-                `Top 3 live shows over the past ${REPORT_LOOKBACK_DAYS} days`
-              )}
-            </Typography>
-            <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-              {translate("Andelar baserat på lobby-snitt", "Shares based on lobby average")}
-            </Typography>
-          </Box>
-
-          <Grid container spacing={isMobile ? 2 : 3}>
-            {topGames.map((game) => (
-              <Grid item xs={12} md={4} key={game.id}>
+            <Box sx={{ height: isMobile ? 260 : 320 }}>
+              {qData.length ? (
+                <ResponsiveContainer>
+                  <AreaChart data={qData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="playersGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3182ce" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="#0f172a" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                    <XAxis
+                      dataKey="date"
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    />
+                    <YAxis
+                      tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                      tickLine={false}
+                      axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                      domain={[0, chartYAxisMax]}
+                      width={isMobile ? 40 : 48}
+                    />
+                    <RechartsTooltip
+                      contentStyle={{
+                        background: "rgba(15,23,42,0.9)",
+                        border: "1px solid rgba(96,165,250,0.25)",
+                        borderRadius: 12,
+                        color: "#f8fafc",
+                      }}
+                      formatter={(value, _name, { payload }) => {
+                        const base = Number(value).toLocaleString("sv-SE");
+                        const raw = Number(payload?.rawPlayers);
+                        const subtitle = Number.isFinite(raw)
+                          ? translate(
+                              `Justerat (live ${raw.toLocaleString("sv-SE")})`,
+                              `Adjusted (live ${raw.toLocaleString("sv-SE")})`
+                            )
+                          : translate("Justerade spelare", "Adjusted players");
+                        return [
+                          translate(`${base} spelare`, `${base} players`),
+                          subtitle,
+                        ];
+                      }}
+                      labelStyle={{ color: "rgba(226,232,240,0.75)" }}
+                    />
+                    <Area
+                      dataKey="players"
+                      type="monotone"
+                      stroke="#60a5fa"
+                      strokeWidth={2.5}
+                      fill="url(#playersGradient)"
+                      fillOpacity={1}
+                      animationDuration={900}
+                      isAnimationActive
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
                 <Box
                   sx={{
-                    borderRadius: "12px",
-                    border: `1px solid ${game.color}33`,
-                    background: "rgba(15,23,42,0.65)",
-                    p: 2,
+                    height: "100%",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: 0.75,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "rgba(148,163,184,0.65)",
                   }}
                 >
-                  <Stack direction="row" spacing={1.5} alignItems="center">
+                  <Typography>{translate("Ingen live-data att visa ännu.", "No live data to display yet.")}</Typography>
+                </Box>
+              )}
+            </Box>
+
+            {/* Tabell */}
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
+                {translate("Kvartalsjämförelse", "Quarterly comparison")}
+              </Typography>
+              <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
+                {translate("Estimerad vs faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
+              </Typography>
+              <Table size="small" sx={{ minWidth: 360 }}>
+                <TableHead>
+                  <TableRow sx={{ "& th": { color: "rgba(148,163,184,0.75)", fontWeight: 600 } }}>
+                    <TableCell>{translate("Period", "Period")}</TableCell>
+                    <TableCell align="right">{translate("Spelare", "Players")}</TableCell>
+                    <TableCell align="right">{translate("Est.", "Est.")}</TableCell>
+                    <TableCell align="right">{translate("Faktisk", "Actual")}</TableCell>
+                    <TableCell align="right">Δ</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {tableRows.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
+                        {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {tableRows.map((row) => (
+                    <TableRow
+                      key={row.period}
+                      sx={{
+                        backgroundColor: row.highlight ? "rgba(37,99,235,0.12)" : "transparent",
+                        "&:last-of-type td": { borderBottom: 0 },
+                      }}
+                    >
+                      <TableCell sx={{ color: "#f8fafc" }}>{row.label}</TableCell>
+                      <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
+                        {row.playersUsed.toLocaleString("sv-SE")}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: "#93c5fd" }}>
+                        {formatMillion(row.estimated)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
+                        {formatMillion(row.actual)}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171" }}>
+                        {Number.isFinite(row.diff)
+                          ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
+                          : "–"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Box>
+          </Box>
+
+          {/* Topp 3-spel */}
+          {topGames.length > 0 && (
+            <Box
+              sx={{
+                mt: { xs: 3, md: 4 },
+                background: "rgba(15,23,42,0.55)",
+                borderRadius: "14px",
+                border: "1px solid rgba(148,163,184,0.18)",
+                p: { xs: 2, md: 3 },
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 1.5,
+                  mb: 2,
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  {translate(
+                    `Topp 3 liveshower senaste ${REPORT_LOOKBACK_DAYS} dagarna`,
+                    `Top 3 live shows over the past ${REPORT_LOOKBACK_DAYS} days`
+                  )}
+                </Typography>
+                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                  {translate("Andelar baserat på lobby-snitt", "Shares based on lobby average")}
+                </Typography>
+              </Box>
+
+              <Grid container spacing={isMobile ? 2 : 3}>
+                {topGames.map((game) => (
+                  <Grid item xs={12} md={4} key={game.id}>
                     <Box
                       sx={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: "50%",
-                        backgroundColor: game.color,
-                        boxShadow: `0 0 0 3px ${game.color}22`,
+                        borderRadius: "12px",
+                        border: `1px solid ${game.color}33`,
+                        background: "rgba(15,23,42,0.65)",
+                        p: 2,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 0.75,
                       }}
-                    />
-                    <Typography sx={{ fontWeight: 600, color: "#f8fafc" }}>
-                      {game.label}
-                    </Typography>
-                  </Stack>
-                  <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                    {translate(
-                      `${game.avgPlayers.toLocaleString("sv-SE")} snittspelare`,
-                      `${game.avgPlayers.toLocaleString("sv-SE")} avg players`
-                    )}
-                  </Typography>
-                  <Typography sx={{ color: "#93c5fd", fontSize: "0.9rem" }}>
-                    {translate(
-                      `${(game.share * 100).toFixed(1)}% av lobbyvolymen`,
-                      `${(game.share * 100).toFixed(1)}% of lobby volume`
-                    )}
-                  </Typography>
-                  <Typography sx={{ color: "#34d399", fontSize: "0.9rem" }}>
-                    {Number.isFinite(game.estimatedRevenue)
-                      ? translate(
-                          `${formatMillion(game.estimatedRevenue)} €M i takt`,
-                          `${formatMillion(game.estimatedRevenue)} €M run-rate`
-                        )
-                      : translate("Omsättning estimeras", "Revenue being estimated")}
-                  </Typography>
-                </Box>
+                    >
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: "50%",
+                            backgroundColor: game.color,
+                            boxShadow: `0 0 0 3px ${game.color}22`,
+                          }}
+                        />
+                        <Typography sx={{ fontWeight: 600, color: "#f8fafc" }}>
+                          {game.label}
+                        </Typography>
+                      </Stack>
+                      <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
+                        {translate(
+                          `${game.avgPlayers.toLocaleString("sv-SE")} snittspelare`,
+                          `${game.avgPlayers.toLocaleString("sv-SE")} avg players`
+                        )}
+                      </Typography>
+                      <Typography sx={{ color: "#93c5fd", fontSize: "0.9rem" }}>
+                        {translate(
+                          `${(game.share * 100).toFixed(1)}% av lobbyvolymen`,
+                          `${(game.share * 100).toFixed(1)}% of lobby volume`
+                        )}
+                      </Typography>
+                      <Typography sx={{ color: "#34d399", fontSize: "0.9rem" }}>
+                        {Number.isFinite(game.estimatedRevenue)
+                          ? translate(
+                              `${formatMillion(game.estimatedRevenue)} €M i takt`,
+                              `${formatMillion(game.estimatedRevenue)} €M run-rate`
+                            )
+                          : translate("Omsättning estimeras", "Revenue being estimated")}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                ))}
               </Grid>
-            ))}
-          </Grid>
+            </Box>
+          )}
         </Box>
       )}
     </Box>
