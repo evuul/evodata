@@ -27,6 +27,48 @@ import useMediaQuery from "@/lib/useMuiMediaQuery";
 
 const EVO_LEI = "549300SUH6ZR1RF6TA88";
 const LOBBY_SIM_MULTIPLIER = 1.1;
+const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
+const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
+
+const parseTopWinTimestamp = (value) => {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? ts : 0;
+};
+
+const prettifyGameShowName = (value) => {
+  if (!value) return "";
+  const stringValue = String(value);
+  if (!stringValue.includes("_")) return stringValue;
+  return stringValue
+    .toLowerCase()
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const extractLatestTopWin = (entries) => {
+  if (!Array.isArray(entries)) return null;
+  const normalized = entries
+    .map((entry) => {
+      const totalAmount = Number(entry?.totalAmount ?? entry?.amount ?? entry?.total);
+      const multiplier = Number(entry?.multiplier ?? entry?.multi ?? entry?.x);
+      const settledAt = entry?.settledAt ?? entry?.startedAt ?? entry?.createdAt ?? null;
+      const gameShow = entry?.gameShow ?? entry?.game ?? entry?.name ?? null;
+      return {
+        gameShow,
+        totalAmount: Number.isFinite(totalAmount) ? totalAmount : null,
+        multiplier: Number.isFinite(multiplier) ? multiplier : null,
+        settledAt,
+      };
+    })
+    .filter((item) => item.gameShow && item.totalAmount != null);
+
+  if (!normalized.length) return null;
+  normalized.sort((a, b) => parseTopWinTimestamp(b.settledAt) - parseTopWinTimestamp(a.settledAt));
+  return normalized[0];
+};
 
 const PanelLoader = () => (
   <Box
@@ -119,6 +161,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
   const [shortPercent, setShortPercent] = useState(null);
   const [loadingShort, setLoadingShort] = useState(false);
+  const [latestTopWin, setLatestTopWin] = useState(null);
+  const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
 
   const fetchShortFromHistory = useCallback(async () => {
     try {
@@ -166,6 +210,92 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       clearInterval(id);
     };
   }, [fetchShortFromHistory]);
+
+  useEffect(() => {
+    let isActive = true;
+    let latestRequestId = 0;
+
+    const loadLatestTopWin = async () => {
+      if (!isActive) return;
+      latestRequestId += 1;
+      const requestId = latestRequestId;
+      setLoadingLatestTopWin(true);
+      try {
+        const res = await fetch(LIVE_TOP3_ENDPOINT, { cache: "no-store" });
+        if (!res.ok) throw new Error(`live top3 failed: ${res.status}`);
+        const data = await res.json();
+        if (!isActive || requestId !== latestRequestId) return;
+        setLatestTopWin(extractLatestTopWin(data?.entries ?? []));
+      } catch (error) {
+        if (!isActive || requestId !== latestRequestId) return;
+        console.warn("[LiveHeader] Failed to fetch latest top win:", error);
+        setLatestTopWin(null);
+      } finally {
+        if (!isActive || requestId !== latestRequestId) return;
+        setLoadingLatestTopWin(false);
+      }
+    };
+
+    const handleFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      loadLatestTopWin();
+    };
+
+    loadLatestTopWin();
+    const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("visibilitychange", handleFocus);
+
+    return () => {
+      isActive = false;
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+    let latestRequestId = 0;
+
+    const loadLatestTopWin = async () => {
+      if (!isActive) return;
+      latestRequestId += 1;
+      const requestId = latestRequestId;
+      setLoadingLatestTopWin(true);
+      try {
+        const res = await fetch(LIVE_TOP3_ENDPOINT, { cache: "no-store" });
+        if (!res.ok) throw new Error(`live top3 failed: ${res.status}`);
+        const data = await res.json();
+        if (!isActive || requestId !== latestRequestId) return;
+        setLatestTopWin(extractLatestTopWin(data?.entries ?? []));
+      } catch (error) {
+        if (!isActive || requestId !== latestRequestId) return;
+        console.warn("[LiveHeader] Failed to fetch latest top win:", error);
+        setLatestTopWin(null);
+      } finally {
+        if (!isActive || requestId !== latestRequestId) return;
+        setLoadingLatestTopWin(false);
+      }
+    };
+
+    const handleFocus = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+      loadLatestTopWin();
+    };
+
+    loadLatestTopWin();
+    const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("visibilitychange", handleFocus);
+
+    return () => {
+      isActive = false;
+      clearInterval(intervalId);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("visibilitychange", handleFocus);
+    };
+  }, []);
 
   const top3 = useMemo(() => {
     const games = playerGames ?? [];
@@ -276,6 +406,53 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     : translate("Simulera lobby (+10%)", "Simulate lobby (+10%)");
 
   const [activePanel, setActivePanel] = useState("live");
+  const latestWinTimeFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "sv-SE", { hour: "2-digit", minute: "2-digit" }),
+    [locale]
+  );
+  const formatLatestWinTime = useCallback(
+    (value) => {
+      if (!value) return null;
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return null;
+      return latestWinTimeFormatter.format(date);
+    },
+    [latestWinTimeFormatter]
+  );
+  const formatLatestWinAmount = useCallback(
+    (value) => {
+      if (!Number.isFinite(value)) return null;
+      const localeKey = locale === "en" ? "en-US" : "sv-SE";
+      const options =
+        value >= 10_000
+          ? { minimumFractionDigits: 0, maximumFractionDigits: 0 }
+          : { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+      return `${value.toLocaleString(localeKey, options)} €`;
+    },
+    [locale]
+  );
+  const latestTopWinLabel = useMemo(() => {
+    if (loadingLatestTopWin) {
+      return translate("Storvinst: hämtar…", "Top win: loading…");
+    }
+    if (!latestTopWin) {
+      return translate("Storvinst: saknas", "Top win: unavailable");
+    }
+    const amountLabel = formatLatestWinAmount(latestTopWin.totalAmount);
+    const timeLabel = formatLatestWinTime(latestTopWin.settledAt);
+    const multiplierLabel = Number.isFinite(latestTopWin.multiplier) ? `x${latestTopWin.multiplier}` : null;
+    const parts = [
+      prettifyGameShowName(latestTopWin.gameShow),
+      amountLabel,
+      multiplierLabel,
+      timeLabel,
+    ].filter(Boolean);
+    return `${translate("Storvinst", "Top win")}: ${parts.join(" · ")}`;
+  }, [formatLatestWinAmount, formatLatestWinTime, latestTopWin, loadingLatestTopWin, translate]);
+  const latestTopWinLabelWithEmoji = useMemo(() => {
+    if (!latestTopWinLabel) return latestTopWinLabel;
+    return `🏆 ${latestTopWinLabel}`;
+  }, [latestTopWinLabel]);
   const panelOptions = useMemo(
     () => [
       { value: "live", label: translate("Live Intelligence", "Live Intelligence") },
@@ -737,6 +914,29 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               mt: { xs: -0.6, sm: -1, md: -1.3 },
             }}
           >
+            <Chip
+              size="small"
+              label={latestTopWinLabelWithEmoji}
+              sx={{
+                background: "transparent",
+                color: "#f1f5f9",
+                border: "none",
+                borderRadius: "999px",
+                fontWeight: 600,
+                px: 0,
+                py: 0,
+                height: "auto",
+                maxWidth: "100%",
+                "& .MuiChip-label": {
+                  whiteSpace: "normal",
+                  lineHeight: 1.35,
+                  textAlign: "center",
+                  fontSize: { xs: "0.92rem", sm: "1rem" },
+                  px: 0,
+                  py: 0,
+                },
+              }}
+            />
             <Typography
               variant="h3"
               sx={{
