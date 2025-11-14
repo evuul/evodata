@@ -14,8 +14,6 @@ import {
   TableHead,
   TableRow,
   Stack,
-  Tabs,
-  Tab,
   useTheme,
 } from "@mui/material";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
@@ -31,7 +29,6 @@ import {
 import { GAMES as GAME_LIST, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import { useTranslate } from "@/context/LocaleContext";
-import LiveTop3 from "./LiveTop3";
 
 const REPORT_LOOKBACK_DAYS = 90;
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
@@ -153,7 +150,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const translate = useTranslate();
 
-  const [activeTab, setActiveTab] = useState("outlook");
   const [dynamicPlayers, setDynamicPlayers] = useState([]);
   const [slugAverages, setSlugAverages] = useState([]);
   const [overviewError, setOverviewError] = useState("");
@@ -550,42 +546,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         </Stack>
       </Box>
 
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          mt: { xs: 2.5, md: 3 },
-        }}
-      >
-        <Tabs
-          value={activeTab}
-          onChange={(_, value) => value && setActiveTab(value)}
-          variant="scrollable"
-          allowScrollButtonsMobile
-          textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#38bdf8" } }}
-          sx={{
-            "& .MuiTab-root": {
-              color: "rgba(226,232,240,0.65)",
-              textTransform: "none",
-              fontWeight: 600,
-            },
-            "& .Mui-selected": {
-              color: "#f8fafc",
-            },
-          }}
-        >
-          <Tab value="outlook" label={translate("Prognos", "Outlook")} />
-          <Tab value="top3" label={translate("Top wins", "Top wins")} />
-        </Tabs>
-      </Box>
-
-      {activeTab === "top3" ? (
-        <Box sx={{ mt: { xs: 3, md: 4 } }}>
-          <LiveTop3 variant="embedded" />
-        </Box>
-      ) : (
-        <Box component="div">
+      <Box component="div">
           <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
 
           {/* KPI-kort */}
@@ -966,8 +927,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               </Grid>
             </Box>
           )}
-        </Box>
-      )}
+      </Box>
     </Box>
   );
 };
