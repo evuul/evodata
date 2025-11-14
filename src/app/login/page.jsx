@@ -26,6 +26,21 @@ import { useAuth } from "@/context/AuthContext";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
+const LIVE_TOP3_PREFETCH_PARAMS = new URLSearchParams({
+  historyDays: "7",
+  historyPerDay: "6",
+}).toString();
+
+const prefetchLiveTop3 = () => {
+  try {
+    fetch(`${LIVE_TOP3_ENDPOINT}?${LIVE_TOP3_PREFETCH_PARAMS}`, { cache: "no-store" }).catch(() => {
+      // Swallow network errors; dashboard can still load without immediate top wins data.
+    });
+  } catch {
+    // Ignore synchronous errors (e.g. malformed endpoint); component fetch will retry later.
+  }
+};
 
 function LoginPageFallback() {
   return (
@@ -105,6 +120,7 @@ function LoginPageContent() {
 
   useEffect(() => {
     if (initialized && isAuthenticated) {
+      prefetchLiveTop3();
       const next = searchParams?.get("next");
       router.replace(next || "/");
     }
@@ -122,6 +138,7 @@ function LoginPageContent() {
 
     try {
       await login({ email: form.email.trim(), password: form.password });
+      prefetchLiveTop3();
       const next = searchParams?.get("next");
       router.replace(next || "/");
     } catch (err) {
