@@ -22,6 +22,7 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from "recharts";
+import { COLORS as GAME_COLORS } from "@/config/games";
 
 const formatAmount = (value, locale) => {
   if (!Number.isFinite(value)) return "—";
@@ -29,6 +30,24 @@ const formatAmount = (value, locale) => {
 };
 
 const defaultLocale = (locale) => (locale === "en" ? "en-GB" : "sv-SE");
+
+const normalizeGameSlug = (value) =>
+  typeof value === "string"
+    ? value
+        .trim()
+        .toLowerCase()
+        .replace(/[_\s]+/g, "-")
+    : null;
+
+const formatGameTitle = (value) =>
+  typeof value === "string"
+    ? value
+        .toLowerCase()
+        .split(/[_\s]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    : "—";
 
 const buildChartData = (entries = []) => {
   const map = new Map();
@@ -38,9 +57,14 @@ const buildChartData = (entries = []) => {
     if (!Number.isFinite(amount) || amount <= 0) return;
     const multiplier = Number(entry.multiplier);
     const gameKey = entry.gameShow;
+    const slug = normalizeGameSlug(entry.gameShow);
+    const color = (slug && GAME_COLORS[slug]) || "#38bdf8";
     if (!map.has(gameKey)) {
       map.set(gameKey, {
         gameShow: gameKey,
+        displayName: formatGameTitle(entry.gameShow),
+        slug,
+        color,
         totalAmount: 0,
         hits: 0,
         maxMultiplier: Number.isFinite(multiplier) ? multiplier : null,
@@ -146,6 +170,34 @@ const LiveTop3PayoutChart = ({ dayOptions = [], translate, locale, isLoading }) 
     );
   }
 
+  const colorByDisplayName = useMemo(() => {
+    const map = new Map();
+    chartData.forEach((entry) => map.set(entry.displayName, entry.color));
+    return map;
+  }, [chartData]);
+
+  const renderXAxisTick = useMemo(
+    () =>
+      function XAxisTick(props) {
+        const { x, y, payload } = props;
+        const label = payload?.value ?? "";
+        const color = colorByDisplayName.get(label) ?? "rgba(226,232,240,0.85)";
+        return (
+          <text
+            x={x}
+            y={y + 12}
+            fill={color}
+            textAnchor="middle"
+            fontSize={12}
+            fontWeight={600}
+          >
+            {label}
+          </text>
+        );
+      },
+    [colorByDisplayName]
+  );
+
   return (
     <Card
       sx={{
@@ -227,12 +279,13 @@ const LiveTop3PayoutChart = ({ dayOptions = [], translate, locale, isLoading }) 
             <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 32 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.2)" />
               <XAxis
-                dataKey="gameShow"
-                stroke="rgba(226,232,240,0.9)"
-                tick={{ fill: "rgba(226,232,240,0.85)", fontSize: 12 }}
-                angle={-20}
-                textAnchor="end"
+                dataKey="displayName"
+                stroke="rgba(226,232,240,0.3)"
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                 interval={0}
+                tickMargin={12}
+                tick={renderXAxisTick}
               />
               <YAxis
                 stroke="rgba(226,232,240,0.9)"
