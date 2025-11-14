@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Box, Card, CardContent, Chip, Grid, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Card, CardContent, Chip, Grid, Skeleton, Stack, Tab, Tabs, Typography } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
+import LiveTop3PayoutChart from "./LiveTop3PayoutChart";
 
 const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // hourly refresh is enough
@@ -308,6 +309,42 @@ const EntryCard = ({ entry, rank, numberLocale, locale, translate }) => {
   );
 };
 
+const parseEntryTimestamp = (value) => {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? ts : 0;
+};
+
+const dedupeEntriesFromSnapshots = (snapshots = []) => {
+  const seen = new Set();
+  const dayEntries = [];
+  snapshots.forEach((snapshot) => {
+    const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
+    entries.forEach((entry) => {
+      if (!entry || typeof entry !== "object") return;
+      const key =
+        entry.id ??
+        [
+          entry.gameShow ?? "game",
+          entry.settledAt ?? entry.startedAt ?? entry.createdAt ?? "",
+          entry.multiplier ?? "",
+          entry.totalAmount ?? "",
+        ].join("|");
+      if (seen.has(key)) return;
+      seen.add(key);
+      dayEntries.push({
+        ...entry,
+        fetchedAt: snapshot?.fetchedAt ?? entry?.fetchedAt ?? null,
+      });
+    });
+  });
+  dayEntries.sort(
+    (a, b) =>
+      parseEntryTimestamp(b.settledAt ?? b.fetchedAt) - parseEntryTimestamp(a.settledAt ?? a.fetchedAt)
+  );
+  return dayEntries;
+};
+
 const LiveTop3 = ({ variant = "standalone" }) => {
   const translate = useTranslate();
   const { locale } = useLocale();
@@ -316,6 +353,7 @@ const LiveTop3 = ({ variant = "standalone" }) => {
   const [status, setStatus] = useState("loading");
   const [meta, setMeta] = useState({ fetchedAt: null, source: null });
   const [historyBuckets, setHistoryBuckets] = useState([]);
+  const [activeTab, setActiveTab] = useState("cards");
 
   useEffect(() => {
     let active = true;
@@ -330,11 +368,12 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
         const payload = await response.json();
         if (!active) return;
-        const normalized = normalizeEntries(payload?.entries ?? payload);
+        const normalized = normalizeEntries(payload?.todayEntries ?? payload?.entries ?? payload);
         setEntries(normalized);
         setMeta({
           fetchedAt: payload?.fetchedAt ?? payload?.updatedAt ?? null,
           source: payload?.source ?? null,
+          todayYmd: payload?.todayYmd ?? null,
         });
         setHistoryBuckets(Array.isArray(payload?.history) ? payload.history : []);
         setStatus("success");
@@ -363,14 +402,45 @@ const LiveTop3 = ({ variant = "standalone" }) => {
     : null;
 
   const isStandalone = variant !== "embedded";
-  const filteredHistoryBuckets = useMemo(() => {
-    const todayYmd = getStockholmTodayYmd();
-    return (historyBuckets || []).filter((bucket) => {
-      const bucketDate = bucket?.ymd;
-      if (!bucketDate) return true;
-      return bucketDate !== todayYmd;
-    });
+  const historyDayEntries = useMemo(() => {
+    return (historyBuckets || []).map((bucket) => ({
+      ymd: bucket?.ymd ?? null,
+      entries: dedupeEntriesFromSnapshots(bucket?.snapshots ?? []),
+    }));
   }, [historyBuckets]);
+
+  const filteredHistoryDays = useMemo(() => {
+    const todayYmd = meta?.todayYmd ?? getStockholmTodayYmd();
+    return historyDayEntries.filter((bucket) => {
+      if (!bucket?.ymd || !Array.isArray(bucket.entries)) return false;
+      if (!bucket.entries.length) return false;
+      return bucket.ymd !== todayYmd;
+    });
+  }, [historyDayEntries, meta?.todayYmd]);
+
+  const chartDayOptions = useMemo(() => {
+    const todayYmd = meta?.todayYmd ?? getStockholmTodayYmd();
+    const options = [];
+    if (entries.length) {
+      options.push({
+        id: todayYmd,
+        ymd: todayYmd,
+        entries,
+        isToday: true,
+      });
+    }
+    historyDayEntries.forEach((bucket) => {
+      if (!bucket?.ymd || !bucket.entries.length) return;
+      if (bucket.ymd === todayYmd) {
+        if (!entries.length) {
+          options.push({ id: bucket.ymd, ymd: bucket.ymd, entries: bucket.entries, isToday: true });
+        }
+        return;
+      }
+      options.push({ id: bucket.ymd, ymd: bucket.ymd, entries: bucket.entries, isToday: false });
+    });
+    return options;
+  }, [entries, historyDayEntries, meta?.todayYmd]);
 
   return (
     <Box
@@ -396,12 +466,6 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         sx={{ mb: 2.5, textAlign: "center" }}
       >
         <Box sx={{ textAlign: "center" }}>
-          <Typography
-            variant="overline"
-            sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.5, fontWeight: 600 }}
-          >
-            {translate("Live Top 3", "Live Top 3")}
-          </Typography>
           <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 700, textTransform: "uppercase" }}>
             {translate("Största vinster senaste timmarna", "Biggest wins from the last hours")}
           </Typography>
@@ -422,6 +486,11 @@ const LiveTop3 = ({ variant = "standalone" }) => {
             {translate(`Senast uppdaterad ${lastUpdatedLabel}`, `Last updated ${lastUpdatedLabel}`)}
           </Typography>
         )}
+        {meta?.todayYmd && (
+          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.8)" }}>
+            {translate(`Dagens vinster (${meta.todayYmd})`, `Today's wins (${meta.todayYmd})`)}
+          </Typography>
+        )}
       </Stack>
 
       <Box
@@ -433,42 +502,80 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         }}
       />
 
-      <Grid container spacing={2} sx={{ justifyContent: "center" }}>
-        {isLoading &&
-          ["first", "second", "third"].map((key) => (
-            <Grid item xs={12} sm={6} md={4} key={key}>
-              <Skeleton variant="rounded" height={140} sx={{ backgroundColor: "rgba(15,23,42,0.5)" }} />
-            </Grid>
-          ))}
-
-        {!isLoading &&
-          entries.slice(0, 3).map((entry, index) => (
-            <Grid item xs={12} sm={6} md={4} key={entry.id ?? `${entry.gameShow}-${index}`}>
-              <EntryCard entry={entry} rank={index} numberLocale={numberLocale} locale={locale} translate={translate} />
-            </Grid>
-          ))}
-      </Grid>
-
-      {showError && (
-        <Card
+      <Box sx={{ width: "100%", mt: 2 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(event, value) => setActiveTab(value)}
+          centered
+          textColor="inherit"
+          TabIndicatorProps={{ style: { backgroundColor: "#38bdf8" } }}
           sx={{
-            backgroundColor: "rgba(153,27,27,0.15)",
-            border: "1px solid rgba(248,113,113,0.35)",
-            mt: 2,
+            "& .MuiTab-root": {
+              color: "rgba(226,232,240,0.6)",
+              textTransform: "none",
+              fontWeight: 600,
+            },
+            "& .Mui-selected": {
+              color: "#f8fafc",
+            },
           }}
         >
-          <CardContent>
-            <Typography variant="body2" sx={{ color: "#fecaca" }}>
-              {translate(
-                "Kunde inte hämta live-topplistan just nu. Försök igen om en liten stund.",
-                "We could not reach the live leaderboard right now. Please try again in a bit."
-              )}
-            </Typography>
-          </CardContent>
-        </Card>
+          <Tab value="cards" label={translate("Dagens vinster", "Today's wins")} />
+          <Tab value="chart" label={translate("Payout-graf", "Payout chart")} />
+        </Tabs>
+      </Box>
+
+      {activeTab === "cards" && (
+        <>
+          <Grid container spacing={2} sx={{ justifyContent: "center" }}>
+            {isLoading &&
+              ["first", "second", "third"].map((key) => (
+                <Grid item xs={12} sm={6} md={4} key={key}>
+                  <Skeleton variant="rounded" height={140} sx={{ backgroundColor: "rgba(15,23,42,0.5)" }} />
+                </Grid>
+              ))}
+
+            {!isLoading &&
+              entries.map((entry, index) => (
+                <Grid item xs={12} sm={6} md={4} key={entry.id ?? `${entry.gameShow}-${index}`}>
+                  <EntryCard entry={entry} rank={index} numberLocale={numberLocale} locale={locale} translate={translate} />
+                </Grid>
+              ))}
+          </Grid>
+
+          {showError && (
+            <Card
+              sx={{
+                backgroundColor: "rgba(153,27,27,0.15)",
+                border: "1px solid rgba(248,113,113,0.35)",
+                mt: 2,
+              }}
+            >
+              <CardContent>
+                <Typography variant="body2" sx={{ color: "#fecaca" }}>
+                  {translate(
+                    "Kunde inte hämta live-topplistan just nu. Försök igen om en liten stund.",
+                    "We could not reach the live leaderboard right now. Please try again in a bit."
+                  )}
+                </Typography>
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
-      {filteredHistoryBuckets.length > 0 && (
+      {activeTab === "chart" && (
+        <Box sx={{ width: "100%", mt: 3 }}>
+          <LiveTop3PayoutChart
+            dayOptions={chartDayOptions}
+            locale={locale}
+            translate={translate}
+            isLoading={isLoading}
+          />
+        </Box>
+      )}
+
+      {activeTab === "cards" && filteredHistoryDays.length > 0 && (
         <Box
           sx={{
             mt: 4,
@@ -491,32 +598,8 @@ const LiveTop3 = ({ variant = "standalone" }) => {
           </Typography>
 
           <Stack spacing={3} sx={{ mt: 3 }}>
-            {filteredHistoryBuckets.map((bucket) => {
-              const snapshots = Array.isArray(bucket?.snapshots) ? bucket.snapshots : [];
-              const parseTs = (value) => {
-                if (!value) return 0;
-                const ts = Date.parse(value);
-                return Number.isFinite(ts) ? ts : 0;
-              };
-              const seen = new Set();
-              const dayEntries = [];
-              snapshots.forEach((snapshot) => {
-                const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
-                entries.forEach((entry) => {
-                  if (!entry || typeof entry !== "object") return;
-                  const key =
-                    entry.id ??
-                    [entry.gameShow ?? "game", entry.settledAt ?? entry.startedAt ?? entry.createdAt ?? "", entry.multiplier ?? "", entry.totalAmount ?? ""].join("|");
-                  if (seen.has(key)) return;
-                  seen.add(key);
-                  dayEntries.push({
-                    ...entry,
-                    fetchedAt: snapshot?.fetchedAt ?? entry?.fetchedAt ?? null,
-                  });
-                });
-              });
-              dayEntries.sort((a, b) => parseTs(b.settledAt ?? b.fetchedAt) - parseTs(a.settledAt ?? a.fetchedAt));
-              const topDayEntries = dayEntries.slice(0, 3);
+            {filteredHistoryDays.map((bucket) => {
+              const topDayEntries = bucket.entries.slice(0, 3);
               if (!topDayEntries.length) return null;
               const formattedDate = new Date(bucket.ymd).toLocaleDateString(locale === "en" ? "en-GB" : "sv-SE", {
                 weekday: "short",
@@ -552,10 +635,10 @@ const LiveTop3 = ({ variant = "standalone" }) => {
                           rank={idx}
                           numberLocale={numberLocale}
                           locale={locale}
-                          translate={translate}
-                        />
-                      </Grid>
-                    ))}
+                            translate={translate}
+                          />
+                        </Grid>
+                      ))}
                   </Grid>
                 </Box>
               );
