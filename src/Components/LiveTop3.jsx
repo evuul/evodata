@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, Card, CardContent, Chip, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
@@ -83,6 +83,21 @@ const MULTIPLIER_STYLES = [
     shadow: "0 0 18px rgba(8,145,178,0.35)",
   },
 ];
+
+const stockholmDateFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Europe/Stockholm",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+const getStockholmTodayYmd = () => {
+  try {
+    return stockholmDateFormatter.format(new Date()).replace(/\//g, "-");
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+};
 const getMultiplierStyle = (value) => {
   if (!Number.isFinite(value)) {
     return {
@@ -344,6 +359,14 @@ const LiveTop3 = ({ variant = "standalone" }) => {
     : null;
 
   const isStandalone = variant !== "embedded";
+  const filteredHistoryBuckets = useMemo(() => {
+    const todayYmd = getStockholmTodayYmd();
+    return (historyBuckets || []).filter((bucket) => {
+      const bucketDate = bucket?.ymd;
+      if (!bucketDate) return true;
+      return bucketDate !== todayYmd;
+    });
+  }, [historyBuckets]);
 
   return (
     <Box
@@ -441,7 +464,7 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         </Card>
       )}
 
-      {historyBuckets?.length > 0 && (
+      {filteredHistoryBuckets.length > 0 && (
         <Box
           sx={{
             mt: 4,
@@ -458,96 +481,79 @@ const LiveTop3 = ({ variant = "standalone" }) => {
           </Typography>
           <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 700, mt: 1 }}>
             {translate(
-              `Arkiv senaste ${HISTORY_DAYS} dagarna`,
+              `Arkiv senaste ${HISTORY_DAYS} dagar`,
               `Archive last ${HISTORY_DAYS} days`
             )}
           </Typography>
 
-          <Stack spacing={2.5} sx={{ mt: 2 }}>
-            {historyBuckets.map((bucket) => {
+          <Stack spacing={3} sx={{ mt: 3 }}>
+            {filteredHistoryBuckets.map((bucket) => {
               const snapshots = Array.isArray(bucket?.snapshots) ? bucket.snapshots : [];
-              const dayEntries = snapshots
-                .map((snapshot) => {
-                  const topEntry = Array.isArray(snapshot?.entries) ? snapshot.entries[0] : null;
-                  if (!topEntry) return null;
-                  return {
-                    ...topEntry,
-                    fetchedAt: snapshot?.fetchedAt ?? null,
-                  };
-                })
-                .filter(Boolean);
-              if (!dayEntries.length) return null;
+              const parseTs = (value) => {
+                if (!value) return 0;
+                const ts = Date.parse(value);
+                return Number.isFinite(ts) ? ts : 0;
+              };
+              const seen = new Set();
+              const dayEntries = [];
+              snapshots.forEach((snapshot) => {
+                const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
+                entries.forEach((entry) => {
+                  if (!entry || typeof entry !== "object") return;
+                  const key =
+                    entry.id ??
+                    [entry.gameShow ?? "game", entry.settledAt ?? entry.startedAt ?? entry.createdAt ?? "", entry.multiplier ?? "", entry.totalAmount ?? ""].join("|");
+                  if (seen.has(key)) return;
+                  seen.add(key);
+                  dayEntries.push({
+                    ...entry,
+                    fetchedAt: snapshot?.fetchedAt ?? entry?.fetchedAt ?? null,
+                  });
+                });
+              });
+              dayEntries.sort((a, b) => parseTs(b.settledAt ?? b.fetchedAt) - parseTs(a.settledAt ?? a.fetchedAt));
+              const topDayEntries = dayEntries.slice(0, 3);
+              if (!topDayEntries.length) return null;
               const formattedDate = new Date(bucket.ymd).toLocaleDateString(locale === "en" ? "en-GB" : "sv-SE", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
               });
               return (
-                <Grid container spacing={2} justifyContent="center" key={bucket.ymd}>
-                  <Grid item xs={12} md={10}>
-                    <Box
-                      sx={{
-                        background: "rgba(15,23,42,0.5)",
-                        border: "1px solid rgba(148,163,184,0.18)",
-                        borderRadius: 2,
-                        p: 2,
-                      }}
-                    >
-                      <Typography variant="subtitle2" sx={{ color: "#e2e8f0", fontWeight: 600, mb: 1 }}>
-                        {formattedDate}
-                      </Typography>
-                      <Stack spacing={1.2}>
-                        {dayEntries.map((entry, idx) => (
-                          <Stack
-                            key={`${entry.id}-${idx}`}
-                            direction={{ xs: "column", sm: "row" }}
-                            alignItems={{ xs: "flex-start", sm: "center" }}
-                            justifyContent="space-between"
-                            sx={{
-                              borderRadius: 1.5,
-                              padding: 1.2,
-                              background: "rgba(30,41,59,0.6)",
-                              gap: 1,
-                            }}
-                          >
-                            <Box>
-                              <Typography sx={{ color: "#f8fafc", fontWeight: 600 }}>
-                                #{idx + 1} {entry.gameShow}
-                              </Typography>
-                              {entry.fetchedAt && (
-                                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                                  {translate(
-                                    `Kl ${new Date(entry.fetchedAt).toLocaleTimeString(
-                                      locale === "en" ? "en-GB" : "sv-SE",
-                                      {
-                                        hour: "2-digit",
-                                        minute: "2-digit",
-                                      }
-                                    )}`,
-                                    new Date(entry.fetchedAt).toLocaleTimeString("en-GB", {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
-                                  )}
-                                </Typography>
-                              )}
-                            </Box>
-                            <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
-                              <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>
-                                {formatAmount(entry.totalAmount, numberLocale)}
-                              </Typography>
-                              {Number.isFinite(entry.multiplier) && (
-                                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.8)" }}>
-                                  {translate(`${entry.multiplier}× multiplier`, `${entry.multiplier}× multiplier`)}
-                                </Typography>
-                              )}
-                            </Box>
-                          </Stack>
-                        ))}
-                      </Stack>
-                    </Box>
+                <Box key={bucket.ymd}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{
+                      color: "#e2e8f0",
+                      fontWeight: 600,
+                      mb: 1.5,
+                      textAlign: "center",
+                      textTransform: "uppercase",
+                      letterSpacing: 1,
+                    }}
+                  >
+                    {formattedDate}
+                  </Typography>
+                  <Grid
+                    container
+                    spacing={2}
+                    sx={{
+                      justifyContent: "center",
+                    }}
+                  >
+                    {topDayEntries.map((entry, idx) => (
+                      <Grid item xs={12} sm={6} md={4} key={`${bucket.ymd}-${entry.id}-${idx}`}>
+                        <EntryCard
+                          entry={entry}
+                          rank={idx}
+                          numberLocale={numberLocale}
+                          locale={locale}
+                          translate={translate}
+                        />
+                      </Grid>
+                    ))}
                   </Grid>
-                </Grid>
+                </Box>
               );
             })}
           </Stack>
