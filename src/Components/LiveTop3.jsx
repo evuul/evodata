@@ -83,6 +83,7 @@ const MULTIPLIER_STYLES = [
     shadow: "0 0 18px rgba(8,145,178,0.35)",
   },
 ];
+const BOLT_ICON_COLOR = "#fef08a";
 
 const stockholmDateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",
@@ -252,6 +253,9 @@ const EntryCard = ({ entry, rank, numberLocale, locale, translate }) => {
               border: `1px solid ${multiplierStyle.border}`,
               boxShadow: multiplierStyle.shadow,
               fontWeight: 600,
+              "& .MuiChip-icon": {
+                color: BOLT_ICON_COLOR,
+              },
             }}
           />
         </Stack>

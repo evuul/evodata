@@ -10,6 +10,20 @@ const DAILY_LIMIT_PER_DAY = (() => {
   return Number.isFinite(value) && value > 0 ? value : 48;
 })();
 
+// ✅ Evolution Game Show whitelist (UPPERCASE)
+const EVOLUTION_GAMES = [
+  "CRAZY_TIME",
+  "CRAZY_TIME_A",
+  "MONOPOLY_LIVE",
+  "CASH_OR_CRASH_LIVE",
+  "LIGHTNING_BACCARAT",
+  "MONOPOLY_BIG_BALLER",
+  "FUNKY_TIME",
+  "RED_DOOR_ROULETTE",
+  "LIGHTNING_STORM",
+  "FIREBALL_ROULETTE",
+];
+
 let kvClient = null;
 let kvStatusChecked = false;
 
@@ -31,12 +45,22 @@ const dailyMemory = new Map(); // key -> snapshots[]
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+// 🔽 Normalisering + Evolution-filter
 export function normalizeLiveTop3Entry(item) {
   if (!item || typeof item !== "object") return null;
+
   const totalAmount = Number(item.totalAmount ?? item.amount ?? item.total);
   if (!Number.isFinite(totalAmount) || totalAmount <= 0) return null;
-  const gameShow = item.gameShow ?? item.game ?? item.name ?? null;
-  if (!gameShow) return null;
+
+  const rawGameShow = item.gameShow ?? item.game ?? item.name ?? null;
+  if (!rawGameShow) return null;
+
+  // ✅ filtrera bort allt som inte är Evolution
+  const gameShowUpper = String(rawGameShow).toUpperCase();
+  if (!EVOLUTION_GAMES.includes(gameShowUpper)) return null;
+
+  const gameShow = rawGameShow; // behåll originalsträngen till frontend
+
   const multiplier = Number(item.multiplier ?? item.multi ?? item.x);
   const winnersCount = Number(item.winnersCount ?? item.totalWinners ?? item.winners);
   const settledAt = item.settledAt ?? item.startedAt ?? item.createdAt ?? null;
@@ -45,7 +69,9 @@ export function normalizeLiveTop3Entry(item) {
     item.gameShowEventId ??
     item.hash ??
     settledAt ??
-    (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${gameShow}-${Date.now()}`);
+    (typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${gameShow}-${Date.now()}`);
 
   return {
     id,
@@ -65,19 +91,27 @@ export function normalizeLiveTop3Entries(payload) {
     return Number.isFinite(ts) ? ts : 0;
   };
   return payload
-    .map((item) => normalizeLiveTop3Entry(item))
+    .map((item) => normalizeLiveTop3Entry(item)) // filtrerar även non-Evolution
     .filter(Boolean)
     .sort((a, b) => parseTs(b.settledAt ?? b.createdAt) - parseTs(a.settledAt ?? a.createdAt));
 }
 
 function normalizeSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return null;
-  const entriesSource = Array.isArray(snapshot.entries) ? snapshot.entries : snapshot.data ?? snapshot.rows;
+  const entriesSource = Array.isArray(snapshot.entries)
+    ? snapshot.entries
+    : snapshot.data ?? snapshot.rows;
+
   const entries = normalizeLiveTop3Entries(entriesSource ?? []);
   if (!entries.length) return null;
+
   return {
     entries,
-    fetchedAt: snapshot.fetchedAt ?? snapshot.updatedAt ?? snapshot.createdAt ?? new Date().toISOString(),
+    fetchedAt:
+      snapshot.fetchedAt ??
+      snapshot.updatedAt ??
+      snapshot.createdAt ??
+      new Date().toISOString(),
     source: snapshot.source ?? snapshot.sourceMeta ?? "unknown",
     meta: snapshot.meta ?? snapshot.sourceMeta ?? null,
   };
@@ -211,7 +245,8 @@ async function readDailyFromKv(key, limit) {
 
 export async function getLiveTop3DailySnapshots(ymd, limit = DAILY_LIMIT_PER_DAY) {
   if (!ymd) return [];
-  const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : DAILY_LIMIT_PER_DAY;
+  const safeLimit =
+    Number.isFinite(limit) && limit > 0 ? limit : DAILY_LIMIT_PER_DAY;
   const key = `${DAILY_PREFIX}${ymd}`;
   const cached = dailyMemory.get(key);
   if (cached && cached.length >= safeLimit) {
@@ -220,9 +255,16 @@ export async function getLiveTop3DailySnapshots(ymd, limit = DAILY_LIMIT_PER_DAY
   return readDailyFromKv(key, safeLimit);
 }
 
-export async function getLiveTop3Range(days = 7, perDay = Math.min(DAILY_LIMIT_PER_DAY, 12)) {
-  const safeDays = Number.isFinite(days) && days > 0 ? Math.min(Math.round(days), 365) : 7;
-  const safePerDay = Number.isFinite(perDay) && perDay > 0 ? Math.round(perDay) : Math.min(DAILY_LIMIT_PER_DAY, 12);
+export async function getLiveTop3Range(
+  days = 7,
+  perDay = Math.min(DAILY_LIMIT_PER_DAY, 12)
+) {
+  const safeDays =
+    Number.isFinite(days) && days > 0 ? Math.min(Math.round(days), 365) : 7;
+  const safePerDay =
+    Number.isFinite(perDay) && perDay > 0
+      ? Math.round(perDay)
+      : Math.min(DAILY_LIMIT_PER_DAY, 12);
   const buckets = [];
   const today = new Date();
   for (let i = 0; i < safeDays; i++) {
