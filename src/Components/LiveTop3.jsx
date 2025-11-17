@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Box, Card, CardContent, Chip, Grid, Skeleton, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Box, Button, Card, CardContent, Chip, Grid, Skeleton, Stack, Tab, Tabs, Typography } from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -11,6 +11,8 @@ const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/l
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // hourly refresh is enough
 const HISTORY_DAYS = 30;
 const HISTORY_PER_DAY = 3;
+const HISTORY_ARCHIVE_VISIBLE_LIMIT = 5;
+const LIVE_TOP3_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const NUMBER_LOCALE_MAP = { sv: "sv-SE", en: "en-US" };
 const MULTIPLIER_STYLES = [
   {
@@ -85,6 +87,10 @@ const MULTIPLIER_STYLES = [
   },
 ];
 const BOLT_ICON_COLOR = "#fef08a";
+let liveTop3Cache = {
+  payload: null,
+  expiresAt: 0,
+};
 
 const stockholmDateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",
@@ -113,14 +119,28 @@ const getMultiplierStyle = (value) => {
   return match ?? MULTIPLIER_STYLES[MULTIPLIER_STYLES.length - 1];
 };
 
+const parseEntryTimestamp = (value) => {
+  if (!value) return 0;
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) ? ts : 0;
+};
+
+const parseEntryAmount = (value) => {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+};
+
+const compareEntriesByAmountThenTime = (a, b) => {
+  const amountDiff = parseEntryAmount(b?.totalAmount) - parseEntryAmount(a?.totalAmount);
+  if (amountDiff !== 0) return amountDiff;
+  return (
+    parseEntryTimestamp(b?.settledAt ?? b?.fetchedAt) -
+    parseEntryTimestamp(a?.settledAt ?? a?.fetchedAt)
+  );
+};
+
 const normalizeEntries = (data) => {
   if (!Array.isArray(data)) return [];
-  const parseTs = (value) => {
-    if (!value) return 0;
-    const ts = Date.parse(value);
-    return Number.isFinite(ts) ? ts : 0;
-  };
-
   return data
     .map((item) => {
       const winnersCountValue =
@@ -141,7 +161,7 @@ const normalizeEntries = (data) => {
       };
     })
     .filter((entry) => entry.gameShow && Number.isFinite(entry.totalAmount))
-    .sort((a, b) => parseTs(b.settledAt) - parseTs(a.settledAt));
+    .sort(compareEntriesByAmountThenTime);
 };
 
 const formatAmount = (value, locale) => {
@@ -309,12 +329,6 @@ const EntryCard = ({ entry, rank, numberLocale, locale, translate }) => {
   );
 };
 
-const parseEntryTimestamp = (value) => {
-  if (!value) return 0;
-  const ts = Date.parse(value);
-  return Number.isFinite(ts) ? ts : 0;
-};
-
 const dedupeEntriesFromSnapshots = (snapshots = []) => {
   const seen = new Set();
   const dayEntries = [];
@@ -338,10 +352,7 @@ const dedupeEntriesFromSnapshots = (snapshots = []) => {
       });
     });
   });
-  dayEntries.sort(
-    (a, b) =>
-      parseEntryTimestamp(b.settledAt ?? b.fetchedAt) - parseEntryTimestamp(a.settledAt ?? a.fetchedAt)
-  );
+  dayEntries.sort(compareEntriesByAmountThenTime);
   return dayEntries;
 };
 
@@ -358,6 +369,28 @@ const LiveTop3 = ({ variant = "standalone" }) => {
   useEffect(() => {
     let active = true;
 
+    const applyPayload = (payload) => {
+      if (!payload) return;
+      const normalized = normalizeEntries(payload?.todayEntries ?? payload?.entries ?? payload);
+      if (!active) return;
+      setEntries(normalized);
+      setMeta({
+        fetchedAt: payload?.fetchedAt ?? payload?.updatedAt ?? null,
+        source: payload?.source ?? null,
+        todayYmd: payload?.todayYmd ?? null,
+      });
+      setHistoryBuckets(Array.isArray(payload?.history) ? payload.history : []);
+      setStatus("success");
+    };
+
+    const maybeUseCache = () => {
+      if (liveTop3Cache.payload && liveTop3Cache.expiresAt > Date.now()) {
+        applyPayload(liveTop3Cache.payload);
+        return true;
+      }
+      return false;
+    };
+
     const fetchTopWins = async () => {
       try {
         const params = new URLSearchParams({
@@ -367,23 +400,21 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         const response = await fetch(`${LIVE_TOP3_ENDPOINT}?${params.toString()}`, { cache: "no-store" });
         if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
         const payload = await response.json();
-        if (!active) return;
-        const normalized = normalizeEntries(payload?.todayEntries ?? payload?.entries ?? payload);
-        setEntries(normalized);
-        setMeta({
-          fetchedAt: payload?.fetchedAt ?? payload?.updatedAt ?? null,
-          source: payload?.source ?? null,
-          todayYmd: payload?.todayYmd ?? null,
-        });
-        setHistoryBuckets(Array.isArray(payload?.history) ? payload.history : []);
-        setStatus("success");
+        liveTop3Cache = {
+          payload,
+          expiresAt: Date.now() + LIVE_TOP3_CACHE_TTL,
+        };
+        applyPayload(payload);
       } catch {
         if (!active) return;
         setStatus((prev) => (prev === "success" ? prev : "error"));
       }
     };
 
-    fetchTopWins();
+    const usedCache = maybeUseCache();
+    if (!usedCache) {
+      fetchTopWins();
+    }
     const id = setInterval(fetchTopWins, REFRESH_INTERVAL_MS);
 
     return () => {
@@ -402,6 +433,8 @@ const LiveTop3 = ({ variant = "standalone" }) => {
     : null;
 
   const isStandalone = variant !== "embedded";
+  const [expandedDays, setExpandedDays] = useState(() => new Set());
+
   const historyDayEntries = useMemo(() => {
     return (historyBuckets || []).map((bucket) => ({
       ymd: bucket?.ymd ?? null,
@@ -409,13 +442,18 @@ const LiveTop3 = ({ variant = "standalone" }) => {
     }));
   }, [historyBuckets]);
 
+  const topEntries = useMemo(() => entries.slice(0, 3), [entries]);
+
   const filteredHistoryDays = useMemo(() => {
     const todayYmd = meta?.todayYmd ?? getStockholmTodayYmd();
-    return historyDayEntries.filter((bucket) => {
-      if (!bucket?.ymd || !Array.isArray(bucket.entries)) return false;
-      if (!bucket.entries.length) return false;
-      return bucket.ymd !== todayYmd;
-    });
+    return historyDayEntries
+      .filter((bucket) => {
+        if (!bucket?.ymd || !Array.isArray(bucket.entries)) return false;
+        if (!bucket.entries.length) return false;
+        return bucket.ymd !== todayYmd;
+      })
+      .slice()
+      .sort((a, b) => (b.ymd ?? "").localeCompare(a.ymd ?? ""));
   }, [historyDayEntries, meta?.todayYmd]);
 
   const chartDayOptions = useMemo(() => {
@@ -429,18 +467,28 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         isToday: true,
       });
     }
-    historyDayEntries.forEach((bucket) => {
-      if (!bucket?.ymd || !bucket.entries.length) return;
-      if (bucket.ymd === todayYmd) {
-        if (!entries.length) {
-          options.push({ id: bucket.ymd, ymd: bucket.ymd, entries: bucket.entries, isToday: true });
-        }
-        return;
-      }
+    const historical = historyDayEntries
+      .filter((bucket) => bucket?.ymd && bucket.ymd !== todayYmd && bucket.entries?.length)
+      .slice()
+      .sort((a, b) => (b.ymd ?? "").localeCompare(a.ymd ?? ""));
+    historical.forEach((bucket) => {
       options.push({ id: bucket.ymd, ymd: bucket.ymd, entries: bucket.entries, isToday: false });
     });
     return options;
   }, [entries, historyDayEntries, meta?.todayYmd]);
+
+  const toggleDayExpanded = useCallback((ymd) => {
+    if (!ymd) return;
+    setExpandedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(ymd)) {
+        next.delete(ymd);
+      } else {
+        next.add(ymd);
+      }
+      return next;
+    });
+  }, []);
 
   return (
     <Box
@@ -536,7 +584,7 @@ const LiveTop3 = ({ variant = "standalone" }) => {
               ))}
 
             {!isLoading &&
-              entries.map((entry, index) => (
+              topEntries.map((entry, index) => (
                 <Grid item xs={12} sm={6} md={4} key={entry.id ?? `${entry.gameShow}-${index}`}>
                   <EntryCard entry={entry} rank={index} numberLocale={numberLocale} locale={locale} translate={translate} />
                 </Grid>
@@ -599,8 +647,11 @@ const LiveTop3 = ({ variant = "standalone" }) => {
 
           <Stack spacing={3} sx={{ mt: 3 }}>
             {filteredHistoryDays.map((bucket) => {
-              const topDayEntries = bucket.entries.slice(0, 3);
-              if (!topDayEntries.length) return null;
+              const dayEntries = bucket.entries;
+              if (!dayEntries.length) return null;
+              const isExpanded = expandedDays.has(bucket.ymd);
+              const visibleEntries = isExpanded ? dayEntries : dayEntries.slice(0, HISTORY_ARCHIVE_VISIBLE_LIMIT);
+              const canToggle = dayEntries.length > HISTORY_ARCHIVE_VISIBLE_LIMIT;
               const formattedDate = new Date(bucket.ymd).toLocaleDateString(locale === "en" ? "en-GB" : "sv-SE", {
                 weekday: "short",
                 month: "short",
@@ -628,18 +679,33 @@ const LiveTop3 = ({ variant = "standalone" }) => {
                       justifyContent: "center",
                     }}
                   >
-                    {topDayEntries.map((entry, idx) => (
+                    {visibleEntries.map((entry, idx) => (
                       <Grid item xs={12} sm={6} md={4} key={`${bucket.ymd}-${entry.id}-${idx}`}>
                         <EntryCard
                           entry={entry}
                           rank={idx}
                           numberLocale={numberLocale}
                           locale={locale}
-                            translate={translate}
-                          />
-                        </Grid>
-                      ))}
+                          translate={translate}
+                        />
+                      </Grid>
+                    ))}
                   </Grid>
+                  {canToggle && (
+                    <Button
+                      onClick={() => toggleDayExpanded(bucket.ymd)}
+                      sx={{
+                        mt: 2,
+                        color: "#38bdf8",
+                        fontWeight: 600,
+                        textTransform: "none",
+                      }}
+                    >
+                      {isExpanded
+                        ? translate("Dölj vinster", "Show less")
+                        : translate("Visa fler vinster", "Show more")}
+                    </Button>
+                  )}
                 </Box>
               );
             })}
