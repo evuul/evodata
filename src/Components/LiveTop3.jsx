@@ -1,11 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Box, Button, Card, CardContent, Chip, Grid, Skeleton, Stack, Tab, Tabs, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Chip,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Select,
+  Skeleton,
+  Stack,
+  Tab,
+  Tabs,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
 import BoltIcon from "@mui/icons-material/Bolt";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import LiveTop3PayoutChart from "./LiveTop3PayoutChart";
+import { getGameColor } from "@/config/games";
 
 const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
 const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // hourly refresh is enough
@@ -14,6 +32,7 @@ const HISTORY_PER_DAY = 3;
 const HISTORY_ARCHIVE_VISIBLE_LIMIT = 5;
 const LIVE_TOP3_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const NUMBER_LOCALE_MAP = { sv: "sv-SE", en: "en-US" };
+const TODAY_VISIBLE_LIMIT = 6;
 const MULTIPLIER_STYLES = [
   {
     limit: 500,
@@ -139,6 +158,13 @@ const compareEntriesByAmountThenTime = (a, b) => {
   );
 };
 
+const compareEntriesBySettledTimeDesc = (a, b) => {
+  return (
+    parseEntryTimestamp(b?.settledAt ?? b?.startedAt ?? b?.fetchedAt) -
+    parseEntryTimestamp(a?.settledAt ?? a?.startedAt ?? a?.fetchedAt)
+  );
+};
+
 const normalizeEntries = (data) => {
   if (!Array.isArray(data)) return [];
   return data
@@ -204,6 +230,12 @@ const rankStyles = [
     color: "#ede9fe",
   },
 ];
+
+const getColorForGameSlug = (slug) => {
+  if (!slug || typeof slug !== "string") return "#94a3b8";
+  const normalized = slug.toLowerCase().replace(/_/g, "-");
+  return getGameColor(normalized);
+};
 
 const EntryCard = ({ entry, rank, numberLocale, locale, translate }) => {
   const settledCopy = formatSettledLabel(entry.settledAt, locale);
@@ -329,6 +361,15 @@ const EntryCard = ({ entry, rank, numberLocale, locale, translate }) => {
   );
 };
 
+const buildEntryKey = (entry = {}) =>
+  entry?.id ??
+  [
+    entry?.gameShow ?? "game",
+    entry?.settledAt ?? entry?.startedAt ?? entry?.createdAt ?? "",
+    entry?.multiplier ?? "",
+    entry?.totalAmount ?? "",
+  ].join("|");
+
 const dedupeEntriesFromSnapshots = (snapshots = []) => {
   const seen = new Set();
   const dayEntries = [];
@@ -336,14 +377,7 @@ const dedupeEntriesFromSnapshots = (snapshots = []) => {
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
     entries.forEach((entry) => {
       if (!entry || typeof entry !== "object") return;
-      const key =
-        entry.id ??
-        [
-          entry.gameShow ?? "game",
-          entry.settledAt ?? entry.startedAt ?? entry.createdAt ?? "",
-          entry.multiplier ?? "",
-          entry.totalAmount ?? "",
-        ].join("|");
+      const key = buildEntryKey(entry);
       if (seen.has(key)) return;
       seen.add(key);
       dayEntries.push({
@@ -360,11 +394,14 @@ const LiveTop3 = ({ variant = "standalone" }) => {
   const translate = useTranslate();
   const { locale } = useLocale();
   const numberLocale = NUMBER_LOCALE_MAP[locale] ?? NUMBER_LOCALE_MAP.sv;
+  const isSmallScreen = useMediaQuery("(max-width:600px)");
   const [entries, setEntries] = useState([]);
   const [status, setStatus] = useState("loading");
   const [meta, setMeta] = useState({ fetchedAt: null, source: null });
   const [historyBuckets, setHistoryBuckets] = useState([]);
-  const [activeTab, setActiveTab] = useState("cards");
+  const [activeTab, setActiveTab] = useState("today");
+  const [showAllTodayEntries, setShowAllTodayEntries] = useState(false);
+  const [selectedGame, setSelectedGame] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -442,7 +479,86 @@ const LiveTop3 = ({ variant = "standalone" }) => {
     }));
   }, [historyBuckets]);
 
-  const topEntries = useMemo(() => entries.slice(0, 3), [entries]);
+  const allEntries = useMemo(() => {
+    const seen = new Set();
+    const combined = [];
+    const pushUnique = (entry) => {
+      if (!entry || typeof entry !== "object") return;
+      const key = buildEntryKey(entry);
+      if (seen.has(key)) return;
+      seen.add(key);
+      combined.push(entry);
+    };
+    entries.forEach(pushUnique);
+    historyDayEntries.forEach((bucket) => {
+      (bucket?.entries ?? []).forEach(pushUnique);
+    });
+    return combined;
+  }, [entries, historyDayEntries]);
+
+  const chronologicalEntries = useMemo(
+    () => entries.slice().sort(compareEntriesBySettledTimeDesc),
+    [entries]
+  );
+
+  const summaryStats = useMemo(() => {
+    const totals = entries.reduce(
+      (acc, entry) => {
+        const amount = parseEntryAmount(entry?.totalAmount);
+        acc.totalAmount += amount;
+        if (entry?.gameShow) {
+          acc.uniqueGames.add(entry.gameShow);
+        }
+        if (amount > acc.maxAmount) {
+          acc.maxAmount = amount;
+          acc.maxEntry = entry;
+        }
+        if (Number.isFinite(entry?.winnersCount)) {
+          acc.totalWinners += entry.winnersCount;
+        }
+        return acc;
+      },
+      { totalAmount: 0, maxAmount: 0, maxEntry: null, uniqueGames: new Set(), totalWinners: 0 }
+    );
+    return {
+      totalAmount: totals.totalAmount,
+      winsCount: entries.length,
+      avgAmount: entries.length ? totals.totalAmount / entries.length : 0,
+      biggestEntry: totals.maxEntry,
+      uniqueGamesCount: totals.uniqueGames.size,
+      totalWinners: totals.totalWinners,
+      latestEntry: chronologicalEntries[0] ?? null,
+    };
+  }, [entries, chronologicalEntries]);
+
+  const entriesByGame = useMemo(() => {
+    const map = new Map();
+    allEntries.forEach((entry) => {
+      const key = entry?.gameShow;
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key).push(entry);
+    });
+    map.forEach((list) => {
+      list.sort(compareEntriesByAmountThenTime);
+    });
+    return map;
+  }, [allEntries]);
+
+  const gameOptions = useMemo(() => {
+    return Array.from(entriesByGame.entries())
+      .map(([gameShow, list]) => ({
+        id: gameShow,
+        gameShow,
+        displayName: formatGameName(gameShow),
+        winsCount: list.length,
+        topAmount: parseEntryAmount(list[0]?.totalAmount),
+        color: getColorForGameSlug(gameShow),
+      }))
+      .sort((a, b) => b.topAmount - a.topAmount || a.displayName.localeCompare(b.displayName));
+  }, [entriesByGame]);
 
   const filteredHistoryDays = useMemo(() => {
     const todayYmd = meta?.todayYmd ?? getStockholmTodayYmd();
@@ -476,6 +592,102 @@ const LiveTop3 = ({ variant = "standalone" }) => {
     });
     return options;
   }, [entries, historyDayEntries, meta?.todayYmd]);
+
+  const visibleTodayEntries = useMemo(
+    () =>
+      showAllTodayEntries
+        ? chronologicalEntries
+        : chronologicalEntries.slice(0, TODAY_VISIBLE_LIMIT),
+    [chronologicalEntries, showAllTodayEntries]
+  );
+  const canExpandTodayList = chronologicalEntries.length > TODAY_VISIBLE_LIMIT;
+
+  const biggestEntry = summaryStats.biggestEntry;
+  const biggestSettledCopy = formatSettledLabel(biggestEntry?.settledAt, locale);
+  const summaryCardItems = [
+    {
+      id: "total",
+      label: translate("Totalt utbetalt idag", "Total payout today"),
+      value: formatAmount(summaryStats.totalAmount, numberLocale),
+      helper: summaryStats.winsCount
+        ? translate(
+            `${summaryStats.winsCount.toLocaleString(numberLocale)} vinster`,
+            `${summaryStats.winsCount.toLocaleString(numberLocale)} wins`
+          )
+        : translate("Inga vinster registrerade", "No wins recorded"),
+    },
+    {
+      id: "biggest",
+      label: translate("Största vinst", "Biggest win"),
+      value: formatAmount(biggestEntry?.totalAmount, numberLocale),
+      helper: biggestEntry
+        ? translate(
+            `${formatGameName(biggestEntry.gameShow)} · ${
+              biggestSettledCopy ? `Kl ${biggestSettledCopy}` : "Pågår"
+            }`,
+            `${formatGameName(biggestEntry.gameShow)} · ${biggestSettledCopy ?? "Live"}`
+          )
+        : translate("Avvaktar data", "Awaiting data"),
+    },
+    {
+      id: "count",
+      label: translate("Antal vinster", "Number of wins"),
+      value: summaryStats.winsCount.toLocaleString(numberLocale),
+      helper: summaryStats.winsCount
+        ? translate(
+            `Snitt ${formatAmount(summaryStats.avgAmount, numberLocale)}`,
+            `Avg ${formatAmount(summaryStats.avgAmount, numberLocale)}`
+          )
+        : translate("Snitt saknas", "Average unavailable"),
+    },
+    {
+      id: "games",
+      label: translate("Spel med vinster", "Games with wins"),
+      value: summaryStats.uniqueGamesCount.toLocaleString(numberLocale),
+      helper: summaryStats.totalWinners
+        ? translate(
+            `Unika spel med vinster · ${summaryStats.totalWinners.toLocaleString(numberLocale)} vinnare`,
+            `Unique games with wins · ${summaryStats.totalWinners.toLocaleString(numberLocale)} winners`
+          )
+        : translate(
+            "Unika spel med vinster · vinnare ej rapporterade",
+            "Unique games with wins · winners not reported"
+          ),
+    },
+  ];
+
+  const perGameSelectorLabel = translate("Välj spel", "Select game");
+
+  useEffect(() => {
+    if (activeTab !== "today" && showAllTodayEntries) {
+      setShowAllTodayEntries(false);
+    }
+  }, [activeTab, showAllTodayEntries]);
+
+  useEffect(() => {
+    if (!gameOptions.length) {
+      if (selectedGame !== null) {
+        setSelectedGame(null);
+      }
+      return;
+    }
+    if (!selectedGame || !entriesByGame.has(selectedGame)) {
+      const next = gameOptions[0]?.gameShow ?? null;
+      if (next !== selectedGame) {
+        setSelectedGame(next);
+      }
+    }
+  }, [gameOptions, entriesByGame, selectedGame]);
+
+  const tabOptions = useMemo(
+    () => [
+      { value: "today", label: translate("Dagens läge", "Today's view") },
+      { value: "history", label: translate("Historik", "History") },
+      { value: "perGame", label: translate("Vinster per spel", "Wins per game") },
+      { value: "chart", label: translate("Payout-graf", "Payout chart") },
+    ],
+    [translate]
+  );
 
   const toggleDayExpanded = useCallback((ymd) => {
     if (!ymd) return;
@@ -515,7 +727,7 @@ const LiveTop3 = ({ variant = "standalone" }) => {
       >
         <Box sx={{ textAlign: "center" }}>
           <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 700, textTransform: "uppercase" }}>
-            {translate("Största vinster senaste timmarna", "Biggest wins from the last hours")}
+            {translate("Live vinster & utbetalningar", "Live wins & payouts")}
           </Typography>
         </Box>
         <Chip
@@ -551,45 +763,204 @@ const LiveTop3 = ({ variant = "standalone" }) => {
       />
 
       <Box sx={{ width: "100%", mt: 2 }}>
-        <Tabs
-          value={activeTab}
-          onChange={(event, value) => setActiveTab(value)}
-          centered
-          textColor="inherit"
-          TabIndicatorProps={{ style: { backgroundColor: "#38bdf8" } }}
-          sx={{
-            "& .MuiTab-root": {
-              color: "rgba(226,232,240,0.6)",
-              textTransform: "none",
-              fontWeight: 600,
-            },
-            "& .Mui-selected": {
-              color: "#f8fafc",
-            },
-          }}
-        >
-          <Tab value="cards" label={translate("Dagens vinster", "Today's wins")} />
-          <Tab value="chart" label={translate("Payout-graf", "Payout chart")} />
-        </Tabs>
+        {isSmallScreen ? (
+          <FormControl fullWidth>
+            <InputLabel
+              id="live-top3-tab-select-label"
+              sx={{
+                color: "#cbd5f5",
+                "&.Mui-focused": { color: "#38bdf8" },
+              }}
+            >
+              {translate("Välj vy", "Select view")}
+            </InputLabel>
+            <Select
+              labelId="live-top3-tab-select-label"
+              label={translate("Välj vy", "Select view")}
+              value={activeTab}
+              onChange={(event) => setActiveTab(event.target.value)}
+              sx={{
+                borderRadius: 2,
+                color: "#e2e8f0",
+                "& .MuiSvgIcon-root": { color: "#e2e8f0" },
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    backgroundColor: "#0f172a",
+                    color: "#f8fafc",
+                  },
+                },
+              }}
+            >
+              {tabOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        ) : (
+          <Tabs
+            value={activeTab}
+            onChange={(event, value) => setActiveTab(value)}
+            centered
+            textColor="inherit"
+            TabIndicatorProps={{ style: { backgroundColor: "#38bdf8" } }}
+            sx={{
+              "& .MuiTab-root": {
+                color: "rgba(226,232,240,0.6)",
+                textTransform: "none",
+                fontWeight: 600,
+              },
+              "& .Mui-selected": {
+                color: "#f8fafc",
+              },
+            }}
+          >
+            {tabOptions.map((option) => (
+              <Tab key={option.value} value={option.value} label={option.label} />
+            ))}
+          </Tabs>
+        )}
       </Box>
 
-      {activeTab === "cards" && (
+      {activeTab === "today" && (
         <>
-          <Grid container spacing={2} sx={{ justifyContent: "center" }}>
+          <Grid container spacing={2} justifyContent="center">
+            {summaryCardItems.map((item) => (
+              <Grid
+                item
+                xs={12}
+                sm={6}
+                md={3}
+                key={item.id}
+                sx={{ display: "flex", justifyContent: "center" }}
+              >
+                <Card
+                  sx={{
+                    width: "100%",
+                    maxWidth: 260,
+                    background: "linear-gradient(135deg, rgba(30,41,59,0.85), rgba(59,130,246,0.25))",
+                    border: "1px solid rgba(148,163,184,0.25)",
+                  }}
+                >
+                  <CardContent>
+                    <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.8)", letterSpacing: 1 }}>
+                      {item.label}
+                    </Typography>
+                    <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 700, mt: 0.5 }}>
+                      {item.value}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "rgba(203,213,225,0.9)", mt: 0.5 }}>
+                      {item.helper}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Stack spacing={1.5} sx={{ mt: 3 }}>
             {isLoading &&
-              ["first", "second", "third"].map((key) => (
-                <Grid item xs={12} sm={6} md={4} key={key}>
-                  <Skeleton variant="rounded" height={140} sx={{ backgroundColor: "rgba(15,23,42,0.5)" }} />
-                </Grid>
+              Array.from({ length: TODAY_VISIBLE_LIMIT }).map((_, index) => (
+                <Skeleton
+                  key={`today-skeleton-${index}`}
+                  variant="rounded"
+                  height={90}
+                  sx={{ backgroundColor: "rgba(15,23,42,0.5)" }}
+                />
               ))}
 
             {!isLoading &&
-              topEntries.map((entry, index) => (
-                <Grid item xs={12} sm={6} md={4} key={entry.id ?? `${entry.gameShow}-${index}`}>
-                  <EntryCard entry={entry} rank={index} numberLocale={numberLocale} locale={locale} translate={translate} />
-                </Grid>
-              ))}
-          </Grid>
+              visibleTodayEntries.map((entry, index) => {
+                const settledCopy = formatSettledLabel(entry.settledAt, locale);
+                const multiplierStyle = getMultiplierStyle(entry.multiplier);
+                const winnersCopy = Number.isFinite(entry.winnersCount)
+                  ? translate(
+                      `${entry.winnersCount.toLocaleString(numberLocale)} vinnare`,
+                      `${entry.winnersCount.toLocaleString(numberLocale)} winners`
+                    )
+                  : translate("Okänt antal vinnare", "Unknown number of winners");
+
+                return (
+                  <Card
+                    key={entry.id ?? `today-${index}`}
+                    sx={{
+                      background: "linear-gradient(135deg, rgba(15,23,42,0.9), rgba(37,99,235,0.35))",
+                      border: "1px solid rgba(59,130,246,0.25)",
+                    }}
+                  >
+                    <CardContent sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={2}
+                        justifyContent="space-between"
+                        alignItems={{ xs: "flex-start", sm: "center" }}
+                      >
+                        <Box>
+                          <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.8)", letterSpacing: 1 }}>
+                            {translate("Spel", "Game")}
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 700 }}>
+                            {formatGameName(entry.gameShow)}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ textAlign: { xs: "left", sm: "right" } }}>
+                          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.8)" }}>
+                            {translate("Vinst", "Win")}
+                          </Typography>
+                          <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 700 }}>
+                            {formatAmount(entry.totalAmount, numberLocale)}
+                          </Typography>
+                        </Box>
+                      </Stack>
+
+                      <Stack direction="row" spacing={2} flexWrap="wrap">
+                        <Chip
+                          icon={<BoltIcon sx={{ fontSize: "1rem" }} />}
+                          label={`${Number.isFinite(entry.multiplier) ? entry.multiplier : "—"}×`}
+                          size="small"
+                          sx={{
+                            color: multiplierStyle.color,
+                            background: multiplierStyle.background,
+                            border: `1px solid ${multiplierStyle.border}`,
+                            boxShadow: multiplierStyle.shadow,
+                            fontWeight: 600,
+                            "& .MuiChip-icon": {
+                              color: BOLT_ICON_COLOR,
+                            },
+                          }}
+                        />
+                        <Typography sx={{ color: "#e2e8f0", fontWeight: 500 }}>
+                          {settledCopy
+                            ? translate(`Kl ${settledCopy}`, `${settledCopy}`)
+                            : translate("Pågår", "In progress")}
+                        </Typography>
+                        <Typography sx={{ color: "#94a3b8", fontWeight: 500 }}>{winnersCopy}</Typography>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+          </Stack>
+
+          {canExpandTodayList && !isLoading && (
+            <Button
+              onClick={() => setShowAllTodayEntries((prev) => !prev)}
+              sx={{
+                mt: 2,
+                color: "#38bdf8",
+                fontWeight: 600,
+                textTransform: "none",
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
+              {showAllTodayEntries
+                ? translate("Visa färre rader", "Show fewer rows")
+                : translate("Visa alla vinster", "Show all wins")}
+            </Button>
+          )}
 
           {showError && (
             <Card
@@ -612,18 +983,7 @@ const LiveTop3 = ({ variant = "standalone" }) => {
         </>
       )}
 
-      {activeTab === "chart" && (
-        <Box sx={{ width: "100%", mt: 3 }}>
-          <LiveTop3PayoutChart
-            dayOptions={chartDayOptions}
-            locale={locale}
-            translate={translate}
-            isLoading={isLoading}
-          />
-        </Box>
-      )}
-
-      {activeTab === "cards" && filteredHistoryDays.length > 0 && (
+      {activeTab === "history" && (
         <Box
           sx={{
             mt: 4,
@@ -645,71 +1005,238 @@ const LiveTop3 = ({ variant = "standalone" }) => {
             )}
           </Typography>
 
-          <Stack spacing={3} sx={{ mt: 3 }}>
-            {filteredHistoryDays.map((bucket) => {
-              const dayEntries = bucket.entries;
-              if (!dayEntries.length) return null;
-              const isExpanded = expandedDays.has(bucket.ymd);
-              const visibleEntries = isExpanded ? dayEntries : dayEntries.slice(0, HISTORY_ARCHIVE_VISIBLE_LIMIT);
-              const canToggle = dayEntries.length > HISTORY_ARCHIVE_VISIBLE_LIMIT;
-              const formattedDate = new Date(bucket.ymd).toLocaleDateString(locale === "en" ? "en-GB" : "sv-SE", {
-                weekday: "short",
-                month: "short",
-                day: "numeric",
-              });
-              return (
-                <Box key={bucket.ymd}>
-                  <Typography
-                    variant="subtitle2"
-                    sx={{
-                      color: "#e2e8f0",
-                      fontWeight: 600,
-                      mb: 1.5,
-                      textAlign: "center",
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                    }}
-                  >
-                    {formattedDate}
-                  </Typography>
-                  <Grid
-                    container
-                    spacing={2}
-                    sx={{
-                      justifyContent: "center",
-                    }}
-                  >
-                    {visibleEntries.map((entry, idx) => (
-                      <Grid item xs={12} sm={6} md={4} key={`${bucket.ymd}-${entry.id}-${idx}`}>
-                        <EntryCard
-                          entry={entry}
-                          rank={idx}
-                          numberLocale={numberLocale}
-                          locale={locale}
-                          translate={translate}
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                  {canToggle && (
-                    <Button
-                      onClick={() => toggleDayExpanded(bucket.ymd)}
+          {filteredHistoryDays.length === 0 ? (
+            <Typography sx={{ color: "#e2e8f0", mt: 2 }}>
+              {translate("Ingen historik att visa ännu.", "No history to display yet.")}
+            </Typography>
+          ) : (
+            <Stack spacing={3} sx={{ mt: 3 }}>
+              {filteredHistoryDays.map((bucket) => {
+                const dayEntries = bucket.entries;
+                if (!dayEntries.length) return null;
+                const isExpanded = expandedDays.has(bucket.ymd);
+                const visibleEntries = isExpanded ? dayEntries : dayEntries.slice(0, HISTORY_ARCHIVE_VISIBLE_LIMIT);
+                const canToggle = dayEntries.length > HISTORY_ARCHIVE_VISIBLE_LIMIT;
+                const formattedDate = new Date(bucket.ymd).toLocaleDateString(locale === "en" ? "en-GB" : "sv-SE", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                });
+                return (
+                  <Box key={bucket.ymd}>
+                    <Typography
+                      variant="subtitle2"
                       sx={{
-                        mt: 2,
-                        color: "#38bdf8",
+                        color: "#e2e8f0",
                         fontWeight: 600,
-                        textTransform: "none",
+                        mb: 1.5,
+                        textAlign: "center",
+                        textTransform: "uppercase",
+                        letterSpacing: 1,
                       }}
                     >
-                      {isExpanded
-                        ? translate("Dölj vinster", "Show less")
-                        : translate("Visa fler vinster", "Show more")}
-                    </Button>
-                  )}
+                      {formattedDate}
+                    </Typography>
+                    <Grid
+                      container
+                      spacing={2}
+                      sx={{
+                        justifyContent: "center",
+                      }}
+                    >
+                      {visibleEntries.map((entry, idx) => (
+                        <Grid item xs={12} sm={6} md={4} key={`${bucket.ymd}-${entry.id}-${idx}`}>
+                          <EntryCard
+                            entry={entry}
+                            rank={idx}
+                            numberLocale={numberLocale}
+                            locale={locale}
+                            translate={translate}
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                    {canToggle && (
+                      <Button
+                        onClick={() => toggleDayExpanded(bucket.ymd)}
+                        sx={{
+                          mt: 2,
+                          color: "#38bdf8",
+                          fontWeight: 600,
+                          textTransform: "none",
+                          width: { xs: "100%", sm: "auto" },
+                        }}
+                      >
+                        {isExpanded
+                          ? translate("Dölj vinster", "Show less")
+                          : translate("Visa fler vinster", "Show more")}
+                      </Button>
+                    )}
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </Box>
+      )}
+
+      {activeTab === "perGame" && (
+        <Box sx={{ mt: 3 }}>
+          {gameOptions.length === 0 ? (
+            <Typography sx={{ color: "#e2e8f0" }}>
+              {isLoading
+                ? translate("Laddar vinster per spel ...", "Loading wins per game...")
+                : translate("Inga vinster per spel att visa ännu.", "No wins per game to display yet.")}
+            </Typography>
+          ) : (
+            <>
+              <Typography sx={{ color: "#e2e8f0", textAlign: "center", mb: 2 }}>
+                {translate(
+                  "Välj spel för att se största vinsterna",
+                  "Pick a game to explore its biggest wins"
+                )}
+              </Typography>
+              {isSmallScreen ? (
+                <FormControl
+                  fullWidth
+                  sx={{
+                    maxWidth: 420,
+                    mx: "auto",
+                    mb: 2,
+                  }}
+                >
+                  <InputLabel
+                    id="per-game-select-label"
+                    sx={{
+                      color: "#cbd5f5",
+                      "&.Mui-focused": { color: "#38bdf8" },
+                    }}
+                  >
+                    {perGameSelectorLabel}
+                  </InputLabel>
+                  <Select
+                    labelId="per-game-select-label"
+                    label={perGameSelectorLabel}
+                    value={selectedGame ?? ""}
+                    onChange={(event) => setSelectedGame(event.target.value)}
+                    sx={{
+                      borderRadius: 2,
+                      color: "#e2e8f0",
+                      "& .MuiSvgIcon-root": { color: "#e2e8f0" },
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          backgroundColor: "#0f172a",
+                          color: "#f8fafc",
+                        },
+                      },
+                    }}
+                  >
+                    {gameOptions.map((game) => (
+                      <MenuItem value={game.gameShow} key={game.gameShow}>
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: "50%",
+                              backgroundColor: game.color,
+                              border: "1px solid rgba(15,23,42,0.4)",
+                            }}
+                          />
+                          <Box component="span">{`${game.displayName} (${game.winsCount})`}</Box>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              ) : (
+                <Box
+                  sx={{
+                    overflowX: "auto",
+                    pb: 1,
+                    mb: 2,
+                  }}
+                >
+                  <Stack direction="row" spacing={1} sx={{ minWidth: "fit-content" }}>
+                    {gameOptions.map((game) => {
+                      const isActive = game.gameShow === selectedGame;
+                      return (
+                        <Button
+                          key={game.gameShow}
+                          onClick={() => setSelectedGame(game.gameShow)}
+                          variant={isActive ? "contained" : "outlined"}
+                          size="small"
+                          startIcon={
+                            <Box
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                borderRadius: "50%",
+                                backgroundColor: game.color,
+                                border: "1px solid rgba(15,23,42,0.4)",
+                              }}
+                            />
+                          }
+                          sx={{
+                            textTransform: "none",
+                            fontWeight: 600,
+                            borderRadius: 999,
+                            borderColor: "rgba(148,163,184,0.35)",
+                            color: isActive ? "#0f172a" : "#e2e8f0",
+                            backgroundColor: isActive ? "#38bdf8" : "transparent",
+                            "&:hover": {
+                              borderColor: "rgba(148,163,184,0.7)",
+                            },
+                          }}
+                        >
+                          {`${game.displayName} (${game.winsCount})`}
+                        </Button>
+                      );
+                    })}
+                  </Stack>
                 </Box>
-              );
-            })}
-          </Stack>
+              )}
+
+              {selectedGame && entriesByGame.has(selectedGame) ? (
+                <Grid
+                  container
+                  spacing={2}
+                  sx={{
+                    justifyContent: "center",
+                  }}
+                >
+                  {entriesByGame.get(selectedGame).map((entry, idx) => (
+                    <Grid item xs={12} sm={6} md={4} key={`${selectedGame}-${entry.id}-${idx}`}>
+                      <EntryCard
+                        entry={entry}
+                        rank={idx}
+                        numberLocale={numberLocale}
+                        locale={locale}
+                        translate={translate}
+                      />
+                    </Grid>
+                  ))}
+                </Grid>
+              ) : (
+                <Typography sx={{ color: "#e2e8f0", textAlign: "center" }}>
+                  {translate("Inga vinster från det här spelet ännu.", "No wins from this game yet.")}
+                </Typography>
+              )}
+            </>
+          )}
+        </Box>
+      )}
+
+      {activeTab === "chart" && (
+        <Box sx={{ width: "100%", mt: 3 }}>
+          <LiveTop3PayoutChart
+            dayOptions={chartDayOptions}
+            locale={locale}
+            translate={translate}
+            isLoading={isLoading}
+          />
         </Box>
       )}
     </Box>
