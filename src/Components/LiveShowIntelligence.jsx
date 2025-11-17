@@ -332,19 +332,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return { value, percent };
   }, [estimatedRevenue, yoyReferenceRevenue]);
 
-  const previousRevenue = Number.isFinite(revenueData[previousPeriod])
-    ? revenueData[previousPeriod]
-    : null;
-
-  const changeQoQ = useMemo(() => {
-    if (!Number.isFinite(estimatedRevenue) || previousRevenue == null) {
-      return { value: null, percent: null };
-    }
-    const value = estimatedRevenue - previousRevenue;
-    const percent = previousRevenue !== 0 ? (value / previousRevenue) * 100 : null;
-    return { value, percent };
-  }, [estimatedRevenue, previousRevenue]);
-
   const tableRows = useMemo(() => {
     return quarterPlayersList
       .map((period) => {
@@ -421,10 +408,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     }
   }, [overviewGeneratedAt]);
 
-  const changeQoQColor =
-    changeQoQ.percent == null
+  const trendTextColor =
+    changeYoY.percent == null
       ? "rgba(226,232,240,0.7)"
-      : changeQoQ.percent >= 0
+      : changeYoY.percent >= 0
       ? "#34d399"
       : "#f87171";
 
@@ -674,7 +661,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             </Grid>
           </Grid>
 
-          <Typography sx={{ color: changeQoQColor, mt: { xs: 3, md: 4 }, textAlign: "center" }}>
+          <Typography sx={{ color: trendTextColor, mt: { xs: 3, md: 4 }, textAlign: "center" }}>
             {trendText}
           </Typography>
 
