@@ -108,19 +108,8 @@ export async function GET(request) {
           .sort((a, b) => a.date.localeCompare(b.date))
       : [];
 
-    if (!shortHistory.length) {
-      return NextResponse.json({
-        ok: false,
-        error: "Ingen blankningshistorik tillgänglig",
-      }, { status: 503 });
-    }
-
-    const sliceCount = Math.min(shortHistory.length, days + 1);
-    const relevantShort = shortHistory.slice(shortHistory.length - sliceCount);
-    const earliestDateStr = relevantShort[0]?.date;
-    const period1 = earliestDateStr ? new Date(earliestDateStr) : new Date();
-    // Hämta lite extra historik för att säkra att vi fångar volym innan första dagen
-    period1.setDate(period1.getDate() - 5);
+    const period1 = new Date();
+    period1.setDate(period1.getDate() - (days + 10));
 
     let historical = [];
     try {
@@ -142,22 +131,55 @@ export async function GET(request) {
       volumeByDate.set(date, volume);
     }
 
+    const sortedVolumeDates = Array.from(volumeByDate.keys()).sort((a, b) => a.localeCompare(b));
+    const tradingDates = sortedVolumeDates.slice(-days);
+
+    if (!tradingDates.length) {
+      return NextResponse.json(
+        { ok: false, error: "Ingen handelsdata tillgänglig" },
+        { status: 503 }
+      );
+    }
+
+    const shortPercentMap = new Map(shortHistory.map((entry) => [entry.date, entry.percent]));
+    const sortedShortDates = shortHistory.map((entry) => entry.date).sort((a, b) => a.localeCompare(b));
+    const firstTradingDate = tradingDates[0];
+    let prevActualDate = null;
+    let prevActualShortShares = null;
+    for (const date of sortedShortDates) {
+      if (date < firstTradingDate) {
+        const totalShares = getTotalSharesForDate(date);
+        const percent = shortPercentMap.get(date);
+        if (Number.isFinite(percent) && totalShares != null) {
+          prevActualDate = date;
+          prevActualShortShares = Math.round((percent / 100) * totalShares);
+        }
+      } else {
+        break;
+      }
+    }
+
     const items = [];
-    let prevShortShares = null;
-    let prevDateStr = null;
-    for (const entry of relevantShort) {
-      const totalShares = getTotalSharesForDate(entry.date);
-      const shortShares = Number.isFinite(entry.percent) && totalShares != null
-        ? Math.round((entry.percent / 100) * totalShares)
-        : null;
-      const volumeShares = volumeByDate.get(entry.date) ?? null;
+    for (const date of tradingDates) {
+      const totalShares = getTotalSharesForDate(date);
+      const percentRaw = shortPercentMap.get(date);
+      const hasShortData = Number.isFinite(percentRaw);
+      const displayPercent = hasShortData ? +percentRaw.toFixed(2) : 0;
+      const volumeShares = volumeByDate.get(date) ?? null;
+      let shortShares = null;
+      if (hasShortData && totalShares != null) {
+        shortShares = Math.round((percentRaw / 100) * totalShares);
+      } else if (!hasShortData) {
+        shortShares = 0;
+      }
+
       let shortChangeShares = null;
       let shortShareOfVolumePercent = null;
       let volumeWindowShares = Number.isFinite(volumeShares) ? volumeShares : null;
 
-      if (prevShortShares != null && shortShares != null) {
-        shortChangeShares = shortShares - prevShortShares;
-        const spanDates = enumerateBusinessDatesExclusive(prevDateStr, entry.date);
+      if (hasShortData && prevActualShortShares != null && shortShares != null && prevActualDate) {
+        shortChangeShares = shortShares - prevActualShortShares;
+        const spanDates = enumerateBusinessDatesExclusive(prevActualDate, date);
         let spanVolumeTotal = 0;
         for (const dateStr of spanDates) {
           const vol = volumeByDate.get(dateStr);
@@ -170,33 +192,36 @@ export async function GET(request) {
           volumeWindowShares = spanVolumeTotal;
           shortShareOfVolumePercent = Math.abs(shortChangeShares) / spanVolumeTotal * 100;
         }
+        prevActualShortShares = shortShares;
+        prevActualDate = date;
+      } else if (hasShortData && shortShares != null) {
+        prevActualShortShares = shortShares;
+        prevActualDate = date;
+      } else {
+        shortChangeShares = 0;
+        shortShareOfVolumePercent = 0;
       }
 
       items.push({
-        date: entry.date,
+        date,
         volumeShares: Number.isFinite(volumeShares) ? volumeShares : null,
         volumeWindowShares,
-        shortPercent: Number.isFinite(entry.percent) ? +entry.percent.toFixed(2) : null,
+        shortPercent: displayPercent,
         shortShares,
         shortChangeShares,
-        shortShareOfVolumePercent: shortShareOfVolumePercent != null
-          ? +shortShareOfVolumePercent.toFixed(2)
-          : null,
+        shortShareOfVolumePercent:
+          shortShareOfVolumePercent != null ? +shortShareOfVolumePercent.toFixed(2) : null,
         totalShares,
       });
-
-      prevShortShares = shortShares;
-      prevDateStr = entry.date;
-    }
-
-    // Vi tog days+1 poster för att få delta – trimma bort första om vi har extra
-    while (items.length > days) {
-      items.shift();
     }
 
     const volumes = items.map((item) => item.volumeShares);
-    const volumeWindows = items.map((item) => item.volumeWindowShares ?? item.volumeShares);
-    const shortVolumeShares = items.map((item) => item.shortChangeShares != null ? Math.abs(item.shortChangeShares) : null);
+    const volumeWindows = items.map(
+      (item) => item.volumeWindowShares ?? item.volumeShares
+    );
+    const shortVolumeShares = items.map((item) =>
+      item.shortChangeShares != null ? Math.abs(item.shortChangeShares) : null
+    );
     const percentOfVolume = items.map((item) => item.shortShareOfVolumePercent);
 
     const volumeAvg5 = calcRollingAverage(volumes, 5);
@@ -207,9 +232,8 @@ export async function GET(request) {
       ...item,
       volumeAverage5: volumeAvg5[idx] != null ? Math.round(volumeAvg5[idx]) : null,
       volumeAverage20: volumeAvg20[idx] != null ? Math.round(volumeAvg20[idx]) : null,
-      shortShareOfVolumeAverage5: shortShareOfVolumeAvg5[idx] != null
-        ? +shortShareOfVolumeAvg5[idx].toFixed(2)
-        : null,
+      shortShareOfVolumeAverage5:
+        shortShareOfVolumeAvg5[idx] != null ? +shortShareOfVolumeAvg5[idx].toFixed(2) : null,
     }));
 
     const totalVolume = volumeWindows.filter((v) => Number.isFinite(v)).reduce((sum, v) => sum + v, 0);
