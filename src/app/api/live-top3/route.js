@@ -31,6 +31,11 @@ const parseTimestamp = (value) => {
   return Number.isFinite(ts) ? ts : 0;
 };
 
+const parsePayoutAmount = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : 0;
+};
+
 const toTimezoneYmd = (value, timeZone = STOCKHOLM_TZ) => {
   if (!value) return null;
   try {
@@ -174,9 +179,14 @@ function dedupeSnapshotEntries(snapshots, options = {}) {
     });
   });
   merged.sort(
-    (a, b) =>
-      parseTimestamp(b.settledAt ?? b.fetchedAt ?? b.startedAt) -
-      parseTimestamp(a.settledAt ?? a.fetchedAt ?? a.startedAt)
+    (a, b) => {
+      const amountDiff = parsePayoutAmount(b.totalAmount) - parsePayoutAmount(a.totalAmount);
+      if (amountDiff !== 0) return amountDiff;
+      return (
+        parseTimestamp(b.settledAt ?? b.fetchedAt ?? b.startedAt) -
+        parseTimestamp(a.settledAt ?? a.fetchedAt ?? a.startedAt)
+      );
+    }
   );
   return merged;
 }

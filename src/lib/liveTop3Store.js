@@ -90,10 +90,18 @@ export function normalizeLiveTop3Entries(payload) {
     const ts = Date.parse(value);
     return Number.isFinite(ts) ? ts : 0;
   };
+  const parseAmount = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) ? num : 0;
+  };
   return payload
     .map((item) => normalizeLiveTop3Entry(item)) // filtrerar även non-Evolution
     .filter(Boolean)
-    .sort((a, b) => parseTs(b.settledAt ?? b.createdAt) - parseTs(a.settledAt ?? a.createdAt));
+    .sort((a, b) => {
+      const amountDiff = parseAmount(b.totalAmount) - parseAmount(a.totalAmount);
+      if (amountDiff !== 0) return amountDiff;
+      return parseTs(b.settledAt ?? b.createdAt) - parseTs(a.settledAt ?? a.createdAt);
+    });
 }
 
 function normalizeSnapshot(snapshot) {
