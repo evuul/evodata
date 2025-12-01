@@ -1126,5 +1126,45 @@
     "Snittkurs": 628.82,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-11-24",
+    "Antal_aktier": 1000,
+    "Transaktionsvärde": 633342,
+    "Snittkurs": 633.34,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-11-25",
+    "Antal_aktier": 72000,
+    "Transaktionsvärde": 45152006,
+    "Snittkurs": 627.11,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-11-26",
+    "Antal_aktier": 1000,
+    "Transaktionsvärde": 640198,
+    "Snittkurs": 640.2,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-11-27",
+    "Antal_aktier": 1000,
+    "Transaktionsvärde": 647858,
+    "Snittkurs": 647.86,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2025-11-28",
+    "Antal_aktier": 1000,
+    "Transaktionsvärde": 650635,
+    "Snittkurs": 650.63,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   }
 ]
