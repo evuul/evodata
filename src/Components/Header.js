@@ -702,6 +702,45 @@ export default function Header({ financialReports, averagePlayersData, dividendD
               )}
             </Grid>
           </Box>
+        </Typography>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "#9e9e9e",
+            textAlign: "center",
+            maxWidth: 520,
+            display: "block",
+            px: { xs: 1, sm: 0 },
+            mb: { xs: "8px", sm: "6px" },
+          }}
+        >
+          Den riktiga Evolution-lobbyn ligger ofta 25–30% högre.
+        </Typography>
+
+        {/* Aktiepris */}
+        {loadingPrice ? (
+          <Typography variant="body2" sx={{ color: "#b0b0b0", fontSize: { xs: "0.85rem", sm: "0.95rem" }, fontWeight: 500 }}>
+            Laddar aktiepris...
+          </Typography>
+        ) : priceError ? (
+          <Typography variant="body2" sx={{ color: "#ff1744", fontSize: { xs: "0.85rem", sm: "0.95rem" }, fontWeight: 500 }}>
+            Kunde inte hämta aktiepris
+          </Typography>
+        ) : (
+          <>
+            {/* Mobil: pris + % */}
+            <Box sx={{ display: { xs: "flex", sm: "none" }, flexDirection: "column", alignItems: "center", gap: "4px", marginBottom: "6px" }}>
+              <Typography variant="h6" sx={{ color: "#ffffff", fontSize: "1rem", fontWeight: 600 }}>
+                {currentPrice !== "N/A"
+                  ? `${currentPrice.toLocaleString("sv-SE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SEK`
+                  : "N/A"}
+              </Typography>
+              <Typography variant="body2" sx={{ color: changeColor, fontSize: "0.8rem", display: "flex", alignItems: "center", gap: "4px", fontWeight: 500 }}>
+                {changePercent !== 0 ? `${changePercent > 0 ? "+" : ""}${changePercent.toFixed(2)}%` : "0.00%"}
+                {changePercent > 0 && <span style={{ fontSize: "0.9rem" }}>↑</span>}
+                {changePercent < 0 && <span style={{ fontSize: "0.9rem" }}>↓</span>}
+              </Typography>
+            </Box>
 
           <Stack spacing={{ xs: 2, sm: 2.2 }} alignItems="stretch">
             <Box sx={{ display: "flex", justifyContent: "center" }}>
@@ -757,8 +796,34 @@ export default function Header({ financialReports, averagePlayersData, dividendD
             >
               {renderActivePanel()}
             </Box>
-          </Stack>
-        </Stack>
+          </>
+        )}
+      </Box>
+
+      {/* Quick anchors */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+        <Chip component="a" href="#live-games" clickable size="small" label="Live-spelare" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#money-counter" clickable size="small" label="Dagens vinst" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#fairvalue" clickable size="small" label="Fair Value (AI)" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#overview" clickable size="small" label="Översikt" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#news" clickable size="small" label="Nyheter" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#blankning" clickable size="small" label="Blankning" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#insider" clickable size="small" label="Insyn" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#buybacks" clickable size="small" label="Återköp" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#calculator" clickable size="small" label="Kalkylator" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip component="a" href="#faq" clickable size="small" label="FAQ" sx={{ backgroundColor: '#2a2a2a', color: '#b0b0b0' }} />
+        <Chip
+          component="a"
+          href="#support"
+          clickable
+          size="small"
+          label="Stötta"
+          sx={{
+            backgroundColor: '#2a2a2a',
+            color: '#66bb6a',
+            border: '1px solid #66bb6a55',
+          }}
+        />
       </Box>
     </Box>
   );

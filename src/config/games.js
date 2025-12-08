@@ -7,9 +7,8 @@
  * apiVariant = "a" endast för Crazy Time A (övriga saknar variant)
  */
 export const GAMES = [
-  { id: "crazy-time",                  label: "Crazy Time",              apiSlug: "crazy-time" },
-  { id: "crazy-time:a",                label: "Crazy Time A",            apiSlug: "crazy-time", apiVariant: "a" },
-  { id: "monopoly-big-baller",         label: "Monopoly Big Baller",     apiSlug: "monopoly-big-baller" },
+  { id: "crazy-time",    label: "Crazy Time",    apiSlug: "crazy-time" },
+  { id: "monopoly-big-baller",         label: "Big Baller",              apiSlug: "monopoly-big-baller" },
   { id: "funky-time",                  label: "Funky Time",              apiSlug: "funky-time" },
   { id: "lightning-storm",             label: "Lightning Storm",         apiSlug: "lightning-storm" },
   { id: "crazy-balls",                 label: "Crazy Balls",             apiSlug: "crazy-balls" },
@@ -23,29 +22,15 @@ export const GAMES = [
   { id: "lightning-dice",              label: "Lightning Dice",          apiSlug: "lightning-dice" },
   { id: "lightning-roulette",          label: "Lightning Roulette",      apiSlug: "lightning-roulette" },
   { id: "bac-bo",                      label: "Bac Bo",                  apiSlug: "bac-bo" },
-
-  // 🔥 Nya Evolution-spel från lobby-API:t
-  { id: "lightning-baccarat",          label: "Lightning Baccarat",      apiSlug: "lightning-baccarat" },
-  { id: "immersive-roulette",          label: "Immersive Roulette",      apiSlug: "immersive-roulette" },
-  { id: "cash-or-crash-live",          label: "Cash or Crash Live",      apiSlug: "cash-or-crash-live" },
-  { id: "fan-tan-live",                label: "Fan Tan Live",            apiSlug: "fan-tan-live" },
-  { id: "mega-ball",                   label: "Mega Ball",               apiSlug: "mega-ball" },
-  { id: "free-bet-blackjack",          label: "Free Bet Blackjack",      apiSlug: "free-bet-blackjack" },
-  { id: "dream-catcher",               label: "Dream Catcher",           apiSlug: "dream-catcher" },
-  { id: "dead-or-alive-saloon",        label: "Dead or Alive Saloon",    apiSlug: "dead-or-alive-saloon" },
-  { id: "lightning-bac-bo",            label: "Lightning Bac Bo",        apiSlug: "lightning-bac-bo" },
-  { id: "super-sic-bo",                label: "Super Sic Bo",            apiSlug: "super-sic-bo" },
-  { id: "fortune-roulette",            label: "Fortune Roulette",        apiSlug: "fortune-roulette" },
 ];
 
 /**
  * Delad färgpalett (används i header, listor, grafer)
- * unika färger per id
  */
 export const COLORS = {
   "crazy-time": "#C21807",              // Rubinröd
   "crazy-time:a": "#26A69A",            // Teal (A-varianten)
-  "monopoly-big-baller": "#00E676",
+  "monopoly-big-baller": "#00e676",
   "funky-time": "#BA68C8",
   "lightning-storm": "#1976D2",         // Stark blå
   "crazy-balls": "#E57373",             // Ljusare röd
@@ -59,19 +44,6 @@ export const COLORS = {
   "lightning-dice": "#FFD54F",
   "lightning-roulette": "#29B6F6",
   "bac-bo": "#FF8A65",
-
-  // 🎨 Nya färger för nya spel
-  "lightning-baccarat": "#FFB300",
-  "immersive-roulette": "#42A5F5",
-  "cash-or-crash-live": "#FF5252",
-  "fan-tan-live": "#F48FB1",
-  "mega-ball": "#4FC3F7",
-  "free-bet-blackjack": "#A5D6A7",
-  "dream-catcher": "#9575CD",
-  "dead-or-alive-saloon": "#8D6E63",
-  "lightning-bac-bo": "#CE93D8",
-  "super-sic-bo": "#FDD835",
-  "fortune-roulette": "#81C784",
 };
 
 /** Hur många som räknas som “Top N” i listor/header */
