@@ -702,7 +702,6 @@ export default function Header({ financialReports, averagePlayersData, dividendD
               )}
             </Grid>
           </Box>
-        </Typography>
         <Typography
           variant="caption"
           sx={{
@@ -799,7 +798,6 @@ export default function Header({ financialReports, averagePlayersData, dividendD
             </Stack>
           </>
         )}
-      </Box>
 
       {/* Quick anchors */}
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap', mb: 2 }}>
@@ -826,6 +824,8 @@ export default function Header({ financialReports, averagePlayersData, dividendD
           }}
         />
       </Box>
+      </Stack>
     </Box>
+  </Box>
   );
 }
