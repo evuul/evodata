@@ -742,60 +742,61 @@ export default function Header({ financialReports, averagePlayersData, dividendD
               </Typography>
             </Box>
 
-          <Stack spacing={{ xs: 2, sm: 2.2 }} alignItems="stretch">
-            <Box sx={{ display: "flex", justifyContent: "center" }}>
-              <ToggleButtonGroup
-                value={activePanel}
-                exclusive
-                onChange={handlePanelChange}
+            <Stack spacing={{ xs: 2, sm: 2.2 }} alignItems="stretch">
+              <Box sx={{ display: "flex", justifyContent: "center" }}>
+                <ToggleButtonGroup
+                  value={activePanel}
+                  exclusive
+                  onChange={handlePanelChange}
+                  sx={{
+                    backgroundColor: "rgba(148,163,184,0.12)",
+                    borderRadius: "999px",
+                    p: 0.5,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {panelOptions.map((option) => (
+                    <ToggleButton
+                      key={option.value}
+                      value={option.value}
+                      sx={{
+                        textTransform: "none",
+                        color: "rgba(226,232,240,0.8)",
+                        border: 0,
+                        borderRadius: "999px!important",
+                        px: { xs: 1.5, md: 2.5 },
+                        py: 0.75,
+                        "&.Mui-selected": {
+                          color: "#f8fafc",
+                          backgroundColor: option.value === "buybacks"
+                            ? "rgba(134,239,172,0.22)"
+                            : option.value === "short"
+                            ? "rgba(248,113,113,0.22)"
+                            : "rgba(56,189,248,0.25)",
+                        },
+                      }}
+                    >
+                      {option.label}
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </Box>
+
+              <Box
                 sx={{
-                  backgroundColor: "rgba(148,163,184,0.12)",
-                  borderRadius: "999px",
-                  p: 0.5,
-                  flexWrap: "wrap",
+                  width: "100%",
+                  mt: { xs: 1, sm: 1.5 },
+                  mx: { xs: -3, sm: -5, md: -6 },
+                  "& > *": {
+                    background: "transparent!important",
+                    border: "none!important",
+                    boxShadow: "none!important",
+                  },
                 }}
               >
-                {panelOptions.map((option) => (
-                  <ToggleButton
-                    key={option.value}
-                    value={option.value}
-                    sx={{
-                      textTransform: "none",
-                      color: "rgba(226,232,240,0.8)",
-                      border: 0,
-                      borderRadius: "999px!important",
-                      px: { xs: 1.5, md: 2.5 },
-                      py: 0.75,
-                      "&.Mui-selected": {
-                        color: "#f8fafc",
-                        backgroundColor: option.value === "buybacks"
-                          ? "rgba(134,239,172,0.22)"
-                          : option.value === "short"
-                          ? "rgba(248,113,113,0.22)"
-                          : "rgba(56,189,248,0.25)",
-                      },
-                    }}
-                  >
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Box>
-
-            <Box
-              sx={{
-                width: "100%",
-                mt: { xs: 1, sm: 1.5 },
-                mx: { xs: -3, sm: -5, md: -6 },
-                "& > *": {
-                  background: "transparent!important",
-                  border: "none!important",
-                  boxShadow: "none!important",
-                },
-              }}
-            >
-              {renderActivePanel()}
-            </Box>
+                {renderActivePanel()}
+              </Box>
+            </Stack>
           </>
         )}
       </Box>
