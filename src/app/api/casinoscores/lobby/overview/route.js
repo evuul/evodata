@@ -282,10 +282,11 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const daysParam = Number(searchParams.get("days"));
     const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 365)) : 45;
+    const force = searchParams.get("force") === "1";
 
     // Överblicks-cache (hela svaret) per days
     const overviewKey = `overview:${targetDays}`;
-    const cachedEntry = getOverviewCache(overviewKey);
+    const cachedEntry = force ? null : getOverviewCache(overviewKey);
     if (cachedEntry) {
       const inm = req.headers.get("if-none-match");
       if (inm && cachedEntry.etag && inm === cachedEntry.etag) {
@@ -328,7 +329,7 @@ export async function GET(req) {
       return resJSON(payload, 200, headers);
     }
 
-    const storedSnapshot = await getOverviewSnapshot(targetDays);
+    const storedSnapshot = force ? null : await getOverviewSnapshot(targetDays);
     if (storedSnapshot && storedSnapshot.data) {
       const snapshotMeta =
         storedSnapshot.meta && typeof storedSnapshot.meta === "object"

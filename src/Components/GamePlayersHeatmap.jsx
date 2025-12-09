@@ -13,6 +13,7 @@ import {
   Tooltip,
   useMediaQuery,
 } from "@mui/material";
+import { GAMES as GAME_CONFIG } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
 const WEEKDAY_ORDER = ["mån", "tis", "ons", "tors", "fre", "lör", "sön"];
@@ -20,24 +21,7 @@ const WEEKDAY_LABELS = ["Mån", "Tis", "Ons", "Tor", "Fre", "Lör", "Sön"];
 const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}`);
 const TOP_HOUR_COLORS = ["#00e676", "#ffb300", "#ff6f6f"];
 
-const HEATMAP_GAMES = [
-  { id: "crazy-time", label: "Crazy Time" },
-  { id: "crazy-time:a", label: "Crazy Time A" },
-  { id: "monopoly-big-baller", label: "Big Baller" },
-  { id: "funky-time", label: "Funky Time" },
-  { id: "lightning-storm", label: "Lightning Storm" },
-  { id: "crazy-balls", label: "Crazy Balls" },
-  { id: "ice-fishing", label: "Ice Fishing" },
-  { id: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette" },
-  { id: "monopoly-live", label: "Monopoly Live" },
-  { id: "red-door-roulette", label: "Red Door Roulette" },
-  { id: "auto-roulette", label: "Auto Roulette" },
-  { id: "speed-baccarat-a", label: "Speed Baccarat A" },
-  { id: "super-andar-bahar", label: "Super Andar Bahar" },
-  { id: "lightning-dice", label: "Lightning Dice" },
-  { id: "lightning-roulette", label: "Lightning Roulette" },
-  { id: "bac-bo", label: "Bac Bo" },
-];
+const HEATMAP_GAMES = (GAME_CONFIG ?? []).map(({ id, label }) => ({ id, label }));
 
 const weekdayFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
@@ -135,7 +119,7 @@ function colorForValue(value, max) {
 }
 
 export default function GamePlayersHeatmap() {
-  const [selectedGame, setSelectedGame] = useState(HEATMAP_GAMES[0].id);
+  const [selectedGame, setSelectedGame] = useState(HEATMAP_GAMES[0]?.id || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [points, setPoints] = useState([]);
@@ -145,6 +129,12 @@ export default function GamePlayersHeatmap() {
     let isCancelled = false;
 
     async function fetchPoints() {
+      if (!selectedGame) {
+        setPoints([]);
+        setError("");
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       setError("");
       try {

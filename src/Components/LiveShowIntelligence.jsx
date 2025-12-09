@@ -143,7 +143,7 @@ const formatMillion = (value) =>
     ? value.toLocaleString("sv-SE", { maximumFractionDigits: 1 })
     : "–";
 const findGameBySlug = (slug) =>
-  GAME_LIST.find((game) => game.apiSlug === slug) || null;
+  GAME_LIST.find((game) => game.id === slug || game.apiSlug === slug) || null;
 
 const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const theme = useTheme();
