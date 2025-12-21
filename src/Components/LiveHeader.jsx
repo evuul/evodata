@@ -254,49 +254,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     };
   }, []);
 
-  useEffect(() => {
-    let isActive = true;
-    let latestRequestId = 0;
-
-    const loadLatestTopWin = async () => {
-      if (!isActive) return;
-      latestRequestId += 1;
-      const requestId = latestRequestId;
-      setLoadingLatestTopWin(true);
-      try {
-        const res = await fetch(LIVE_TOP3_ENDPOINT, { cache: "no-store" });
-        if (!res.ok) throw new Error(`live top3 failed: ${res.status}`);
-        const data = await res.json();
-        if (!isActive || requestId !== latestRequestId) return;
-        setLatestTopWin(extractLatestTopWin(data?.entries ?? []));
-      } catch (error) {
-        if (!isActive || requestId !== latestRequestId) return;
-        console.warn("[LiveHeader] Failed to fetch latest top win:", error);
-        setLatestTopWin(null);
-      } finally {
-        if (!isActive || requestId !== latestRequestId) return;
-        setLoadingLatestTopWin(false);
-      }
-    };
-
-    const handleFocus = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      loadLatestTopWin();
-    };
-
-    loadLatestTopWin();
-    const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
-    window.addEventListener("focus", handleFocus);
-    window.addEventListener("visibilitychange", handleFocus);
-
-    return () => {
-      isActive = false;
-      clearInterval(intervalId);
-      window.removeEventListener("focus", handleFocus);
-      window.removeEventListener("visibilitychange", handleFocus);
-    };
-  }, []);
-
   const top3 = useMemo(() => {
     const games = playerGames ?? [];
     const rows = games.map((game) => {
