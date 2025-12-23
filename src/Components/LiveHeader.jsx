@@ -10,6 +10,7 @@ import {
   Button,
   Stack,
   Grid,
+  IconButton,
   ToggleButton,
   ToggleButtonGroup,
   FormControl,
@@ -17,6 +18,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
+import CloseRounded from "@mui/icons-material/CloseRounded";
 import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
@@ -29,6 +31,8 @@ const EVO_LEI = "549300SUH6ZR1RF6TA88";
 const LOBBY_SIM_MULTIPLIER = 1.1;
 const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
 const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
+const SUPPORT_URL = "https://buymeacoffee.com/evuul";
+const DONATION_NUDGE_STORAGE_KEY = "evodata_donation_nudge_dismissed_v1";
 
 const parseTopWinTimestamp = (value) => {
   if (!value) return 0;
@@ -163,6 +167,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const [loadingShort, setLoadingShort] = useState(false);
   const [latestTopWin, setLatestTopWin] = useState(null);
   const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
+  const [showDonationNudge, setShowDonationNudge] = useState(false);
 
   const fetchShortFromHistory = useCallback(async () => {
     try {
@@ -198,6 +203,28 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   useEffect(() => {
     fetchShortFromHistory();
   }, [fetchShortFromHistory]);
+
+  useEffect(() => {
+    try {
+      const dismissed = typeof window !== "undefined" ? window.localStorage.getItem(DONATION_NUDGE_STORAGE_KEY) : "1";
+      if (dismissed) return;
+    } catch {
+      /* ignore storage errors */
+    }
+    const timerId = setTimeout(() => setShowDonationNudge(true), 3200);
+    return () => clearTimeout(timerId);
+  }, []);
+
+  const handleDismissDonationNudge = useCallback(() => {
+    setShowDonationNudge(false);
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(DONATION_NUDGE_STORAGE_KEY, "1");
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }, []);
 
   useEffect(() => {
     const handleFocus = () => fetchShortFromHistory();
@@ -332,6 +359,18 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     Number.isFinite(daysWithGains) && Number.isFinite(daysWithLosses)
       ? translate(`${daysWithGains} upp · ${daysWithLosses} ned`, `${daysWithGains} up · ${daysWithLosses} down`)
       : null;
+  const donationNudgeText = useMemo(
+    () =>
+      translate(
+        "Serverkostnaden ökar när fler hittar hit. Jag är student och varje kaffe täcker databas + drift.",
+        "Traffic keeps growing and hosting costs climb. I build this as a student—each coffee keeps the DB and hosting alive."
+      ),
+    [translate]
+  );
+  const donationNudgeClickLabel = useMemo(
+    () => translate("Tryck på stötta-badgen →", "Tap the support badge →"),
+    [translate]
+  );
 
   const playersUpdatedLabel = playersLastUpdated ? formatTime(playersLastUpdated) : null;
   const stockUpdatedLabel = stockLastUpdated ? formatTime(stockLastUpdated) : null;
@@ -547,27 +586,118 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   border: "1px solid rgba(250,204,21,0.35)",
                 }}
               />
-              <Chip
-                component="a"
-                href="https://buymeacoffee.com/evuul"
-                target="_blank"
-                rel="noopener noreferrer"
-                clickable
-                size="small"
-                icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
-                label={translate("Stötta sidan", "Support the site")}
-                sx={{
-                  background: "linear-gradient(135deg, rgba(236,72,153,0.15), rgba(14,165,233,0.15))",
-                  color: "#f8fafc",
-                  borderRadius: "999px",
-                  border: "1px solid rgba(236,72,153,0.35)",
-                  transition: "transform 120ms ease",
-                  "&:hover": {
-                    transform: "translateY(-1px)",
-                    background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(14,165,233,0.25))",
-                  },
-                }}
-              />
+              <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
+                {showDonationNudge && (
+                  <Box
+                    component="a"
+                    href={SUPPORT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      position: "absolute",
+                      top: "calc(100% + 12px)",
+                      left: isMobileMenu ? 0 : -8,
+                      right: "auto",
+                      display: "flex",
+                      background: "rgba(8,15,30,0.95)",
+                      border: "1px solid rgba(56,189,248,0.32)",
+                      borderRadius: "14px",
+                      boxShadow: "0 20px 55px rgba(8,47,73,0.45)",
+                      px: 1.3,
+                      py: 1.15,
+                      maxWidth: 260,
+                      minWidth: 210,
+                      zIndex: 5,
+                      flexDirection: "column",
+                      gap: 0.6,
+                      backdropFilter: "blur(12px)",
+                      transform: "translateX(-2px)",
+                      cursor: "pointer",
+                      textDecoration: "none",
+                      "@keyframes nudgeFloat": {
+                        "0%": { transform: "translateY(0px)" },
+                        "50%": { transform: "translateY(-3px)" },
+                        "100%": { transform: "translateY(0px)" },
+                      },
+                      "@keyframes arrowBounce": {
+                        "0%": { transform: "translate(0, 0)" },
+                        "50%": { transform: "translate(2px, -2px)" },
+                        "100%": { transform: "translate(0, 0)" },
+                      },
+                      animation: "nudgeFloat 6s ease-in-out infinite",
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: "#e2e8f0", lineHeight: 1.6, fontWeight: 500 }}>
+                      {donationNudgeText}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                      <Stack direction="row" spacing={0.6} alignItems="center">
+                        <Box
+                          component="span"
+                          sx={{
+                            fontSize: "1rem",
+                            color: "#f9a8d4",
+                            animation: "arrowBounce 1.8s ease-in-out infinite",
+                          }}
+                        >
+                          ↗
+                        </Box>
+                        <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
+                          {donationNudgeClickLabel}
+                        </Typography>
+                      </Stack>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleDismissDonationNudge();
+                        }}
+                        sx={{
+                          color: "rgba(226,232,240,0.7)",
+                          "&:hover": { color: "#f8fafc" },
+                        }}
+                      >
+                        <CloseRounded fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: -7,
+                        left: 32,
+                        width: 16,
+                        height: 16,
+                        transform: "rotate(45deg)",
+                        background: "rgba(8,15,30,0.95)",
+                        border: "1px solid rgba(56,189,248,0.32)",
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <Chip
+                  component="a"
+                  href={SUPPORT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  clickable
+                  size="small"
+                  icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
+                  label={translate("Stötta sidan", "Support the site")}
+                  sx={{
+                    background: "linear-gradient(135deg, rgba(236,72,153,0.15), rgba(14,165,233,0.15))",
+                    color: "#f8fafc",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(236,72,153,0.35)",
+                    transition: "transform 120ms ease",
+                    "&:hover": {
+                      transform: "translateY(-1px)",
+                      background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(14,165,233,0.25))",
+                    },
+                  }}
+                />
+              </Box>
             </Box>
 
             <Stack
