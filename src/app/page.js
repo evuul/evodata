@@ -125,6 +125,7 @@ const FinancialOverviewCard = dynamic(() => import("../Components/FinancialOverv
   ),
 });
 
+
 // Kvartalsdata
 const formattedRevenueData = financialReports.financialReports.map((report) => ({
   date: `${report.year} ${report.quarter}`,
@@ -189,8 +190,8 @@ export default function Home() {
     setShowAuthenticatedContent(false);
   }, [isAuthenticated]);
 
-const renderAuthenticatedContent = () => (
-  <>
+  const renderAuthenticatedContent = () => (
+    <>
       {SHOW_DAILY_INSIGHTS && <DailyInsightsPanel />}
 
       {/* Container: GamePlayersBox + MoneyCounter */}
@@ -373,7 +374,7 @@ const renderAuthenticatedContent = () => (
         }}
       >
         <LiveFAQ />
-      </Box> */}
+        </Box> */}
 
       {/* <LiveFooter /> */}
 
@@ -421,6 +422,8 @@ const renderAuthenticatedContent = () => (
         financialReports={financialReports}
         averagePlayersData={averagePlayersData}
         dividendData={dividendData}
+        buybackData={buybackData}
+        sharesData={outstandingShares}
       />
 
       {showAuthenticatedContent ? (

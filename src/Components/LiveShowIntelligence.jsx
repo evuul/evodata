@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -33,8 +33,24 @@ import { useTranslate } from "@/context/LocaleContext";
 const REPORT_LOOKBACK_DAYS = 90;
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
 const DEFAULT_REVENUE_PER_PLAYER = 423.7 / 65769;
+const MANUAL_BASELINE = {
+  enabled: true,
+  period: "2025 Q4",
+  revenuePerPlayer: 469.7 / 61234, // MEUR per adjusted player (snapshot)
+};
+const TABLE_OVERRIDES = {
+  "2025 Q3": { playersUsed: 58152, estimated: 431.7, actual: 431.7 },
+  "2025 Q2": { playersUsed: 65769, estimated: 488.2, actual: 438.1 },
+};
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const TZ = "Europe/Stockholm";
+const YMD_FORMATTER = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 const quarterToIndex = (year, quarter) => {
   const idx = QUARTERS.indexOf(quarter);
@@ -72,6 +88,22 @@ const getQuarterDates = (year, quarter) => {
   const start = new Date(year, monthIndex, 1);
   const end = new Date(year, monthIndex + 3, 0);
   return { start, end };
+};
+const normalizeYmd = (value) => {
+  if (!value) return null;
+  const parts = String(value).split(/[^\d]/).filter(Boolean);
+  if (parts.length >= 3) {
+    const [year, month, day] = parts;
+    return `${year.padStart(4, "0")}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+  return String(value);
+};
+const getStockholmTodayYmd = () => {
+  try {
+    return normalizeYmd(YMD_FORMATTER.format(new Date()));
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
 };
 
 const mergePlayersData = (staticRows, dynamicRows) => {
@@ -149,12 +181,23 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const translate = useTranslate();
+  const currentDate = useMemo(() => new Date(), []);
+  const currentYear = currentDate.getFullYear();
+  const currentQuarter = getQuarter(currentDate);
+  const currentIndex = quarterToIndex(currentYear, currentQuarter);
+  const currentPeriod = formatPeriodKey(currentIndex);
+  const previousPeriod = formatPeriodKey(currentIndex - 1);
+  const twoBeforePeriod = formatPeriodKey(currentIndex - 2);
+  const lastYearSameQuarterPeriod = formatPeriodKey(
+    quarterToIndex(currentYear - 1, currentQuarter)
+  );
 
   const [dynamicPlayers, setDynamicPlayers] = useState([]);
   const [slugAverages, setSlugAverages] = useState([]);
   const [overviewError, setOverviewError] = useState("");
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
+  const todayYmd = useMemo(() => getStockholmTodayYmd(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,21 +242,21 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     };
   }, []);
 
-  const mergedPlayersData = useMemo(
-    () => mergePlayersData(averagePlayersData, dynamicPlayers),
-    [averagePlayersData, dynamicPlayers]
-  );
+  const mergedPlayersData = useMemo(() => {
+    // Bara nuvarande kvartal får dynamiska datapunkter – historik fryses
+    const filteredDynamic = (dynamicPlayers || []).filter((row) => {
+      const rawDate = row?.Datum || row?.date;
+      if (!rawDate) return false;
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return false;
+      return date.getFullYear() === currentYear && getQuarter(date) === currentQuarter;
+    });
+    return mergePlayersData(averagePlayersData, filteredDynamic);
+  }, [averagePlayersData, dynamicPlayers, currentQuarter, currentYear]);
 
-  const currentDate = new Date();
-  const currentYear = currentDate.getFullYear();
-  const currentQuarter = getQuarter(currentDate);
-  const currentIndex = quarterToIndex(currentYear, currentQuarter);
-
-  const currentPeriod = formatPeriodKey(currentIndex);
-  const previousPeriod = formatPeriodKey(currentIndex - 1);
-  const twoBeforePeriod = formatPeriodKey(currentIndex - 2);
-  const lastYearSameQuarterPeriod = formatPeriodKey(
-    quarterToIndex(currentYear - 1, currentQuarter)
+  const quarterlyPlayersStatic = useMemo(
+    () => calculateQuarterlyPlayers(averagePlayersData),
+    [averagePlayersData]
   );
 
   const quarterProgress = useMemo(
@@ -241,8 +284,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     }, {});
   }, [financialReports]);
 
-  const baseline = useMemo(() => {
-    const entries = Object.entries(quarterlyPlayers)
+  const baselineAuto = useMemo(() => {
+    const entries = Object.entries(quarterlyPlayersStatic)
       .map(([period, info]) => {
         const parts = periodKeyToParts(period);
         const revenue = revenueData[period];
@@ -255,17 +298,52 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           revenuePerPlayer: revenue / info.avgPlayers,
         };
       })
-      .filter(Boolean)
+      .filter((entry) => entry && entry.index < currentIndex) // bara avslutade kvartal
       .sort((a, b) => b.index - a.index);
 
     if (!entries.length) {
       return { period: null, revenuePerPlayer: DEFAULT_REVENUE_PER_PLAYER };
     }
-    return entries[0];
-  }, [quarterlyPlayers, revenueData]);
+    return { ...entries[0] };
+  }, [currentIndex, quarterlyPlayersStatic, revenueData]);
 
-  const baselineRevenuePerPlayer = baseline.revenuePerPlayer;
-  const baselineReferencePeriod = baseline.period;
+  const baselineComputed = useMemo(() => {
+    const hasCurrentReport = Number.isFinite(revenueData[currentPeriod]);
+    const allowManual =
+      MANUAL_BASELINE.enabled &&
+      currentPeriod === MANUAL_BASELINE.period &&
+      !hasCurrentReport;
+    if (allowManual) {
+      return {
+        period: MANUAL_BASELINE.period,
+        revenuePerPlayer: MANUAL_BASELINE.revenuePerPlayer,
+        isManual: true,
+      };
+    }
+    return { ...baselineAuto, isManual: false };
+  }, [baselineAuto, currentPeriod, revenueData]);
+
+  const baselineRef = useRef({
+    period: null,
+    revenuePerPlayer: DEFAULT_REVENUE_PER_PLAYER,
+    periodKey: null,
+    isManual: false,
+  });
+  useEffect(() => {
+    if (!baselineComputed) return;
+    if (baselineRef.current.periodKey !== currentPeriod) {
+      baselineRef.current = {
+        periodKey: currentPeriod,
+        period: baselineComputed.period,
+        revenuePerPlayer: baselineComputed.revenuePerPlayer,
+        isManual: baselineComputed.isManual,
+      };
+    }
+  }, [baselineComputed, currentPeriod]);
+
+  const baselineRevenuePerPlayer = baselineRef.current.revenuePerPlayer;
+  const baselineReferencePeriod = baselineRef.current.period;
+  const baselineAutoRevenuePerPlayer = baselineAuto.revenuePerPlayer;
 
   const quarterPlayersList = useMemo(() => {
     const basePeriods = [currentPeriod, previousPeriod, twoBeforePeriod, baselineReferencePeriod];
@@ -298,15 +376,29 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
   const liveAveragePlayersRaw = useMemo(() => {
     if (!qData.length) return null;
-    const sum = qData.reduce((acc, item) => acc + (Number(item.rawPlayers) || 0), 0);
-    return Math.round(sum / qData.length);
-  }, [qData]);
+    const trimmed = (() => {
+      const last = qData[qData.length - 1];
+      const lastYmd = normalizeYmd(last?.date);
+      if (lastYmd && lastYmd === todayYmd) return qData.slice(0, -1);
+      return qData;
+    })();
+    if (!trimmed.length) return null;
+    const sum = trimmed.reduce((acc, item) => acc + (Number(item.rawPlayers) || 0), 0);
+    return Math.round(sum / trimmed.length);
+  }, [qData, todayYmd]);
 
   const liveAveragePlayersAdjusted = useMemo(() => {
     if (!qData.length) return null;
-    const sum = qData.reduce((acc, item) => acc + (Number(item.players) || 0), 0);
-    return Math.round(sum / qData.length);
-  }, [qData]);
+    const trimmed = (() => {
+      const last = qData[qData.length - 1];
+      const lastYmd = normalizeYmd(last?.date);
+      if (lastYmd && lastYmd === todayYmd) return qData.slice(0, -1);
+      return qData;
+    })();
+    if (!trimmed.length) return null;
+    const sum = trimmed.reduce((acc, item) => acc + (Number(item.players) || 0), 0);
+    return Math.round(sum / trimmed.length);
+  }, [qData, todayYmd]);
 
   const baseAveragePlayers = liveAveragePlayersRaw ?? currentQuarterPlayers ?? 0;
   const adjustedAveragePlayers = Math.round(baseAveragePlayers * PLAYER_ADJUSTMENT_FACTOR);
@@ -341,13 +433,35 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         const actualRevenue = Number.isFinite(revenueData[period]) ? revenueData[period] : null;
         const useAdjusted = period === currentPeriod || !Number.isFinite(actualRevenue);
         const playersForEstimate = useAdjusted ? adjustedPlayers : basePlayers;
-        const est = Number.isFinite(baselineRevenuePerPlayer)
-          ? Math.round(playersForEstimate * baselineRevenuePerPlayer * 10) / 10
+        const baselineForRow = period === currentPeriod
+          ? baselineRevenuePerPlayer
+          : baselineAutoRevenuePerPlayer;
+        const est = Number.isFinite(baselineForRow)
+          ? Math.round(playersForEstimate * baselineForRow * 10) / 10
           : null;
         const diff =
           Number.isFinite(actualRevenue) && Number.isFinite(est)
             ? actualRevenue - est
             : null;
+
+        const override = TABLE_OVERRIDES[period];
+        if (override) {
+          const diffOverride =
+            Number.isFinite(override.estimated) && Number.isFinite(override.actual)
+              ? override.actual - override.estimated
+              : null;
+          return {
+            period,
+            label: labelFromPeriod(period),
+            basePlayers: override.playersUsed,
+            adjustedPlayers: override.playersUsed,
+            playersUsed: override.playersUsed,
+            estimated: override.estimated,
+            actual: override.actual,
+            diff: diffOverride,
+            highlight: period === currentPeriod,
+          };
+        }
 
         return {
           period,
@@ -367,7 +481,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           Number.isFinite(row.actual) ||
           Number.isFinite(row.estimated)
       );
-  }, [quarterPlayersList, quarterlyPlayers, revenueData, currentPeriod, baselineRevenuePerPlayer]);
+  }, [quarterPlayersList, quarterlyPlayers, revenueData, currentPeriod, baselineRevenuePerPlayer, baselineAutoRevenuePerPlayer]);
 
   const topGames = useMemo(() => {
     if (!slugAverages.length) return [];
@@ -780,51 +894,105 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
                 {translate("Estimerad vs faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
               </Typography>
-              <Table size="small" sx={{ minWidth: 360 }}>
-                <TableHead>
-                  <TableRow sx={{ "& th": { color: "rgba(148,163,184,0.75)", fontWeight: 600 } }}>
-                    <TableCell>{translate("Period", "Period")}</TableCell>
-                    <TableCell align="right">{translate("Spelare", "Players")}</TableCell>
-                    <TableCell align="right">{translate("Est.", "Est.")}</TableCell>
-                    <TableCell align="right">{translate("Faktisk", "Actual")}</TableCell>
-                    <TableCell align="right">Δ</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+              {isMobile ? (
+                <Stack spacing={1.2}>
                   {tableRows.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
-                        {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
-                      </TableCell>
-                    </TableRow>
+                    <Box sx={{ color: "rgba(148,163,184,0.75)", py: 1.5 }}>
+                      {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
+                    </Box>
                   )}
                   {tableRows.map((row) => (
-                    <TableRow
+                    <Box
                       key={row.period}
                       sx={{
-                        backgroundColor: row.highlight ? "rgba(37,99,235,0.12)" : "transparent",
-                        "&:last-of-type td": { borderBottom: 0 },
+                        borderRadius: "14px",
+                        border: "1px solid rgba(148,163,184,0.16)",
+                        background: row.highlight ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.45)",
+                        p: 1.6,
                       }}
                     >
-                      <TableCell sx={{ color: "#f8fafc" }}>{row.label}</TableCell>
-                      <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
-                        {row.playersUsed.toLocaleString("sv-SE")}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: "#93c5fd" }}>
-                        {formatMillion(row.estimated)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
-                        {formatMillion(row.actual)}
-                      </TableCell>
-                      <TableCell align="right" sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171" }}>
-                        {Number.isFinite(row.diff)
-                          ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
-                          : "–"}
-                      </TableCell>
-                    </TableRow>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                        <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{row.label}</Typography>
+                        <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.85rem" }}>
+                          {row.playersUsed.toLocaleString("sv-SE")} {translate("spelare", "players")}
+                        </Typography>
+                      </Stack>
+                      <Grid container spacing={1}>
+                        <Grid item xs={4}>
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>
+                            {translate("Est.", "Est.")}
+                          </Typography>
+                          <Typography sx={{ color: "#93c5fd", fontWeight: 700 }}>
+                            {formatMillion(row.estimated)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>
+                            {translate("Faktisk", "Actual")}
+                          </Typography>
+                          <Typography sx={{ color: "rgba(226,232,240,0.9)", fontWeight: 700 }}>
+                            {formatMillion(row.actual)}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={4}>
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>Δ</Typography>
+                          <Typography sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171", fontWeight: 700 }}>
+                            {Number.isFinite(row.diff)
+                              ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
+                              : "–"}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </Box>
                   ))}
-                </TableBody>
-              </Table>
+                </Stack>
+              ) : (
+                <Table size="small" sx={{ minWidth: 360 }}>
+                  <TableHead>
+                    <TableRow sx={{ "& th": { color: "rgba(148,163,184,0.75)", fontWeight: 600 } }}>
+                      <TableCell>{translate("Period", "Period")}</TableCell>
+                      <TableCell align="right">{translate("Spelare", "Players")}</TableCell>
+                      <TableCell align="right">{translate("Est.", "Est.")}</TableCell>
+                      <TableCell align="right">{translate("Faktisk", "Actual")}</TableCell>
+                      <TableCell align="right">Δ</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {tableRows.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
+                          {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {tableRows.map((row) => (
+                      <TableRow
+                        key={row.period}
+                        sx={{
+                          backgroundColor: row.highlight ? "rgba(37,99,235,0.12)" : "transparent",
+                          "&:last-of-type td": { borderBottom: 0 },
+                        }}
+                      >
+                        <TableCell sx={{ color: "#f8fafc" }}>{row.label}</TableCell>
+                        <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
+                          {row.playersUsed.toLocaleString("sv-SE")}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: "#93c5fd" }}>
+                          {formatMillion(row.estimated)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
+                          {formatMillion(row.actual)}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171" }}>
+                          {Number.isFinite(row.diff)
+                            ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
+                            : "–"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </Box>
           </Box>
 

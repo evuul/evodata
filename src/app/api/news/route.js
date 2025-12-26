@@ -1,3 +1,6 @@
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const lang = searchParams.get('lang') || 'sv';

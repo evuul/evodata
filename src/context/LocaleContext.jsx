@@ -30,12 +30,8 @@ function normalizeLocale(value) {
 }
 
 export const LocaleProvider = ({ children }) => {
-  const [locale, setLocaleState] = useState(() => {
-    if (typeof window === "undefined") return DEFAULT_LOCALE;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) return normalizeLocale(stored);
-    return resolveBrowserLocale();
-  });
+  // Hydration-safe: start with deterministic default, then hydrate from storage/browser in effect
+  const [locale, setLocaleState] = useState(DEFAULT_LOCALE);
 
   useEffect(() => {
     if (typeof window === "undefined") return;

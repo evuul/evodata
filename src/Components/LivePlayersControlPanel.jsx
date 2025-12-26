@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -12,6 +12,8 @@ import {
   CircularProgress,
   Divider,
 } from "@mui/material";
+import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -27,6 +29,8 @@ import { usePlayersLive } from "../context/PlayersLiveContext";
 import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 
 // ===================== LocalStorage-backed cache with TTL =====================
 class PersistentCache {
@@ -86,7 +90,7 @@ const OVERVIEW_TTL = 2 * 60 * 1000; // 2 min
 const TREND_BOOST_STORAGE_KEY = "trend_boost_10pct";
 const LOBBY_BOOST_STORAGE_KEY = "lobby_boost_10pct";
 
-const TREND_DAY_OPTIONS = [30, 60, 90];
+const TREND_DAY_OPTIONS = [30, 60, 90, 180];
 const ATH_DAY_OPTIONS = [90, 180, 365];
 const INITIAL_VISIBLE_LIVE = 10;
 const INITIAL_VISIBLE_ATH = 10;
@@ -227,6 +231,8 @@ const computeTrendDiff = (series, key = "players") => {
 };
 
 const LivePlayersControlPanel = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const {
     data: liveGames,
     loading: loadingLive,
@@ -272,6 +278,8 @@ const LivePlayersControlPanel = () => {
   const [asiaTrackerDays, setAsiaTrackerDays] = useState(TREND_DAY_OPTIONS[0]);
   const [asiaViewMode, setAsiaViewMode] = useState("trend");
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
+  const mobileCardsRef = useRef(null);
+  const [mobileCardIndex, setMobileCardIndex] = useState(0);
 
   const [showAllLive, setShowAllLive] = useState(false);
   const [showAllAth, setShowAllAth] = useState(false);
@@ -309,8 +317,7 @@ const LivePlayersControlPanel = () => {
   }, [lobbyBoostOn]);
 
   // -------- Overview (Trend + Ranking) med localStorage-cache --------
-  const fetchOverview = useCallback(async (trendWindow, athWindow) => {
-    const range = Math.max(trendWindow, athWindow);
+  const fetchOverview = useCallback(async (range) => {
     const cacheKey = `days_${range}`;
     const cached = overviewCache.get(cacheKey);
     if (cached) {
@@ -433,8 +440,9 @@ const LivePlayersControlPanel = () => {
   }, []);
 
   useEffect(() => {
-    fetchOverview(trendDays, athDays);
-  }, [trendDays, athDays, fetchOverview]);
+    const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
+    fetchOverview(range);
+  }, [trendDays, athDays, gameTrendDays, asiaTrackerDays, fetchOverview]);
 
   useEffect(() => {
     if (!slugDailyMap.size) {

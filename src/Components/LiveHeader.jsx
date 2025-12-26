@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import {
   Typography,
@@ -19,6 +19,8 @@ import {
 } from "@mui/material";
 import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
+import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
+import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
 import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
@@ -33,6 +35,13 @@ const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/l
 const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
 const SUPPORT_URL = "https://buymeacoffee.com/evuul";
 const DONATION_NUDGE_STORAGE_KEY = "evodata_donation_nudge_dismissed_v1";
+const DONATION_NUDGE_TTL_MS = 24 * 60 * 60 * 1000;
+const LIVE_CACHE_MS = 10 * 60 * 1000;
+
+const liveCaches = {
+  short: { ts: 0, percent: null },
+  top3: { ts: 0, entries: null },
+};
 
 const parseTopWinTimestamp = (value) => {
   if (!value) return 0;
@@ -100,8 +109,10 @@ const LiveInvestmentCalculatorPanel = dynamic(() => import("./LiveInvestmentCalc
   ssr: false,
   loading: PanelLoader,
 });
+const CashPositionPanel = dynamic(() => import("./CashPositionCard"), { ssr: false, loading: PanelLoader });
+const CapitalAllocationPanel = dynamic(() => import("./CapitalAllocationCard"), { ssr: false, loading: PanelLoader });
 
-export default function LiveHeader({ financialReports, averagePlayersData, dividendData }) {
+export default function LiveHeader({ financialReports, averagePlayersData, dividendData, buybackData, sharesData }) {
   const theme = useTheme();
   const isMobileMenu = useMediaQuery(theme.breakpoints.down("sm"));
   const {
@@ -124,6 +135,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const { isAuthenticated, user, logout } = useAuth();
   const { locale, setLocale } = useLocale();
   const translate = useTranslate();
+  const [cashView, setCashView] = useState("cash");
 
   const fmtCap = useCallback(
     (value) => {
@@ -168,8 +180,25 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const [latestTopWin, setLatestTopWin] = useState(null);
   const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
   const [showDonationNudge, setShowDonationNudge] = useState(false);
+  const mobileCardsRef = useRef(null);
+  const [mobileCardIndex, setMobileCardIndex] = useState(0);
+  const scrollToCard = useCallback((index) => {
+    const el = mobileCardsRef.current;
+    if (!el) return;
+    const width = el.offsetWidth;
+    if (!width) return;
+    const cardWidth = width * 0.82;
+    const gap = 12;
+    const step = cardWidth + gap;
+    el.scrollTo({ left: index * step, behavior: "smooth" });
+  }, []);
 
   const fetchShortFromHistory = useCallback(async () => {
+    const now = Date.now();
+    if (now - liveCaches.short.ts < LIVE_CACHE_MS && liveCaches.short.percent != null) {
+      setShortPercent(liveCaches.short.percent);
+      return;
+    }
     try {
       setLoadingShort(true);
       const res = await fetch("/api/short/history", { cache: "no-store" });
@@ -181,6 +210,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         const percent = Number(latest.percent);
         if (Number.isFinite(percent)) {
           setShortPercent(percent);
+          liveCaches.short = { ts: now, percent };
           return;
         }
       }
@@ -191,7 +221,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         if (!res.ok) return;
         const json = await res.json();
         const percent = Number(json.totalPercent);
-        if (Number.isFinite(percent)) setShortPercent(percent);
+        if (Number.isFinite(percent)) {
+          setShortPercent(percent);
+          liveCaches.short = { ts: Date.now(), percent };
+        }
       } catch {
         /* ignore fallback errors */
       }
@@ -206,8 +239,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
   useEffect(() => {
     try {
-      const dismissed = typeof window !== "undefined" ? window.localStorage.getItem(DONATION_NUDGE_STORAGE_KEY) : "1";
-      if (dismissed) return;
+      const raw = typeof window !== "undefined" ? window.localStorage.getItem(DONATION_NUDGE_STORAGE_KEY) : null;
+      if (raw) {
+        const parsed = Number(raw);
+        if (Number.isFinite(parsed) && Date.now() - parsed < DONATION_NUDGE_TTL_MS) return;
+      }
     } catch {
       /* ignore storage errors */
     }
@@ -219,7 +255,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     setShowDonationNudge(false);
     try {
       if (typeof window !== "undefined") {
-        window.localStorage.setItem(DONATION_NUDGE_STORAGE_KEY, "1");
+        window.localStorage.setItem(DONATION_NUDGE_STORAGE_KEY, String(Date.now()));
       }
     } catch {
       /* ignore storage errors */
@@ -243,6 +279,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     let latestRequestId = 0;
 
     const loadLatestTopWin = async () => {
+      const now = Date.now();
+      if (now - liveCaches.top3.ts < LIVE_CACHE_MS && Array.isArray(liveCaches.top3.entries)) {
+        setLatestTopWin(extractLatestTopWin(liveCaches.top3.entries));
+        return;
+      }
       if (!isActive) return;
       latestRequestId += 1;
       const requestId = latestRequestId;
@@ -252,7 +293,9 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         if (!res.ok) throw new Error(`live top3 failed: ${res.status}`);
         const data = await res.json();
         if (!isActive || requestId !== latestRequestId) return;
-        setLatestTopWin(extractLatestTopWin(data?.entries ?? []));
+        const entries = data?.entries ?? [];
+        liveCaches.top3 = { ts: Date.now(), entries };
+        setLatestTopWin(extractLatestTopWin(entries));
       } catch (error) {
         if (!isActive || requestId !== latestRequestId) return;
         console.warn("[LiveHeader] Failed to fetch latest top win:", error);
@@ -280,6 +323,37 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       window.removeEventListener("visibilitychange", handleFocus);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isMobileMenu) return () => {};
+    const el = mobileCardsRef.current;
+    if (!el) return () => {};
+
+    let rafId = 0;
+    const updateIndex = () => {
+      const width = el.offsetWidth;
+      if (!width) return;
+      const cardWidth = width * 0.82;
+      const gap = 12;
+      const step = cardWidth + gap;
+      const nextIndex = Math.max(0, Math.min(2, Math.round(el.scrollLeft / step)));
+      setMobileCardIndex(nextIndex);
+    };
+
+    const onScroll = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(updateIndex);
+    };
+
+    updateIndex();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", updateIndex);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", updateIndex);
+    };
+  }, [isMobileMenu]);
 
   const top3 = useMemo(() => {
     const games = playerGames ?? [];
@@ -453,6 +527,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     () => [
       { value: "live", label: translate("Live Intelligence", "Live Intelligence") },
       { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
+      { value: "cash", label: translate("Kassa", "Cash position") },
       { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
       { value: "gameshow", label: translate("Gameshow Earnings", "Gameshow earnings") },
       { value: "topwins", label: translate("Top wins", "Top wins") },
@@ -479,7 +554,12 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           </Box>
         );
       }
-      return <FinancialOverviewPanel financialReports={financialReports} dividendData={dividendData} />;
+      return (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <FinancialOverviewPanel financialReports={financialReports} dividendData={dividendData} />
+          <CashPositionPanel financialReports={financialReports} />
+        </Box>
+      );
     }
 
     if (activePanel === "fairvalue") {
@@ -492,6 +572,64 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         );
       }
       return <LiveAiFairValuePanel reports={reports} />;
+    }
+
+    if (activePanel === "cash") {
+      return (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <ToggleButtonGroup
+            value={cashView}
+            exclusive
+            onChange={(_, value) => value && setCashView(value)}
+            size="small"
+            sx={{
+              alignSelf: "center",
+              backgroundColor: "rgba(148,163,184,0.12)",
+              borderRadius: "999px",
+              p: 0.5,
+            }}
+          >
+            <ToggleButton
+              value="cash"
+              sx={{
+                textTransform: "none",
+                color: "rgba(226,232,240,0.75)",
+                border: 0,
+                borderRadius: "999px!important",
+                px: { xs: 1.6, md: 2.2 },
+                "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" },
+              }}
+            >
+              {translate("Kassa", "Cash")}
+            </ToggleButton>
+            <ToggleButton
+              value="allocation"
+              sx={{
+                textTransform: "none",
+                color: "rgba(226,232,240,0.75)",
+                border: 0,
+                borderRadius: "999px!important",
+                px: { xs: 1.6, md: 2.2 },
+                "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(168,85,247,0.28)" },
+              }}
+            >
+              {translate("Kapitalallokering", "Capital allocation")}
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {cashView === "cash" ? (
+            <CashPositionPanel financialReports={financialReports} />
+          ) : (
+            <CapitalAllocationPanel
+              dividendData={dividendData}
+              buybackData={buybackData}
+              financialReports={financialReports}
+              sharesData={sharesData}
+              buybackCash={500_000_000}
+            />
+          )}
+        </Box>
+      );
     }
 
     if (activePanel === "gameshow") {
@@ -525,7 +663,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       return <LiveInvestmentCalculatorPanel dividendData={dividendData} />;
 
     return <ShortIntelligencePanel />;
-  }, [activePanel, averagePlayersData, dividendData, financialReports, translate]);
+  }, [activePanel, averagePlayersData, buybackData, cashView, dividendData, financialReports, sharesData, translate]);
 
   const userEmail = user?.email ?? null;
   const isLiveMoneyPanel = activePanel === "money";
@@ -551,21 +689,23 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               display: "flex",
               justifyContent: "space-between",
               alignItems: { xs: "flex-start", md: "center" },
-              flexDirection: { xs: "column", md: "row" },
+              flexDirection: { xs: "row", md: "row" },
               gap: { xs: 1.5, md: 2.5 },
-              flexWrap: "wrap",
+              flexWrap: { xs: "nowrap", md: "wrap" },
             }}
           >
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.2 }}>
-              <Chip
-                size="small"
-                label={venueChipLabel}
-                sx={{
-                  backgroundColor: "rgba(15,23,42,0.55)",
-                  color: "#cbd5f5",
-                  borderRadius: "999px",
-                }}
-              />
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 0.6, sm: 1.2 } }}>
+              {!isMobileMenu && (
+                <Chip
+                  size="small"
+                  label={venueChipLabel}
+                  sx={{
+                    backgroundColor: "rgba(15,23,42,0.55)",
+                    color: "#cbd5f5",
+                    borderRadius: "999px",
+                  }}
+                />
+              )}
               <Chip
                 size="small"
                 label={marketStatusChip.label}
@@ -574,6 +714,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   color: marketStatusChip.color,
                   borderRadius: "999px",
                   border: marketStatusChip.border,
+                  height: { xs: 22, sm: 28 },
+                  "& .MuiChip-label": {
+                    px: { xs: 0.7, sm: 1.2 },
+                    fontSize: { xs: "0.64rem", sm: "0.8rem" },
+                  },
                 }}
               />
               <Chip
@@ -584,9 +729,14 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   color: "#facc15",
                   borderRadius: "999px",
                   border: "1px solid rgba(250,204,21,0.35)",
+                  height: { xs: 22, sm: 28 },
+                  "& .MuiChip-label": {
+                    px: { xs: 0.7, sm: 1.2 },
+                    fontSize: { xs: "0.64rem", sm: "0.8rem" },
+                  },
                 }}
               />
-              <Box sx={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <Box sx={{ position: "relative", display: { xs: "none", md: "flex" }, alignItems: "center" }}>
                 {showDonationNudge && (
                   <Box
                     component="a"
@@ -691,6 +841,12 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     borderRadius: "999px",
                     border: "1px solid rgba(236,72,153,0.35)",
                     transition: "transform 120ms ease",
+                    height: { xs: 24, sm: 28 },
+                    "& .MuiChip-label": {
+                      px: { xs: 1, sm: 1.2 },
+                      fontSize: { xs: "0.72rem", sm: "0.8rem" },
+                    },
+                    "& .MuiChip-icon": { fontSize: "1rem" },
                     "&:hover": {
                       transform: "translateY(-1px)",
                       background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(14,165,233,0.25))",
@@ -700,44 +856,37 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               </Box>
             </Box>
 
-            <Stack
-              direction="row"
-              spacing={1}
-              alignItems="center"
-              justifyContent="flex-end"
-              flexWrap="wrap"
-            >
-              <ToggleButtonGroup
-                exclusive
+            <Box sx={{ ml: "auto", display: "flex", width: { xs: "auto", md: "auto" } }}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="flex-end"
+                flexWrap="wrap"
+                sx={{ ml: "auto" }}
+              >
+              <Button
                 size="small"
-                value={locale}
-                onChange={(_, value) => value && setLocale(value)}
+                variant="outlined"
+                onClick={() => setLocale(locale === "sv" ? "en" : "sv")}
                 sx={{
-                  backgroundColor: "rgba(15,23,42,0.35)",
+                  textTransform: "none",
+                  borderColor: "transparent",
+                  color: "#e2e8f0",
+                  minHeight: { xs: 20, sm: "auto" },
+                  px: { xs: 0.4, sm: 1.1 },
+                  fontSize: { xs: "0.6rem", sm: "0.8rem" },
                   borderRadius: "999px",
-                  p: 0.3,
+                  borderWidth: 0,
+                  lineHeight: 1,
+                  "&:hover": {
+                    borderColor: "transparent",
+                    backgroundColor: "rgba(148,163,184,0.12)",
+                  },
                 }}
               >
-                {LOCALE_OPTIONS.map((option) => (
-                  <ToggleButton
-                    key={option.value}
-                    value={option.value}
-                    sx={{
-                      textTransform: "none",
-                      border: 0,
-                      borderRadius: "999px!important",
-                      color: "rgba(226,232,240,0.75)",
-                      "&.Mui-selected": {
-                        color: "#0f172a",
-                        backgroundColor: "#f8fafc",
-                        fontWeight: 700,
-                      },
-                    }}
-                  >
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
+                {locale === "sv" ? "EN" : "SV"}
+              </Button>
 
               {isAuthenticated && userEmail && (
                 <Chip
@@ -755,6 +904,9 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     textTransform: "none",
                     borderColor: "rgba(148,163,184,0.35)",
                     color: "#e2e8f0",
+                    minHeight: { xs: 20, sm: "auto" },
+                    px: { xs: 0.55, sm: 1.6 },
+                    fontSize: { xs: "0.6rem", sm: "0.82rem" },
                     "&:hover": {
                       borderColor: "rgba(148,163,184,0.55)",
                       backgroundColor: "rgba(148,163,184,0.12)",
@@ -764,8 +916,155 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   {translate("Logga ut", "Log out")}
                 </Button>
               )}
-            </Stack>
+              </Stack>
+            </Box>
           </Box>
+
+          {isMobileMenu && (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                mt: 0.6,
+              }}
+            >
+              <Box
+                sx={{
+                  position: "relative",
+                  width: "100%",
+                  maxWidth: 360,
+                  background: "linear-gradient(135deg, rgba(236,72,153,0.12), rgba(14,165,233,0.12))",
+                  border: "1px solid rgba(236,72,153,0.35)",
+                  borderRadius: "14px",
+                  px: 1.6,
+                  py: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1,
+                }}
+              >
+                {showDonationNudge && (
+                  <Box
+                    component="a"
+                    href={SUPPORT_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      position: "absolute",
+                      top: "calc(100% + 10px)",
+                      left: 12,
+                      right: "auto",
+                      display: "flex",
+                      background: "rgba(8,15,30,0.95)",
+                      border: "1px solid rgba(56,189,248,0.32)",
+                      borderRadius: "14px",
+                      boxShadow: "0 20px 55px rgba(8,47,73,0.45)",
+                      px: 1.3,
+                      py: 1.15,
+                      maxWidth: 260,
+                      minWidth: 210,
+                      zIndex: 5,
+                      flexDirection: "column",
+                      gap: 0.6,
+                      backdropFilter: "blur(12px)",
+                      transform: "translateX(-2px)",
+                      cursor: "pointer",
+                      textDecoration: "none",
+                      "@keyframes nudgeFloat": {
+                        "0%": { transform: "translateY(0px)" },
+                        "50%": { transform: "translateY(-3px)" },
+                        "100%": { transform: "translateY(0px)" },
+                      },
+                      "@keyframes arrowBounce": {
+                        "0%": { transform: "translate(0, 0)" },
+                        "50%": { transform: "translate(2px, -2px)" },
+                        "100%": { transform: "translate(0, 0)" },
+                      },
+                      animation: "nudgeFloat 6s ease-in-out infinite",
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: "#e2e8f0", lineHeight: 1.6, fontWeight: 500 }}>
+                      {donationNudgeText}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+                      <Stack direction="row" spacing={0.6} alignItems="center">
+                        <Box
+                          component="span"
+                          sx={{
+                            fontSize: "1rem",
+                            color: "#f9a8d4",
+                            animation: "arrowBounce 1.8s ease-in-out infinite",
+                          }}
+                        >
+                          ↗
+                        </Box>
+                        <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
+                          {donationNudgeClickLabel}
+                        </Typography>
+                      </Stack>
+                      <IconButton
+                        size="small"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          handleDismissDonationNudge();
+                        }}
+                        sx={{
+                          color: "rgba(226,232,240,0.7)",
+                          "&:hover": { color: "#f8fafc" },
+                        }}
+                      >
+                        <CloseRounded fontSize="small" />
+                      </IconButton>
+                    </Stack>
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: -7,
+                        left: 32,
+                        width: 16,
+                        height: 16,
+                        transform: "rotate(45deg)",
+                        background: "rgba(8,15,30,0.95)",
+                        border: "1px solid rgba(56,189,248,0.32)",
+                      }}
+                    />
+                  </Box>
+                )}
+
+                <Chip
+                  component="a"
+                  href={SUPPORT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  clickable
+                  size="medium"
+                  icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
+                  label={translate("Stötta sidan", "Support the site")}
+                  sx={{
+                    background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(14,165,233,0.2))",
+                    color: "#f8fafc",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(236,72,153,0.45)",
+                    boxShadow: "0 10px 25px rgba(236,72,153,0.15)",
+                    px: 0.5,
+                    "& .MuiChip-label": {
+                      px: 1.6,
+                      fontSize: "0.92rem",
+                      fontWeight: 700,
+                      letterSpacing: 0.2,
+                    },
+                    "& .MuiChip-icon": { fontSize: "1.1rem" },
+                    "&:hover": {
+                      boxShadow: "0 12px 28px rgba(236,72,153,0.25)",
+                      borderColor: "rgba(236,72,153,0.7)",
+                    },
+                  }}
+                />
+              </Box>
+            </Box>
+          )}
 
           <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
             <Typography
@@ -780,68 +1079,84 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             >
               {translate("Evolution Control Center", "Evolution Control Center")}
             </Typography>
-            <Typography
-              variant="h3"
-              sx={{
-                fontWeight: 800,
-                fontSize: { xs: "1.9rem", sm: "2.4rem", md: "2.9rem" },
-                color: "#f8fafc",
-              }}
-            >
-              {translate(
-                "Spårning i realtid för kurs, lobby och blankning",
-                "Real-time tracking for price, lobby, and short interest"
-              )}
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                maxWidth: 720,
-                color: "rgba(226,232,240,0.75)",
-                lineHeight: 1.6,
-              }}
-            >
-              {translate(
-                "Växla mellan finansiella dashboards utan att lämna kontrollrummet. Aktiekurs, live-spelare och marknadsvärde visas alltid längst upp.",
-                "Switch between financial dashboards without leaving the control room. Stock price, live players, and market cap stay pinned to the top."
-              )}
-            </Typography>
+            {!isMobileMenu && (
+              <>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 800,
+                    fontSize: { xs: "1.9rem", sm: "2.4rem", md: "2.9rem" },
+                    color: "#f8fafc",
+                  }}
+                >
+                  {translate(
+                    "Spårning i realtid för kurs, lobby och blankning",
+                    "Real-time tracking for price, lobby, and short interest"
+                  )}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    maxWidth: 720,
+                    color: "rgba(226,232,240,0.75)",
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {translate(
+                    "Växla mellan finansiella dashboards utan att lämna kontrollrummet. Aktiekurs, live-spelare och marknadsvärde visas alltid längst upp.",
+                    "Switch between financial dashboards without leaving the control room. Stock price, live players, and market cap stay pinned to the top."
+                  )}
+                </Typography>
+              </>
+            )}
           </Stack>
 
-          <Box
-            sx={{
-              width: "100%",
-              maxWidth: { xs: "100%", lg: "1400px" },
-              mx: "auto",
-              display: "flex",
-              flexDirection: { xs: "column", md: "row" },
-              alignItems: { xs: "stretch", md: "stretch" },
-              justifyContent: { xs: "center", md: "space-between" },
-              gap: { xs: 1.2, sm: 1.4, md: 2.8 },
-              mt: { xs: 0.2, sm: 0.6 },
-              px: { xs: 0, md: 0 },
-            }}
-          >
+          <Box sx={{ position: "relative" }}>
             <Box
+              ref={mobileCardsRef}
               sx={{
-                flex: { xs: "1 1 auto", md: "0 1 320px" },
+                width: "100%",
+                maxWidth: { xs: "100%", lg: "1400px" },
+                mx: "auto",
                 display: "flex",
-                justifyContent: "center",
+                flexDirection: { xs: "row", md: "row" },
+                alignItems: { xs: "stretch", md: "stretch" },
+                justifyContent: { xs: "flex-start", md: "space-between" },
+                gap: { xs: 1.2, sm: 1.4, md: 2.8 },
+                mt: { xs: 0.2, sm: 0.6 },
+                px: { xs: "9%", md: 0 },
+                overflowX: { xs: "auto", md: "visible" },
+                scrollSnapType: { xs: "x mandatory", md: "none" },
+                scrollPaddingInline: { xs: "9%", md: 0 },
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: { xs: "none", md: "auto" },
+                "&::-webkit-scrollbar": { display: "none" },
               }}
             >
               <Box
                 sx={{
-                  background: "rgba(15,23,42,0.35)",
-                  borderRadius: "18px",
-                  p: { xs: 1.6, sm: 1.9 },
+                  flex: { xs: "0 0 82%", sm: "0 0 70%", md: "0 1 320px" },
+                  scrollSnapAlign: { xs: "center", md: "none" },
+                  scrollSnapStop: { xs: "always", md: "normal" },
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 0.9,
-                  width: "100%",
-                  maxWidth: 320,
+                  justifyContent: "center",
                 }}
               >
+                <Box
+                  sx={{
+                    background: "rgba(15,23,42,0.35)",
+                    borderRadius: "18px",
+                    p: { xs: 1.6, sm: 1.9 },
+                    border: "1px solid rgba(34,197,94,0.5)",
+                    boxShadow: "0 0 0 1px rgba(34,197,94,0.15)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 0.9,
+                    width: "100%",
+                    maxWidth: 320,
+                  }}
+                >
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     {translate("Live · spelare", "Live · players")}
@@ -892,26 +1207,30 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             </Box>
           </Box>
 
-          <Box
-            sx={{
-              flex: { xs: "1 1 auto", md: "0 1 320px" },
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
               <Box
                 sx={{
-                  background: "rgba(15,23,42,0.35)",
-                  borderRadius: "18px",
-                  p: { xs: 1.6, sm: 1.9 },
+                  flex: { xs: "0 0 82%", sm: "0 0 70%", md: "0 1 320px" },
+                  scrollSnapAlign: { xs: "center", md: "none" },
+                  scrollSnapStop: { xs: "always", md: "normal" },
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 0.9,
-                  width: "100%",
-                  maxWidth: 320,
+                  justifyContent: "center",
                 }}
               >
+                <Box
+                  sx={{
+                    background: "rgba(15,23,42,0.35)",
+                    borderRadius: "18px",
+                    p: { xs: 1.6, sm: 1.9 },
+                    border: "1px solid rgba(56,189,248,0.6)",
+                    boxShadow: "0 0 0 1px rgba(56,189,248,0.15)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 0.9,
+                    width: "100%",
+                    maxWidth: 320,
+                  }}
+                >
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     {translate("Aktiekurs", "Stock price")}
@@ -942,26 +1261,30 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             </Box>
           </Box>
 
-          <Box
-            sx={{
-              flex: { xs: "1 1 auto", md: "0 1 320px" },
-              display: { xs: "none", md: "flex" },
-              justifyContent: "center",
-            }}
-          >
               <Box
                 sx={{
-                  background: "rgba(15,23,42,0.35)",
-                  borderRadius: "18px",
-                  p: { xs: 1.6, sm: 1.9 },
+                  flex: { xs: "0 0 82%", sm: "0 0 70%", md: "0 1 320px" },
+                  scrollSnapAlign: { xs: "center", md: "none" },
+                  scrollSnapStop: { xs: "always", md: "normal" },
                   display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 0.9,
-                  width: "100%",
-                  maxWidth: 320,
+                  justifyContent: "center",
                 }}
               >
+                <Box
+                  sx={{
+                    background: "rgba(15,23,42,0.35)",
+                    borderRadius: "18px",
+                    p: { xs: 1.6, sm: 1.9 },
+                    border: "1px solid rgba(192,132,252,0.6)",
+                    boxShadow: "0 0 0 1px rgba(192,132,252,0.15)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 0.9,
+                    width: "100%",
+                    maxWidth: 320,
+                  }}
+                >
                 <Stack direction="row" spacing={0.8} alignItems="center">
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     {translate("Marknadsvärde", "Market cap")}
@@ -986,7 +1309,55 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   {translate("Uppdateras tillsammans med kursdata.", "Updates alongside price data.")}
                 </Typography>
               </Box>
+              </Box>
             </Box>
+
+            {isMobileMenu && (
+              <>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    left: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 28,
+                    height: 28,
+                    borderRadius: "999px",
+                    background: "rgba(15,23,42,0.7)",
+                    border: "1px solid rgba(148,163,184,0.35)",
+                    display: mobileCardIndex > 0 ? "flex" : "none",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#e2e8f0",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => scrollToCard(Math.max(0, mobileCardIndex - 1))}
+                >
+                  <ArrowBackIosNew sx={{ fontSize: "0.75rem" }} />
+                </Box>
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: 0,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    width: 28,
+                    height: 28,
+                    borderRadius: "999px",
+                    background: "rgba(15,23,42,0.7)",
+                    border: "1px solid rgba(148,163,184,0.35)",
+                    display: mobileCardIndex < 2 ? "flex" : "none",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#e2e8f0",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => scrollToCard(Math.min(2, mobileCardIndex + 1))}
+                >
+                  <ArrowForwardIos sx={{ fontSize: "0.75rem" }} />
+                </Box>
+              </>
+            )}
           </Box>
 
           <Box
