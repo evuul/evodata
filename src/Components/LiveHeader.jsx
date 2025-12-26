@@ -933,15 +933,22 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   position: "relative",
                   width: "100%",
                   maxWidth: 360,
-                  background: "linear-gradient(135deg, rgba(236,72,153,0.12), rgba(14,165,233,0.12))",
-                  border: "1px solid rgba(236,72,153,0.35)",
-                  borderRadius: "14px",
-                  px: 1.6,
-                  py: 1,
+                  borderRadius: "999px",
+                  p: 0.25,
+                  background: "linear-gradient(135deg, rgba(236,72,153,0.7), rgba(14,165,233,0.65))",
+                  boxShadow: "0 18px 45px rgba(14,165,233,0.25)",
+                  overflow: "visible",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 1,
+                  "&::after": {
+                    content: '""',
+                    position: "absolute",
+                    inset: "-24% -10%",
+                    background: "radial-gradient(circle, rgba(236,72,153,0.28), transparent 45%)",
+                    filter: "blur(28px)",
+                    zIndex: 0,
+                  },
                 }}
               >
                 {showDonationNudge && (
@@ -1043,22 +1050,26 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
                   label={translate("Stötta sidan", "Support the site")}
                   sx={{
-                    background: "linear-gradient(135deg, rgba(236,72,153,0.25), rgba(14,165,233,0.2))",
+                    position: "relative",
+                    zIndex: 1,
+                    width: "100%",
+                    justifyContent: "center",
+                    background: "rgba(8,15,30,0.9)",
                     color: "#f8fafc",
                     borderRadius: "999px",
-                    border: "1px solid rgba(236,72,153,0.45)",
-                    boxShadow: "0 10px 25px rgba(236,72,153,0.15)",
-                    px: 0.5,
+                    border: "none",
+                    boxShadow: "0 12px 28px rgba(0,0,0,0.42)",
+                    height: 44,
                     "& .MuiChip-label": {
-                      px: 1.6,
-                      fontSize: "0.92rem",
-                      fontWeight: 700,
-                      letterSpacing: 0.2,
+                      px: 1.8,
+                      fontSize: "0.94rem",
+                      fontWeight: 800,
+                      letterSpacing: 0.35,
                     },
-                    "& .MuiChip-icon": { fontSize: "1.1rem" },
+                    "& .MuiChip-icon": { fontSize: "1.2rem" },
                     "&:hover": {
-                      boxShadow: "0 12px 28px rgba(236,72,153,0.25)",
-                      borderColor: "rgba(236,72,153,0.7)",
+                      boxShadow: "0 14px 32px rgba(0,0,0,0.55)",
+                      background: "rgba(8,15,30,0.96)",
                     },
                   }}
                 />
