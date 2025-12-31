@@ -6,6 +6,8 @@ export const revalidate = 0;
 
 const UPSTASH_REST_URL = process.env.UPSTASH_REST_URL;
 const UPSTASH_REST_TOKEN = process.env.UPSTASH_REST_TOKEN;
+const API_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min – matches upstream fetch cadence
+const API_STALE_MS = 5 * 60 * 1000; // allow stale while revalidating
 const CURRENT_KEY = process.env.LIVE_TOP3_CURRENT_KEY ?? "liveTop3:current";
 const HISTORY_KEY = process.env.LIVE_TOP3_HISTORY_KEY ?? "liveTop3:history";
 const DAILY_PREFIX = process.env.LIVE_TOP3_DAILY_PREFIX ?? "liveTop3:daily:";
@@ -17,6 +19,13 @@ const DAILY_LIMIT_PER_DAY = (() => {
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_HISTORY_ITEMS = 2000;
 const STOCKHOLM_TZ = "Europe/Stockholm";
+const cacheControlHeader = `public, s-maxage=${Math.floor(
+  API_CACHE_TTL_MS / 1000
+)}, stale-while-revalidate=${Math.floor(API_STALE_MS / 1000)}`;
+let responseCache = {
+  payload: null,
+  expiresAt: 0,
+};
 
 const tzDateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: STOCKHOLM_TZ,
@@ -68,7 +77,7 @@ function json(data, init = {}) {
   return NextResponse.json(data, {
     status: init.status ?? 200,
     headers: {
-      "Cache-Control": "no-store",
+      "Cache-Control": cacheControlHeader,
       ...(init.headers || {}),
     },
   });
@@ -237,6 +246,11 @@ function groupSnapshotsByDay(snapshots, days, perDay) {
 
 export async function GET(req) {
   try {
+    const now = Date.now();
+    if (responseCache.payload && responseCache.expiresAt > now) {
+      return json({ ...responseCache.payload, source: "cache" });
+    }
+
     const { searchParams } = new URL(req.url);
     const historyDays = Number(searchParams.get("historyDays") ?? "0");
     const historyPerDay = Number(searchParams.get("historyPerDay") ?? "0");
@@ -314,7 +328,7 @@ export async function GET(req) {
       );
     }
 
-    return json({
+    const payload = {
       ok: true,
       source: "upstash",
       entries: Array.isArray(snapshot.entries) ? snapshot.entries : [],
@@ -323,7 +337,14 @@ export async function GET(req) {
       fetchedAt: snapshot.fetchedAt ?? null,
       meta: snapshot.meta ?? null,
       history,
-    });
+    };
+
+    responseCache = {
+      payload,
+      expiresAt: Date.now() + API_CACHE_TTL_MS,
+    };
+
+    return json(payload);
   } catch (error) {
     console.error("/api/live-top3 error:", error);
     return json(

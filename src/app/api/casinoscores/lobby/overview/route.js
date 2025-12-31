@@ -8,6 +8,8 @@ import {
   dailyAverages,
   getOverviewSnapshot,
   setOverviewSnapshot,
+  getDailySnapshot,
+  setDailySnapshot,
   getDailyAggregates,
   getGlobalLobbyAth,
   setGlobalLobbyAth,
@@ -132,6 +134,46 @@ function stockholmYMDFromTs(ts) {
 
 function bucketTs(ts) {
   return Math.floor(ts / BUCKET_MS) * BUCKET_MS;
+}
+
+function serializeDailyAggregates(map) {
+  const out = {};
+  for (const [slug, dateMap] of map.entries()) {
+    out[slug] = Array.from(dateMap.entries()).map(([date, entry]) => ({
+      date,
+      sum: entry?.sum ?? 0,
+      count: entry?.count ?? 0,
+      max: entry?.max ?? null,
+      maxTs: entry?.maxTs ?? null,
+      latestValue: entry?.latestValue ?? null,
+      latestTs: entry?.latestTs ?? null,
+    }));
+  }
+  return out;
+}
+
+function deserializeDailyAggregates(obj) {
+  const map = new Map();
+  const entries = obj && typeof obj === "object" ? Object.entries(obj) : [];
+  for (const [slug, list] of entries) {
+    const dateMap = new Map();
+    if (Array.isArray(list)) {
+      for (const row of list) {
+        const date = row?.date;
+        if (!date) continue;
+        dateMap.set(date, {
+          sum: Number(row?.sum) || 0,
+          count: Number(row?.count) || 0,
+          max: row?.max != null ? Number(row.max) : null,
+          maxTs: row?.maxTs != null ? Number(row.maxTs) : null,
+          latestValue: row?.latestValue != null ? Number(row.latestValue) : null,
+          latestTs: row?.latestTs != null ? Number(row.latestTs) : null,
+        });
+      }
+    }
+    map.set(slug, dateMap);
+  }
+  return map;
 }
 
 const STATIC_DAILY = (() => {
@@ -381,7 +423,11 @@ export async function GET(req) {
     }
 
     const aggregatesStart = Date.now();
-    const dailyAggregates = await getDailyAggregates(SERIES_SLUGS, targetDays + 5);
+    const snapshotDays = targetDays + 5;
+    const cachedDailySnapshot = force ? null : await getDailySnapshot(snapshotDays);
+    const dailyAggregates = cachedDailySnapshot
+      ? deserializeDailyAggregates(cachedDailySnapshot)
+      : await getDailyAggregates(SERIES_SLUGS, snapshotDays);
     const aggregatesFetchMs = Date.now() - aggregatesStart;
 
     const recentDays = 2;
@@ -510,7 +556,7 @@ export async function GET(req) {
           (item.summary?.average != null && Number.isFinite(item.summary.average))
       );
 
-    let dataSource = "aggregates";
+    let dataSource = cachedDailySnapshot ? "daily-snapshot" : "aggregates";
 
     if (!hasAggregateData) {
       dataSource = "series";
@@ -684,6 +730,9 @@ export async function GET(req) {
       etag,
       meta: { ...cacheMeta, persisted: true },
     });
+    if (!cachedDailySnapshot) {
+      await setDailySnapshot(snapshotDays, serializeDailyAggregates(dailyAggregates));
+    }
 
     const payload = attachMeta(basePayload, {
       ...cacheMeta,

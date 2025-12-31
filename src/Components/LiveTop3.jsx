@@ -434,7 +434,7 @@ const LiveTop3 = ({ variant = "standalone" }) => {
           historyDays: String(HISTORY_DAYS),
           historyPerDay: String(HISTORY_PER_DAY),
         });
-        const response = await fetch(`${LIVE_TOP3_ENDPOINT}?${params.toString()}`, { cache: "no-store" });
+        const response = await fetch(`${LIVE_TOP3_ENDPOINT}?${params.toString()}`);
         if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
         const payload = await response.json();
         liveTop3Cache = {

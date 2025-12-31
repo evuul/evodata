@@ -72,6 +72,13 @@ const overviewMem = new Map(); // key -> { snapshot, exp }
 const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
 const GLOBAL_ATH_KEY = "cs:lobby:global-ath";
 let globalAthCache = null;
+const DAILY_SNAPSHOT_PREFIX = "cs:lobby:daily-snapshot:";
+const DAILY_SNAPSHOT_TTL_MS = (() => {
+  const raw = Number(process.env.CS_DAILY_SNAPSHOT_TTL_MS);
+  if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 24 * 60 * 60 * 1000);
+  return 6 * 60 * 60 * 1000; // default 6h
+})();
+const dailySnapshotMem = new Map(); // key -> { data, exp }
 
 const DAILY_PEAK_PREFIX = "cs:lobby:today-peak:";
 const dailyPeakMem = new Map(); // key (ymd) -> entry
@@ -100,6 +107,26 @@ function setOverviewMem(key, snapshot) {
       : Number.NaN;
   const exp = Number.isFinite(staleAfter) ? staleAfter : Date.now() + DEFAULT_OVERVIEW_MEM_TTL;
   overviewMem.set(key, { snapshot, exp });
+}
+
+function dailySnapshotKey(days) {
+  const n = Number(days);
+  const suffix = Number.isFinite(n) ? Math.round(n) : String(days ?? "default");
+  return `${DAILY_SNAPSHOT_PREFIX}${suffix}`;
+}
+
+function getDailySnapshotMem(key) {
+  const hit = dailySnapshotMem.get(key);
+  if (!hit) return null;
+  if (hit.exp > Date.now()) return hit.data;
+  dailySnapshotMem.delete(key);
+  return null;
+}
+
+function setDailySnapshotMem(key, data, ttlMs = DAILY_SNAPSHOT_TTL_MS) {
+  const exp = Date.now() + Math.max(60 * 1000, ttlMs);
+  dailySnapshotMem.set(key, { data, exp });
+  return exp;
 }
 
 export async function getOverviewSnapshot(days) {
@@ -135,6 +162,49 @@ export async function setOverviewSnapshot(days, snapshot) {
     if (DEBUG) console.log(`[csStore] KV overview set ${key}`);
   } catch (err) {
     if (DEBUG) console.warn(`[csStore] KV overview set failed ${key}:`, err);
+  }
+}
+
+export async function getDailySnapshot(days) {
+  const key = dailySnapshotKey(days);
+  const memHit = getDailySnapshotMem(key);
+  if (memHit) return memHit;
+
+  const kv = await getKv();
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(key);
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!parsed || typeof parsed !== "object") return null;
+    const exp = Number(parsed.expiresAt);
+    if (Number.isFinite(exp) && exp < Date.now()) return null;
+    const data = parsed.data ?? parsed.snapshot ?? null;
+    if (!data) return null;
+    dailySnapshotMem.set(key, { data, exp: Number.isFinite(exp) ? exp : Date.now() + DAILY_SNAPSHOT_TTL_MS });
+    return data;
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV daily snapshot get failed ${key}:`, err);
+    return null;
+  }
+}
+
+export async function setDailySnapshot(days, data, ttlMs = DAILY_SNAPSHOT_TTL_MS) {
+  const key = dailySnapshotKey(days);
+  const exp = setDailySnapshotMem(key, data, ttlMs);
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(
+      key,
+      JSON.stringify({
+        expiresAt: exp,
+        data,
+      })
+    );
+    if (DEBUG) console.log(`[csStore] KV daily snapshot set ${key}`);
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV daily snapshot set failed ${key}:`, err);
   }
 }
 
