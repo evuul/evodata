@@ -103,9 +103,12 @@ export function PlayersLiveProvider({ children, enabled = true }) {
 
       if (json.fetchedAt) {
         const parsed = Date.parse(json.fetchedAt);
-        setLastUpdated(Number.isFinite(parsed) ? new Date(parsed) : new Date());
-      } else {
-        setLastUpdated(new Date());
+        if (Number.isFinite(parsed)) {
+          setLastUpdated((prev) => {
+            const prevMs = prev ? prev.getTime() : 0;
+            return parsed > prevMs ? new Date(parsed) : prev || new Date(parsed);
+          });
+        }
       }
 
       fetchLobbyStats(force);
@@ -166,7 +169,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       return () => {};
     }
     const initialId = setTimeout(() => {
-      fetchAll(true);
+      fetchAll(false);
     }, INITIAL_FETCH_DELAY_MS);
     const onFocus = () => fetchAll(false);
     const onVis = () => fetchAll(false);

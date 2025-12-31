@@ -406,19 +406,28 @@ const LiveTop3 = ({ variant = "standalone" }) => {
   useEffect(() => {
     let active = true;
 
-    const applyPayload = (payload) => {
-      if (!payload) return;
-      const normalized = normalizeEntries(payload?.todayEntries ?? payload?.entries ?? payload);
-      if (!active) return;
-      setEntries(normalized);
-      setMeta({
-        fetchedAt: payload?.fetchedAt ?? payload?.updatedAt ?? null,
-        source: payload?.source ?? null,
-        todayYmd: payload?.todayYmd ?? null,
-      });
-      setHistoryBuckets(Array.isArray(payload?.history) ? payload.history : []);
-      setStatus("success");
-    };
+  const applyPayload = (payload) => {
+    if (!payload) return;
+    const normalized = normalizeEntries(payload?.todayEntries ?? payload?.entries ?? payload);
+    if (!active) return;
+    setEntries(normalized);
+    setMeta((prev) => {
+      const nextFetched = payload?.fetchedAt ?? payload?.updatedAt ?? null;
+      const prevMs = prev?.fetchedAt ? Date.parse(prev.fetchedAt) : 0;
+      const nextMs = nextFetched ? Date.parse(nextFetched) : NaN;
+      const useFetched =
+        Number.isFinite(nextMs) && nextMs > prevMs
+          ? nextFetched
+          : prev?.fetchedAt ?? nextFetched ?? null;
+      return {
+        fetchedAt: useFetched,
+        source: payload?.source ?? prev?.source ?? null,
+        todayYmd: payload?.todayYmd ?? prev?.todayYmd ?? null,
+      };
+    });
+    setHistoryBuckets(Array.isArray(payload?.history) ? payload.history : []);
+    setStatus("success");
+  };
 
     const maybeUseCache = () => {
       if (liveTop3Cache.payload && liveTop3Cache.expiresAt > Date.now()) {

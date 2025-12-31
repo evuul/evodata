@@ -9,6 +9,8 @@ import {
   maybeUpdateDailyLobbyPeak,
   getGlobalLobbyAth,
   setGlobalLobbyAth,
+  getOrBuildBaseline,
+  bucketLabelFromTs,
 } from "@/lib/csStore";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
@@ -22,6 +24,8 @@ const LOBBY_AUTH =
     ? `Bearer ${RAW_LOBBY_AUTH}`
     : "";
 const LOBBY_TTL_MS = 30 * 1000;
+const BASELINE_DAYS = 30;
+const BASELINE_BUCKET_MS = 5 * 60 * 1000;
 
 const g = globalThis;
 if (!g.__CS_LOBBY_CACHE__) {
@@ -168,9 +172,30 @@ export async function GET(req) {
     }
   }
 
+  let baseline = null;
+  let baselineBucket = null;
+  let baselineEntry = null;
+  try {
+    baselineBucket = bucketLabelFromTs(Date.now(), BASELINE_BUCKET_MS);
+    const slugs = GAME_CONFIG.map((g) => g.id).filter(Boolean);
+    baseline = await getOrBuildBaseline(slugs, BASELINE_DAYS, BASELINE_BUCKET_MS);
+    baselineEntry = baseline?.buckets?.find((b) => b.bucket === baselineBucket) ?? null;
+  } catch {
+    baseline = null;
+  }
+
   return resJSON({
     ok: true,
     items,
     fetchedAt: newestTs ? new Date(newestTs).toISOString() : lobby?.createdAt ?? null,
+    baseline: {
+      bucket: baselineBucket,
+      bucketMs: BASELINE_BUCKET_MS,
+      days: BASELINE_DAYS,
+      avg: baselineEntry?.avg ?? null,
+      samples: baselineEntry?.samples ?? null,
+      computedAt: baseline?.computedAt ?? null,
+      source: baseline?.source ?? null,
+    },
   });
 }

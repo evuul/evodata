@@ -79,6 +79,16 @@ const DAILY_SNAPSHOT_TTL_MS = (() => {
   return 6 * 60 * 60 * 1000; // default 6h
 })();
 const dailySnapshotMem = new Map(); // key -> { data, exp }
+const BASELINE_PREFIX = "cs:lobby:baseline:";
+const BASELINE_VERSION = "v1";
+const BASELINE_TTL_MS = (() => {
+  const raw = Number(process.env.CS_BASELINE_TTL_MS);
+  if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000); // cap 48h
+  return 12 * 60 * 60 * 1000; // default 12h
+})();
+const baselineMem = new Map(); // key -> { data, exp }
+const BASELINE_TZ = "Europe/Stockholm";
+const DEFAULT_BASELINE_BUCKET_MS = 5 * 60 * 1000; // 5 min buckets for time-of-day baseline
 
 const DAILY_PEAK_PREFIX = "cs:lobby:today-peak:";
 const dailyPeakMem = new Map(); // key (ymd) -> entry
@@ -206,6 +216,27 @@ export async function setDailySnapshot(days, data, ttlMs = DAILY_SNAPSHOT_TTL_MS
   } catch (err) {
     if (DEBUG) console.warn(`[csStore] KV daily snapshot set failed ${key}:`, err);
   }
+}
+
+function baselineKey(days, bucketMs) {
+  const n = Number(days);
+  const suffix = Number.isFinite(n) ? Math.round(n) : String(days ?? "default");
+  const bucket = Number.isFinite(bucketMs) ? Math.round(bucketMs) : DEFAULT_BASELINE_BUCKET_MS;
+  return `${BASELINE_PREFIX}${suffix}:${bucket}:${BASELINE_VERSION}`;
+}
+
+function getBaselineMem(key) {
+  const hit = baselineMem.get(key);
+  if (!hit) return null;
+  if (hit.exp > Date.now()) return hit.data;
+  baselineMem.delete(key);
+  return null;
+}
+
+function setBaselineMem(key, data, ttlMs = BASELINE_TTL_MS) {
+  const exp = Date.now() + Math.max(60 * 1000, ttlMs);
+  baselineMem.set(key, { data, exp });
+  return exp;
 }
 
 function normalizeAthEntry(entry) {
@@ -751,6 +782,134 @@ export async function saveSample(slug, isoTs, players) {
 export async function getSeries(slug, days = 30) {
   const map = await getSeriesBulk([slug], days);
   return map.get(slug) ?? [];
+}
+
+export function bucketLabelFromTs(ts, bucketMs = DEFAULT_BASELINE_BUCKET_MS, timeZone = BASELINE_TZ) {
+  if (!Number.isFinite(ts)) return null;
+  const date = new Date(Math.floor(ts / bucketMs) * bucketMs);
+  try {
+    return date.toLocaleTimeString("sv-SE", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+  } catch {
+    return date.toISOString().slice(11, 16);
+  }
+}
+
+export function computeBaselineFromSeries(seriesMap, days, bucketMs = DEFAULT_BASELINE_BUCKET_MS) {
+  if (!seriesMap || typeof seriesMap.forEach !== "function") {
+    return null;
+  }
+  const tsTotals = new Map(); // ts -> total players (sum over slugs)
+  let samples = 0;
+  seriesMap.forEach((points) => {
+    for (const p of points || []) {
+      const ts = Number(p?.ts);
+      const value = Number(p?.value);
+      if (!Number.isFinite(ts) || !Number.isFinite(value)) continue;
+      tsTotals.set(ts, (tsTotals.get(ts) ?? 0) + value);
+      samples += 1;
+    }
+  });
+
+  if (!tsTotals.size) return null;
+
+  const buckets = new Map(); // label -> { sum, count }
+  const seenDays = new Set();
+  for (const [ts, total] of tsTotals.entries()) {
+    const label = bucketLabelFromTs(ts, bucketMs, BASELINE_TZ);
+    if (!label) continue;
+    const entry = buckets.get(label) ?? { sum: 0, count: 0 };
+    entry.sum += total;
+    entry.count += 1;
+    buckets.set(label, entry);
+
+    const ymd = stockholmYMDFromTs(ts);
+    if (ymd) seenDays.add(ymd);
+  }
+
+  const bucketsArr = Array.from(buckets.entries())
+    .map(([bucket, { sum, count }]) => ({
+      bucket,
+      avg: count > 0 ? Math.round((sum / count) * 100) / 100 : null,
+      samples: count,
+    }))
+    .sort((a, b) => a.bucket.localeCompare(b.bucket));
+
+  return {
+    buckets: bucketsArr,
+    bucketMs,
+    samples: tsTotals.size,
+    points: samples,
+    days: Number.isFinite(days) ? Math.round(days) : null,
+    distinctDays: seenDays.size,
+    computedAt: new Date().toISOString(),
+    source: "baseline-total-v1",
+  };
+}
+
+export async function getBaselineSnapshot(days = 30, bucketMs = DEFAULT_BASELINE_BUCKET_MS, force = false) {
+  const key = baselineKey(days, bucketMs);
+  if (!force) {
+    const memHit = getBaselineMem(key);
+    if (memHit) return memHit;
+  }
+
+  const kv = await getKv();
+  if (kv && !force) {
+    try {
+      const raw = await kv.get(key);
+      if (raw) {
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (parsed && typeof parsed === "object") {
+          const exp = Number(parsed.expiresAt);
+          if (!Number.isFinite(exp) || exp > Date.now()) {
+            const data = parsed.data ?? parsed;
+            const ttl = Number.isFinite(exp) ? exp - Date.now() : BASELINE_TTL_MS;
+            setBaselineMem(key, data, ttl);
+            return data;
+          }
+        }
+      }
+    } catch (err) {
+      if (DEBUG) console.warn(`[csStore] KV baseline get failed ${key}:`, err);
+    }
+  }
+  return null;
+}
+
+export async function setBaselineSnapshot(days, bucketMs, data, ttlMs = BASELINE_TTL_MS) {
+  const key = baselineKey(days, bucketMs);
+  const exp = setBaselineMem(key, data, ttlMs);
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(
+      key,
+      JSON.stringify({
+        expiresAt: exp,
+        data,
+      })
+    );
+    if (DEBUG) console.log(`[csStore] KV baseline set ${key}`);
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV baseline set failed ${key}:`, err);
+  }
+}
+
+export async function getOrBuildBaseline(slugs, days = 30, bucketMs = DEFAULT_BASELINE_BUCKET_MS) {
+  const existing = await getBaselineSnapshot(days, bucketMs, false);
+  if (existing) return existing;
+
+  const seriesMap = await getSeriesBulk(slugs, days);
+  const computed = computeBaselineFromSeries(seriesMap, days, bucketMs);
+  if (computed) {
+    await setBaselineSnapshot(days, bucketMs, computed);
+  }
+  return computed;
 }
 
 /**
