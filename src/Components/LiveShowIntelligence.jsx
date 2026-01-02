@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -30,18 +30,26 @@ import { GAMES as GAME_LIST, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import { useTranslate } from "@/context/LocaleContext";
 
-const REPORT_LOOKBACK_DAYS = 90;
+const REPORT_LOOKBACK_DAYS = 200; // fångar föregående kvartal (t.ex. full Q4 när vi är i Q1)
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
 const DEFAULT_REVENUE_PER_PLAYER = 423.7 / 65769;
+const ADJUSTMENT_SCHEDULE = [
+  { fromYmd: "2025-10-01", untilYmd: "2025-12-08", factor: 1.27 }, // innan alla 27 games var med
+];
+const TEMP_BASELINE_BOOST = 1.05; // tillfällig uppvikt per-spelare-koefficient (Q3)
 const MANUAL_BASELINE = {
   enabled: true,
   period: "2025 Q4",
-  revenuePerPlayer: 469.7 / 61234, // MEUR per adjusted player (snapshot)
+  revenuePerPlayer: 470 / 61941, // MEUR per adjusted player (full Q4 average)
 };
-const TABLE_OVERRIDES = {
-  "2025 Q3": { playersUsed: 58152, estimated: 431.7, actual: 431.7 },
-  "2025 Q2": { playersUsed: 65769, estimated: 488.2, actual: 438.1 },
+const QUARTERLY_PLAYER_SNAPSHOTS = {
+  "2025 Q4": {
+    adjustedPlayers: 61941,
+    rawPlayers: 56310, // frozen snapshot so Q4 stays visible after rolling into Q1
+  },
 };
+const TABLE_OVERRIDES = {};
+const BASELINE_WHITELIST = new Set(["2025 Q1", "2025 Q2", "2025 Q3"]); // historiska kvartal vi accepterar trots få datapunkter
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const TZ = "Europe/Stockholm";
@@ -106,6 +114,24 @@ const getStockholmTodayYmd = () => {
   }
 };
 
+const getAdjustmentFactorForYmd = (ymd) => {
+  if (!ymd) return PLAYER_ADJUSTMENT_FACTOR;
+  for (const { fromYmd, untilYmd, factor } of ADJUSTMENT_SCHEDULE) {
+    if (fromYmd && ymd < fromYmd) continue;
+    if (untilYmd && ymd > untilYmd) continue;
+    return factor;
+  }
+  return PLAYER_ADJUSTMENT_FACTOR;
+};
+const getAdjustmentFactorForDate = (date) => {
+  try {
+    const ymd = normalizeYmd(YMD_FORMATTER.format(date));
+    return getAdjustmentFactorForYmd(ymd);
+  } catch {
+    return PLAYER_ADJUSTMENT_FACTOR;
+  }
+};
+
 const mergePlayersData = (staticRows, dynamicRows) => {
   const map = new Map();
   if (Array.isArray(staticRows)) {
@@ -137,18 +163,46 @@ const calculateQuarterlyPlayers = (playersData) => {
     if (Number.isNaN(date.getTime())) return;
     const playersValue = Number(item?.Players ?? item?.players);
     if (!Number.isFinite(playersValue)) return;
+    const factor = getAdjustmentFactorForDate(date);
     const key = `${date.getFullYear()} ${getQuarter(date)}`;
     (buckets[key] ??= []).push(playersValue);
+    (buckets[`${key}::adj`] ??= []).push(playersValue * factor);
   });
   return Object.keys(buckets).reduce((acc, key) => {
     const values = buckets[key];
+    const adjustedValues = buckets[key + "::adj"] || values;
     const avgPlayers =
       values.length > 0
         ? Math.round(values.reduce((s, v) => s + v, 0) / values.length)
         : 0;
-    acc[key] = { avgPlayers, days: values.length };
+    const adjustedAvgPlayers =
+      adjustedValues.length > 0
+        ? Math.round(adjustedValues.reduce((s, v) => s + v, 0) / adjustedValues.length)
+        : avgPlayers;
+    acc[key] = { avgPlayers, adjustedAvgPlayers, days: values.length };
     return acc;
   }, {});
+};
+
+const applyQuarterSnapshots = (quarterMap) => {
+  const merged = { ...(quarterMap || {}) };
+  Object.entries(QUARTERLY_PLAYER_SNAPSHOTS).forEach(([period, snapshot]) => {
+    if (merged[period]?.avgPlayers > 0) return;
+    const adjustedPlayers = Number(snapshot?.adjustedPlayers);
+    const rawPlayers = Number(snapshot?.rawPlayers);
+    const basePlayers = Number.isFinite(rawPlayers)
+      ? rawPlayers
+      : Number.isFinite(adjustedPlayers)
+      ? Math.round(adjustedPlayers / PLAYER_ADJUSTMENT_FACTOR)
+      : null;
+    if (!Number.isFinite(basePlayers) || basePlayers <= 0) return;
+    merged[period] = {
+      avgPlayers: basePlayers,
+      days: merged[period]?.days ?? null,
+      snapshot: true,
+    };
+  });
+  return merged;
 };
 
 const calculateQuarterProgress = (currentDate, year, quarter) => {
@@ -243,19 +297,21 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   }, []);
 
   const mergedPlayersData = useMemo(() => {
-    // Bara nuvarande kvartal får dynamiska datapunkter – historik fryses
+    // Tillåt dynamiska datapunkter för nuvarande och föregående kvartal (t.ex. Q1 + Q4)
+    const allowedQuarters = new Set([currentPeriod, previousPeriod]);
     const filteredDynamic = (dynamicPlayers || []).filter((row) => {
       const rawDate = row?.Datum || row?.date;
       if (!rawDate) return false;
       const date = new Date(rawDate);
       if (Number.isNaN(date.getTime())) return false;
-      return date.getFullYear() === currentYear && getQuarter(date) === currentQuarter;
+      const period = `${date.getFullYear()} ${getQuarter(date)}`;
+      return allowedQuarters.has(period);
     });
     return mergePlayersData(averagePlayersData, filteredDynamic);
-  }, [averagePlayersData, dynamicPlayers, currentQuarter, currentYear]);
+  }, [averagePlayersData, dynamicPlayers, currentPeriod, previousPeriod]);
 
   const quarterlyPlayersStatic = useMemo(
-    () => calculateQuarterlyPlayers(averagePlayersData),
+    () => applyQuarterSnapshots(calculateQuarterlyPlayers(averagePlayersData)),
     [averagePlayersData]
   );
 
@@ -265,7 +321,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   );
 
   const quarterlyPlayers = useMemo(
-    () => calculateQuarterlyPlayers(mergedPlayersData),
+    () => applyQuarterSnapshots(calculateQuarterlyPlayers(mergedPlayersData)),
     [mergedPlayersData]
   );
 
@@ -284,28 +340,53 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     }, {});
   }, [financialReports]);
 
-  const baselineAuto = useMemo(() => {
-    const entries = Object.entries(quarterlyPlayersStatic)
+  const baselineCandidates = useMemo(() => {
+    const list = Object.entries(quarterlyPlayersStatic)
       .map(([period, info]) => {
         const parts = periodKeyToParts(period);
         const revenue = revenueData[period];
-        if (!parts || !Number.isFinite(revenue) || !Number.isFinite(info?.avgPlayers) || info.avgPlayers <= 0) {
+        const isWhitelisted = BASELINE_WHITELIST.has(period);
+        const playersForBaseline =
+          Number.isFinite(info?.adjustedAvgPlayers) && info.adjustedAvgPlayers > 0
+            ? info.adjustedAvgPlayers
+            : info?.avgPlayers;
+        if (
+          !parts ||
+          !Number.isFinite(revenue) ||
+          !Number.isFinite(playersForBaseline) ||
+          playersForBaseline <= 0 ||
+          (!isWhitelisted && (!Number.isFinite(info?.days) || info.days < 80))
+        ) {
           return null;
         }
+        const baseRevenuePerPlayer = revenue / playersForBaseline;
+        const revenuePerPlayer =
+          period === "2025 Q3" ? baseRevenuePerPlayer * TEMP_BASELINE_BOOST : baseRevenuePerPlayer;
         return {
           period,
           index: quarterToIndex(parts.year, parts.quarter),
-          revenuePerPlayer: revenue / info.avgPlayers,
+          revenuePerPlayer,
         };
       })
-      .filter((entry) => entry && entry.index < currentIndex) // bara avslutade kvartal
+      .filter(Boolean)
       .sort((a, b) => b.index - a.index);
+    const map = new Map(list.map((e) => [e.period, e]));
+    return { list, map };
+  }, [quarterlyPlayersStatic, revenueData]);
 
-    if (!entries.length) {
+  const pickBaseline = useCallback(
+    (targetPeriod) => {
+      const targetParts = periodKeyToParts(targetPeriod);
+      const targetIndex =
+        targetParts && QUARTERS.includes(targetParts.quarter)
+          ? quarterToIndex(targetParts.year, targetParts.quarter)
+          : currentIndex;
+      const usable = baselineCandidates.list.filter((e) => e.index < targetIndex);
+      if (usable.length) return usable[0];
       return { period: null, revenuePerPlayer: DEFAULT_REVENUE_PER_PLAYER };
-    }
-    return { ...entries[0] };
-  }, [currentIndex, quarterlyPlayersStatic, revenueData]);
+    },
+    [baselineCandidates, currentIndex]
+  );
 
   const baselineComputed = useMemo(() => {
     const hasCurrentReport = Number.isFinite(revenueData[currentPeriod]);
@@ -320,8 +401,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         isManual: true,
       };
     }
-    return { ...baselineAuto, isManual: false };
-  }, [baselineAuto, currentPeriod, revenueData]);
+    const chosen = pickBaseline(currentPeriod);
+    return { ...chosen, isManual: false };
+  }, [currentPeriod, pickBaseline, revenueData]);
 
   const baselineRef = useRef({
     period: null,
@@ -343,16 +425,30 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
   const baselineRevenuePerPlayer = baselineRef.current.revenuePerPlayer;
   const baselineReferencePeriod = baselineRef.current.period;
-  const baselineAutoRevenuePerPlayer = baselineAuto.revenuePerPlayer;
+  const baselineForPeriod = useCallback(
+    (period) => {
+      const chosen = pickBaseline(period);
+      return chosen?.revenuePerPlayer ?? DEFAULT_REVENUE_PER_PLAYER;
+    },
+    [pickBaseline]
+  );
 
   const quarterPlayersList = useMemo(() => {
     const basePeriods = [currentPeriod, previousPeriod, twoBeforePeriod, baselineReferencePeriod];
+    const previousYear = currentYear - 1;
+    const historical = [`${previousYear} Q1`, `${previousYear} Q2`];
     const unique = [];
-    basePeriods.forEach((p) => { if (p && !unique.includes(p)) unique.push(p); });
-    return unique;
-  }, [currentPeriod, previousPeriod, twoBeforePeriod, baselineReferencePeriod]);
-
-  const currentQuarterPlayers = quarterlyPlayers[currentPeriod]?.avgPlayers ?? null;
+    [...basePeriods, ...historical].forEach((p) => {
+      if (p && !unique.includes(p)) unique.push(p);
+    });
+    return unique
+      .map((p) => ({ period: p, parts: periodKeyToParts(p) }))
+      .sort((a, b) => {
+        if (!a.parts || !b.parts) return 0;
+        return quarterToIndex(b.parts.year, b.parts.quarter) - quarterToIndex(a.parts.year, a.parts.quarter);
+      })
+      .map((item) => item.period);
+  }, [baselineReferencePeriod, currentPeriod, currentYear, previousPeriod, twoBeforePeriod]);
 
   const qData = useMemo(() => {
     if (!currentPeriod) return [];
@@ -365,7 +461,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       .sort((a, b) => new Date(a.Datum) - new Date(b.Datum))
       .map((item) => {
         const rawPlayers = Number(item.Players) || 0;
-        const adjustedPlayers = Math.round(rawPlayers * PLAYER_ADJUSTMENT_FACTOR);
+        const factor = getAdjustmentFactorForDate(new Date(item.Datum));
+        const adjustedPlayers = Math.round(rawPlayers * factor);
         return {
           date: item.Datum,
           players: adjustedPlayers,
@@ -400,8 +497,16 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return Math.round(sum / trimmed.length);
   }, [qData, todayYmd]);
 
-  const baseAveragePlayers = liveAveragePlayersRaw ?? currentQuarterPlayers ?? 0;
-  const adjustedAveragePlayers = Math.round(baseAveragePlayers * PLAYER_ADJUSTMENT_FACTOR);
+  const currentQuarterPlayersRaw = quarterlyPlayers[currentPeriod]?.avgPlayers ?? null;
+  const currentQuarterPlayersAdjusted =
+    quarterlyPlayers[currentPeriod]?.adjustedAvgPlayers ??
+    (currentQuarterPlayersRaw ? Math.round(currentQuarterPlayersRaw * PLAYER_ADJUSTMENT_FACTOR) : null);
+
+  const baseAveragePlayers = liveAveragePlayersRaw ?? currentQuarterPlayersRaw ?? 0;
+  const adjustedAveragePlayers =
+    liveAveragePlayersAdjusted ??
+    currentQuarterPlayersAdjusted ??
+    Math.round(baseAveragePlayers * PLAYER_ADJUSTMENT_FACTOR);
 
   const estimatedRevenue = Number.isFinite(baselineRevenuePerPlayer)
     ? Math.round(adjustedAveragePlayers * baselineRevenuePerPlayer * 10) / 10
@@ -427,15 +532,19 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const tableRows = useMemo(() => {
     return quarterPlayersList
       .map((period) => {
-        const info = quarterlyPlayers[period] || { avgPlayers: 0 };
+        const info = quarterlyPlayers[period] || { avgPlayers: 0, adjustedAvgPlayers: null };
         const basePlayers = Math.round(info.avgPlayers || 0);
-        const adjustedPlayers = Math.round(basePlayers * PLAYER_ADJUSTMENT_FACTOR);
+        const adjustedPlayers = Math.round(
+          info.adjustedAvgPlayers != null
+            ? info.adjustedAvgPlayers
+            : basePlayers * PLAYER_ADJUSTMENT_FACTOR
+        );
         const actualRevenue = Number.isFinite(revenueData[period]) ? revenueData[period] : null;
         const useAdjusted = period === currentPeriod || !Number.isFinite(actualRevenue);
         const playersForEstimate = useAdjusted ? adjustedPlayers : basePlayers;
         const baselineForRow = period === currentPeriod
           ? baselineRevenuePerPlayer
-          : baselineAutoRevenuePerPlayer;
+          : baselineForPeriod(period);
         const est = Number.isFinite(baselineForRow)
           ? Math.round(playersForEstimate * baselineForRow * 10) / 10
           : null;
@@ -481,7 +590,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           Number.isFinite(row.actual) ||
           Number.isFinite(row.estimated)
       );
-  }, [quarterPlayersList, quarterlyPlayers, revenueData, currentPeriod, baselineRevenuePerPlayer, baselineAutoRevenuePerPlayer]);
+  }, [quarterPlayersList, quarterlyPlayers, revenueData, currentPeriod, baselineRevenuePerPlayer, baselineForPeriod]);
 
   const topGames = useMemo(() => {
     if (!slugAverages.length) return [];
@@ -717,10 +826,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                         `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`,
                         `Live avg ${liveAveragePlayersRaw.toLocaleString("sv-SE")} players`
                       )
-                    : currentQuarterPlayers
+                    : currentQuarterPlayersAdjusted ?? currentQuarterPlayersRaw
                     ? translate(
-                        `Kvartalssnitt ${currentQuarterPlayers.toLocaleString("sv-SE")} spelare`,
-                        `Quarter avg ${currentQuarterPlayers.toLocaleString("sv-SE")} players`
+                        `Kvartalssnitt ${(currentQuarterPlayersAdjusted ?? currentQuarterPlayersRaw)?.toLocaleString("sv-SE")} spelare`,
+                        `Quarter avg ${(currentQuarterPlayersAdjusted ?? currentQuarterPlayersRaw)?.toLocaleString("sv-SE")} players`
                       )
                     : translate("Inväntar kvartalsdata", "Waiting for quarterly data")}
                 </Typography>
