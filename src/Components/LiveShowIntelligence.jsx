@@ -245,6 +245,19 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const lastYearSameQuarterPeriod = formatPeriodKey(
     quarterToIndex(currentYear - 1, currentQuarter)
   );
+  const forecastTargetPeriod = useMemo(() => {
+    const reports = Array.isArray(financialReports?.financialReports)
+      ? financialReports.financialReports
+      : [];
+    if (!reports.length) return currentPeriod;
+    const ordered = [...reports].sort(
+      (a, b) =>
+        a.year - b.year ||
+        QUARTERS.indexOf(a.quarter) - QUARTERS.indexOf(b.quarter)
+    );
+    const last = ordered[ordered.length - 1];
+    return formatPeriodKey(quarterToIndex(last.year, last.quarter) + 1);
+  }, [currentPeriod, financialReports]);
 
   const [dynamicPlayers, setDynamicPlayers] = useState([]);
   const [slugAverages, setSlugAverages] = useState([]);
@@ -298,7 +311,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
   const mergedPlayersData = useMemo(() => {
     // Tillåt dynamiska datapunkter för nuvarande och föregående kvartal (t.ex. Q1 + Q4)
-    const allowedQuarters = new Set([currentPeriod, previousPeriod]);
+    const allowedQuarters = new Set([currentPeriod, previousPeriod, forecastTargetPeriod]);
     const filteredDynamic = (dynamicPlayers || []).filter((row) => {
       const rawDate = row?.Datum || row?.date;
       if (!rawDate) return false;
@@ -308,7 +321,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       return allowedQuarters.has(period);
     });
     return mergePlayersData(averagePlayersData, filteredDynamic);
-  }, [averagePlayersData, dynamicPlayers, currentPeriod, previousPeriod]);
+  }, [averagePlayersData, dynamicPlayers, currentPeriod, forecastTargetPeriod, previousPeriod]);
 
   const quarterlyPlayersStatic = useMemo(
     () => applyQuarterSnapshots(calculateQuarterlyPlayers(averagePlayersData)),
@@ -336,6 +349,25 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return financialReports.financialReports.reduce((acc, report) => {
       const key = `${report.year} ${report.quarter}`;
       acc[key] = Number(report.liveCasino) || null;
+      return acc;
+    }, {});
+  }, [financialReports]);
+
+  const totalRevenueData = useMemo(() => {
+    if (
+      !financialReports ||
+      !financialReports.financialReports ||
+      !Array.isArray(financialReports.financialReports)
+    ) {
+      return {};
+    }
+    return financialReports.financialReports.reduce((acc, report) => {
+      const key = `${report.year} ${report.quarter}`;
+      const live = Number(report.liveCasino);
+      const rng = Number(report.rng);
+      const total =
+        Number.isFinite(live) && Number.isFinite(rng) ? live + rng : Number.isFinite(live) ? live : null;
+      acc[key] = total;
       return acc;
     }, {});
   }, [financialReports]);
@@ -433,8 +465,57 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     [pickBaseline]
   );
 
+  const rngForecast = useMemo(() => {
+    const reports = Array.isArray(financialReports?.financialReports)
+      ? financialReports.financialReports
+      : [];
+    const ordered = [...reports]
+      .filter((report) => Number.isFinite(report?.rng))
+      .sort(
+        (a, b) =>
+          a.year - b.year ||
+          QUARTERS.indexOf(a.quarter) - QUARTERS.indexOf(b.quarter)
+      );
+    if (!ordered.length) return null;
+
+    const growthRates = [];
+    for (let i = 1; i < ordered.length; i += 1) {
+      const prev = ordered[i - 1];
+      const cur = ordered[i];
+      if (Number.isFinite(prev.rng) && prev.rng > 0 && Number.isFinite(cur.rng)) {
+        growthRates.push(((cur.rng - prev.rng) / prev.rng) * 100);
+      }
+    }
+    const recent = growthRates.slice(-8);
+    const avgGrowth = recent.length
+      ? recent.reduce((sum, value) => sum + value, 0) / recent.length
+      : null;
+    const projectedGrowth =
+      avgGrowth == null ? 1.5 : Math.min(2, Math.max(1, avgGrowth));
+
+    const last = ordered[ordered.length - 1];
+    const nextPeriod = formatPeriodKey(quarterToIndex(last.year, last.quarter) + 1);
+    const projectedRng = Number.isFinite(last.rng)
+      ? Math.round(last.rng * (1 + projectedGrowth / 100) * 10) / 10
+      : null;
+
+    return {
+      last,
+      nextPeriod,
+      avgGrowth,
+      projectedGrowth,
+      projectedRng,
+    };
+  }, [financialReports]);
+
   const quarterPlayersList = useMemo(() => {
-    const basePeriods = [currentPeriod, previousPeriod, twoBeforePeriod, baselineReferencePeriod];
+    const basePeriods = [
+      currentPeriod,
+      previousPeriod,
+      twoBeforePeriod,
+      baselineReferencePeriod,
+      forecastTargetPeriod,
+    ];
     const previousYear = currentYear - 1;
     const historical = [`${previousYear} Q1`, `${previousYear} Q2`];
     const unique = [];
@@ -448,7 +529,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         return quarterToIndex(b.parts.year, b.parts.quarter) - quarterToIndex(a.parts.year, a.parts.quarter);
       })
       .map((item) => item.period);
-  }, [baselineReferencePeriod, currentPeriod, currentYear, previousPeriod, twoBeforePeriod]);
+  }, [baselineReferencePeriod, currentPeriod, currentYear, forecastTargetPeriod, previousPeriod, twoBeforePeriod]);
 
   const qData = useMemo(() => {
     if (!currentPeriod) return [];
@@ -669,6 +750,48 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return Math.ceil(max * 1.15);
   }, [qData]);
 
+  const combinedQ4Estimate = useMemo(() => {
+    if (!rngForecast) return null;
+    const targetPlayers =
+      quarterlyPlayers[forecastTargetPeriod]?.adjustedAvgPlayers ??
+      quarterlyPlayers[forecastTargetPeriod]?.avgPlayers ??
+      adjustedAveragePlayers;
+    const targetBaseline = baselineForPeriod(forecastTargetPeriod);
+    const liveValue =
+      Number.isFinite(targetPlayers) && Number.isFinite(targetBaseline)
+        ? Math.round(targetPlayers * targetBaseline * 10) / 10
+        : null;
+    const rngValue = Number.isFinite(rngForecast.projectedRng) ? rngForecast.projectedRng : null;
+    if (liveValue == null || rngValue == null) return null;
+    const targetParts = periodKeyToParts(forecastTargetPeriod);
+    const priorPeriod =
+      targetParts != null
+        ? formatPeriodKey(quarterToIndex(targetParts.year - 1, targetParts.quarter))
+        : null;
+    const priorTotal = priorPeriod ? totalRevenueData[priorPeriod] : null;
+    const total = Math.round((liveValue + rngValue) * 10) / 10;
+    const delta = Number.isFinite(priorTotal) ? total - priorTotal : null;
+    const deltaPct = Number.isFinite(priorTotal) && priorTotal !== 0 ? (delta / priorTotal) * 100 : null;
+    return {
+      period: labelFromPeriod(rngForecast.nextPeriod || forecastTargetPeriod),
+      total,
+      live: liveValue,
+      rng: rngValue,
+      rngGrowth: rngForecast.projectedGrowth,
+      priorPeriodLabel: priorPeriod ? labelFromPeriod(priorPeriod) : null,
+      priorTotal,
+      delta,
+      deltaPct,
+    };
+  }, [
+    adjustedAveragePlayers,
+    baselineForPeriod,
+    forecastTargetPeriod,
+    quarterlyPlayers,
+    rngForecast,
+    totalRevenueData,
+  ]);
+
   return (
     <Box
       sx={{
@@ -755,6 +878,72 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           )}
         </Stack>
       </Box>
+
+      {combinedQ4Estimate && (
+        <Box
+          sx={{
+            mt: { xs: 2, md: 3 },
+            p: { xs: 1.5, md: 2 },
+            borderRadius: { xs: "12px", md: "14px" },
+            border: "1px solid rgba(56,189,248,0.25)",
+            background:
+              "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(14,165,233,0.08))",
+            color: "#e2e8f0",
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={{ xs: 1, sm: 2 }}
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            justifyContent="space-between"
+          >
+            <Stack spacing={0.4}>
+              <Typography variant="overline" sx={{ letterSpacing: 1 }}>
+                {translate("Q4 rapport-estimat", "Q4 report estimate")}
+              </Typography>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {combinedQ4Estimate.period}
+              </Typography>
+              <Typography sx={{ color: "rgba(226,232,240,0.78)" }}>
+                {translate(
+                  "Gameshow-estimat + RNG i ~1–2% takt från senaste kvartalen.",
+                  "Gameshow estimate plus RNG at ~1–2% quarterly cadence."
+                )}
+              </Typography>
+            </Stack>
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={{ xs: 1, sm: 1.5 }}
+              alignItems={{ xs: "flex-start", sm: "center" }}
+            >
+              <Chip
+                label={`${translate("Live", "Live")}: ${formatMillion(combinedQ4Estimate.live)} €M`}
+                size="small"
+                sx={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#bfdbfe" }}
+              />
+              <Chip
+                label={`${translate("RNG prognos", "RNG forecast")}: ${formatMillion(
+                  combinedQ4Estimate.rng
+                )} €M (${combinedQ4Estimate.rngGrowth?.toFixed(1) ?? "1.5"}% QoQ)`}
+                size="small"
+                sx={{ backgroundColor: "rgba(234,179,8,0.18)", color: "#facc15" }}
+              />
+              <Chip
+                label={`${translate("Summa", "Total")}: ${formatMillion(combinedQ4Estimate.total)} €M`}
+                size="small"
+                sx={{ backgroundColor: "rgba(16,185,129,0.2)", color: "#4ade80", fontWeight: 700 }}
+              />
+              {combinedQ4Estimate.priorPeriodLabel && Number.isFinite(combinedQ4Estimate.delta) && (
+                <Chip
+                  label={`${translate("Mot", "Vs")} ${combinedQ4Estimate.priorPeriodLabel}: ${combinedQ4Estimate.delta >= 0 ? "+" : "–"}${formatMillion(Math.abs(combinedQ4Estimate.delta))} €M (${combinedQ4Estimate.deltaPct != null ? `${combinedQ4Estimate.deltaPct >= 0 ? "+" : "–"}${Math.abs(combinedQ4Estimate.deltaPct).toFixed(1)}%` : "–"})`}
+                  size="small"
+                  sx={{ backgroundColor: "rgba(148,163,184,0.18)", color: "#e2e8f0" }}
+                />
+              )}
+            </Stack>
+          </Stack>
+        </Box>
+      )}
 
       <Box component="div">
           <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
