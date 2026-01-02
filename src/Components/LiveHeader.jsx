@@ -37,6 +37,7 @@ const SUPPORT_URL = "https://buymeacoffee.com/evuul";
 const DONATION_NUDGE_STORAGE_KEY = "evodata_donation_nudge_dismissed_v1";
 const DONATION_NUDGE_TTL_MS = 24 * 60 * 60 * 1000;
 const LIVE_CACHE_MS = 10 * 60 * 1000;
+const LOBBY_ATH_DAYS = 365; // hämta tillräckligt många dagar för att få ATH (använder snapshotens ATH oavsett)
 
 const liveCaches = {
   short: { ts: 0, percent: null },
@@ -179,6 +180,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const [loadingShort, setLoadingShort] = useState(false);
   const [latestTopWin, setLatestTopWin] = useState(null);
   const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
+  const [lobbyAth, setLobbyAth] = useState(null);
   const [showDonationNudge, setShowDonationNudge] = useState(false);
   const mobileCardsRef = useRef(null);
   const [mobileCardIndex, setMobileCardIndex] = useState(0);
@@ -192,6 +194,14 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     const step = cardWidth + gap;
     el.scrollTo({ left: index * step, behavior: "smooth" });
   }, []);
+
+  const lobbyAthLabel = useMemo(() => {
+    const val = Number(lobbyAth?.value);
+    if (!Number.isFinite(val)) return null;
+    const date = lobbyAth?.date ? lobbyAth.date : null;
+    const num = val.toLocaleString("sv-SE");
+    return date ? `${translate("Lobby ATH", "Lobby ATH")}: ${num} (${date})` : `${translate("Lobby ATH", "Lobby ATH")}: ${num}`;
+  }, [lobbyAth, translate]);
 
   const fetchShortFromHistory = useCallback(async () => {
     const now = Date.now();
@@ -278,6 +288,20 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     let isActive = true;
     let latestRequestId = 0;
 
+    const loadLobbyOverview = async () => {
+      try {
+        const res = await fetch(`/api/casinoscores/lobby/overview?days=${LOBBY_ATH_DAYS}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(`overview failed: ${res.status}`);
+        const data = await res.json();
+        if (!isActive) return;
+        setLobbyAth(data?.ath || null);
+      } catch (error) {
+        if (!isActive) return;
+        console.warn("[LiveHeader] Failed to fetch lobby overview:", error);
+        setLobbyAth(null);
+      }
+    };
+
     const loadLatestTopWin = async () => {
       const now = Date.now();
       if (now - liveCaches.top3.ts < LIVE_CACHE_MS && Array.isArray(liveCaches.top3.entries)) {
@@ -309,9 +333,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     const handleFocus = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       loadLatestTopWin();
+      loadLobbyOverview();
     };
 
     loadLatestTopWin();
+    loadLobbyOverview();
     const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
@@ -736,6 +762,24 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   },
                 }}
               />
+              {lobbyAthLabel && (
+                <Chip
+                  size="small"
+                  label={lobbyAthLabel}
+                  sx={{
+                    backgroundColor: "rgba(52,211,153,0.18)",
+                    color: "#34d399",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(52,211,153,0.35)",
+                    height: { xs: 22, sm: 28 },
+                    "& .MuiChip-label": {
+                      px: { xs: 0.7, sm: 1.2 },
+                      fontSize: { xs: "0.64rem", sm: "0.8rem" },
+                      fontWeight: 600,
+                    },
+                  }}
+                />
+              )}
               <Box sx={{ position: "relative", display: { xs: "none", md: "flex" }, alignItems: "center" }}>
                 {showDonationNudge && (
                   <Box
