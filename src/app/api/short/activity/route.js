@@ -11,6 +11,15 @@ import { totalSharesData } from "@/Components/buybacks/utils";
 const DEFAULT_DAYS = 45;
 const MAX_DAYS = 365;
 const SYMBOL = "EVO.ST";
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minuter
+const STALE_IF_ERROR_MS = 10 * 60 * 1000; // tillåt gammalt i 10 min om upstream faller
+const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // max en fetch per period
+const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vila längre vid 429
+const RETRY_AFTER_SECONDS = 120;
+
+const g = globalThis;
+g.__shortActivityCache ??= new Map(); // key: days -> {data, exp, staleExp}
+g.__shortActivityState ??= new Map(); // days -> {inFlight, nextAllowedAt}
 
 function clampDays(value) {
   const n = Number.parseInt(value, 10);
@@ -90,11 +99,80 @@ function enumerateBusinessDatesExclusive(startDateStr, endDateStr) {
   return dates;
 }
 
-export async function GET(request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const days = clampDays(searchParams.get("days"));
+function normalizeError(err) {
+  const message = err instanceof Error ? err.message : String(err ?? "Unknown error");
+  const lower = message.toLowerCase();
+  const rateLimited = lower.includes("too many requests") || lower.includes("429");
+  return {
+    message: rateLimited ? "Yahoo Finance rate limited the request" : message,
+    status: rateLimited ? 429 : 502,
+    rateLimited,
+  };
+}
 
+function getCached(days, { allowStale = false } = {}) {
+  const hit = g.__shortActivityCache.get(days);
+  if (!hit) return null;
+  const now = Date.now();
+  if (hit.exp > now) return { ...hit, stale: false };
+  if (allowStale && hit.staleExp && hit.staleExp > now) return { ...hit, stale: true };
+  if (hit.staleExp && hit.staleExp > now) return null;
+  g.__shortActivityCache.delete(days);
+  return null;
+}
+
+function setCached(days, data) {
+  const now = Date.now();
+  g.__shortActivityCache.set(days, {
+    data,
+    exp: now + CACHE_TTL_MS,
+    staleExp: now + CACHE_TTL_MS + STALE_IF_ERROR_MS,
+  });
+}
+
+function getState(days) {
+  return g.__shortActivityState.get(days) || null;
+}
+
+function setState(days, patch) {
+  const prev = g.__shortActivityState.get(days) || {};
+  g.__shortActivityState.set(days, { ...prev, ...patch });
+}
+
+export async function GET(request) {
+  const { searchParams } = new URL(request.url);
+  const days = clampDays(searchParams.get("days"));
+
+  const cached = getCached(days);
+  if (cached) {
+    return NextResponse.json(cached.data, { status: 200 });
+  }
+
+  const state = getState(days);
+  const nowTs = Date.now();
+  if (state?.nextAllowedAt && state.nextAllowedAt > nowTs) {
+    const stale =
+      getCached(days, { allowStale: true });
+    if (stale) {
+      return NextResponse.json({ ...stale.data, stale: true }, { status: 200 });
+    }
+    const retryAfter = Math.ceil((state.nextAllowedAt - nowTs) / 1000);
+    return NextResponse.json(
+      { ok: false, error: "Upstream temporarily paused due to rate limiting, try again soon" },
+      { status: 429, headers: { "Retry-After": String(Math.max(retryAfter, RETRY_AFTER_SECONDS)) } }
+    );
+  }
+
+  if (state?.inFlight) {
+    try {
+      const payload = await state.inFlight;
+      return NextResponse.json(payload, { status: 200 });
+    } catch {
+      // fall through
+    }
+  }
+
+  const fetchPromise = (async () => {
     const shortHistoryRaw = await loadShortHistory();
     const shortHistory = Array.isArray(shortHistoryRaw)
       ? shortHistoryRaw
@@ -118,8 +196,8 @@ export async function GET(request) {
         period2: new Date(),
         interval: "1d",
       });
-    } catch {
-      historical = [];
+    } catch (err) {
+      throw err;
     }
 
     const volumeByDate = new Map();
@@ -135,10 +213,7 @@ export async function GET(request) {
     const tradingDates = sortedVolumeDates.slice(-days);
 
     if (!tradingDates.length) {
-      return NextResponse.json(
-        { ok: false, error: "Ingen handelsdata tillgänglig" },
-        { status: 503 }
-      );
+      return { ok: false, error: "Ingen handelsdata tillgänglig" };
     }
 
     const shortPercentMap = new Map(shortHistory.map((entry) => [entry.date, entry.percent]));
@@ -242,7 +317,7 @@ export async function GET(request) {
 
     const latest = enriched[enriched.length - 1] ?? null;
 
-    return NextResponse.json({
+    return {
       ok: true,
       symbol: SYMBOL,
       days,
@@ -250,9 +325,36 @@ export async function GET(request) {
       latest,
       aggregateShare,
       updatedAt: new Date().toISOString(),
-    });
+    };
+  })();
+
+  setState(days, { inFlight: fetchPromise });
+
+  try {
+    const payload = await fetchPromise;
+    setState(days, { inFlight: null, nextAllowedAt: Date.now() + MIN_FETCH_INTERVAL_MS });
+    if (payload?.ok !== false) {
+      setCached(days, payload);
+    }
+    return NextResponse.json(payload, { status: payload?.ok === false ? 503 : 200 });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+    const { status, message, rateLimited } = normalizeError(err);
+    if (rateLimited) {
+      setState(days, { nextAllowedAt: Date.now() + RATE_LIMIT_COOLDOWN_MS, inFlight: null });
+    } else {
+      setState(days, { nextAllowedAt: Date.now() + MIN_FETCH_INTERVAL_MS, inFlight: null });
+    }
+    const stale =
+      getCached(days, { allowStale: true });
+    if (stale) {
+      return NextResponse.json({ ...stale.data, stale: true }, { status: 200 });
+    }
+
+    const headers = {
+      "Cache-Control": "no-store",
+      ...(rateLimited ? { "Retry-After": String(RETRY_AFTER_SECONDS) } : null),
+    };
+
+    return NextResponse.json({ ok: false, error: message }, { status, headers });
   }
 }
