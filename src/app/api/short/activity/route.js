@@ -16,6 +16,7 @@ const STALE_IF_ERROR_MS = 10 * 60 * 1000; // tillåt gammalt i 10 min om upstrea
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // max en fetch per period
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vila längre vid 429
 const RETRY_AFTER_SECONDS = 120;
+const FETCH_ENABLED = process.env.YAHOO_FETCH_ENABLED === "true"; // default avstängt tills vi sätter true
 
 const g = globalThis;
 g.__shortActivityCache ??= new Map(); // key: days -> {data, exp, staleExp}
@@ -148,11 +149,24 @@ export async function GET(request) {
     return NextResponse.json(cached.data, { status: 200 });
   }
 
+  const tryServeStale = async () => getCached(days, { allowStale: true });
   const state = getState(days);
   const nowTs = Date.now();
+
+  if (!FETCH_ENABLED) {
+    const stale = await tryServeStale();
+    if (stale) {
+      return NextResponse.json({ ...stale.data, stale: true }, { status: 200 });
+    }
+    return NextResponse.json(
+      { ok: false, error: "Upstream temporarily disabled, try again later" },
+      { status: 503, headers: { "Retry-After": String(RETRY_AFTER_SECONDS) } }
+    );
+  }
+
   if (state?.nextAllowedAt && state.nextAllowedAt > nowTs) {
     const stale =
-      getCached(days, { allowStale: true });
+      await tryServeStale();
     if (stale) {
       return NextResponse.json({ ...stale.data, stale: true }, { status: 200 });
     }
