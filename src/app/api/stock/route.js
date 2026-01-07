@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
+import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
+import { totalSharesData } from "@/Components/buybacks/utils";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -13,10 +14,6 @@ const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istä
 const SHARED_KEY_PREFIX = "stock:quote:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vid 429: vila 10 min
-const MANUAL_PAUSE_MS = 24 * 60 * 60 * 1000; // håll paus 24h globalt
-const SHARED_PAUSE_KEY_PREFIX = "stock:pause:";
-const SHARED_PAUSE_FLAG_PREFIX = "stock:pause-once:";
-const FETCH_ENABLED = process.env.YAHOO_FETCH_ENABLED === "true"; // default avstängt tills vi sätter true
 
 const g = globalThis;
 g.__stockRouteCache ??= new Map();
@@ -104,57 +101,6 @@ async function setSharedCached(symbol, data, etag) {
   }
 }
 
-async function getSharedPauseUntil(symbol) {
-  const kv = await getKv();
-  if (!kv) return null;
-  try {
-    const val = await kv.get(`${SHARED_PAUSE_KEY_PREFIX}${symbol}`);
-    if (typeof val === "number" && Number.isFinite(val)) return val;
-    if (typeof val === "string") {
-      const parsed = Number(val);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    return null;
-  } catch (err) {
-    console.warn("[stock] KV pause get misslyckades:", err);
-    return null;
-  }
-}
-
-async function setSharedPauseUntil(symbol, untilTs) {
-  const kv = await getKv();
-  if (!kv) return;
-  try {
-    const ttlSec = Math.max(60, Math.ceil((untilTs - Date.now()) / 1000));
-    await kv.set(`${SHARED_PAUSE_KEY_PREFIX}${symbol}`, untilTs, { ex: ttlSec });
-  } catch (err) {
-    console.warn("[stock] KV pause set misslyckades:", err);
-  }
-}
-
-async function getSharedPauseFlag(symbol) {
-  const kv = await getKv();
-  if (!kv) return false;
-  try {
-    const val = await kv.get(`${SHARED_PAUSE_FLAG_PREFIX}${symbol}`);
-    return Boolean(val);
-  } catch (err) {
-    console.warn("[stock] KV pause flag get misslyckades:", err);
-    return false;
-  }
-}
-
-async function setSharedPauseFlag(symbol, ttlMs = MANUAL_PAUSE_MS) {
-  const kv = await getKv();
-  if (!kv) return;
-  try {
-    const ttl = Math.max(60, Math.ceil(ttlMs / 1000));
-    await kv.set(`${SHARED_PAUSE_FLAG_PREFIX}${symbol}`, 1, { ex: ttl });
-  } catch (err) {
-    console.warn("[stock] KV pause flag set misslyckades:", err);
-  }
-}
-
 function respondFromCache(hit, request) {
   const inm = request.headers.get("if-none-match");
   if (inm && hit.etag && inm === hit.etag && !hit.stale) {
@@ -198,6 +144,133 @@ function setState(symbol, patch) {
   g.__stockRouteState.set(symbol, { ...prev, ...patch });
 }
 
+function buildPayload({
+  currentPrice,
+  changePercent,
+  historicalData,
+  now,
+  source = null,
+}) {
+  if (!historicalData.length) {
+    throw new Error("Could not find start of year price");
+  }
+
+  const startOfYearPrice = historicalData[0]?.close;
+  const ytdChangePercent =
+    Number.isFinite(currentPrice) && Number.isFinite(startOfYearPrice) && startOfYearPrice !== 0
+      ? ((currentPrice - startOfYearPrice) / startOfYearPrice) * 100
+      : null;
+
+  let gains = 0;
+  let losses = 0;
+  for (let i = 1; i < historicalData.length; i++) {
+    const previousClose = historicalData[i - 1]?.close;
+    const currentClose = historicalData[i]?.close;
+    if (!Number.isFinite(previousClose) || !Number.isFinite(currentClose)) continue;
+    const delta = currentClose - previousClose;
+    if (delta > 0) gains += 1;
+    else if (delta < 0) losses += 1;
+  }
+
+  const totalSharesOutstanding = getLatestTotalShares();
+  const marketCap =
+    Number.isFinite(currentPrice) && Number.isFinite(totalSharesOutstanding)
+      ? currentPrice * totalSharesOutstanding
+      : null;
+
+  return {
+    price: {
+      regularMarketPrice: {
+        raw: Number.isFinite(currentPrice) ? currentPrice : null,
+      },
+      regularMarketChangePercent: {
+        raw: Number.isFinite(changePercent) ? changePercent : null,
+      },
+    },
+    marketCap,
+    ytdChangePercent,
+    daysWithGains: gains,
+    daysWithLosses: losses,
+    generatedAt: now.toISOString(),
+    ...(source ? { source } : null),
+  };
+}
+
+function getLatestTotalShares() {
+  if (!Array.isArray(totalSharesData) || !totalSharesData.length) return null;
+  const latest = totalSharesData[totalSharesData.length - 1]?.totalShares;
+  return Number.isFinite(latest) ? latest : null;
+}
+
+async function fetchStooqDaily(symbol) {
+  const stooqSymbol = symbol.toLowerCase();
+  const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSymbol)}&i=d`;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Stooq request failed: ${response.status}`);
+  }
+  const text = await response.text();
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) {
+    throw new Error("Stooq returned no data");
+  }
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const parts = lines[i].split(",");
+    if (parts.length < 6) continue;
+    const date = new Date(parts[0]);
+    const close = Number(parts[4]);
+    if (!date || Number.isNaN(date.getTime()) || !Number.isFinite(close)) continue;
+    rows.push({ date, close });
+  }
+  if (!rows.length) {
+    throw new Error("Stooq returned empty price series");
+  }
+  rows.sort((a, b) => a.date - b.date);
+  return rows;
+}
+
+async function fetchYahooChartDaily(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Yahoo chart request failed: ${response.status}`);
+  }
+  const data = await response.json();
+  const result = data?.chart?.result?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const closes = Array.isArray(result?.indicators?.quote?.[0]?.close)
+    ? result.indicators.quote[0].close
+    : [];
+  if (!timestamps.length || !closes.length) {
+    throw new Error("Yahoo chart returned no data");
+  }
+  const rows = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    const ts = timestamps[i];
+    const close = closes[i];
+    const date = new Date(ts * 1000);
+    if (!Number.isFinite(close) || Number.isNaN(date.getTime())) continue;
+    rows.push({ date, close: Number(close) });
+  }
+  if (!rows.length) {
+    throw new Error("Yahoo chart returned empty price series");
+  }
+  rows.sort((a, b) => a.date - b.date);
+  const latest = rows[rows.length - 1];
+  const currentPrice = Number.isFinite(result?.meta?.regularMarketPrice)
+    ? Number(result.meta.regularMarketPrice)
+    : latest?.close ?? null;
+  let changePercent = null;
+  if (rows.length >= 2) {
+    const prev = rows[rows.length - 2];
+    if (Number.isFinite(prev?.close) && prev.close !== 0 && Number.isFinite(latest?.close)) {
+      changePercent = ((latest.close - prev.close) / prev.close) * 100;
+    }
+  }
+  return { rows, currentPrice, changePercent };
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const symbolRaw = searchParams.get("symbol") || "";
@@ -220,58 +293,58 @@ export async function GET(request) {
 
   const state = getState(symbol);
   const nowTs = Date.now();
-
-  const pauseApplied = await getSharedPauseFlag(symbol);
-  const manualPauseUntil = pauseApplied ? null : (g.__stockManualPauseUntil ??= nowTs + MANUAL_PAUSE_MS);
-  const sharedPauseUntil = await getSharedPauseUntil(symbol);
-  const statePauseUntil = state?.pausedUntil;
-  const activePauseUntil = [sharedPauseUntil, statePauseUntil, manualPauseUntil]
-    .filter((v) => Number.isFinite(v) && v > nowTs)
-    .reduce((max, v) => (max == null || v > max ? v : max), null);
-
-  const tryServeStale = async () =>
-    getCached(symbol, { allowStale: true }) ||
-    sharedCached ||
-    (await getSharedCached(symbol, { allowStale: true }));
-
-  if (!pauseApplied && !sharedPauseUntil && Number.isFinite(manualPauseUntil) && manualPauseUntil > nowTs) {
-    setState(symbol, { pausedUntil: manualPauseUntil });
-    await Promise.all([
-      setSharedPauseUntil(symbol, manualPauseUntil),
-      setSharedPauseFlag(symbol, MANUAL_PAUSE_MS + 6 * 60 * 60 * 1000),
-    ]);
-  }
-
-  if (!FETCH_ENABLED) {
-    const stale = await tryServeStale();
-    if (stale) {
-      return respondFromCache({ ...stale, stale: true }, request);
-    }
-    return NextResponse.json(
-      { error: "Upstream temporarily disabled, try again later" },
-      { status: 503, headers: { "Retry-After": String(RETRY_AFTER_SECONDS) } }
-    );
-  }
-
-  if (activePauseUntil) {
-    const stale = await tryServeStale();
-    if (stale) {
-      return respondFromCache({ ...stale, stale: true }, request);
-    }
-    const retryAfter = Math.ceil((activePauseUntil - nowTs) / 1000);
-    return NextResponse.json(
-      { error: "Upstream temporarily paused to avoid rate limiting, try again later" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(Math.max(retryAfter, RETRY_AFTER_SECONDS)) },
-      }
-    );
-  }
-
   if (state?.nextAllowedAt && state.nextAllowedAt > nowTs) {
-    const stale = await tryServeStale();
+    const stale =
+      getCached(symbol, { allowStale: true }) ||
+      sharedCached ||
+      (await getSharedCached(symbol, { allowStale: true }));
     if (stale) {
       return respondFromCache({ ...stale, stale: true }, request);
+    }
+    try {
+      const now = new Date();
+      const period1 = new Date(now.getFullYear(), 0, 1);
+      let source = "stooq";
+      let rows = [];
+      let currentPrice = null;
+      let changePercent = null;
+      try {
+        rows = await fetchStooqDaily(symbol);
+        const latest = rows[rows.length - 1];
+        currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
+        if (rows.length >= 2) {
+          const prev = rows[rows.length - 2];
+          if (Number.isFinite(prev?.close) && prev.close !== 0 && Number.isFinite(latest?.close)) {
+            changePercent = ((latest.close - prev.close) / prev.close) * 100;
+          }
+        }
+      } catch {
+        const chart = await fetchYahooChartDaily(symbol);
+        rows = chart.rows;
+        currentPrice = chart.currentPrice;
+        changePercent = chart.changePercent;
+        source = "yahoo-chart";
+      }
+      const historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
+      const payload = buildPayload({
+        currentPrice,
+        changePercent,
+        historicalData,
+        now,
+        source,
+      });
+      const etag = makeEtag(payload);
+      setCached(symbol, payload, etag);
+      await setSharedCached(symbol, payload, etag);
+      return NextResponse.json(payload, {
+        status: 200,
+        headers: {
+          ETag: etag,
+          "Cache-Control": CACHE_CONTROL,
+        },
+      });
+    } catch {
+      // fall through to 429
     }
     const retryAfter = Math.ceil((state.nextAllowedAt - nowTs) / 1000);
     return NextResponse.json(
@@ -285,7 +358,8 @@ export async function GET(request) {
 
   if (state?.inFlight) {
     try {
-      const payload = await state.inFlight;
+      const inFlightResult = await state.inFlight;
+      const payload = inFlightResult?.payload ?? inFlightResult;
       return respondFromCache(
         { data: payload, etag: makeEtag(payload), stale: false },
         request
@@ -300,76 +374,81 @@ export async function GET(request) {
     const period1 = new Date(now.getFullYear(), 0, 1);
 
     const fetchPromise = (async () => {
-      const quote = await yahooFinance.quote(symbol);
-      if (!quote) {
-        return NextResponse.json({ error: `No data found for symbol ${symbol}` }, { status: 404 });
-      }
+      let source = null;
+      let yahooRateLimited = false;
 
-      const historicalRaw = await yahooFinance.historical(symbol, {
-        period1,
-        period2: now,
-        interval: "1d",
-      });
+      let currentPrice = null;
+      let changePercent = null;
+      let historicalData = [];
 
-      if (!Array.isArray(historicalRaw) || historicalRaw.length === 0) {
-        return NextResponse.json({ error: `No historical data found for symbol ${symbol}` }, { status: 404 });
-      }
-
-      const historicalData = historicalRaw
-        .map((row) => {
-          const date = row?.date ? new Date(row.date) : null;
-          const close = Number(row?.close ?? row?.adjClose);
-          if (!date || Number.isNaN(date.getTime()) || !Number.isFinite(close)) return null;
-          return { date, close };
-        })
-        .filter((row) => row && row.date >= period1 && row.date <= now)
-        .sort((a, b) => a.date - b.date);
-
-      if (!historicalData.length) {
-        return NextResponse.json({ error: "Could not find start of year price" }, { status: 404 });
-      }
-
-      const startOfYearPrice = historicalData[0]?.close;
-      const currentPrice = Number(quote?.regularMarketPrice);
-
-      const ytdChangePercent =
-        Number.isFinite(currentPrice) && Number.isFinite(startOfYearPrice) && startOfYearPrice !== 0
-          ? ((currentPrice - startOfYearPrice) / startOfYearPrice) * 100
+      try {
+        const quote = await withYahooThrottle(() => yahooFinance.quote(symbol));
+        if (!quote) {
+          throw new Error(`No data found for symbol ${symbol}`);
+        }
+        const historicalRaw = await withYahooThrottle(() =>
+          yahooFinance.historical(symbol, {
+            period1,
+            period2: now,
+            interval: "1d",
+          })
+        );
+        if (!Array.isArray(historicalRaw) || historicalRaw.length === 0) {
+          throw new Error(`No historical data found for symbol ${symbol}`);
+        }
+        historicalData = historicalRaw
+          .map((row) => {
+            const date = row?.date ? new Date(row.date) : null;
+            const close = Number(row?.close ?? row?.adjClose);
+            if (!date || Number.isNaN(date.getTime()) || !Number.isFinite(close)) return null;
+            return { date, close };
+          })
+          .filter((row) => row && row.date >= period1 && row.date <= now)
+          .sort((a, b) => a.date - b.date);
+        currentPrice = Number(quote?.regularMarketPrice);
+        changePercent = Number.isFinite(quote?.regularMarketChangePercent)
+          ? Number(quote.regularMarketChangePercent)
           : null;
-
-      let gains = 0;
-      let losses = 0;
-      for (let i = 1; i < historicalData.length; i++) {
-        const previousClose = historicalData[i - 1]?.close;
-        const currentClose = historicalData[i]?.close;
-        if (!Number.isFinite(previousClose) || !Number.isFinite(currentClose)) continue;
-        const delta = currentClose - previousClose;
-        if (delta > 0) gains += 1;
-        else if (delta < 0) losses += 1;
+      } catch (err) {
+        const normalized = normalizeError(err);
+        yahooRateLimited = normalized.rateLimited;
+        try {
+          const rows = await fetchStooqDaily(symbol);
+          historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
+          const latest = rows[rows.length - 1];
+          currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
+          if (rows.length >= 2) {
+            const prev = rows[rows.length - 2];
+            if (Number.isFinite(prev?.close) && prev.close !== 0 && Number.isFinite(latest?.close)) {
+              changePercent = ((latest.close - prev.close) / prev.close) * 100;
+            }
+          }
+          source = "stooq";
+        } catch (stooqErr) {
+          const chart = await fetchYahooChartDaily(symbol);
+          historicalData = chart.rows.filter((row) => row.date >= period1 && row.date <= now);
+          currentPrice = chart.currentPrice;
+          changePercent = chart.changePercent;
+          source = "yahoo-chart";
+        }
       }
 
       return {
-        price: {
-          regularMarketPrice: {
-            raw: Number.isFinite(currentPrice) ? currentPrice : null,
-          },
-          regularMarketChangePercent: {
-            raw: Number.isFinite(quote?.regularMarketChangePercent)
-              ? Number(quote.regularMarketChangePercent)
-              : null,
-          },
-        },
-        marketCap: Number.isFinite(quote?.marketCap) ? Number(quote.marketCap) : null,
-        ytdChangePercent,
-        daysWithGains: gains,
-        daysWithLosses: losses,
-        generatedAt: now.toISOString(),
+        payload: buildPayload({
+          currentPrice,
+          changePercent,
+          historicalData,
+          now,
+          source,
+        }),
+        yahooRateLimited,
       };
     })();
 
     setState(symbol, { inFlight: fetchPromise });
-    const payload = await fetchPromise;
-    setState(symbol, { inFlight: null, nextAllowedAt: Date.now() + MIN_FETCH_INTERVAL_MS });
+    const { payload, yahooRateLimited } = await fetchPromise;
+    const nextWait = yahooRateLimited ? RATE_LIMIT_COOLDOWN_MS : MIN_FETCH_INTERVAL_MS;
+    setState(symbol, { inFlight: null, nextAllowedAt: Date.now() + nextWait });
 
     const etag = makeEtag(payload);
     setCached(symbol, payload, etag);
