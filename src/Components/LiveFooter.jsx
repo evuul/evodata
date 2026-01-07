@@ -5,6 +5,7 @@ import LocalCafeIcon from "@mui/icons-material/LocalCafe";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import GitHubIcon from "@mui/icons-material/GitHub";
 import { Box, Button, Chip, Container, Divider, IconButton, Stack, Typography } from "@mui/material";
+import { useTranslate } from "@/context/LocaleContext";
 
 const SUPPORT_URL = "https://www.buymeacoffee.com/alexanderek";
 const SUPPORT_QR_SRC = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https%3A%2F%2Fwww.buymeacoffee.com%2Falexanderek";
@@ -12,17 +13,22 @@ const TWITTER_URL = "https://twitter.com/alexand93085679";
 const GITHUB_URL = "https://github.com/alexanderek";
 
 export default function LiveFooter() {
+  const translate = useTranslate();
+
   return (
     <Box
       component="footer"
       sx={{
-        mt: { xs: 6, md: 8 },
+        mt: { xs: 4, md: 6 },
+        width: "100%",
+        maxWidth: "1200px",
+        mx: "auto",
         position: "relative",
         overflow: "hidden",
-        borderRadius: { xs: 3, md: 4 },
+        borderRadius: { xs: 2.5, md: 3 },
         border: "1px solid rgba(148,163,184,0.18)",
-        background: "linear-gradient(135deg, rgba(7,11,23,0.95), rgba(21,32,55,0.95))",
-        boxShadow: "0 28px 80px rgba(2,8,23,0.65)",
+        background: "linear-gradient(135deg, #0f172a, #1f2937)",
+        boxShadow: "0 22px 60px rgba(2,8,23,0.5)",
       }}
     >
       <Box
@@ -54,7 +60,7 @@ export default function LiveFooter() {
         >
           <Stack spacing={1.2} maxWidth={520}>
             <Chip
-              label="Creator Spotlight"
+              label={translate("Skaparen i fokus", "Creator spotlight")}
               sx={{
                 alignSelf: "flex-start",
                 backgroundColor: "rgba(56,189,248,0.18)",
@@ -71,12 +77,16 @@ export default function LiveFooter() {
                 color: "#e2e8f0",
               }}
             >
-              Byggt av Alexander Ek – på fritiden, för communityt
+              {translate(
+                "Byggt av Alexander Ek – på fritiden, för communityt",
+                "Built by Alexander Ek – after hours, for the community"
+              )}
             </Typography>
             <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.75)", lineHeight: 1.8 }}>
-              Jag samlar all live-intelligens om Evolution på ett ställe: kurs, lobby, blankning, återköp och insiderdata.
-              Om du har glädje av kontrollrummet får du gärna stötta utvecklingen – så kan jag fortsätta lägga till nya
-              insikter, API:er och dashboards.
+              {translate(
+                "Jag samlar all live-intelligens om Evolution på ett ställe: kurs, lobby, blankning, återköp och insiderdata. Om du har glädje av kontrollrummet får du gärna stötta utvecklingen – så kan jag fortsätta lägga till nya insikter, API:er och dashboards.",
+                "I gather Evolution live intelligence in one place: price, lobby, short interest, buybacks, and insider data. If the control room is useful, feel free to support development so I can keep adding new insights, APIs, and dashboards."
+              )}
             </Typography>
             <Stack direction="row" spacing={1.5} flexWrap="wrap">
               <Chip
@@ -126,7 +136,7 @@ export default function LiveFooter() {
                 },
               }}
             >
-              Stötta på Buy Me a Coffee
+              {translate("Stötta på Buy Me a Coffee", "Support on Buy Me a Coffee")}
             </Button>
 
             <Box
@@ -151,7 +161,7 @@ export default function LiveFooter() {
                 }}
               />
               <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.7)" }}>
-                Skanna och stötta direkt via mobilen
+                {translate("Skanna och stötta direkt via mobilen", "Scan to support on mobile")}
               </Typography>
             </Box>
 
@@ -161,7 +171,9 @@ export default function LiveFooter() {
               alignItems="center"
               sx={{ color: "rgba(226,232,240,0.75)" }}
             >
-              <Typography variant="body2">Följ uppdateringar</Typography>
+              <Typography variant="body2">
+                {translate("Följ uppdateringar", "Follow updates")}
+              </Typography>
               <IconButton
                 component="a"
                 href={TWITTER_URL}
@@ -202,14 +214,17 @@ export default function LiveFooter() {
           sx={{ color: "rgba(148,163,184,0.75)" }}
         >
           <Typography variant="caption">
-            © {new Date().getFullYear()} Alexander Ek. Byggt med ❤️ för Evolution-communityt.
+            {translate(
+              `© ${new Date().getFullYear()} Alexander Ek. Byggt med ❤️ för Evolution-communityt.`,
+              `© ${new Date().getFullYear()} Alexander Ek. Built with ❤️ for the Evolution community.`
+            )}
           </Typography>
           <Stack direction="row" spacing={1.5} flexWrap="wrap">
               <Chip
                 component={NextLink}
                 href="mailto:alexander.ek@live.se"
                 clickable
-                label="Maila mig"
+                label={translate("Maila mig", "Email me")}
                 sx={{ backgroundColor: "rgba(148,163,184,0.16)", color: "#cbd5f5" }}
               />
           </Stack>

@@ -18,7 +18,6 @@ import LiveFAQ from "../Components/LiveFAQ";
 import GamePlayersBox from "../Components/GamePlayersBox"; // 👈 NY
 import FairValueCard from "../Components/FairValueCard";
 import { useAuth } from "../context/AuthContext";
-import LiveFooter from "../Components/LiveFooter";
 
 // Laddningsskelett för tunga komponenter
 const GraphBoxSkeleton = () => (
@@ -376,8 +375,6 @@ export default function Home() {
         <LiveFAQ />
         </Box> */}
 
-      {/* <LiveFooter /> */}
-
     </>
   );
 
@@ -411,7 +408,6 @@ export default function Home() {
           insiderTransactions={insiderTransactions}
           sharesData={outstandingShares}
         />
-        {/* <LiveFooter /> */}
       </main>
     );
   }

@@ -21,6 +21,8 @@ import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
 import CloseRounded from "@mui/icons-material/CloseRounded";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
+import InfoOutlined from "@mui/icons-material/InfoOutlined";
+import NextLink from "next/link";
 import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
@@ -776,10 +778,31 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                       px: { xs: 0.7, sm: 1.2 },
                       fontSize: { xs: "0.64rem", sm: "0.8rem" },
                       fontWeight: 600,
-                    },
-                  }}
-                />
-              )}
+                  },
+                }}
+              />
+            )}
+              <Chip
+                component={NextLink}
+                href="/disclaimer"
+                clickable
+                size="small"
+                icon={<InfoOutlined />}
+                label={translate("Disclaimer", "Disclaimer")}
+                sx={{
+                  backgroundColor: "rgba(56,189,248,0.18)",
+                  color: "#7dd3fc",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(56,189,248,0.35)",
+                  height: { xs: 22, sm: 28 },
+                  "& .MuiChip-label": {
+                    px: { xs: 0.7, sm: 1.2 },
+                    fontSize: { xs: "0.64rem", sm: "0.8rem" },
+                    fontWeight: 600,
+                  },
+                  "& .MuiChip-icon": { color: "#7dd3fc" },
+                }}
+              />
               <Box sx={{ position: "relative", display: { xs: "none", md: "flex" }, alignItems: "center" }}>
                 {showDonationNudge && (
                   <Box
