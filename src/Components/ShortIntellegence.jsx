@@ -399,6 +399,9 @@ const ShortIntellegence = () => {
             Math.abs(latestTrading.shortChangeShares)
           )}`
         : "–",
+      daysToCover: Number.isFinite(latestTrading.daysToCover)
+        ? latestTrading.daysToCover
+        : null,
     };
   }, [latestTrading]);
 
@@ -936,7 +939,7 @@ const ShortIntellegence = () => {
             </Box>
 
             <Grid container spacing={isMobile ? 2 : 3}>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <Box
                   sx={{
                     background: "rgba(250,204,21,0.12)",
@@ -969,7 +972,7 @@ const ShortIntellegence = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <Box
                   sx={{
                     background: "rgba(74,222,128,0.12)",
@@ -1005,7 +1008,7 @@ const ShortIntellegence = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={3}>
                 <Box
                   sx={{
                     background: "rgba(148,163,184,0.12)",
@@ -1035,6 +1038,39 @@ const ShortIntellegence = () => {
                     }}
                   >
                     {translate("Andel av volym för vald period", "Share of volume for selected period")}
+                  </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box
+                  sx={{
+                    background: "rgba(56,189,248,0.12)",
+                    borderRadius: "14px",
+                    border: "1px solid rgba(56,189,248,0.25)",
+                    p: 2.5,
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      color: "rgba(56,189,248,0.9)",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {translate("Days to cover", "Days to cover")}
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                    {latestTradingSummary && latestTradingSummary.daysToCover != null
+                      ? latestTradingSummary.daysToCover.toFixed(2)
+                      : "–"}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.75)",
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {translate("Kort/20d volymsnitt", "Shorts / 20d avg volume")}
                   </Typography>
                 </Box>
               </Grid>

@@ -16,9 +16,10 @@ const STALE_IF_ERROR_MS = 10 * 60 * 1000; // tillåt gammalt i 10 min om upstrea
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // max en fetch per period
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vila längre vid 429
 const RETRY_AFTER_SECONDS = 120;
+const CACHE_VERSION = "v2";
 const SHARED_CACHE_TTL_MS = 10 * 60 * 1000;
 const SHARED_STALE_MS = 60 * 60 * 1000;
-const SHARED_KEY_PREFIX = "short:activity:";
+const SHARED_KEY_PREFIX = `short:activity:${CACHE_VERSION}:`;
 
 const g = globalThis;
 g.__shortActivityCache ??= new Map(); // key: days -> {data, exp, staleExp}
@@ -115,19 +116,21 @@ function normalizeError(err) {
 }
 
 function getCached(days, { allowStale = false } = {}) {
-  const hit = g.__shortActivityCache.get(days);
+  const key = `${CACHE_VERSION}:${days}`;
+  const hit = g.__shortActivityCache.get(key);
   if (!hit) return null;
   const now = Date.now();
   if (hit.exp > now) return { ...hit, stale: false };
   if (allowStale && hit.staleExp && hit.staleExp > now) return { ...hit, stale: true };
   if (hit.staleExp && hit.staleExp > now) return null;
-  g.__shortActivityCache.delete(days);
+  g.__shortActivityCache.delete(key);
   return null;
 }
 
 function setCached(days, data) {
   const now = Date.now();
-  g.__shortActivityCache.set(days, {
+  const key = `${CACHE_VERSION}:${days}`;
+  g.__shortActivityCache.set(key, {
     data,
     exp: now + CACHE_TTL_MS,
     staleExp: now + CACHE_TTL_MS + STALE_IF_ERROR_MS,
@@ -546,13 +549,23 @@ export async function GET(request) {
     const volumeAvg20 = calcRollingAverage(volumes, 20);
     const shortShareOfVolumeAvg5 = calcRollingAverage(percentOfVolume, 5);
 
-    const enriched = items.map((item, idx) => ({
-      ...item,
-      volumeAverage5: volumeAvg5[idx] != null ? Math.round(volumeAvg5[idx]) : null,
-      volumeAverage20: volumeAvg20[idx] != null ? Math.round(volumeAvg20[idx]) : null,
-      shortShareOfVolumeAverage5:
-        shortShareOfVolumeAvg5[idx] != null ? +shortShareOfVolumeAvg5[idx].toFixed(2) : null,
-    }));
+    const enriched = items.map((item, idx) => {
+      const volumeAverage5 = volumeAvg5[idx] != null ? Math.round(volumeAvg5[idx]) : null;
+      const volumeAverage20 = volumeAvg20[idx] != null ? Math.round(volumeAvg20[idx]) : null;
+      const baseVolume = volumeAverage20 ?? volumeAverage5 ?? item.volumeShares;
+      const daysToCover =
+        Number.isFinite(item.shortShares) && Number.isFinite(baseVolume) && baseVolume > 0
+          ? +(item.shortShares / baseVolume).toFixed(2)
+          : null;
+      return {
+        ...item,
+        volumeAverage5,
+        volumeAverage20,
+        shortShareOfVolumeAverage5:
+          shortShareOfVolumeAvg5[idx] != null ? +shortShareOfVolumeAvg5[idx].toFixed(2) : null,
+        daysToCover,
+      };
+    });
 
     const totalVolume = volumeWindows.filter((v) => Number.isFinite(v)).reduce((sum, v) => sum + v, 0);
     const totalShortFlow = shortVolumeShares.filter((v) => Number.isFinite(v)).reduce((sum, v) => sum + v, 0);
