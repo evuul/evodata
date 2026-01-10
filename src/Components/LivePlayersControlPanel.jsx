@@ -91,6 +91,7 @@ const TREND_BOOST_STORAGE_KEY = "trend_boost_10pct";
 const LOBBY_BOOST_STORAGE_KEY = "lobby_boost_10pct";
 
 const TREND_DAY_OPTIONS = [30, 60, 90, 180];
+const TOP_GROWTH_DAYS = 90;
 const ATH_DAY_OPTIONS = [90, 180, 365];
 const INITIAL_VISIBLE_LIVE = 10;
 const INITIAL_VISIBLE_ATH = 10;
@@ -687,6 +688,45 @@ const LivePlayersControlPanel = () => {
     [slugDetails]
   );
 
+  const topGrowthGame = useMemo(() => {
+    if (!slugDailyMap.size) return null;
+    const candidates = [];
+    slugDailyMap.forEach((series, slug) => {
+      if (!Array.isArray(series) || series.length < 2) return;
+      const slice = series.slice(-TOP_GROWTH_DAYS);
+      if (slice.length < 2) return;
+      const trend = computeTrendDiff(slice);
+      if (!trend || !Number.isFinite(trend.percent)) return;
+      const game = SLUG_TO_GAME.get(slug);
+      const color = GAME_COLORS?.[game?.id] || "#34d399";
+      candidates.push({
+        slug,
+        label: game?.label || slug,
+        percent: trend.percent,
+        start: trend.start,
+        end: trend.end,
+        color,
+      });
+    });
+
+    if (!candidates.length) return null;
+    const positive = candidates.filter((item) => item.percent > 0);
+    const pool = positive.length ? positive : candidates;
+    pool.sort((a, b) => b.percent - a.percent);
+    return { ...pool[0], hasPositive: positive.length > 0 };
+  }, [slugDailyMap]);
+
+  const topGrowthDisplay = useMemo(() => {
+    if (!topGrowthGame) return null;
+    const percentText = Number.isFinite(topGrowthGame.percent)
+      ? `${topGrowthGame.percent > 0 ? "+" : ""}${percentFormatter.format(topGrowthGame.percent)}%`
+      : "—";
+    const startDateText = formatDateOnly(topGrowthGame.start?.date);
+    const endDateText = formatDateOnly(topGrowthGame.end?.date);
+    const rangeText = startDateText && endDateText ? `${startDateText} → ${endDateText}` : null;
+    return { ...topGrowthGame, percentText, rangeText };
+  }, [topGrowthGame, percentFormatter]);
+
   const gameTrendOptions = useMemo(() => {
     if (!slugDailyMap.size) return [];
     return Array.from(slugDailyMap.entries())
@@ -1171,6 +1211,63 @@ const LivePlayersControlPanel = () => {
                         {translate("Ingen ATH-data kunde beräknas.", "No ATH data could be calculated.")}
                       </Typography>
                     </>
+                  )}
+                </Box>
+              </Grid>
+              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+                <Box
+                  sx={{
+                    background: "rgba(15,23,42,0.45)",
+                    borderRadius: "16px",
+                    border: "1px solid rgba(34,197,94,0.28)",
+                    p: { xs: 2, md: 2.5 },
+                    width: "100%",
+                    maxWidth: { xs: "100%", sm: 320 },
+                    minHeight: 180,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 1,
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    sx={{ color: "rgba(134,239,172,0.95)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
+                  >
+                    {translate("Störst tillväxt (90 dagar)", "Top growth (90 days)")}
+                  </Typography>
+                  {overviewLoading ? (
+                    <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                      <CircularProgress size={18} sx={{ color: "#86efac" }} />
+                      <Typography variant="body2" sx={{ color: "rgba(134,239,172,0.85)" }}>
+                        {translate("Hämtar trenddata…", "Fetching trend data…")}
+                      </Typography>
+                    </Box>
+                  ) : topGrowthDisplay ? (
+                    topGrowthDisplay.hasPositive ? (
+                      <>
+                        <Stack direction="row" spacing={0.9} justifyContent="center" alignItems="center">
+                          <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: topGrowthDisplay.color }} />
+                          <Typography variant="h6" sx={{ fontWeight: 700, textAlign: "center" }}>
+                            {topGrowthDisplay.label}
+                          </Typography>
+                        </Stack>
+                        <Typography variant="h4" sx={{ fontWeight: 700, color: "#86efac", textAlign: "center" }}>
+                          {topGrowthDisplay.percentText}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                          {translate("Senaste 90 dagar", "Last 90 days")}
+                          {topGrowthDisplay.rangeText ? ` • ${topGrowthDisplay.rangeText}` : ""}
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                        {translate("Ingen positiv tillväxt senaste 90 dagarna.", "No positive growth in the last 90 days.")}
+                      </Typography>
+                    )
+                  ) : (
+                    <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+                      {translate("Ingen trenddata tillgänglig.", "No trend data available.")}
+                    </Typography>
                   )}
                 </Box>
               </Grid>
