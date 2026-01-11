@@ -231,6 +231,26 @@ const computeTrendDiff = (series, key = "players") => {
   };
 };
 
+const applyMovingAverage = (series, windowSize, key = "players") => {
+  if (!Array.isArray(series) || !series.length) return [];
+  const size = Math.max(1, Math.floor(windowSize || 1));
+  const result = [];
+  const window = [];
+  let sum = 0;
+
+  for (const row of series) {
+    const value = Number(row?.[key]);
+    if (!Number.isFinite(value)) continue;
+    window.push(value);
+    sum += value;
+    if (window.length > size) sum -= window.shift();
+    const avg = Math.round((sum / window.length) * 100) / 100;
+    result.push({ ...row, [key]: avg });
+  }
+
+  return result;
+};
+
 const LivePlayersControlPanel = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -278,6 +298,7 @@ const LivePlayersControlPanel = () => {
   const [asiaTrackerSlug, setAsiaTrackerSlug] = useState(null);
   const [asiaTrackerDays, setAsiaTrackerDays] = useState(TREND_DAY_OPTIONS[0]);
   const [asiaViewMode, setAsiaViewMode] = useState("trend");
+  const [asiaTrendMaOn, setAsiaTrendMaOn] = useState(false);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
   const mobileCardsRef = useRef(null);
   const [mobileCardIndex, setMobileCardIndex] = useState(0);
@@ -288,6 +309,8 @@ const LivePlayersControlPanel = () => {
   // ===== NEW: +10% boost on/off (med localStorage ihågkomst)
   const [trendBoostOn, setTrendBoostOn] = useState(false);
   const [lobbyBoostOn, setLobbyBoostOn] = useState(false);
+  const [trendMaOn, setTrendMaOn] = useState(false);
+  const [gameTrendMaOn, setGameTrendMaOn] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -631,18 +654,21 @@ const LivePlayersControlPanel = () => {
       .filter((row) => row.players != null);
   }, [dailyTotals, trendDays]);
 
-  const trendSummary = useMemo(() => computeTrendDiff(trendChartData), [trendChartData]);
+  const trendSeriesForView = useMemo(
+    () => (trendMaOn ? applyMovingAverage(trendChartData, trendDays) : trendChartData),
+    [trendChartData, trendMaOn, trendDays]
+  );
 
   // ===== NEW: applicera +10% boost på serie & summering
   const boostedTrendChartData = useMemo(
     () =>
       trendBoostOn
-        ? trendChartData.map((row) => ({
+        ? trendSeriesForView.map((row) => ({
             ...row,
             players: Math.round(row.players * 1.1),
           }))
-        : trendChartData,
-    [trendChartData, trendBoostOn]
+        : trendSeriesForView,
+    [trendSeriesForView, trendBoostOn]
   );
 
   const boostedTrendSummary = useMemo(() => computeTrendDiff(boostedTrendChartData), [boostedTrendChartData]);
@@ -688,12 +714,15 @@ const LivePlayersControlPanel = () => {
     [slugDetails]
   );
 
+  const topGrowthUseMa = trendMaOn || gameTrendMaOn;
+
   const topGrowthGame = useMemo(() => {
     if (!slugDailyMap.size) return null;
     const candidates = [];
     slugDailyMap.forEach((series, slug) => {
       if (!Array.isArray(series) || series.length < 2) return;
-      const slice = series.slice(-TOP_GROWTH_DAYS);
+      const baseSeries = topGrowthUseMa ? applyMovingAverage(series, TOP_GROWTH_DAYS) : series;
+      const slice = baseSeries.slice(-TOP_GROWTH_DAYS);
       if (slice.length < 2) return;
       const trend = computeTrendDiff(slice);
       if (!trend || !Number.isFinite(trend.percent)) return;
@@ -714,7 +743,7 @@ const LivePlayersControlPanel = () => {
     const pool = positive.length ? positive : candidates;
     pool.sort((a, b) => b.percent - a.percent);
     return { ...pool[0], hasPositive: positive.length > 0 };
-  }, [slugDailyMap]);
+  }, [slugDailyMap, topGrowthUseMa]);
 
   const topGrowthDisplay = useMemo(() => {
     if (!topGrowthGame) return null;
@@ -781,9 +810,14 @@ const LivePlayersControlPanel = () => {
     return asiaCombinedSeries.slice(-sliceCount);
   }, [asiaCombinedSeries, asiaTrackerDays]);
 
+  const asiaTrendChartDataForView = useMemo(
+    () => (asiaTrendMaOn ? applyMovingAverage(asiaTrendChartData, asiaTrackerDays) : asiaTrendChartData),
+    [asiaTrendChartData, asiaTrackerDays, asiaTrendMaOn]
+  );
+
   const asiaTrendSummary = useMemo(
-    () => computeTrendDiff(asiaTrendChartData),
-    [asiaTrendChartData]
+    () => computeTrendDiff(asiaTrendChartDataForView),
+    [asiaTrendChartDataForView]
   );
 
   useEffect(() => {
@@ -810,13 +844,18 @@ const LivePlayersControlPanel = () => {
     return series.slice(-sliceCount);
   }, [slugDailyMap, gameTrendSlug, gameTrendDays]);
 
+  const gameTrendChartData = useMemo(
+    () => (gameTrendMaOn ? applyMovingAverage(gameTrendSeries, gameTrendDays) : gameTrendSeries),
+    [gameTrendSeries, gameTrendMaOn, gameTrendDays]
+  );
+
   const gameTrendSummary = useMemo(() => {
-    const primary = computeTrendDiff(gameTrendSeries);
+    const primary = computeTrendDiff(gameTrendChartData);
     if (primary) return primary;
     if (!gameTrendSlug) return null;
     const fullSeries = slugDailyMap.get(gameTrendSlug) ?? [];
     return computeTrendDiff(fullSeries);
-  }, [gameTrendSeries, gameTrendSlug, slugDailyMap]);
+  }, [gameTrendChartData, gameTrendSlug, slugDailyMap]);
 
   const selectedAsiaOption = useMemo(
     () => asiaTrendOptions.find((opt) => opt.slug === asiaTrackerSlug) || null,
@@ -830,13 +869,19 @@ const LivePlayersControlPanel = () => {
     return series.slice(-sliceCount);
   }, [slugDailyMap, asiaTrackerSlug, asiaTrackerDays]);
 
+  const asiaTrackerChartData = useMemo(
+    () => (asiaTrendMaOn ? applyMovingAverage(asiaTrackerSeries, asiaTrackerDays) : asiaTrackerSeries),
+    [asiaTrackerSeries, asiaTrackerDays, asiaTrendMaOn]
+  );
+
   const asiaTrackerSummary = useMemo(() => {
-    const primary = computeTrendDiff(asiaTrackerSeries);
+    const primary = computeTrendDiff(asiaTrackerChartData);
     if (primary) return primary;
     if (!asiaTrackerSlug) return null;
     const fullSeries = slugDailyMap.get(asiaTrackerSlug) ?? [];
-    return computeTrendDiff(fullSeries);
-  }, [asiaTrackerSeries, asiaTrackerSlug, slugDailyMap]);
+    const baseSeries = asiaTrendMaOn ? applyMovingAverage(fullSeries, asiaTrackerDays) : fullSeries;
+    return computeTrendDiff(baseSeries);
+  }, [asiaTrackerChartData, asiaTrackerSlug, slugDailyMap, asiaTrackerDays, asiaTrendMaOn]);
 
   const asiaLiveRows = useMemo(
     () => liveGamesList.filter((row) => ASIA_GAME_KEY_SET.has(row.id)),
@@ -1233,7 +1278,14 @@ const LivePlayersControlPanel = () => {
                     variant="overline"
                     sx={{ color: "rgba(134,239,172,0.95)", letterSpacing: 1.2, fontWeight: 600, textAlign: "center" }}
                   >
-                    {translate("Störst tillväxt (90 dagar)", "Top growth (90 days)")}
+                    {translate(
+                      topGrowthUseMa
+                        ? `Störst tillväxt (${TOP_GROWTH_DAYS} dagar, MA)`
+                        : `Störst tillväxt (${TOP_GROWTH_DAYS} dagar)`,
+                      topGrowthUseMa
+                        ? `Top growth (${TOP_GROWTH_DAYS} days, MA)`
+                        : `Top growth (${TOP_GROWTH_DAYS} days)`
+                    )}
                   </Typography>
                   {overviewLoading ? (
                     <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
@@ -1255,13 +1307,22 @@ const LivePlayersControlPanel = () => {
                           {topGrowthDisplay.percentText}
                         </Typography>
                         <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                          {translate("Senaste 90 dagar", "Last 90 days")}
+                          {translate(`Senaste ${TOP_GROWTH_DAYS} dagar`, `Last ${TOP_GROWTH_DAYS} days`)}
+                          {topGrowthUseMa
+                            ? translate(` • glidande snitt ${TOP_GROWTH_DAYS}d`, ` • moving avg ${TOP_GROWTH_DAYS}d`)
+                            : ""}
                           {topGrowthDisplay.rangeText ? ` • ${topGrowthDisplay.rangeText}` : ""}
                         </Typography>
                       </>
                     ) : (
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
-                        {translate("Ingen positiv tillväxt senaste 90 dagarna.", "No positive growth in the last 90 days.")}
+                        {translate(
+                          `Ingen positiv tillväxt senaste ${TOP_GROWTH_DAYS} dagarna.`,
+                          `No positive growth in the last ${TOP_GROWTH_DAYS} days.`
+                        )}
+                        {topGrowthUseMa
+                          ? translate(" (glidande snitt)", " (moving avg)")
+                          : ""}
                       </Typography>
                     )
                   ) : (
@@ -1431,6 +1492,9 @@ const LivePlayersControlPanel = () => {
             onChangeDays={setTrendDays}
             boostOn={trendBoostOn}
             onToggleBoost={() => setTrendBoostOn((v) => !v)}
+            movingAverageOn={trendMaOn}
+            onToggleMovingAverage={() => setTrendMaOn((v) => !v)}
+            movingAverageDays={trendDays}
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
@@ -1445,12 +1509,15 @@ const LivePlayersControlPanel = () => {
             selectedSlug={gameTrendSlug}
             onSelectSlug={setGameTrendSlug}
             trendUpdatedLabel={trendUpdatedLabel}
-            chartData={gameTrendSeries}
+            chartData={gameTrendChartData}
             summary={gameTrendSummary}
             selectedOption={selectedGameOption}
             dayOptions={TREND_DAY_OPTIONS}
             days={gameTrendDays}
             onChangeDays={setGameTrendDays}
+            movingAverageOn={gameTrendMaOn}
+            onToggleMovingAverage={() => setGameTrendMaOn((v) => !v)}
+            movingAverageDays={gameTrendDays}
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
@@ -1470,14 +1537,17 @@ const LivePlayersControlPanel = () => {
             onSelectSlug={setAsiaTrackerSlug}
             viewMode={asiaViewMode}
             onChangeViewMode={setAsiaViewMode}
-            trendChartData={asiaTrendChartData}
+            trendChartData={asiaTrendChartDataForView}
             trendSummary={asiaTrendSummary}
-            gameChartData={asiaTrackerSeries}
+            gameChartData={asiaTrackerChartData}
             gameSummary={asiaTrackerSummary}
             selectedOption={selectedAsiaOption}
             dayOptions={TREND_DAY_OPTIONS}
             days={asiaTrackerDays}
             onChangeDays={setAsiaTrackerDays}
+            movingAverageOn={asiaTrendMaOn}
+            onToggleMovingAverage={() => setAsiaTrendMaOn((v) => !v)}
+            movingAverageDays={asiaTrackerDays}
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
@@ -1523,6 +1593,9 @@ const TrendSection = ({
   // NEW:
   boostOn,
   onToggleBoost,
+  movingAverageOn,
+  onToggleMovingAverage,
+  movingAverageDays,
   numberFormatter,
   translate,
   percentFormatter,
@@ -1552,6 +1625,13 @@ const TrendSection = ({
     trendSummary?.end?.value != null ? numberFormatter.format(trendSummary.end.value) : "—";
   const startDateText = formatDateOnly(trendSummary?.start?.date) ?? "—";
   const endDateText = formatDateOnly(trendSummary?.end?.date) ?? "—";
+  const movingAverageLabel = translate(
+    `Glidande snitt ${movingAverageDays}d`,
+    `Moving avg ${movingAverageDays}d`
+  );
+  const tooltipLabel = movingAverageOn
+    ? movingAverageLabel
+    : translate("Genomsnitt", "Average");
 
   return (
   <Box
@@ -1579,7 +1659,7 @@ const TrendSection = ({
         </Typography>
       </Stack>
 
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
         {/* +10% boost toggle */}
         <Chip
           label={boostOn ? translate("Boost +10% (på)", "Boost +10% (on)") : translate("Boost +10%", "Boost +10%")}
@@ -1591,6 +1671,19 @@ const TrendSection = ({
             color: boostOn ? "#34d399" : "rgba(226,232,240,0.85)",
             border: boostOn ? "1px solid rgba(74,222,128,0.55)" : "1px solid transparent",
             fontWeight: boostOn ? 700 : 500,
+          }}
+        />
+
+        <Chip
+          label={movingAverageOn ? `${movingAverageLabel} (${translate("på", "on")})` : movingAverageLabel}
+          onClick={onToggleMovingAverage}
+          clickable
+          sx={{
+            borderRadius: "999px",
+            backgroundColor: movingAverageOn ? "rgba(56,189,248,0.2)" : "rgba(148,163,184,0.12)",
+            color: movingAverageOn ? "#7dd3fc" : "rgba(226,232,240,0.85)",
+            border: movingAverageOn ? "1px solid rgba(56,189,248,0.45)" : "1px solid transparent",
+            fontWeight: movingAverageOn ? 700 : 500,
           }}
         />
 
@@ -1665,6 +1758,7 @@ const TrendSection = ({
       </Typography>
       <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
         {translate("Förändring", "Change")}: {absoluteText} ({percentText}) {boostOn ? translate("• (boost +10%)", "• (boost +10%)") : ""}
+        {movingAverageOn ? ` ${translate(`• glidande snitt ${movingAverageDays}d`, `• moving avg ${movingAverageDays}d`)}` : ""}
       </Typography>
     </Stack>
 
@@ -1708,7 +1802,7 @@ const TrendSection = ({
               }}
               formatter={(value) => [
                 `${numberFormatter.format(value)} ${translate("spelare", "players")}${boostOn ? " (boost +10%)" : ""}`,
-                translate("Genomsnitt", "Average"),
+                tooltipLabel,
               ]}
             />
             <Area
@@ -1753,6 +1847,9 @@ const GameTrendSection = ({
   dayOptions,
   days,
   onChangeDays,
+  movingAverageOn,
+  onToggleMovingAverage,
+  movingAverageDays,
   numberFormatter,
   translate,
   percentFormatter,
@@ -1783,6 +1880,13 @@ const GameTrendSection = ({
   const endDateText = formatDateOnly(summary?.end?.date) ?? "—";
   const activeColor = selectedOption?.color ?? "#38bdf8";
   const activeLabel = selectedOption?.label ?? translate("Välj spel", "Select game");
+  const movingAverageLabel = translate(
+    `Glidande snitt ${movingAverageDays}d`,
+    `Moving avg ${movingAverageDays}d`
+  );
+  const tooltipLabel = movingAverageOn
+    ? movingAverageLabel
+    : translate("Snitt", "Average");
 
   return (
     <Box
@@ -1850,11 +1954,11 @@ const GameTrendSection = ({
         </Box>
       </Stack>
 
-  <Stack
-    direction={{ xs: "column", md: "row" }}
-    spacing={{ xs: 0.75, md: 2 }}
-    alignItems={{ xs: "flex-start", md: "center" }}
-    justifyContent="center"
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        spacing={{ xs: 0.75, md: 2 }}
+        alignItems={{ xs: "flex-start", md: "center" }}
+        justifyContent="center"
         sx={{ color: "rgba(148,163,184,0.75)", textAlign: { xs: "left", md: "center" } }}
       >
         <Typography variant="caption">
@@ -1869,37 +1973,51 @@ const GameTrendSection = ({
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
           {translate("Visa dagar", "Show days")}
         </Typography>
-        <ToggleButtonGroup
-          value={days}
-          exclusive
-          size="small"
-          onChange={(_, value) => value && onChangeDays(value)}
-          sx={{
-            backgroundColor: "rgba(148,163,184,0.12)",
-            borderRadius: "999px",
-            p: 0.5,
-          }}
-        >
-          {dayOptions.map((option) => (
-            <ToggleButton
-              key={option}
-              value={option}
-              sx={{
-                textTransform: "none",
-                color: "rgba(226,232,240,0.75)",
-                border: 0,
-                borderRadius: "999px!important",
-                px: { xs: 1.5, md: 2 },
-                "&.Mui-selected": {
-                  color: "#f8fafd",
-                  backgroundColor: "rgba(74,222,128,0.28)",
-                },
-              }}
-            >
-              {option} d
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 1 }}>
+          <Chip
+            label={movingAverageOn ? `${movingAverageLabel} (${translate("på", "on")})` : movingAverageLabel}
+            onClick={onToggleMovingAverage}
+            clickable
+            sx={{
+              borderRadius: "999px",
+              backgroundColor: movingAverageOn ? "rgba(56,189,248,0.2)" : "rgba(148,163,184,0.12)",
+              color: movingAverageOn ? "#7dd3fc" : "rgba(226,232,240,0.85)",
+              border: movingAverageOn ? "1px solid rgba(56,189,248,0.45)" : "1px solid transparent",
+              fontWeight: movingAverageOn ? 700 : 500,
+            }}
+          />
+          <ToggleButtonGroup
+            value={days}
+            exclusive
+            size="small"
+            onChange={(_, value) => value && onChangeDays(value)}
+            sx={{
+              backgroundColor: "rgba(148,163,184,0.12)",
+              borderRadius: "999px",
+              p: 0.5,
+            }}
+          >
+            {dayOptions.map((option) => (
+              <ToggleButton
+                key={option}
+                value={option}
+                sx={{
+                  textTransform: "none",
+                  color: "rgba(226,232,240,0.75)",
+                  border: 0,
+                  borderRadius: "999px!important",
+                  px: { xs: 1.5, md: 2 },
+                  "&.Mui-selected": {
+                    color: "#f8fafd",
+                    backgroundColor: "rgba(74,222,128,0.28)",
+                  },
+                }}
+              >
+                {option} d
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Stack>
       </Stack>
 
       {selectedSlug && (
@@ -1917,6 +2035,7 @@ const GameTrendSection = ({
           {summary && (
             <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
               {translate("Förändring", "Change")}: {absoluteText} ({percentText})
+              {movingAverageOn ? ` ${translate(`• glidande snitt ${movingAverageDays}d`, `• moving avg ${movingAverageDays}d`)}` : ""}
             </Typography>
           )}
         </Stack>
@@ -1956,7 +2075,7 @@ const GameTrendSection = ({
                 }}
                 formatter={(value) => [
                   `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
-                  translate("Snitt", "Average"),
+                  tooltipLabel,
                 ]}
               />
               <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
@@ -2000,6 +2119,9 @@ const AsiaTrackerSection = ({
   dayOptions,
   days,
   onChangeDays,
+  movingAverageOn,
+  onToggleMovingAverage,
+  movingAverageDays,
   numberFormatter,
   translate,
   percentFormatter,
@@ -2038,6 +2160,13 @@ const AsiaTrackerSection = ({
   const totalLiveText = Number.isFinite(totalLive) ? numberFormatter.format(totalLive) : "—";
   const shareText =
     Number.isFinite(liveShare) && liveShare != null ? `${percentFormatter.format(liveShare * 100)}%` : "—";
+  const movingAverageLabel = translate(
+    `Glidande snitt ${movingAverageDays}d`,
+    `Moving avg ${movingAverageDays}d`
+  );
+  const tooltipLabel = movingAverageOn
+    ? movingAverageLabel
+    : translate("Snitt", "Average");
 
   return (
     <Box
@@ -2183,6 +2312,7 @@ const AsiaTrackerSection = ({
           {gameSummary && (
             <Typography variant="subtitle2" sx={{ color: changeColor, fontWeight: 600 }}>
               {translate("Förändring", "Change")}: {absoluteText} ({percentText})
+              {movingAverageOn ? ` ${translate(`• glidande snitt ${movingAverageDays}d`, `• moving avg ${movingAverageDays}d`)}` : ""}
             </Typography>
           )}
         </Stack>
@@ -2204,6 +2334,7 @@ const AsiaTrackerSection = ({
         {(isTrendView || !selectedSlug) && (
            <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
             {translate("Förändring", "Change")}: {absoluteText} ({percentText})
+            {movingAverageOn ? ` ${translate(`• glidande snitt ${movingAverageDays}d`, `• moving avg ${movingAverageDays}d`)}` : ""}
           </Typography>
         )}
       </Stack>
@@ -2217,37 +2348,51 @@ const AsiaTrackerSection = ({
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
           {translate("Visa dagar", "Show days")}
         </Typography>
-        <ToggleButtonGroup
-          value={days}
-          exclusive
-          size="small"
-          onChange={(_, value) => value && onChangeDays(value)}
-          sx={{
-            backgroundColor: "rgba(148,163,184,0.12)",
-            borderRadius: "999px",
-            p: 0.5,
-          }}
-        >
-          {dayOptions.map((option) => (
-            <ToggleButton
-              key={option}
-              value={option}
-              sx={{
-                textTransform: "none",
-                color: "rgba(226,232,240,0.75)",
-                border: 0,
-                borderRadius: "999px!important",
-                px: { xs: 1.5, md: 2 },
-                "&.Mui-selected": {
-                  color: "#f8fafc",
-                  backgroundColor: isTrendView ? "rgba(248,250,133,0.28)" : "rgba(56,189,248,0.28)",
-                },
-              }}
-            >
-              {option} d
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 1 }}>
+          <Chip
+            label={movingAverageOn ? `${movingAverageLabel} (${translate("på", "on")})` : movingAverageLabel}
+            onClick={onToggleMovingAverage}
+            clickable
+            sx={{
+              borderRadius: "999px",
+              backgroundColor: movingAverageOn ? "rgba(56,189,248,0.2)" : "rgba(148,163,184,0.12)",
+              color: movingAverageOn ? "#7dd3fc" : "rgba(226,232,240,0.85)",
+              border: movingAverageOn ? "1px solid rgba(56,189,248,0.45)" : "1px solid transparent",
+              fontWeight: movingAverageOn ? 700 : 500,
+            }}
+          />
+          <ToggleButtonGroup
+            value={days}
+            exclusive
+            size="small"
+            onChange={(_, value) => value && onChangeDays(value)}
+            sx={{
+              backgroundColor: "rgba(148,163,184,0.12)",
+              borderRadius: "999px",
+              p: 0.5,
+            }}
+          >
+            {dayOptions.map((option) => (
+              <ToggleButton
+                key={option}
+                value={option}
+                sx={{
+                  textTransform: "none",
+                  color: "rgba(226,232,240,0.75)",
+                  border: 0,
+                  borderRadius: "999px!important",
+                  px: { xs: 1.5, md: 2 },
+                  "&.Mui-selected": {
+                    color: "#f8fafc",
+                    backgroundColor: isTrendView ? "rgba(248,250,133,0.28)" : "rgba(56,189,248,0.28)",
+                  },
+                }}
+              >
+                {option} d
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Stack>
       </Stack>
 
       <Box sx={{ height: 260 }}>
@@ -2291,7 +2436,7 @@ const AsiaTrackerSection = ({
                   }}
                   formatter={(value) => [
                     `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
-                    translate("Snitt", "Average"),
+                    tooltipLabel,
                   ]}
                 />
                 <Area
@@ -2346,7 +2491,7 @@ const AsiaTrackerSection = ({
                 }}
                 formatter={(value) => [
                   `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
-                  translate("Snitt", "Average"),
+                  tooltipLabel,
                 ]}
               />
               <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
