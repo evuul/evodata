@@ -310,7 +310,7 @@ const LivePlayersControlPanel = () => {
   const [trendBoostOn, setTrendBoostOn] = useState(false);
   const [lobbyBoostOn, setLobbyBoostOn] = useState(false);
   const [trendMaOn, setTrendMaOn] = useState(false);
-  const [gameTrendMaOn, setGameTrendMaOn] = useState(false);
+  const [gameTrendMaOn, setGameTrendMaOn] = useState(true);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
