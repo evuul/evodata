@@ -36,6 +36,15 @@ function extractTotalPercentFromHtml(html, lei) {
   return null;
 }
 
+function extractTotalPercentFromEmittentHtml(html) {
+  try {
+    const re = /<td>\s*Summa procent\s*<\/td>\s*<td>\s*([^<]+)\s*<\/td>/i;
+    const m = re.exec(html);
+    if (m) return parseSwedishNumber(m[1]);
+  } catch {}
+  return null;
+}
+
 function pickColumnKey(keys, patterns) {
   const lower = keys.map(k => ({ k, lk: k.toLowerCase() }));
   for (const p of patterns) {
@@ -50,9 +59,16 @@ export async function GET(request) {
   const lei = searchParams.get('lei') || EVO_LEI;
 
   try {
-    // 1) Hämta total blankning från list-sidan
-    const listHtml = await fetchText('https://www.fi.se/sv/vara-register/blankningsregistret/');
-    const totalPercent = extractTotalPercentFromHtml(listHtml, lei);
+    // 1) Hämta total blankning från emittent-sidan (nuvarande källa)
+    const emittentUrl = `https://www.fi.se/sv/vara-register/blankningsregistret/emittent?id=${encodeURIComponent(lei)}`;
+    const emittentHtml = await fetchText(emittentUrl);
+    let totalPercent = extractTotalPercentFromEmittentHtml(emittentHtml);
+
+    // 2) Fallback: äldre list-sida om emittent-sidan ändras
+    if (totalPercent == null) {
+      const listHtml = await fetchText('https://www.fi.se/sv/vara-register/blankningsregistret/');
+      totalPercent = extractTotalPercentFromHtml(listHtml, lei);
+    }
 
     // 2) Publika positioner (>0,5%) – inte inkluderade längre i API:t
     let publicPositions = [];

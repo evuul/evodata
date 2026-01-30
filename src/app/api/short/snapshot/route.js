@@ -35,6 +35,15 @@ function extractTotalPercent(html, lei) {
   return null;
 }
 
+function extractTotalPercentFromEmittent(html) {
+  try {
+    const re = /<td>\s*Summa procent\s*<\/td>\s*<td>\s*([^<]+)\s*<\/td>/i;
+    const m = re.exec(html);
+    if (m) return parsePercent(m[1]);
+  } catch {}
+  return null;
+}
+
 function stockholmYMD(d = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat("sv-SE", {
@@ -51,8 +60,17 @@ function stockholmYMD(d = new Date()) {
 
 export async function POST() {
   try {
-    const html = await fetchText("https://www.fi.se/sv/vara-register/blankningsregistret/");
-    const total = extractTotalPercent(html, EVO_LEI);
+    const emittentUrl = `https://www.fi.se/sv/vara-register/blankningsregistret/emittent?id=${encodeURIComponent(
+      EVO_LEI
+    )}`;
+    const emittentHtml = await fetchText(emittentUrl);
+    let total = extractTotalPercentFromEmittent(emittentHtml);
+
+    if (total == null) {
+      const listHtml = await fetchText("https://www.fi.se/sv/vara-register/blankningsregistret/");
+      total = extractTotalPercent(listHtml, EVO_LEI);
+    }
+
     if (total == null) {
       return new Response(JSON.stringify({ error: "Could not extract total percent" }), { status: 422 });
     }
