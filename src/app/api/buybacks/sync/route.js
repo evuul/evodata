@@ -3,6 +3,8 @@ export const runtime = 'nodejs';
 
 import { ensureRecentBuybackSync, syncBuybacks } from '@/lib/buybacksSync';
 
+const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? '0') === '1';
+
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -12,6 +14,9 @@ function jsonResponse(payload, status = 200) {
 
 export async function GET() {
   try {
+    if (!BUYBACKS_ACTIVE) {
+      return jsonResponse({ ok: false, error: 'Buybacks program is inactive' }, 409);
+    }
     const result = await ensureRecentBuybackSync();
     return jsonResponse(result, 200);
   } catch (err) {
@@ -21,6 +26,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    if (!BUYBACKS_ACTIVE) {
+      return jsonResponse({ ok: false, error: 'Buybacks program is inactive' }, 409);
+    }
     let payload = {};
     try {
       payload = await request.json();

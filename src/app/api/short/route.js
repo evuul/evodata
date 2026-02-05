@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const EVO_LEI = '549300SUH6ZR1RF6TA88';
+const CACHE_CONTROL = 'public, s-maxage=600, stale-while-revalidate=1800';
 
 function parseSwedishNumber(s) {
   if (s == null) return null;
@@ -79,7 +80,7 @@ export async function GET(request) {
     const pub = Number.isFinite(publicSum) ? +(publicSum.toFixed(2)) : 0;
     const nonPublicPercent = total != null ? Math.max(0, +(total - pub).toFixed(2)) : null;
 
-    const body = {
+  const body = {
       lei,
       totalPercent: total,
       publicPercent: pub,
@@ -88,8 +89,14 @@ export async function GET(request) {
       publicPositionsError,
       source: 'Finansinspektionen',
     };
-    return new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': CACHE_CONTROL },
+    });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': CACHE_CONTROL },
+    });
   }
 }

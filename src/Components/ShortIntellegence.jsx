@@ -258,7 +258,7 @@ const ShortIntellegence = () => {
   const fetchBlanking = useCallback(async () => {
     setBlankingLoading(true);
     try {
-      const res = await fetch("/api/short/history", { cache: "no-store" });
+      const res = await fetch("/api/short/history");
       const json = await parseJsonResponse(res, { requireOk: false });
       const items = Array.isArray(json?.items) ? json.items : [];
       const sorted = items
@@ -306,9 +306,7 @@ const ShortIntellegence = () => {
     setTradingLoading(true);
     setTradingError("");
     try {
-      const res = await fetch(`/api/short/activity?days=${days}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(`/api/short/activity?days=${days}`);
       const json = await parseJsonResponse(res, { requireOk: false });
       setTradingItems(Array.isArray(json?.items) ? json.items : []);
       setLatestTrading(json?.latest ?? null);

@@ -5,11 +5,12 @@ import { totalSharesData } from "@/Components/buybacks/utils";
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
 
-const CACHE_CONTROL = "public, max-age=60, s-maxage=60, stale-while-revalidate=120";
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minuter (per-instans)
+const OPEN_CACHE_TTL_MS = 60 * 1000; // 1 min under öppet
+const CLOSED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min när stängt
 const STALE_IF_ERROR_MS = 10 * 60 * 1000; // 10 minuters fallback om upstream dör
 const RETRY_AFTER_SECONDS = 120;
-const SHARED_CACHE_TTL_MS = 10 * 60 * 1000; // delad cache (KV) 10 min
+const OPEN_SHARED_CACHE_TTL_MS = 2 * 60 * 1000; // delad cache (KV) 2 min under öppet
+const CLOSED_SHARED_CACHE_TTL_MS = 15 * 60 * 1000; // delad cache (KV) 15 min när stängt
 const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istället för 500 (1h)
 const SHARED_KEY_PREFIX = "stock:quote:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
@@ -19,6 +20,44 @@ const g = globalThis;
 g.__stockRouteCache ??= new Map();
 g.__stockRouteKvClient ??= null;
 g.__stockRouteState ??= new Map(); // symbol -> { inFlight, nextAllowedAt }
+
+function isMarketOpenStockholm(date = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Europe/Stockholm",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+    const weekday = (parts.find((p) => p.type === "weekday")?.value || "").toLowerCase();
+    const hour = Number(parts.find((p) => p.type === "hour")?.value || "0");
+    const minute = Number(parts.find((p) => p.type === "minute")?.value || "0");
+    const isWeekday =
+      weekday.startsWith("mån") ||
+      weekday.startsWith("tis") ||
+      weekday.startsWith("ons") ||
+      weekday.startsWith("tor") ||
+      weekday.startsWith("fre");
+    if (!isWeekday) return false;
+    const afterOpen = hour > 9 || (hour === 9 && minute >= 0);
+    const beforeClose = hour < 17 || (hour === 17 && minute <= 30);
+    return afterOpen && beforeClose;
+  } catch {
+    return false;
+  }
+}
+
+function getCachePolicy() {
+  const open = isMarketOpenStockholm();
+  const sMaxAge = open ? 60 : 600;
+  const swr = open ? 120 : 3600;
+  return {
+    cacheControl: `public, max-age=${sMaxAge}, s-maxage=${sMaxAge}, stale-while-revalidate=${swr}`,
+    inProcessTtlMs: open ? OPEN_CACHE_TTL_MS : CLOSED_CACHE_TTL_MS,
+    sharedTtlMs: open ? OPEN_SHARED_CACHE_TTL_MS : CLOSED_SHARED_CACHE_TTL_MS,
+  };
+}
 
 function makeEtag(obj) {
   const s = JSON.stringify(obj);
@@ -42,11 +81,12 @@ function getCached(symbol, { allowStale = false } = {}) {
 
 function setCached(symbol, data, etag) {
   const now = Date.now();
+  const { inProcessTtlMs } = getCachePolicy();
   g.__stockRouteCache.set(symbol, {
     data,
     etag,
-    exp: now + CACHE_TTL_MS,
-    staleExp: now + CACHE_TTL_MS + STALE_IF_ERROR_MS,
+    exp: now + inProcessTtlMs,
+    staleExp: now + inProcessTtlMs + STALE_IF_ERROR_MS,
   });
 }
 
@@ -86,15 +126,16 @@ async function setSharedCached(symbol, data, etag) {
   const kv = await getKv();
   if (!kv) return;
   const now = Date.now();
+  const { sharedTtlMs } = getCachePolicy();
   const entry = {
     data,
     etag,
-    exp: now + SHARED_CACHE_TTL_MS,
-    staleExp: now + SHARED_CACHE_TTL_MS + SHARED_STALE_MS,
+    exp: now + sharedTtlMs,
+    staleExp: now + sharedTtlMs + SHARED_STALE_MS,
   };
   try {
     await kv.set(`${SHARED_KEY_PREFIX}${symbol}`, entry, {
-      ex: Math.ceil((SHARED_CACHE_TTL_MS + SHARED_STALE_MS) / 1000),
+      ex: Math.ceil((sharedTtlMs + SHARED_STALE_MS) / 1000),
     });
   } catch (err) {
     console.warn("[stock] KV set misslyckades:", err);
@@ -108,13 +149,13 @@ function respondFromCache(hit, request) {
       status: 304,
       headers: {
         ETag: hit.etag,
-        "Cache-Control": CACHE_CONTROL,
+        "Cache-Control": getCachePolicy().cacheControl,
       },
     });
   }
   const headers = {
     ETag: hit.etag,
-    "Cache-Control": CACHE_CONTROL,
+    "Cache-Control": getCachePolicy().cacheControl,
     ...(hit.stale ? { Warning: '110 - "Serving stale stock data"' } : null),
   };
   const data = hit.stale ? { ...hit.data, stale: true } : hit.data;
@@ -340,7 +381,7 @@ export async function GET(request) {
         status: 200,
         headers: {
           ETag: etag,
-          "Cache-Control": CACHE_CONTROL,
+          "Cache-Control": getCachePolicy().cacheControl,
         },
       });
     } catch {
@@ -458,7 +499,7 @@ export async function GET(request) {
       status: 200,
       headers: {
         ETag: etag,
-        "Cache-Control": CACHE_CONTROL,
+        "Cache-Control": getCachePolicy().cacheControl,
       },
     });
   } catch (error) {

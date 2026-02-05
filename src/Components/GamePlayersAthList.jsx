@@ -117,7 +117,7 @@ export default function GamePlayersAthList() {
           try {
             const res = await fetch(
               `/api/casinoscores/series/${encodeURIComponent(game.id)}?days=${lookback}`,
-              { cache: "no-store", signal: controller.signal }
+              { signal: controller.signal }
             );
             const contentType = res.headers.get("content-type") || "";
             const isJson = contentType.includes("application/json");

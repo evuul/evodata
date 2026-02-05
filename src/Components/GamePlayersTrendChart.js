@@ -76,7 +76,7 @@ export default function GamePlayersTrendChart({ days: initialDays, onChangeDays 
       GAMES_FOR_TREND.map(async (g) => {
         try {
           const id = encodeURIComponent(g.id); // ":" måste encodas
-          const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`, { cache: "no-store" });
+          const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`);
           const j = await res.json();
           if (j?.ok) {
             const latestVal = Number(j.latest);

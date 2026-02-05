@@ -8,6 +8,8 @@ import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { loadShortHistory } from "@/lib/shortHistoryStore";
 import { totalSharesData } from "@/Components/buybacks/utils";
 
+const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
+
 const DEFAULT_DAYS = 45;
 const MAX_DAYS = 365;
 const SYMBOL = "EVO.ST";
@@ -25,6 +27,16 @@ const g = globalThis;
 g.__shortActivityCache ??= new Map(); // key: days -> {data, exp, staleExp}
 g.__shortActivityState ??= new Map(); // days -> {inFlight, nextAllowedAt}
 g.__shortActivityKvClient ??= null;
+
+function json(data, init = {}) {
+  return NextResponse.json(data, {
+    ...init,
+    headers: {
+      "Cache-Control": CACHE_CONTROL,
+      ...(init.headers || {}),
+    },
+  });
+}
 
 function clampDays(value) {
   const n = Number.parseInt(value, 10);
@@ -231,13 +243,13 @@ export async function GET(request) {
 
   const cached = getCached(days);
   if (cached) {
-    return NextResponse.json(cached.data, { status: 200 });
+    return json(cached.data, { status: 200 });
   }
 
   const sharedCached = await getSharedCached(days);
   if (sharedCached) {
     setCached(days, sharedCached.data);
-    return NextResponse.json(
+    return json(
       sharedCached.stale ? { ...sharedCached.data, stale: true } : sharedCached.data,
       { status: 200 }
     );
@@ -251,7 +263,7 @@ export async function GET(request) {
       sharedCached ||
       (await getSharedCached(days, { allowStale: true }));
     if (stale) {
-      return NextResponse.json({ ...stale.data, stale: true }, { status: 200 });
+      return json({ ...stale.data, stale: true }, { status: 200 });
     }
     try {
       const shortHistoryRaw = await loadShortHistory();
@@ -272,7 +284,7 @@ export async function GET(request) {
       const tradingDates = sortedVolumeDates.slice(-days);
 
       if (!tradingDates.length) {
-        return NextResponse.json({ ok: false, error: "Ingen handelsdata tillgänglig" });
+        return json({ ok: false, error: "Ingen handelsdata tillgänglig" });
       }
 
       const shortPercentMap = new Map(shortHistory.map((entry) => [entry.date, entry.percent]));
@@ -390,12 +402,12 @@ export async function GET(request) {
       };
       setCached(days, payload);
       await setSharedCached(days, payload);
-      return NextResponse.json(payload, { status: 200 });
+      return json(payload, { status: 200 });
     } catch {
       // fall through to 429
     }
     const retryAfter = Math.ceil((state.nextAllowedAt - nowTs) / 1000);
-    return NextResponse.json(
+    return json(
       { ok: false, error: "Upstream temporarily paused due to rate limiting, try again soon" },
       { status: 429, headers: { "Retry-After": String(Math.max(retryAfter, RETRY_AFTER_SECONDS)) } }
     );
@@ -404,7 +416,7 @@ export async function GET(request) {
   if (state?.inFlight) {
     try {
       const payload = await state.inFlight;
-      return NextResponse.json(payload, { status: 200 });
+      return json(payload, { status: 200 });
     } catch {
       // fall through
     }
@@ -594,7 +606,7 @@ export async function GET(request) {
       setCached(days, payload);
       await setSharedCached(days, payload);
     }
-    return NextResponse.json(payload, { status: payload?.ok === false ? 503 : 200 });
+    return json(payload, { status: payload?.ok === false ? 503 : 200 });
   } catch (err) {
     const { status, message, rateLimited } = normalizeError(err);
     if (rateLimited) {
@@ -606,14 +618,10 @@ export async function GET(request) {
       getCached(days, { allowStale: true }) ||
       (await getSharedCached(days, { allowStale: true }));
     if (stale) {
-      return NextResponse.json({ ...stale.data, stale: true }, { status: 200 });
+      return json({ ...stale.data, stale: true }, { status: 200 });
     }
 
-    const headers = {
-      "Cache-Control": "no-store",
-      ...(rateLimited ? { "Retry-After": String(RETRY_AFTER_SECONDS) } : null),
-    };
-
-    return NextResponse.json({ ok: false, error: message }, { status, headers });
+    const headers = rateLimited ? { "Retry-After": String(RETRY_AFTER_SECONDS) } : {};
+    return json({ ok: false, error: message }, { status, headers });
   }
 }

@@ -29,7 +29,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       }
       lastLobbyStatsFetchRef.current = now;
       try {
-        const res = await fetch("/api/casinoscores/lobby/stats", { cache: "no-store" });
+        const res = await fetch("/api/casinoscores/lobby/stats");
         if (!res.ok) return;
         const json = await res.json();
         if (!json?.ok) return;
@@ -64,7 +64,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     const qs = params.toString() ? `?${params.toString()}` : "";
 
     try {
-      const res = await fetch(`/api/casinoscores/players/all${qs}`, { cache: "no-store" });
+      const res = await fetch(`/api/casinoscores/players/all${qs}`);
       const json = await res.json();
 
       if (!res.ok || !json?.ok) {
@@ -122,7 +122,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
   const hydrateFromCache = useCallback(async () => {
     if (!enabled) return;
     try {
-      const res = await fetch("/api/casinoscores/players/latest", { cache: "no-store" });
+      const res = await fetch("/api/casinoscores/players/latest");
       if (!res.ok) return;
       const json = await res.json();
       if (!json?.ok || !Array.isArray(json.items)) return;

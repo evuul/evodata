@@ -3,6 +3,8 @@ export const runtime = 'nodejs';
 
 import { ensureRecentBuybackSync, readBuybackFiles } from '@/lib/buybacksSync';
 
+const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? '0') === '1';
+
 function isMondayInStockholm(date = new Date()) {
   const weekday = new Intl.DateTimeFormat('en-US', {
     weekday: 'short',
@@ -14,7 +16,7 @@ function isMondayInStockholm(date = new Date()) {
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const force = searchParams.get('force') === '1';
-  const shouldSync = force || isMondayInStockholm();
+  const shouldSync = BUYBACKS_ACTIVE && (force || isMondayInStockholm());
 
   if (shouldSync) {
     try {
@@ -27,7 +29,12 @@ export async function GET(request) {
   try {
     const { oldData, curData } = await readBuybackFiles();
     return new Response(
-      JSON.stringify({ old: oldData, current: curData, updatedAt: new Date().toISOString() }),
+      JSON.stringify({
+        old: oldData,
+        current: curData,
+        updatedAt: new Date().toISOString(),
+        buybacksActive: BUYBACKS_ACTIVE,
+      }),
       {
         status: 200,
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },

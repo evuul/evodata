@@ -107,7 +107,7 @@ export default function Header({ financialReports, averagePlayersData, dividendD
   const fetchShortFromHistory = useCallback(async () => {
     try {
       setLoadingShort(true);
-      const res = await fetch("/api/short/history", { cache: "no-store" });
+      const res = await fetch("/api/short/history");
       if (!res.ok) throw new Error("history failed");
       const data = await res.json();
       const items = Array.isArray(data.items) ? data.items : [];
@@ -122,7 +122,7 @@ export default function Header({ financialReports, averagePlayersData, dividendD
       throw new Error("missing");
     } catch {
       try {
-        const res = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: "no-store" });
+        const res = await fetch(`/api/short?lei=${EVO_LEI}`);
         if (!res.ok) return;
         const json = await res.json();
         const percent = Number(json.totalPercent);

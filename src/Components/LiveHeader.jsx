@@ -213,7 +213,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     }
     try {
       setLoadingShort(true);
-      const res = await fetch("/api/short/history", { cache: "no-store" });
+      const res = await fetch("/api/short/history");
       if (!res.ok) throw new Error("history failed");
       const data = await res.json();
       const items = Array.isArray(data.items) ? data.items : [];
@@ -229,7 +229,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       throw new Error("missing");
     } catch {
       try {
-        const res = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: "no-store" });
+        const res = await fetch(`/api/short?lei=${EVO_LEI}`);
         if (!res.ok) return;
         const json = await res.json();
         const percent = Number(json.totalPercent);
@@ -292,7 +292,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
     const loadLobbyOverview = async () => {
       try {
-        const res = await fetch(`/api/casinoscores/lobby/overview?days=${LOBBY_ATH_DAYS}`, { cache: "no-store" });
+        const res = await fetch(`/api/casinoscores/lobby/overview?days=${LOBBY_ATH_DAYS}`);
         if (!res.ok) throw new Error(`overview failed: ${res.status}`);
         const data = await res.json();
         if (!isActive) return;
@@ -315,7 +315,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       const requestId = latestRequestId;
       setLoadingLatestTopWin(true);
       try {
-        const res = await fetch(LIVE_TOP3_ENDPOINT, { cache: "no-store" });
+        const res = await fetch(LIVE_TOP3_ENDPOINT);
         if (!res.ok) throw new Error(`live top3 failed: ${res.status}`);
         const data = await res.json();
         if (!isActive || requestId !== latestRequestId) return;

@@ -29,7 +29,7 @@ export default function GamePlayersRankingContainer() {
       GAMES.map(async (g) => {
         try {
           const id = encodeURIComponent(g.id);
-          const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`, { cache: "no-store" });
+          const res = await fetch(`/api/casinoscores/series/${id}?days=${nDays}`);
           const j = await res.json();
           if (j?.ok) {
             const latestVal = Number(j.latest);

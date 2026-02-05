@@ -21,9 +21,7 @@ export async function fetchOverviewShared(days) {
 
   const promise = (async () => {
     try {
-      const response = await fetch(`/api/casinoscores/lobby/overview?days=${key}`, {
-        cache: "no-store",
-      });
+      const response = await fetch(`/api/casinoscores/lobby/overview?days=${key}`);
       const json = await parseJsonResponse(response);
       memCache.set(key, { data: json, exp: Date.now() + MEM_TTL_MS });
       return json;

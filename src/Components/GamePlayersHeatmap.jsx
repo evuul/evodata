@@ -139,7 +139,7 @@ export default function GamePlayersHeatmap() {
       setError("");
       try {
         const encoded = encodeURIComponent(selectedGame);
-        const res = await fetch(`/api/casinoscores/series/${encoded}?days=14`, { cache: "no-store" });
+        const res = await fetch(`/api/casinoscores/series/${encoded}?days=14`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         if (!json?.ok || !Array.isArray(json.points)) throw new Error("Ogiltigt svar");

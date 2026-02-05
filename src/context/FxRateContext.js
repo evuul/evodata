@@ -51,7 +51,7 @@ export const FxRateProvider = ({
       if (!silent) setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/fx", { cache: "no-store" });
+        const res = await fetch("/api/fx");
         if (!res.ok) {
           throw new Error(`FX request failed with status ${res.status}`);
         }

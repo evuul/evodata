@@ -13,7 +13,7 @@ export default function ShortInterestBox({ totalShares }) {
   const fetchLatest = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/short/history", { cache: "no-store" });
+      const res = await fetch("/api/short/history");
       if (!res.ok) throw new Error("Kunde inte hämta blankningsdata");
       const data = await res.json();
       if (Array.isArray(data.items) && data.items.length > 0) {

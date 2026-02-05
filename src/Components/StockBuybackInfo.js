@@ -47,6 +47,8 @@ import {
   calculateEstimatedCompletion,
 } from './buybacks/utils';
 
+const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === '1';
+
 // Animationer för glow-effekt
 const pulseGreen = keyframes`
   0% { box-shadow: 0 0 6px rgba(0, 255, 0, 0.3); }
@@ -75,10 +77,11 @@ const StockBuybackInfo = ({
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
 
   const fetchBuybacks = useCallback(async () => {
+    if (!BUYBACKS_ACTIVE) return;
     try {
       setLoadingData(true);
       setDataError("");
-      const res = await fetch('/api/buybacks/data', { cache: 'no-store' });
+      const res = await fetch('/api/buybacks/data');
       if (!res.ok) throw new Error('Kunde inte hämta återköpsdata');
       const data = await res.json();
       if (Array.isArray(data.old)) setOldData(data.old);
@@ -95,6 +98,7 @@ const StockBuybackInfo = ({
 
   useEffect(() => { fetchBuybacks(); }, [fetchBuybacks]);
   useEffect(() => {
+    if (!BUYBACKS_ACTIVE) return () => {};
     const handler = () => { fetchBuybacks(); };
     try { window.addEventListener('buybacksSynced', handler); } catch {}
     return () => { try { window.removeEventListener('buybacksSynced', handler); } catch {} };
@@ -102,6 +106,7 @@ const StockBuybackInfo = ({
 
   // Måndagsfönster (08:00–10:00 Europe/Stockholm): polla buyback‑data var 5:e minut
   useEffect(() => {
+    if (!BUYBACKS_ACTIVE) return () => {};
     const inStockholmWindow = () => {
       try {
         const parts = new Intl.DateTimeFormat('sv-SE', {

@@ -16,7 +16,7 @@ import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
 
-const Q3_DAYS = 92; // approx number of days in Q3
+const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
 const formatSEK = (value, fractionDigits = 0) =>
   Number.isFinite(value)
@@ -28,14 +28,28 @@ const formatSEK = (value, fractionDigits = 0) =>
 
 const formatCurrency = (value) => `${formatSEK(value, 0)} SEK`;
 
-const findLatestQ3Report = (reports) => {
+const findLatestReport = (reports) => {
   if (!Array.isArray(reports)) return null;
-  const q3Reports = reports.filter((r) => r?.quarter === 'Q3');
-  if (!q3Reports.length) return null;
-  return q3Reports.reduce(
-    (latest, current) => (current.year > (latest?.year ?? 0) ? current : latest),
-    q3Reports[0]
-  );
+  return reports.reduce((latest, current) => {
+    const latestYear = Number(latest?.year) || 0;
+    const currentYear = Number(current?.year) || 0;
+    if (currentYear !== latestYear) {
+      return currentYear > latestYear ? current : latest;
+    }
+    const latestQ = QUARTER_ORDER[latest?.quarter] || 0;
+    const currentQ = QUARTER_ORDER[current?.quarter] || 0;
+    return currentQ > latestQ ? current : latest;
+  }, reports[0]);
+};
+
+const quarterDayCount = (year, quarter) => {
+  const q = QUARTER_ORDER[quarter] || 0;
+  if (!Number.isFinite(year) || !q) return 92;
+  const startMonth = (q - 1) * 3;
+  const start = new Date(Date.UTC(year, startMonth, 1));
+  const end = new Date(Date.UTC(year, startMonth + 3, 0));
+  const ms = end.getTime() - start.getTime();
+  return Math.max(1, Math.round(ms / (24 * 60 * 60 * 1000)) + 1);
 };
 
 const LiveMoneyCounter = () => {
@@ -45,14 +59,14 @@ const LiveMoneyCounter = () => {
   const { rate: fxRate } = useFxRateContext();
   const { stockPrice, marketCap } = useStockPriceContext();
 
-  const latestQ3 = useMemo(
-    () => findLatestQ3Report(financialReports?.financialReports),
+  const latestReport = useMemo(
+    () => findLatestReport(financialReports?.financialReports),
     []
   );
 
   const currentYearProfitMEUR = useMemo(() => {
-    if (!latestQ3) return null;
-    const year = latestQ3.year;
+    if (!latestReport) return null;
+    const year = latestReport.year;
     const reports = financialReports?.financialReports || [];
     const total = reports
       .filter((r) => r?.year === year)
@@ -61,13 +75,14 @@ const LiveMoneyCounter = () => {
         return sum + (Number.isFinite(val) ? val : 0);
       }, 0);
     return Number.isFinite(total) ? total : null;
-  }, [latestQ3]);
+  }, [latestReport]);
 
-  const profitMEUR = Number(latestQ3?.adjustedProfitForPeriod) || 0;
+  const profitMEUR = Number(latestReport?.adjustedProfitForPeriod) || 0;
+  const daysInQuarter = quarterDayCount(Number(latestReport?.year), latestReport?.quarter);
   const fx = Number.isFinite(fxRate) && fxRate > 0 ? fxRate : 11.02;
   const totalProfitSEK = profitMEUR * 1_000_000 * fx;
-  const perDay = totalProfitSEK / Q3_DAYS;
-  const perSecond = totalProfitSEK / (Q3_DAYS * 24 * 60 * 60);
+  const perDay = totalProfitSEK / daysInQuarter;
+  const perSecond = totalProfitSEK / (daysInQuarter * 24 * 60 * 60);
   const perMinute = perSecond * 60;
   const perHour = perSecond * 3600;
 
@@ -127,7 +142,7 @@ const LiveMoneyCounter = () => {
     },
     {
       label: translate(`≈ ${formatSEK(perDay, 0)} SEK / dag`, `≈ ${formatSEK(perDay, 0)} SEK / day`),
-      tooltip: translate(`Antag ${Q3_DAYS} dagar i Q3.`, `Assumes ${Q3_DAYS} days in Q3.`),
+      tooltip: translate(`Antag ${daysInQuarter} dagar i ${latestReport?.quarter || "Q?"}.`, `Assumes ${daysInQuarter} days in ${latestReport?.quarter || "Q?"}.`),
       color: '#c084fc',
       value: perDay,
     },
@@ -135,7 +150,7 @@ const LiveMoneyCounter = () => {
 
   const summaryCards = [
     {
-      title: translate('Totalt Q3', 'Total Q3'),
+      title: translate(`Totalt ${latestReport?.quarter || "Q?"}`, `Total ${latestReport?.quarter || "Q?"}`),
       value: formatCurrency(totalProfitSEK),
       subtitle: translate(`${profitMEUR.toFixed(2)} M€`, `${profitMEUR.toFixed(2)} M€`),
     },
@@ -159,7 +174,7 @@ const LiveMoneyCounter = () => {
     },
     {
       title: translate('Period', 'Period'),
-      value: latestQ3 ? `${latestQ3.quarter} ${latestQ3.year}` : translate('Okänt', 'Unknown'),
+      value: latestReport ? `${latestReport.quarter} ${latestReport.year}` : translate('Okänt', 'Unknown'),
       subtitle: translate('Finansiell rapport', 'Financial report'),
     },
   ];
@@ -203,7 +218,10 @@ const LiveMoneyCounter = () => {
             variant={isMobile ? 'h5' : 'h4'}
             sx={{ fontWeight: 700, textAlign: 'center' }}
           >
-            {translate('Q3-vinstindikator', 'Q3 profit indicator')}
+            {translate(
+              `${latestReport?.quarter || "Q?"}-vinstindikator`,
+              `${latestReport?.quarter || "Q?"} profit indicator`
+            )}
           </Typography>
           <Typography
             sx={{
@@ -215,8 +233,8 @@ const LiveMoneyCounter = () => {
             }}
           >
             {translate(
-              "Realtidssimulering baserad på Evolution's rapporterade justerade nettovinst för senaste Q3.",
-              "Real-time simulation based on Evolution's reported adjusted net profit for the latest Q3."
+              `Realtidssimulering baserad på Evolution's rapporterade justerade nettovinst för senaste kvartal (${latestReport?.quarter || "Q?"}).`,
+              `Real-time simulation based on Evolution's reported adjusted net profit for the latest quarter (${latestReport?.quarter || "Q?"}).`
             )}
           </Typography>
         </Box>
@@ -241,8 +259,11 @@ const LiveMoneyCounter = () => {
               />
             }
             label={
-              latestQ3
-                ? translate(`Datakälla: ${latestQ3.quarter} ${latestQ3.year}`, `Data source: ${latestQ3.quarter} ${latestQ3.year}`)
+              latestReport
+                ? translate(
+                    `Datakälla: ${latestReport.quarter} ${latestReport.year}`,
+                    `Data source: ${latestReport.quarter} ${latestReport.year}`
+                  )
                 : translate('Datakälla saknas', 'Data source missing')
             }
             size="small"

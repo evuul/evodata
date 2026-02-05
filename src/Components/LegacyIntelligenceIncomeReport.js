@@ -163,9 +163,7 @@ const IntelligenceIncomeReport = ({ financialReports, averagePlayersData }) => {
       try {
         setOverviewLoading(true);
         setOverviewError("");
-        const res = await fetch(`/api/casinoscores/lobby/overview?days=${REPORT_LOOKBACK_DAYS}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/casinoscores/lobby/overview?days=${REPORT_LOOKBACK_DAYS}`);
         const json = await parseJsonResponse(res);
 
         const rows = Array.isArray(json?.dailyTotals)

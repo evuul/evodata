@@ -56,7 +56,7 @@ export default function ShortTrend() {
   const fetchHistory = useCallback(async ({ skipSpinner = false } = {}) => {
     if (!skipSpinner) setLoading(true);
     try {
-      const res = await fetch("/api/short/history", { cache: "no-store" });
+      const res = await fetch("/api/short/history");
       if (!res.ok) throw new Error("Kunde inte hämta historik");
       const data = await res.json();
       const arr = Array.isArray(data.items) ? data.items : [];

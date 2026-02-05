@@ -14,6 +14,7 @@ import { useTranslate } from "@/context/LocaleContext";
 import { calculateEvolutionOwnershipPerYear, totalSharesData } from "./buybacks/utils";
 
 const DEFAULT_MANDATE_SEK = Number(process.env.NEXT_PUBLIC_BUYBACK_MANDATE_SEK) || null;
+const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === "1";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
@@ -91,9 +92,10 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   );
   useEffect(() => {
     let active = true;
+    if (!BUYBACKS_ACTIVE) return () => {};
     const load = async () => {
       try {
-        const res = await fetch("/api/buybacks/data", { cache: "no-store" });
+        const res = await fetch("/api/buybacks/data");
         if (!res.ok) return;
         const json = await res.json();
         const source = Array.isArray(json?.old) ? json.old : null;

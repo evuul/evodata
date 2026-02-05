@@ -24,6 +24,7 @@ const LOBBY_AUTH =
     ? `Bearer ${RAW_LOBBY_AUTH}`
     : "";
 const LOBBY_TTL_MS = 30 * 1000;
+const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=60";
 const BASELINE_DAYS = 30;
 const BASELINE_BUCKET_MS = 5 * 60 * 1000;
 
@@ -37,7 +38,7 @@ function resJSON(data, status = 200) {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Cache-Control": CACHE_CONTROL,
     },
   });
 }

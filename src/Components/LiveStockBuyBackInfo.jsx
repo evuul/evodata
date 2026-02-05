@@ -49,6 +49,8 @@ import {
   calculateShareholderReturns,
   totalSharesData,
 } from './buybacks/utils';
+import buybackDataDefault from "../app/data/buybackData.json";
+import oldBuybackDataDefault from "../app/data/oldBuybackData.json";
 
 const TIME_OPTIONS = [
   { value: 'weekly', labelSv: 'Veckor', labelEn: 'Weeks' },
@@ -81,6 +83,8 @@ const fmtCurrency = (value) =>
 const fmtEuroMillions = (value) =>
   Number.isFinite(value) ? `${(value / 1_000_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} M€` : '–';
 
+const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === '1';
+
 const toLabel = (datum) => {
   if (!datum) return '';
   if (/^\d{4}-V\d{2}$/.test(datum)) return datum.replace('-V', ' v');
@@ -100,15 +104,16 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
   const [viewMode, setViewMode] = useState('weekly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [oldData, setOldData] = useState([]);
-  const [curData, setCurData] = useState([]);
+  const [oldData, setOldData] = useState(oldBuybackDataDefault);
+  const [curData, setCurData] = useState(buybackDataDefault);
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
 
   const fetchData = useCallback(async () => {
+    if (!BUYBACKS_ACTIVE) return;
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/buybacks/data', { cache: 'no-store' });
+      const res = await fetch('/api/buybacks/data');
       const json = await parseJsonResponse(res, { requireOk: false });
       setOldData(Array.isArray(json?.old) ? json.old : []);
       setCurData(Array.isArray(json?.current) ? json.current : []);

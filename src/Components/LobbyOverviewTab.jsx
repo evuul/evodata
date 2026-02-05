@@ -93,7 +93,7 @@ export default function LobbyOverviewTab() {
   const load = useCallback(async () => {
     try {
       setState((prev) => ({ ...prev, loading: true, error: "" }));
-      const res = await fetch("/api/casinoscores/lobby/overview", { cache: "no-store" });
+      const res = await fetch("/api/casinoscores/lobby/overview");
       const payload = await parseJsonResponse(res);
       setState({ loading: false, error: "", data: payload });
     } catch (error) {

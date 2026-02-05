@@ -4,12 +4,14 @@ export const runtime = "nodejs";
 import { getLatestSample } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../shared";
 
+const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=120";
+
 function resJSON(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-store",
+      "Cache-Control": CACHE_CONTROL,
     },
   });
 }

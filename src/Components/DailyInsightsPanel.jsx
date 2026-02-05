@@ -130,7 +130,7 @@ export default function DailyInsightsPanel() {
     async function loadShortHistory() {
       try {
         setShortState((prev) => ({ ...prev, loading: true, error: null }));
-        const res = await fetch("/api/short/history", { cache: "no-store" });
+        const res = await fetch("/api/short/history");
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);
         }

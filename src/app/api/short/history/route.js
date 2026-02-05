@@ -4,6 +4,8 @@ export const runtime = "nodejs";
 
 import { loadShortHistory } from "@/lib/shortHistoryStore";
 
+const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=600";
+
 export async function GET() {
   try {
     const items = await loadShortHistory();
@@ -16,14 +18,14 @@ export async function GET() {
       }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        headers: { "Content-Type": "application/json", "Cache-Control": CACHE_CONTROL },
       }
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Cache-Control": CACHE_CONTROL },
     });
   }
 }

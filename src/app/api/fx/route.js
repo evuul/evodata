@@ -158,7 +158,7 @@ function respond(payload) {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "no-store",
+      "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600",
     },
   });
 }

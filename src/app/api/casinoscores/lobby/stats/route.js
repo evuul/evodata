@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { getDailyLobbyPeak, getGlobalLobbyAth } from "@/lib/csStore";
 
 const TZ = "Europe/Stockholm";
+const CACHE_CONTROL = "public, s-maxage=60, stale-while-revalidate=300";
 
 const YMD_FORMATTER = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
@@ -63,7 +64,7 @@ export async function GET() {
         status: 200,
         headers: {
           "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store",
+          "Cache-Control": CACHE_CONTROL,
         },
       }
     );
@@ -72,7 +73,7 @@ export async function GET() {
       status: 500,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store",
+        "Cache-Control": CACHE_CONTROL,
       },
     });
   }

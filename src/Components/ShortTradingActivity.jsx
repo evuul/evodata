@@ -112,7 +112,7 @@ export default function ShortTradingActivity() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/short/activity?days=${days}`, { cache: "no-store" });
+      const res = await fetch(`/api/short/activity?days=${days}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || "Kunde inte hämta handelsstatistik");
