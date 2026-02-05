@@ -60,6 +60,7 @@ const TIME_OPTIONS = [
 ];
 const SUB_VIEWS = [
   { value: 'overview', labelSv: 'Översikt', labelEn: 'Overview' },
+  { value: 'estimate', labelSv: 'EST / Prognos', labelEn: 'EST / Forecast' },
   { value: 'ownership', labelSv: 'Evolutions ägande', labelEn: "Evolution's ownership" },
   { value: 'total', labelSv: 'Totala aktier', labelEn: 'Total shares' },
   { value: 'history', labelSv: 'Återköpshistorik', labelEn: 'Buyback history' },
@@ -93,7 +94,7 @@ const toLabel = (datum) => {
   return String(datum);
 };
 
-export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) {
+export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, financialReports }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const translate = useTranslate();
@@ -174,6 +175,32 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
     if (!Number.isFinite(remainingCash) || !Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
     return Math.floor(remainingCash / currentSharePrice);
   }, [remainingCash, currentSharePrice]);
+  const ttmEps = useMemo(() => {
+    const reports = financialReports?.financialReports || [];
+    if (!reports.length) return null;
+    const qOrder = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+    const sorted = reports
+      .map((r) => {
+        const y = Number(r?.year) || 0;
+        const q = qOrder[r?.quarter] || 0;
+        return y && q ? { ...r, index: y * 4 + q } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.index - a.index);
+    const last4 = sorted.slice(0, 4);
+    if (last4.length < 4) return null;
+    const sum = last4.reduce(
+      (acc, r) => acc + (Number.isFinite(r?.adjustedEarningsPerShare) ? r.adjustedEarningsPerShare : 0),
+      0
+    );
+    return Number.isFinite(sum) ? sum : null;
+  }, [financialReports]);
+  const yearEndLabel = useMemo(() => {
+    const now = new Date();
+    const yearEnd = new Date(now.getFullYear(), 11, 31);
+    const daysLeft = Math.max(0, Math.ceil((yearEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
+    return { year: now.getFullYear(), daysLeft };
+  }, []);
 
   const fxPairLabel = useMemo(() => {
     const base = fxMeta?.base;
@@ -184,6 +211,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
   const fxRateDisplay = Number.isFinite(fxRate)
     ? fxRate.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : '–';
+  const fxRateValue = Number.isFinite(fxRate) && fxRate > 0 ? fxRate : 11.02;
   const fxUpdatedLabel =
     fxUpdated instanceof Date && Number.isFinite(fxUpdated.getTime())
       ? fxUpdated.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })
@@ -225,6 +253,70 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
     latestTotalSharesCount > 0
       ? (remainingCash / (latestTotalSharesCount * currentSharePrice)) * 100
       : null;
+  const profit2025EurM = useMemo(() => {
+    const reports = financialReports?.financialReports || [];
+    const rows = reports.filter((r) => Number(r?.year) === 2025);
+    if (!rows.length) return null;
+    const sum = rows.reduce(
+      (acc, r) => acc + (Number.isFinite(r?.adjustedProfitForPeriod) ? r.adjustedProfitForPeriod : 0),
+      0
+    );
+    return Number.isFinite(sum) ? sum : null;
+  }, [financialReports]);
+  const eps2025 = useMemo(() => {
+    const reports = financialReports?.financialReports || [];
+    const rows = reports.filter((r) => Number(r?.year) === 2025);
+    if (!rows.length) return null;
+    const sum = rows.reduce(
+      (acc, r) => acc + (Number.isFinite(r?.adjustedEarningsPerShare) ? r.adjustedEarningsPerShare : 0),
+      0
+    );
+    return Number.isFinite(sum) ? sum : null;
+  }, [financialReports]);
+  const estimateBuybackEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * 0.6 : null;
+  const estimateDividendEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * 0.4 : null;
+  const estimateBuybackSek = Number.isFinite(estimateBuybackEur) ? estimateBuybackEur * fxRateValue : null;
+  const estimateDividendSek = Number.isFinite(estimateDividendEur) ? estimateDividendEur * fxRateValue : null;
+  const estimateSharesAffordable = useMemo(() => {
+    if (!Number.isFinite(estimateBuybackSek) || !Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
+    return Math.floor(estimateBuybackSek / currentSharePrice);
+  }, [estimateBuybackSek, currentSharePrice]);
+  const estimateSharePercent = useMemo(() => {
+    if (!Number.isFinite(estimateSharesAffordable) || !Number.isFinite(latestTotalSharesCount) || latestTotalSharesCount <= 0) return null;
+    return (estimateSharesAffordable / latestTotalSharesCount) * 100;
+  }, [estimateSharesAffordable, latestTotalSharesCount]);
+  const sharesAfterBuyback = useMemo(() => {
+    if (!Number.isFinite(latestTotalSharesCount) || !Number.isFinite(estimateSharesAffordable)) return null;
+    return Math.max(latestTotalSharesCount - estimateSharesAffordable, 0);
+  }, [latestTotalSharesCount, estimateSharesAffordable]);
+  const dividendPerShareEur = useMemo(() => {
+    if (!Number.isFinite(estimateDividendEur) || !Number.isFinite(sharesAfterBuyback) || sharesAfterBuyback <= 0) return null;
+    return estimateDividendEur / sharesAfterBuyback;
+  }, [estimateDividendEur, sharesAfterBuyback]);
+  const dividendPerShareSek = useMemo(() => {
+    if (!Number.isFinite(dividendPerShareEur)) return null;
+    return dividendPerShareEur * fxRateValue;
+  }, [dividendPerShareEur, fxRateValue]);
+  const estimateProFormaEps = useMemo(() => {
+    if (!Number.isFinite(eps2025) || !Number.isFinite(estimateSharePercent)) return null;
+    const pct = estimateSharePercent / 100;
+    if (pct <= 0 || pct >= 0.9) return null;
+    return eps2025 / (1 - pct);
+  }, [eps2025, estimateSharePercent]);
+  const estimateEpsLift = useMemo(() => {
+    if (!Number.isFinite(eps2025) || !Number.isFinite(estimateProFormaEps) || eps2025 === 0) return null;
+    return ((estimateProFormaEps - eps2025) / eps2025) * 100;
+  }, [eps2025, estimateProFormaEps]);
+  const proFormaEps = useMemo(() => {
+    if (!Number.isFinite(ttmEps) || !Number.isFinite(remainingCashSharePercent)) return null;
+    const pct = remainingCashSharePercent / 100;
+    if (pct <= 0 || pct >= 0.9) return null;
+    return ttmEps / (1 - pct);
+  }, [ttmEps, remainingCashSharePercent]);
+  const epsLiftPercent = useMemo(() => {
+    if (!Number.isFinite(ttmEps) || !Number.isFinite(proFormaEps) || ttmEps === 0) return null;
+    return ((proFormaEps - ttmEps) / ttmEps) * 100;
+  }, [ttmEps, proFormaEps]);
 
   const combinedBuybacks = useMemo(() => {
     const normalized = new Map();
@@ -465,14 +557,56 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
         <Box
           sx={{
             mt: 2,
-            background: 'rgba(15,23,42,0.55)',
-            border: '1px solid rgba(148,163,184,0.18)',
+            background: 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(17,24,39,0.7))',
+            border: '1px solid rgba(148,163,184,0.22)',
             borderRadius: { xs: 0, md: '16px' },
             mx: { xs: -2, sm: -3, md: -4 },
             px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 2, md: 2.5 },
           }}
         >
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={1}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
+            justifyContent="space-between"
+            sx={{ mb: { xs: 1.5, md: 2 } }}
+          >
+            <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2 }}>
+              {translate('Översikt • Aktivt program', 'Overview • Active program')}
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+              {Number.isFinite(cashUsagePercent) && (
+                <Chip
+                  size="small"
+                  label={translate(
+                    `Användt: ${cashUsagePercent.toFixed(1)}%`,
+                    `Used: ${cashUsagePercent.toFixed(1)}%`
+                  )}
+                  sx={{
+                    backgroundColor: 'rgba(16,185,129,0.16)',
+                    color: '#a7f3d0',
+                    border: '1px solid rgba(16,185,129,0.35)',
+                  }}
+                />
+              )}
+              {Number.isFinite(remainingCashSharePercent) && (
+                <Chip
+                  size="small"
+                  label={translate(
+                    `${fmtPercent(remainingCashSharePercent)} av aktiestock`,
+                    `${fmtPercent(remainingCashSharePercent)} of share base`
+                  )}
+                  sx={{
+                    backgroundColor: 'rgba(59,130,246,0.16)',
+                    color: '#bfdbfe',
+                    border: '1px solid rgba(59,130,246,0.35)',
+                  }}
+                />
+              )}
+            </Stack>
+          </Stack>
+
           <Stack
             direction={{ xs: 'column', md: 'row' }}
             spacing={{ xs: 1.5, md: 2.5 }}
@@ -484,7 +618,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Kassaläge', 'Cash position')}
               </Typography>
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', md: '1.25rem' }, color: '#f8fafc' }}>
                 {fmtCurrency(totalSpent)}
               </Typography>
               <Typography
@@ -503,7 +637,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Återstående kassa', 'Remaining cash')}
               </Typography>
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.15rem', md: '1.3rem' }, color: '#f8fafc' }}>{fmtCurrency(remainingCash)}</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.15rem', md: '1.3rem' }, color: '#f8fafc' }}>{fmtCurrency(remainingCash)}</Typography>
               {Number.isFinite(cashUsagePercent) ? (
                 <>
                   <Typography variant="caption" sx={{ color: '#cbd5f5', fontWeight: 600, letterSpacing: 0.3 }}>
@@ -536,7 +670,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Kapacitet vid kurs', 'Capacity at price')}
               </Typography>
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                 {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
                   ? translate(
                       `≈ ${fmtNum(sharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`,
@@ -558,7 +692,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Framåtblick', 'Forward look')}
               </Typography>
-              <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                 {est && Number.isFinite(est.daysToCompletion)
                   ? translate(
                       `${fmtNum(est.daysToCompletion)} handelsdagar kvar`,
@@ -591,8 +725,8 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
         <Box
           sx={{
             mt: 2,
-            background: 'rgba(15,23,42,0.45)',
-            border: '1px solid rgba(148,163,184,0.18)',
+            background: 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(17,24,39,0.7))',
+            border: '1px solid rgba(148,163,184,0.22)',
             borderRadius: { xs: 0, md: '16px' },
 
             // Fullbleed-trick för att matcha dina andra komponenter
@@ -645,6 +779,205 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData }) 
               {translate('Ingen återköpsdata tillgänglig.', 'No buyback data available.')}
             </Box>
           )}
+        </Box>
+      )}
+
+      {subView === 'estimate' && (
+        <Box
+          sx={{
+            mt: 2,
+            background: 'rgba(15,23,42,0.55)',
+            border: '1px solid rgba(148,163,184,0.18)',
+            borderRadius: { xs: 0, md: '16px' },
+            mx: { xs: -2, sm: -3, md: -4 },
+            px: { xs: 2, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
+          }}
+        >
+          <Stack spacing={{ xs: 1.4, md: 2 }} alignItems="stretch">
+            <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.8)', letterSpacing: 1.2 }}>
+              {translate('EST / Prognos 2025', 'EST / Forecast 2025')}
+            </Typography>
+
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={{ xs: 1.6, md: 2.2 }}
+              alignItems="stretch"
+              flexWrap="wrap"
+            >
+              <Box
+                sx={{
+                  flex: '1 1 260px',
+                  background: 'linear-gradient(135deg, rgba(56,189,248,0.18), rgba(15,23,42,0.6))',
+                  border: '1px solid rgba(56,189,248,0.35)',
+                  borderRadius: '14px',
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
+                  {translate('Antagen vinst 2025', 'Assumed profit 2025')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                  {Number.isFinite(profit2025EurM)
+                    ? translate(`${profit2025EurM.toFixed(1)} M€`, `${profit2025EurM.toFixed(1)} M€`)
+                    : translate('Saknar 2025‑data', 'Missing 2025 data')}
+                </Typography>
+                <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+                  {translate('Fördelning: 60% återköp / 40% utdelning', 'Split: 60% buybacks / 40% dividends')}
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  flex: '1 1 260px',
+                  background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(15,23,42,0.6))',
+                  border: '1px solid rgba(16,185,129,0.35)',
+                  borderRadius: '14px',
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
+                  {translate('Återköpsbudget (60%)', 'Buyback budget (60%)')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                  {Number.isFinite(estimateBuybackEur)
+                    ? `${fmtEuroMillions(estimateBuybackEur)}`
+                    : '–'}
+                </Typography>
+                <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
+                  {Number.isFinite(estimateBuybackSek) ? `${fmtCurrency(estimateBuybackSek)}` : '–'}
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  flex: '1 1 260px',
+                  background: 'linear-gradient(135deg, rgba(168,85,247,0.18), rgba(15,23,42,0.6))',
+                  border: '1px solid rgba(168,85,247,0.35)',
+                  borderRadius: '14px',
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
+                  {translate('Utdelningspott (40%)', 'Dividend pool (40%)')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                  {Number.isFinite(estimateDividendEur)
+                    ? `${fmtEuroMillions(estimateDividendEur)}`
+                    : '–'}
+                </Typography>
+                <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
+                  {Number.isFinite(estimateDividendSek) ? `${fmtCurrency(estimateDividendSek)}` : '–'}
+                </Typography>
+              </Box>
+            </Stack>
+
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={{ xs: 1.6, md: 2.2 }}
+              alignItems="stretch"
+              flexWrap="wrap"
+            >
+              <Box
+                sx={{
+                  flex: '1 1 260px',
+                  background: 'linear-gradient(135deg, rgba(56,189,248,0.14), rgba(15,23,42,0.6))',
+                  border: '1px solid rgba(56,189,248,0.35)',
+                  borderRadius: '14px',
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
+                  {translate('Kapacitet vid kurs', 'Capacity at price')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                  {Number.isFinite(estimateSharesAffordable) && Number.isFinite(currentSharePrice)
+                    ? translate(
+                        `≈ ${fmtNum(estimateSharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`,
+                        `≈ ${fmtNum(estimateSharesAffordable)} shares at ${fmtCurrency(currentSharePrice)}`
+                      )
+                    : translate('Ingen livekurs tillgänglig.', 'No live price available.')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: { xs: '1.05rem', md: '1.18rem' } }}>
+                  {Number.isFinite(estimateSharePercent)
+                    ? translate(
+                        `${fmtPercent(estimateSharePercent)} av aktiestocken`,
+                        `${fmtPercent(estimateSharePercent)} of share base`
+                      )
+                    : translate('Beräknas när kurs finns.', 'Calculated when price is available.')}
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  flex: '1 1 260px',
+                  background: 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(15,23,42,0.6))',
+                  border: '1px solid rgba(245,158,11,0.35)',
+                  borderRadius: '14px',
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
+                  {translate('EPS‑effekt (estimat)', 'EPS impact (estimate)')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                  {Number.isFinite(eps2025) && Number.isFinite(estimateProFormaEps)
+                    ? translate(
+                        `${eps2025.toFixed(2)} € → ${estimateProFormaEps.toFixed(2)} €`,
+                        `${eps2025.toFixed(2)} € → ${estimateProFormaEps.toFixed(2)} €`
+                      )
+                    : translate('Behöver 2025‑EPS.', 'Needs 2025 EPS.')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: { xs: '1.05rem', md: '1.18rem' } }}>
+                  {Number.isFinite(estimateEpsLift)
+                    ? translate(
+                        `≈ ${estimateEpsLift >= 0 ? '+' : ''}${estimateEpsLift.toFixed(1)}% EPS`,
+                        `≈ ${estimateEpsLift >= 0 ? '+' : ''}${estimateEpsLift.toFixed(1)}% EPS`
+                      )
+                    : translate('Beräknas när data finns.', 'Calculated when data is available.')}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
+                  {translate(
+                    `Antag avslut till årsskiftet (${yearEndLabel.year}) • ${fmtNum(yearEndLabel.daysLeft)} dagar kvar`,
+                    `Assumes completion by year‑end (${yearEndLabel.year}) • ${fmtNum(yearEndLabel.daysLeft)} days left`
+                  )}
+                </Typography>
+              </Box>
+
+              <Box
+                sx={{
+                  flex: '1 1 260px',
+                  background: 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,23,42,0.6))',
+                  border: '1px solid rgba(59,130,246,0.35)',
+                  borderRadius: '14px',
+                  p: 2,
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
+                  {translate('Utdelning per aktie (est)', 'Dividend per share (est)')}
+                </Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
+                  {Number.isFinite(dividendPerShareEur)
+                    ? translate(
+                        `${dividendPerShareEur.toFixed(2)} €`,
+                        `${dividendPerShareEur.toFixed(2)} €`
+                      )
+                    : translate('Saknar data', 'Missing data')}
+                </Typography>
+                <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
+                  {Number.isFinite(dividendPerShareSek) ? `${dividendPerShareSek.toFixed(2)} SEK` : '–'}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
+                  {Number.isFinite(sharesAfterBuyback)
+                    ? translate(
+                        `Kvarvarande aktier: ${fmtNum(sharesAfterBuyback)}`,
+                        `Shares after buyback: ${fmtNum(sharesAfterBuyback)}`
+                      )
+                    : translate('Beräknas när kurs finns.', 'Calculated when price is available.')}
+                </Typography>
+              </Box>
+            </Stack>
+          </Stack>
         </Box>
       )}
 

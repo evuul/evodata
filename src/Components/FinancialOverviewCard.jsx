@@ -24,6 +24,11 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  ComposedChart,
 } from "recharts";
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
@@ -212,6 +217,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [metric, setMetric] = useState("revenue");
   const [viewMode, setViewMode] = useState("quarterly");
+  const [wideMetric, setWideMetric] = useState("revenue");
+  const [wideViewMode, setWideViewMode] = useState("quarterly");
   const translate = useTranslate();
 
   const metricConfigs = useMemo(() => {
@@ -248,6 +255,12 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       setViewMode("annual");
     }
   }, [metric, viewMode]);
+
+  useEffect(() => {
+    if (wideMetric === "dividend" && wideViewMode !== "annual") {
+      setWideViewMode("annual");
+    }
+  }, [wideMetric, wideViewMode]);
 
   const handleMetricChange = (_event, nextMetric) => {
     if (nextMetric) {
@@ -341,6 +354,52 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       .sort((a, b) => a.year - b.year);
   }, [quarterlySeries]);
 
+  const regulatedQuarterlySeries = useMemo(() => {
+    return reportsAscending
+      .map((report) => ({
+        period: `${report.quarter} ${report.year}`,
+        xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+        year: report.year,
+        quarter: report.quarter,
+        totalRevenue: Number.isFinite(report.operatingRevenues) ? report.operatingRevenues : null,
+        regulatedShare: Number.isFinite(report.regulatedMarket) ? report.regulatedMarket : null,
+      }))
+      .filter((row) => Number.isFinite(row.totalRevenue) || Number.isFinite(row.regulatedShare));
+  }, [reportsAscending]);
+
+  const regulatedAnnualSeries = useMemo(() => {
+    const map = new Map();
+    reportsAscending.forEach((report) => {
+      const year = Number(report.year);
+      if (!Number.isFinite(year)) return;
+      if (!map.has(year)) {
+        map.set(year, { year, totalRevenue: 0, regulatedRevenue: 0 });
+      }
+      const entry = map.get(year);
+      const total = Number(report.operatingRevenues);
+      const regulatedPct = Number(report.regulatedMarket);
+      if (Number.isFinite(total)) entry.totalRevenue += total;
+      if (Number.isFinite(total) && Number.isFinite(regulatedPct)) {
+        entry.regulatedRevenue += (total * regulatedPct) / 100;
+      }
+    });
+    return Array.from(map.values())
+      .map((entry) => ({
+        year: entry.year,
+        totalRevenue: entry.totalRevenue,
+        regulatedRevenue: entry.regulatedRevenue,
+        regulatedShare:
+          Number.isFinite(entry.totalRevenue) && entry.totalRevenue > 0
+            ? (entry.regulatedRevenue / entry.totalRevenue) * 100
+            : null,
+      }))
+      .sort((a, b) => a.year - b.year);
+  }, [reportsAscending]);
+
+  const [regulatedView, setRegulatedView] = useState("annual");
+  const [regulatedChartType, setRegulatedChartType] = useState("line");
+  const regulatedSeries = regulatedView === "quarterly" ? regulatedQuarterlySeries : regulatedAnnualSeries;
+
   const { rate: fxRate } = useFxRateContext();
 
   const dividendSeries = useMemo(() => {
@@ -398,6 +457,35 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     }));
   }, [metric, viewMode, dividendSeries, annualSeries, quarterlySeries, metricConfigs]);
 
+  const wideSelectedSeries = useMemo(() => {
+    const config = metricConfigs[wideMetric];
+    if (!config || config.custom || !config.valueKey) {
+      return [];
+    }
+    const source =
+      wideMetric === "dividend"
+        ? dividendSeries.filter((item) => Number.isFinite(item.dividend))
+        : (wideViewMode === "annual" ? annualSeries : quarterlySeries).filter((item) =>
+            Number.isFinite(item[metricConfigs[wideMetric].valueKey])
+          );
+    return source.map((item) => ({
+      ...item,
+      xLabel: item.xLabel || item.period,
+    }));
+  }, [wideMetric, wideViewMode, dividendSeries, annualSeries, quarterlySeries, metricConfigs]);
+
+  const wideRangeValue = useMemo(() => {
+    if (!wideSelectedSeries.length || !metricConfigs[wideMetric]?.valueKey) return null;
+    const first = wideSelectedSeries[0]?.[metricConfigs[wideMetric]?.valueKey];
+    const last = wideSelectedSeries[wideSelectedSeries.length - 1]?.[metricConfigs[wideMetric]?.valueKey];
+    return {
+      firstValue: Number.isFinite(first) ? first : null,
+      lastValue: Number.isFinite(last) ? last : null,
+      firstLabel: wideSelectedSeries[0]?.period,
+      lastLabel: wideSelectedSeries[wideSelectedSeries.length - 1]?.period,
+    };
+  }, [wideSelectedSeries, wideMetric, metricConfigs]);
+
   const chartDomain = useMemo(() => {
     const config = metricConfigs[metric];
     if (!config || config.custom || !config.valueKey || !selectedSeries.length) {
@@ -433,6 +521,112 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
 
     return [min, max];
   }, [metric, selectedSeries, metricConfigs]);
+
+  const wideChartDomain = useMemo(() => {
+    const config = metricConfigs[wideMetric];
+    if (!config || config.custom || !config.valueKey || !wideSelectedSeries.length) {
+      return [0, 1];
+    }
+    const key = config.valueKey;
+    const values = wideSelectedSeries
+      .map((item) => Number(item[key]))
+      .filter((value) => Number.isFinite(value));
+    if (!values.length) return [0, 1];
+
+    let min = Math.min(...values);
+    let max = Math.max(...values);
+
+    if (wideMetric === "margin") {
+      const padding = 3;
+      min = Math.max(0, Math.floor(min - padding));
+      max = Math.min(100, Math.ceil(max + padding));
+      if (min === max) {
+        min = Math.max(0, min - 5);
+        max = Math.min(100, max + 5);
+      }
+    } else {
+      const range = max - min;
+      const padding = range > 0 ? range * 0.1 : max * 0.1 || 1;
+      min = Math.max(0, min - padding);
+      max = max + padding;
+      if (min === max) {
+        min = Math.max(0, min - 1);
+        max = max + 1;
+      }
+    }
+
+    return [min, max];
+  }, [wideMetric, wideSelectedSeries, metricConfigs]);
+
+  const wideSummary = useMemo(() => {
+    const config = metricConfigs[wideMetric];
+    if (!config || config.custom || !config.valueKey || !wideSelectedSeries.length) {
+      return { latest: null, qos: null, yoy: null, latestLabel: null, yoyLabel: null };
+    }
+    const key = config.valueKey;
+    const latestIndex = wideSelectedSeries.length - 1;
+    const latest = wideSelectedSeries[latestIndex];
+    const previous = latestIndex > 0 ? wideSelectedSeries[latestIndex - 1] : null;
+    const yoyRef =
+      wideMetric === "dividend" || wideViewMode === "annual"
+        ? previous
+        : latestIndex - 4 >= 0
+        ? wideSelectedSeries[latestIndex - 4]
+        : null;
+
+    const latestValue = Number.isFinite(latest[key]) ? latest[key] : null;
+    const previousValue = previous && Number.isFinite(previous[key]) ? previous[key] : null;
+    const yoyValue = yoyRef && Number.isFinite(yoyRef[key]) ? yoyRef[key] : null;
+    return {
+      latest: latestValue,
+      qoq: computeChangeValue(metricConfigs, wideMetric, latestValue, previousValue),
+      yoy: computeChangeValue(metricConfigs, wideMetric, latestValue, yoyValue),
+      latestLabel: latest?.period || null,
+      yoyLabel: yoyRef?.period || null,
+    };
+  }, [wideMetric, wideViewMode, wideSelectedSeries, metricConfigs]);
+
+  const wideTrendText = useMemo(() => {
+    const config = metricConfigs[wideMetric];
+    if (!config || config.custom || !config.valueKey || !wideSelectedSeries.length) {
+      return translate("Ingen data att visa ännu.", "No data to display yet.");
+    }
+    const key = config.valueKey;
+    const latestIndex = wideSelectedSeries.length - 1;
+    const latest = wideSelectedSeries[latestIndex];
+    const previous = latestIndex > 0 ? wideSelectedSeries[latestIndex - 1] : null;
+    const yoyRef =
+      wideMetric === "dividend" || wideViewMode === "annual"
+        ? previous
+        : latestIndex - 4 >= 0
+        ? wideSelectedSeries[latestIndex - 4]
+        : null;
+
+    const latestValue = Number.isFinite(latest?.[key]) ? latest[key] : null;
+    const previousValue = previous && Number.isFinite(previous?.[key]) ? previous[key] : null;
+    const yoyValue = yoyRef && Number.isFinite(yoyRef?.[key]) ? yoyRef[key] : null;
+
+    const changeQoQ = computeChangeValue(metricConfigs, wideMetric, latestValue, previousValue);
+    const changeYoY = computeChangeValue(metricConfigs, wideMetric, latestValue, yoyValue);
+
+    const primaryChange = changeYoY != null ? changeYoY : changeQoQ;
+    const primaryLabel = changeYoY != null ? "YoY" : changeQoQ != null ? "QoQ" : null;
+    if (primaryChange == null || !primaryLabel) {
+      return translate("Saknar referens för att visa trend.", "Missing reference to show trend.");
+    }
+
+    const directionSv = primaryChange >= 0 ? "upp" : "ned";
+    const directionEn = primaryChange >= 0 ? "up" : "down";
+    const amount =
+      config.changeMode === "points"
+        ? `${Math.abs(primaryChange).toFixed(1)} pp`
+        : `${Math.abs(primaryChange).toFixed(1)}%`;
+    const latestValueLabel = formatMetricValue(metricConfigs, wideMetric, latestValue);
+    return translate(
+      `${config.label} är ${directionSv} ${amount} ${primaryLabel} (senaste: ${latestValueLabel} – ${latest?.period}).`,
+      `${config.label} is ${directionEn} ${amount} ${primaryLabel} (latest: ${latestValueLabel} – ${latest?.period}).`
+    );
+  }, [metricConfigs, translate, wideMetric, wideSelectedSeries, wideViewMode]);
 
   const xAxisInterval = useMemo(() => {
     const config = metricConfigs[metric];
@@ -584,7 +778,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
           latest[config.valueKey],
           previous?.[config.valueKey]
         );
-        const changeLabel = value === "dividend" ? "Δ" : "QoQ";
+        const changeLabel = value === "dividend" ? "YoY" : "QoQ";
         return {
           metric: value,
           label: config.label,
@@ -598,6 +792,46 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         };
       });
   }, [metric, quarterlySeries, dividendSeries, metricConfigs, translate, metricToggleOptions]);
+
+  const wideSummaryCards = useMemo(() => {
+    const keys = ["revenue", "margin", "eps", "dividend"];
+    return keys.map((key) => {
+      const config = metricConfigs[key];
+      const source = key === "dividend" ? dividendSeries : quarterlySeries;
+      const filtered = source.filter((item) => Number.isFinite(item[config.valueKey]));
+      if (!filtered.length) {
+        return {
+          metric: key,
+          label: config.label,
+          valueLabel: "–",
+          changeText: translate("Δ saknas", "Δ missing"),
+          periodLabel: null,
+          accent: config.accent,
+          background: config.background,
+          border: config.border,
+        };
+      }
+      const latest = filtered[filtered.length - 1];
+      const previous = filtered.length > 1 ? filtered[filtered.length - 2] : null;
+      const change = computeChangeValue(
+        metricConfigs,
+        key,
+        latest[config.valueKey],
+        previous?.[config.valueKey]
+      );
+      const changeLabel = key === "dividend" ? "YoY" : "QoQ";
+      return {
+        metric: key,
+        label: config.label,
+        valueLabel: formatMetricValue(metricConfigs, key, latest[config.valueKey]),
+        changeText: formatChangeValue(metricConfigs, key, change, changeLabel, translate),
+        periodLabel: latest.period,
+        accent: config.accent,
+        background: config.background,
+        border: config.border,
+      };
+    });
+  }, [dividendSeries, quarterlySeries, metricConfigs, translate]);
 
   const geoQuarterlySeries = useMemo(() => {
     return reportsAscending
@@ -747,7 +981,59 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     };
   }, [productMixAnnualSeries, productMixQuarterlySeries, viewMode]);
 
+  const wideGeoSeries = useMemo(
+    () => (wideViewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries),
+    [wideViewMode, geoAnnualSeries, geoQuarterlySeries]
+  );
+
+  const wideProductMixSeries = useMemo(
+    () => (wideViewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries),
+    [wideViewMode, productMixAnnualSeries, productMixQuarterlySeries]
+  );
+
+  const wideGeoSnapshot = useMemo(() => {
+    const dataset = wideViewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries;
+    if (!dataset.length) return null;
+    const latestEntry = dataset[dataset.length - 1];
+    const regions = REGION_OPTIONS.map(({ key, labelSv, labelEn }) => {
+      const raw = Number(latestEntry?.[key]);
+      const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
+      return { key, label: translate(labelSv, labelEn), value };
+    }).filter((item) => item.value > 0);
+    const total = regions.reduce((sum, item) => sum + item.value, 0);
+    if (total === 0) return null;
+    return {
+      period: latestEntry.period,
+      total,
+      regions: regions
+        .map((item) => ({
+          ...item,
+          share: item.value / total,
+        }))
+        .sort((a, b) => b.value - a.value),
+    };
+  }, [geoAnnualSeries, geoQuarterlySeries, wideViewMode, translate]);
+
+  const wideProductMixSnapshot = useMemo(() => {
+    const dataset = wideViewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries;
+    if (!dataset.length) return null;
+    const latestEntry = dataset[dataset.length - 1];
+    const live = Number.isFinite(latestEntry?.liveCasino) ? Math.max(latestEntry.liveCasino, 0) : 0;
+    const rng = Number.isFinite(latestEntry?.rng) ? Math.max(latestEntry.rng, 0) : 0;
+    const total = live + rng;
+    if (total === 0) return null;
+    return {
+      period: latestEntry.period,
+      live,
+      rng,
+      total,
+      liveShare: live / total,
+      rngShare: rng / total,
+    };
+  }, [productMixAnnualSeries, productMixQuarterlySeries, wideViewMode]);
+
   const isStandardMetric = Boolean(metricConfigs[metric] && !metricConfigs[metric].custom);
+  const isWideStandardMetric = Boolean(metricConfigs[wideMetric] && !metricConfigs[wideMetric].custom);
   const gradientId = `financial-${metric}`;
   const yAxisKey = metricConfigs[metric]?.valueKey;
 
@@ -769,18 +1055,27 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
   const formatShare = (value) =>
     Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : "–";
 
+  const formatChangeColor = (value) => {
+    if (!Number.isFinite(value)) return "rgba(226,232,240,0.75)";
+    return value >= 0 ? "#34d399" : "#f87171";
+  };
+
   return (
+    <>
+    {/*
     <Box
       sx={{
         background: "linear-gradient(135deg, #0f172a, #1f2937)",
-        borderRadius: { xs: 0, md: "18px" },
+        borderRadius: 0,
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
         color: "#f8fafc",
 
-        // BLEED inom sidan/container
-        mx: { xs: -2, sm: -3, md: -4 },
-        px: { xs: 2, sm: 3, md: 4 },
+        // FULL-BLEED: sträcker till viewportens kanter
+        width: "100vw",
+        mx: "calc(50% - 50vw)",
+        pl: { xs: 2, sm: 3, md: 4, lg: 4 },
+        pr: { xs: 2, sm: 3, md: 4, lg: 0 },
         py: { xs: 2.5, md: 4 },
         overflow: "visible",
       }}
@@ -896,7 +1191,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
       <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
 
       <Grid container spacing={isMobile ? 1.5 : 2.5}>
-        <Grid item xs={12} md={9}>
+        <Grid item xs={12} lg={10} xl={10}>
           <Box
             sx={{
               background: "rgba(15,23,42,0.55)",
@@ -1490,8 +1785,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
           </Box>
         </Grid>
 
-        <Grid item xs={12} md={3}>
-          <Stack spacing={2.5} sx={{ height: "100%" }}>
+        <Grid item xs={12} lg={2} xl={2} sx={{ display: "flex" }}>
+          <Stack spacing={2.5} sx={{ height: "100%", width: "100%" }}>
             {metricSummaries.map((summary) => (
               <Box
                 key={summary.metric}
@@ -1505,6 +1800,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                   display: "flex",
                   flexDirection: "column",
                   gap: 0.75,
+                  width: "100%",
                   transition: "border 0.2s ease, transform 0.2s ease",
                   transform: summary.active ? "translateY(-2px)" : "none",
                 }}
@@ -1526,9 +1822,846 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
               </Box>
             ))}
           </Stack>
-        </Grid>
       </Grid>
+    </Grid>
+
+
     </Box>
+    */}
+
+      {/* Full-width alternative view */}
+      <Box
+        sx={{
+          mt: { xs: 3, md: 4 },
+          width: "100vw",
+          mx: "calc(50% - 50vw)",
+          background: "linear-gradient(135deg, #0b1220, #101a2e)",
+          borderTop: "1px solid rgba(148,163,184,0.18)",
+          borderBottom: "1px solid rgba(148,163,184,0.18)",
+          px: { xs: 2, sm: 3, md: 4, lg: 6 },
+          py: { xs: 3, md: 4 },
+        }}
+      >
+        <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
+          <Box>
+            <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.7)", letterSpacing: 1.2 }}>
+              {translate("Finansiell översikt", "Financial overview")}
+            </Typography>
+            <Typography variant={isMobile ? "h5" : "h4"} sx={{ fontWeight: 800, color: "#f8fafc" }}>
+              {translate("Omsättning, marginal & lönsamhet", "Revenue, margin & profitability")}
+            </Typography>
+            <Typography sx={{ color: "rgba(226,232,240,0.7)" }}>
+              {translate(
+                "Ny vy med full bredd för att snabbt jämföra nyckeltal.",
+                "A full-width view to compare key metrics quickly."
+              )}
+            </Typography>
+          </Box>
+
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={{ xs: 1.2, md: 2 }}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+          >
+            <ToggleButtonGroup
+              value={wideMetric}
+              exclusive
+              onChange={(_e, v) => v && setWideMetric(v)}
+              size="small"
+              sx={{
+                backgroundColor: "rgba(148,163,184,0.12)",
+                borderRadius: "999px",
+                p: 0.5,
+                flexWrap: "wrap",
+              }}
+            >
+              {metricToggleOptions.map((option) => (
+                <ToggleButton
+                  key={`wide-${option.value}`}
+                  value={option.value}
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.75)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.5, md: 2.2 },
+                    "&.Mui-selected": {
+                      color: "#f8fafc",
+                      backgroundColor: `${metricConfigs[option.value]?.accent || "#60a5fa"}33`,
+                    },
+                  }}
+                >
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+
+            <ToggleButtonGroup
+              value={wideViewMode}
+              exclusive
+              onChange={(_e, v) => v && setWideViewMode(v)}
+              size="small"
+              sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
+            >
+              {viewToggleOptions.map((option) => (
+                <ToggleButton
+                  key={`wide-${option.value}`}
+                  value={option.value}
+                  disabled={wideMetric === "dividend" && option.value === "quarterly"}
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.75)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.5, md: 2 },
+                    "&.Mui-selected": {
+                      color: "#f8fafc",
+                      backgroundColor: "rgba(96,165,250,0.25)",
+                    },
+                  }}
+                >
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          </Stack>
+
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", lg: "2.2fr 1fr" },
+              gap: { xs: 1.5, md: 2.5 },
+              alignItems: "stretch",
+              width: "100%",
+              minHeight: { xs: "auto", lg: 560 },
+            }}
+          >
+            <Box
+              sx={{
+                background: "rgba(15,23,42,0.55)",
+                borderRadius: "16px",
+                border: "1px solid rgba(148,163,184,0.18)",
+                p: { xs: 2, md: 2.5 },
+                height: { xs: "auto", lg: "100%" },
+                width: "100%",
+                minHeight: { xs: 320, lg: 560 },
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+                <Box sx={{ flex: 1, minHeight: 0 }}>
+                  {isWideStandardMetric && wideSelectedSeries.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={wideSelectedSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="wideGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop
+                            offset="5%"
+                            stopColor={metricConfigs[wideMetric]?.accent || "#60a5fa"}
+                            stopOpacity={0.6}
+                          />
+                          <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="xLabel"
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        interval={wideViewMode === "quarterly" ? (isMobile ? 4 : 2) : 0}
+                      />
+                      <YAxis
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        domain={wideChartDomain}
+                        tickFormatter={(value) => {
+                          const numeric = Number(value);
+                          if (!Number.isFinite(numeric)) return "";
+                          if (wideMetric === "margin") return `${numeric.toFixed(0)}%`;
+                          if (wideMetric === "revenue") return formatMillion(numeric, numeric >= 100 ? 0 : 1);
+                          return numeric.toFixed(metricConfigs[wideMetric]?.decimals || 1);
+                        }}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(96,165,250,0.25)",
+                          borderRadius: 12,
+                          color: "#f8fafc",
+                        }}
+                        formatter={(value) => [
+                          formatMetricValue(metricConfigs, wideMetric, Number(value)),
+                          metricConfigs[wideMetric]?.label,
+                        ]}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey={metricConfigs[wideMetric]?.valueKey}
+                        stroke={metricConfigs[wideMetric]?.accent || "#60a5fa"}
+                        strokeWidth={2.5}
+                        fill="url(#wideGradient)"
+                        fillOpacity={1}
+                        dot={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  ) : wideMetric === "geo" && wideGeoSeries.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={wideGeoSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="xLabel"
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        minTickGap={isMobile ? 8 : 16}
+                      />
+                      <YAxis
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        tickFormatter={(value) => formatMillion(value, value >= 100 ? 0 : 1)}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(168,85,247,0.25)",
+                          borderRadius: 12,
+                          color: "#f8fafc",
+                        }}
+                        labelFormatter={(_label, payload) =>
+                          payload && payload[0] && payload[0].payload?.period
+                            ? payload[0].payload.period
+                            : "–"
+                        }
+                        formatter={(value, name) => [formatGeoTooltipValue(value), name]}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        wrapperStyle={{ color: "rgba(226,232,240,0.78)" }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="europe"
+                        name={translate("Europa", "Europe")}
+                        stroke="#60a5fa"
+                        fill="#60a5fa44"
+                        strokeWidth={2}
+                        stackId="regions-wide"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="asia"
+                        name={translate("Asien", "Asia")}
+                        stroke="#fbbf24"
+                        fill="#fbbf2444"
+                        strokeWidth={2}
+                        stackId="regions-wide"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="northAmerica"
+                        name={translate("Nordamerika", "North America")}
+                        stroke="#34d399"
+                        fill="#34d39944"
+                        strokeWidth={2}
+                        stackId="regions-wide"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="latAm"
+                        name={translate("Latinamerika", "Latin America")}
+                        stroke="#f97316"
+                        fill="#f9731644"
+                        strokeWidth={2}
+                        stackId="regions-wide"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="other"
+                        name={translate("Övrigt", "Other")}
+                        stroke="#a855f7"
+                        fill="#a855f744"
+                        strokeWidth={2}
+                        stackId="regions-wide"
+                        dot={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  ) : wideMetric === "productMix" && wideProductMixSeries.length ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={wideProductMixSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                      <XAxis
+                        dataKey="xLabel"
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        minTickGap={isMobile ? 8 : 16}
+                      />
+                      <YAxis
+                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tickLine={false}
+                        axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                        tickFormatter={(value) => formatMillion(value, value >= 100 ? 0 : 1)}
+                      />
+                      <RechartsTooltip
+                        contentStyle={{
+                          background: "rgba(15,23,42,0.92)",
+                          border: "1px solid rgba(56,189,248,0.25)",
+                          borderRadius: 12,
+                          color: "#f8fafc",
+                        }}
+                        labelFormatter={(_label, payload) =>
+                          payload && payload[0] && payload[0].payload?.period
+                            ? payload[0].payload.period
+                            : "–"
+                        }
+                        formatter={(value, name) => [formatGeoTooltipValue(value), name]}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        wrapperStyle={{ color: "rgba(226,232,240,0.78)" }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="liveCasino"
+                        name={translate("Live Casino", "Live Casino")}
+                        stroke="#38bdf8"
+                        fill="#38bdf844"
+                        strokeWidth={2.2}
+                        stackId="products-wide"
+                        dot={false}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="rng"
+                        name={translate("RNG", "RNG")}
+                        stroke="#f87171"
+                        fill="#f8717144"
+                        strokeWidth={2.2}
+                        stackId="products-wide"
+                        dot={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                  ) : (
+                    <Box
+                      sx={{
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "rgba(148,163,184,0.65)",
+                      }}
+                    >
+                      <Typography>
+                        {translate("Ingen data att visualisera för valt läge.", "No data for selected view.")}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                {wideMetric === "geo" && wideGeoSnapshot?.regions?.length ? (
+                  <Box sx={{ mt: { xs: 1.5, md: 2 } }}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, minmax(0, 1fr))" },
+                        gap: { xs: 1, md: 1.5 },
+                      }}
+                    >
+                      {wideGeoSnapshot.regions.slice(0, 4).map((region) => (
+                        <Box
+                          key={`wide-geo-inline-${region.key}`}
+                          sx={{
+                            background: "rgba(59,130,246,0.08)",
+                            borderRadius: "14px",
+                            border: "1px solid rgba(96,165,250,0.25)",
+                            p: 1.6,
+                          }}
+                        >
+                          <Typography
+                            sx={{
+                              color: "rgba(226,232,240,0.7)",
+                              fontSize: "0.75rem",
+                              letterSpacing: 0.6,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {region.label}
+                          </Typography>
+                          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                            {`${formatMillion(region.value, region.value >= 100 ? 0 : 1)} €M`}
+                          </Typography>
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                            {formatShare(region.share)}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                ) : wideMetric === "productMix" && wideProductMixSnapshot ? (
+                  <Box sx={{ mt: { xs: 1.5, md: 2 } }}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                        gap: { xs: 1, md: 1.5 },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          background: "rgba(56,189,248,0.12)",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(56,189,248,0.25)",
+                          p: 1.6,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            color: "rgba(226,232,240,0.7)",
+                            fontSize: "0.75rem",
+                            letterSpacing: 0.6,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {translate("Live Casino", "Live Casino")}
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          {`${formatMillion(wideProductMixSnapshot.live, wideProductMixSnapshot.live >= 100 ? 0 : 1)} €M`}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                          {formatShare(wideProductMixSnapshot.liveShare)}
+                        </Typography>
+                      </Box>
+                      <Box
+                        sx={{
+                          background: "rgba(248,113,113,0.12)",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(248,113,113,0.25)",
+                          p: 1.6,
+                        }}
+                      >
+                        <Typography
+                          sx={{
+                            color: "rgba(226,232,240,0.7)",
+                            fontSize: "0.75rem",
+                            letterSpacing: 0.6,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {translate("RNG", "RNG")}
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          {`${formatMillion(wideProductMixSnapshot.rng, wideProductMixSnapshot.rng >= 100 ? 0 : 1)} €M`}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                          {formatShare(wideProductMixSnapshot.rngShare)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                ) : isWideStandardMetric ? (
+                  <Box sx={{ mt: { xs: 1.5, md: 2 } }}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "repeat(4, minmax(0, 1fr))" },
+                        gap: { xs: 1, md: 1.5 },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          background: "rgba(59,130,246,0.1)",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(96,165,250,0.25)",
+                          p: 1.6,
+                        }}
+                      >
+                        <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                          {translate("Senaste", "Latest")}
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          {wideSummary.latest != null
+                            ? formatMetricValue(metricConfigs, wideMetric, wideSummary.latest)
+                            : "—"}
+                        </Typography>
+                        {wideSummary.latestLabel && (
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                            QoQ • {translate("Senast", "Latest")}: {wideSummary.latestLabel}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          background: "rgba(16,185,129,0.1)",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(16,185,129,0.25)",
+                          p: 1.6,
+                        }}
+                      >
+                        <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                          QoQ
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 700, color: formatChangeColor(wideSummary.qoq) }}
+                        >
+                          {wideSummary.qoq != null
+                            ? formatChangeValue(metricConfigs, wideMetric, wideSummary.qoq, "", translate).replace(/\s$/, "")
+                            : "—"}
+                        </Typography>
+                        {wideSummary.latestLabel && (
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                            {translate("Senast", "Latest")}: {wideSummary.latestLabel}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          background: "rgba(244,63,94,0.1)",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(244,63,94,0.25)",
+                          p: 1.6,
+                        }}
+                      >
+                        <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                          YoY
+                        </Typography>
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 700, color: formatChangeColor(wideSummary.yoy) }}
+                        >
+                          {wideSummary.yoy != null
+                            ? formatChangeValue(metricConfigs, wideMetric, wideSummary.yoy, "", translate).replace(/\s$/, "")
+                            : "—"}
+                        </Typography>
+                        {wideSummary.yoyLabel && (
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                            YoY • {translate("Jämfört", "Compared")}: {wideSummary.yoyLabel}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box
+                        sx={{
+                          background: "rgba(59,130,246,0.08)",
+                          borderRadius: "14px",
+                          border: "1px solid rgba(96,165,250,0.25)",
+                          p: 1.6,
+                        }}
+                      >
+                        <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
+                          {translate("Spann", "Range")}
+                        </Typography>
+                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          {wideRangeValue?.firstValue != null && wideRangeValue?.lastValue != null
+                            ? `${formatMetricValue(metricConfigs, wideMetric, wideRangeValue.firstValue)} → ${formatMetricValue(
+                                metricConfigs,
+                                wideMetric,
+                                wideRangeValue.lastValue
+                              )}`
+                            : "—"}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
+                          {wideRangeValue?.firstLabel && wideRangeValue?.lastLabel
+                            ? `${wideRangeValue.firstLabel} • ${wideRangeValue.lastLabel}`
+                            : translate("Första → senaste", "First → latest")}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem", mt: { xs: 1, md: 1.5 } }}>
+                      {wideTrendText}
+                    </Typography>
+                  </Box>
+                ) : null}
+              </Box>
+
+            <Box sx={{ height: { xs: "auto", lg: "100%" } }}>
+              <Stack spacing={2} sx={{ height: { xs: "auto", lg: "100%" } }}>
+                {wideSummaryCards.map((summary) => {
+                  const isActive = summary.metric === wideMetric;
+                  return (
+                    <Box
+                      key={`wide-summary-${summary.metric}`}
+                      sx={{
+                        background: isActive ? summary.background : "rgba(15,23,42,0.55)",
+                        borderRadius: "16px",
+                        border: isActive
+                          ? `1px solid ${summary.accent}`
+                          : "1px solid rgba(148,163,184,0.18)",
+                        p: 2.2,
+                        boxShadow: isActive ? `0 0 18px ${summary.accent}33` : "none",
+                        transition: "all 0.2s ease",
+                        flex: { xs: "unset", lg: 1 },
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", fontWeight: 600 }}>
+                        {summary.label}
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
+                        {summary.valueLabel}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem" }}>
+                        {summary.changeText}
+                      </Typography>
+                      {summary.periodLabel && (
+                        <Typography sx={{ color: "rgba(148,163,184,0.6)", fontSize: "0.8rem" }}>
+                          {translate("Senast", "Latest")}: {summary.periodLabel}
+                        </Typography>
+                      )}
+                    </Box>
+                  );
+                })}
+              </Stack>
+            </Box>
+          </Box>
+        </Stack>
+      </Box>
+
+      {regulatedSeries.length > 0 && (
+        <Box
+          sx={{
+            mt: { xs: 2.5, md: 3 },
+            width: "100vw",
+            mx: "calc(50% - 50vw)",
+            background: "rgba(15,23,42,0.55)",
+            borderRadius: 0,
+            borderTop: "1px solid rgba(148,163,184,0.18)",
+            borderBottom: "1px solid rgba(148,163,184,0.18)",
+            px: { xs: 2, sm: 3, md: 4, lg: 6 },
+            py: { xs: 2.5, md: 3 },
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+            spacing={1}
+            sx={{ mb: 1.5 }}
+          >
+            <Box>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                {translate("Reglerade intäkter vs total (YoY)", "Regulated revenue vs total (YoY)")}
+              </Typography>
+              <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                {translate(
+                  "Årlig utveckling av reglerade marknader jämfört med total intäkt.",
+                  "Annual regulated-market revenue compared with total revenue."
+                )}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={1}>
+              <ToggleButtonGroup
+                value={regulatedView}
+                exclusive
+                onChange={(_e, v) => v && setRegulatedView(v)}
+                size="small"
+                sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.4 }}
+              >
+                <ToggleButton
+                  value="quarterly"
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.8)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.2, md: 1.6 },
+                    "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" },
+                  }}
+                >
+                  {translate("Kvartal", "Quarter")}
+                </ToggleButton>
+                <ToggleButton
+                  value="annual"
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.8)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.2, md: 1.6 },
+                    "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" },
+                  }}
+                >
+                  {translate("År", "Year")}
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              <ToggleButtonGroup
+                value={regulatedChartType}
+                exclusive
+                onChange={(_e, v) => v && setRegulatedChartType(v)}
+                size="small"
+                sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.4 }}
+              >
+                <ToggleButton
+                  value="line"
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.8)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.2, md: 1.6 },
+                    "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" },
+                  }}
+                >
+                  {translate("Linje", "Line")}
+                </ToggleButton>
+                <ToggleButton
+                  value="bar"
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.8)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.2, md: 1.6 },
+                    "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" },
+                  }}
+                >
+                  {translate("Stapel", "Bar")}
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+          </Stack>
+
+          <Box sx={{ height: isMobile ? 240 : 300 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              {regulatedChartType === "line" ? (
+                <LineChart data={regulatedSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                  <XAxis
+                    dataKey={regulatedView === "quarterly" ? "xLabel" : "year"}
+                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    interval={regulatedView === "quarterly" ? (isMobile ? 3 : 2) : 0}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    tickFormatter={(v) => formatMillion(v, v >= 100 ? 0 : 1)}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                    domain={[0, 100]}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      background: "rgba(15,23,42,0.92)",
+                      border: "1px solid rgba(96,165,250,0.25)",
+                      borderRadius: 12,
+                      color: "#f8fafc",
+                    }}
+                    formatter={(value, _name, props) =>
+                      props?.dataKey === "regulatedShare"
+                        ? [`${Number(value).toFixed(1)}%`, translate("Reglerad andel", "Regulated share")]
+                        : [`${formatMillion(Number(value), 1)} €M`, translate("Total intäkt", "Total revenue")]
+                    }
+                  />
+                  <Legend wrapperStyle={{ color: "rgba(226,232,240,0.78)" }} />
+                  <Line
+                    type="monotone"
+                    dataKey="totalRevenue"
+                    name={translate("Total intäkt", "Total revenue")}
+                    stroke="#60a5fa"
+                    strokeWidth={2.5}
+                    dot={false}
+                    yAxisId="left"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="regulatedShare"
+                    name={translate("Reglerad andel", "Regulated share")}
+                    stroke="#34d399"
+                    strokeWidth={2.5}
+                    dot={false}
+                    yAxisId="right"
+                  />
+                </LineChart>
+              ) : (
+                <ComposedChart data={regulatedSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+                  <XAxis
+                    dataKey={regulatedView === "quarterly" ? "xLabel" : "year"}
+                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    interval={regulatedView === "quarterly" ? (isMobile ? 3 : 2) : 0}
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    tickFormatter={(v) => formatMillion(v, v >= 100 ? 0 : 1)}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tickLine={false}
+                    axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+                    domain={[0, 100]}
+                  />
+                  <RechartsTooltip
+                    contentStyle={{
+                      background: "rgba(15,23,42,0.92)",
+                      border: "1px solid rgba(96,165,250,0.25)",
+                      borderRadius: 12,
+                      color: "#f8fafc",
+                    }}
+                    formatter={(value, _name, props) =>
+                      props?.dataKey === "regulatedShare"
+                        ? [`${Number(value).toFixed(1)}%`, translate("Reglerad andel", "Regulated share")]
+                        : [`${formatMillion(Number(value), 1)} €M`, translate("Total intäkt", "Total revenue")]
+                    }
+                  />
+                  <Legend wrapperStyle={{ color: "rgba(226,232,240,0.78)" }} />
+                  <Bar
+                    dataKey="totalRevenue"
+                    name={translate("Total intäkt", "Total revenue")}
+                    fill="#60a5fa"
+                    radius={[6, 6, 0, 0]}
+                    barSize={regulatedView === "quarterly" ? 14 : 26}
+                    yAxisId="left"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="regulatedShare"
+                    name={translate("Reglerad andel", "Regulated share")}
+                    stroke="#34d399"
+                    strokeWidth={2.5}
+                    dot={{ r: 2 }}
+                    yAxisId="right"
+                  />
+                </ComposedChart>
+              )}
+            </ResponsiveContainer>
+          </Box>
+        </Box>
+      )}
+    </>
   );
 };
 

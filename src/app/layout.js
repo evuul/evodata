@@ -63,7 +63,7 @@ export default function RootLayout({ children }) {
               sx={{
                 flexGrow: 1,
                 width: "100%",
-                padding: { xs: "12px", sm: "16px", md: "24px" },
+                padding: 0,
                 boxSizing: "border-box",
               }}
             >

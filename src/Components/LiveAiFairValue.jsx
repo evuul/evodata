@@ -22,7 +22,7 @@ import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
-import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH } from '@/lib/fairValueUtils';
+import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH, MIN_BBY, MAX_BBY, clamp } from '@/lib/fairValueUtils';
 import { useTheme } from '@mui/material/styles';
 
 const currency0 = new Intl.NumberFormat('sv-SE', {
@@ -71,10 +71,13 @@ const formatDateTime = (date) => {
   }).format(date);
 };
 
-export default function LiveAiFairValue({ reports = [], buyback }) {
+export default function LiveAiFairValue({ reports = [], buyback, buybackData, sharesData }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const translate = useTranslate();
+  const [liveReports, setLiveReports] = useState(reports);
+  const [liveBuyback, setLiveBuyback] = useState(buyback ?? null);
+  const [buybackMeta, setBuybackMeta] = useState(null);
   const scenarioPalette = useMemo(() => {
     const entries = {};
     Object.entries(SCENARIO_PALETTE_BASE).forEach(([key, config]) => {
@@ -120,15 +123,18 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
     return close;
   }, [stockPrice]);
 
+  const effectiveReports = Array.isArray(liveReports) ? liveReports : reports;
+  const effectiveBuyback = liveBuyback ?? buyback;
+
   const fairValue = useMemo(
     () =>
       computeFairValueInsights({
-        reports,
-        buyback,
+        reports: effectiveReports,
+        buyback: effectiveBuyback,
         fxRate: fx,
         currentPriceSEK,
       }),
-    [reports, buyback, fx, currentPriceSEK]
+    [effectiveReports, effectiveBuyback, fx, currentPriceSEK]
   );
 
   const [scenarioId, setScenarioId] = useState(() => fairValue.scenarios[0]?.id ?? 'fair');
@@ -235,6 +241,91 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
   );
   const priceStatusText = priceError ? translate('fel vid hämtning', 'fetch error') : translate('OK', 'OK');
   const fxStatusText = fxError ? translate('fel vid hämtning', 'fetch error') : translate('OK', 'OK');
+  const buybackStatusText = buybackMeta?.buybacksActive === false
+    ? translate('inaktivt program', 'inactive program')
+    : buybackMeta?.updatedAt
+    ? translate('OK', 'OK')
+    : translate('saknas', 'missing');
+
+  useEffect(() => {
+    let active = true;
+    const fetchReports = async () => {
+      try {
+        const res = await fetch('/api/financial-reports', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const nextReports = Array.isArray(data?.financialReports) ? data.financialReports : null;
+        if (active && nextReports && nextReports.length) {
+          setLiveReports(nextReports);
+        }
+      } catch (_err) {
+        // keep fallback reports
+      }
+    };
+    fetchReports();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const computeBuybackAssumptions = useCallback(
+    (rows, shares) => {
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const latestShares = Array.isArray(shares) && shares.length ? shares[shares.length - 1]?.sharesOutstanding : null;
+      const sharesOutstanding = Number(latestShares);
+      if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
+      const sharesBase = sharesOutstanding > 1e6 ? sharesOutstanding : sharesOutstanding * 1e6;
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const totalShares = rows.reduce((sum, row) => {
+        const dateStr = row?.Datum || row?.date;
+        const date = dateStr ? new Date(dateStr) : null;
+        if (!date || Number.isNaN(date.getTime()) || date < cutoff) return sum;
+        const count = Number(row?.Antal_aktier ?? row?.shares ?? 0);
+        return Number.isFinite(count) ? sum + count : sum;
+      }, 0);
+      if (totalShares <= 0) return null;
+      const base = clamp(totalShares / sharesBase, MIN_BBY, MAX_BBY);
+      return {
+        base,
+        bull: clamp(base * 1.2, MIN_BBY, MAX_BBY),
+        bear: clamp(base * 0.8, MIN_BBY, MAX_BBY),
+      };
+    },
+    []
+  );
+
+  useEffect(() => {
+    let active = true;
+    const fetchBuybacks = async () => {
+      try {
+        const res = await fetch('/api/buybacks/data', { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!active) return;
+        setBuybackMeta(data);
+        if (data?.buybacksActive === false) return;
+        const rows = Array.isArray(data?.current) ? data.current : Array.isArray(data?.old) ? data.old : [];
+        const assumptions = computeBuybackAssumptions(rows, sharesData);
+        if (assumptions) {
+          setLiveBuyback(assumptions);
+        }
+      } catch (_err) {
+        // keep fallback buyback
+      }
+    };
+    fetchBuybacks();
+    return () => {
+      active = false;
+    };
+  }, [computeBuybackAssumptions, sharesData]);
+
+  useEffect(() => {
+    if (buybackData && !liveBuyback) {
+      const assumptions = computeBuybackAssumptions(buybackData, sharesData);
+      if (assumptions) setLiveBuyback(assumptions);
+    }
+  }, [buybackData, computeBuybackAssumptions, liveBuyback, sharesData]);
 
   return (
     <Box
@@ -325,6 +416,22 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
                 border: '1px solid rgba(244,114,182,0.35)',
               }}
             />
+            {buybackMeta?.updatedAt && (
+              <Chip
+                size="small"
+                icon={<AccessTimeIcon sx={{ color: '#a7f3d0 !important' }} />}
+                label={translate(
+                  `Återköp uppd: ${formatTime(new Date(buybackMeta.updatedAt)) ?? '–'}`,
+                  `Buybacks updated: ${formatTime(new Date(buybackMeta.updatedAt)) ?? '–'}`
+                )}
+                sx={{
+                  backgroundColor: 'rgba(34,197,94,0.12)',
+                  color: '#bbf7d0',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(34,197,94,0.35)',
+                }}
+              />
+            )}
             <Chip
               size="small"
               icon={<AccessTimeIcon sx={{ color: '#bfdbfe !important' }} />}
@@ -674,8 +781,8 @@ export default function LiveAiFairValue({ reports = [], buyback }) {
             )}
             <br />
             {translate(
-              `• Datahämtning live: aktiekurs ${priceStatusText}, FX ${fxStatusText}.`,
-              `• Live data: stock price ${priceStatusText}, FX ${fxStatusText}.`
+              `• Datahämtning live: aktiekurs ${priceStatusText}, FX ${fxStatusText}, återköp ${buybackStatusText}.`,
+              `• Live data: stock price ${priceStatusText}, FX ${fxStatusText}, buybacks ${buybackStatusText}.`
             )}
           </Typography>
         </Stack>

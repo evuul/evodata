@@ -599,7 +599,13 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           </Box>
         );
       }
-      return <LiveAiFairValuePanel reports={reports} />;
+      return (
+        <LiveAiFairValuePanel
+          reports={reports}
+          buybackData={buybackData}
+          sharesData={sharesData}
+        />
+      );
     }
 
     if (activePanel === "cash") {
@@ -683,7 +689,13 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     if (activePanel === "money") return <LiveMoneyCounterPanel />;
 
     if (activePanel === "buybacks")
-      return <LiveStockBuyBackInfoPanel dividendData={dividendData} buybackCash={500_000_000} />;
+      return (
+        <LiveStockBuyBackInfoPanel
+          dividendData={dividendData}
+          buybackCash={500_000_000}
+          financialReports={financialReports}
+        />
+      );
 
     if (activePanel === "short") return <ShortIntelligencePanel />;
 
@@ -698,20 +710,18 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const panelContent = renderActivePanel();
 
   return (
-    <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
-      <Box
-        sx={{
-          background: "linear-gradient(135deg, #0f172a, #111c2f)",
-          borderRadius: "24px",
-          border: "1px solid rgba(148,163,184,0.18)",
-          boxShadow: "0 24px 50px rgba(15,23,42,0.45)",
-          px: { xs: 2.8, sm: 4.5, md: 5.5 },
-          py: { xs: 2.4, sm: 3.2 },
-          maxWidth: { xs: "100%", lg: "1400px" },
-          width: "100%",
-        }}
-      >
-        <Stack spacing={{ xs: 1.8, sm: 2.5, md: 3 }}>
+    <Box
+      sx={{
+        background: "linear-gradient(135deg, #0f172a, #111c2f)",
+        borderRadius: 0,
+        border: "1px solid rgba(148,163,184,0.18)",
+        boxShadow: "0 24px 50px rgba(15,23,42,0.45)",
+        px: { xs: 2, sm: 3, md: 4 },
+        py: { xs: 2.2, sm: 3 },
+        width: "100%",
+      }}
+    >
+      <Stack spacing={{ xs: 1.8, sm: 2.5, md: 3 }}>
           <Box
             sx={{
               display: "flex",
@@ -1621,10 +1631,17 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   exclusive
                   onChange={handlePanelChange}
                   sx={{
-                    backgroundColor: "rgba(148,163,184,0.12)",
+                    backgroundColor: "rgba(15,23,42,0.55)",
                     borderRadius: "999px",
-                    p: 0.5,
-                    flexWrap: "wrap",
+                    p: 0.4,
+                    flexWrap: { xs: "wrap", md: "nowrap" },
+                    gap: 0.5,
+                    justifyContent: { xs: "center", md: "flex-start" },
+                    overflowX: { xs: "visible", md: "auto" },
+                    WebkitOverflowScrolling: "touch",
+                    scrollbarWidth: { xs: "auto", md: "none" },
+                    "&::-webkit-scrollbar": { display: "none" },
+                    maxWidth: "100%",
                   }}
                 >
                   {panelOptions.map((option) => (
@@ -1633,19 +1650,30 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                       value={option.value}
                       sx={{
                         textTransform: "none",
-                        color: "rgba(226,232,240,0.8)",
+                        color: "rgba(226,232,240,0.78)",
                         border: 0,
                         borderRadius: "999px!important",
-                        px: { xs: 1.5, md: 2.5 },
-                        py: 0.75,
+                        px: { xs: 1.25, sm: 1.5, md: 2 },
+                        py: 0.55,
+                        fontSize: { xs: "0.78rem", sm: "0.85rem" },
+                        letterSpacing: 0.2,
+                        whiteSpace: "nowrap",
+                        backgroundColor: "rgba(148,163,184,0.08)",
+                        boxShadow: "inset 0 0 0 1px rgba(148,163,184,0.2)",
+                        transition: "transform 120ms ease, background-color 120ms ease, color 120ms ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(148,163,184,0.18)",
+                          transform: "translateY(-1px)",
+                        },
                         "&.Mui-selected": {
                           color: "#f8fafc",
                           backgroundColor:
                             option.value === "buybacks"
-                              ? "rgba(134,239,172,0.22)"
+                              ? "rgba(134,239,172,0.25)"
                               : option.value === "short"
-                              ? "rgba(248,113,113,0.22)"
-                              : "rgba(56,189,248,0.25)",
+                              ? "rgba(248,113,113,0.25)"
+                              : "rgba(56,189,248,0.28)",
+                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.2)",
                         },
                       }}
                     >
@@ -1675,7 +1703,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             </Box>
           </Stack>
         </Stack>
-      </Box>
     </Box>
   );
 }
