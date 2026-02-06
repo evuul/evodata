@@ -506,6 +506,21 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     : translate("Simulera lobby (+10%)", "Simulate lobby (+10%)");
 
   const [activePanel, setActivePanel] = useState("live");
+  const PANEL_VALUES = useMemo(
+    () =>
+      new Set([
+        "live",
+        "financial",
+        "cash",
+        "gameshow",
+        "fairvalue",
+        "report",
+        "money",
+        "buybacks",
+        "short",
+      ]),
+    []
+  );
   const latestWinTimeFormatter = useMemo(
     () => new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "sv-SE", { hour: "2-digit", minute: "2-digit" }),
     [locale]
@@ -568,8 +583,26 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     [translate]
   );
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const panelParam = params.get("panel");
+    if (panelParam && PANEL_VALUES.has(panelParam)) {
+      setActivePanel(panelParam);
+    }
+  }, [PANEL_VALUES]);
+
   const handlePanelChange = useCallback((_, value) => {
-    if (value) setActivePanel(value);
+    if (!value) return;
+    setActivePanel(value);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (value === "live") {
+      url.searchParams.delete("panel");
+    } else {
+      url.searchParams.set("panel", value);
+    }
+    window.history.replaceState(null, "", url.toString());
   }, []);
 
   const renderActivePanel = useCallback(() => {

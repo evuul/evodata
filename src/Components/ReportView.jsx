@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Stack, Chip, Grid, Divider } from "@mui/material";
 import { useTranslate } from "@/context/LocaleContext";
 import reportCommentary from "@/app/data/reportCommentary.json";
@@ -61,6 +61,7 @@ export default function ReportView({ financialReports }) {
   const prev = latest ? reports.find((r) => r.index === latest.index - 1) ?? null : null;
   const yoy = latest ? reports.find((r) => r.index === latest.index - 4) ?? null : null;
   const [votes, setVotes] = useState({});
+  const topEntryRef = useRef(null);
 
   const kpiCards = useMemo(() => {
     const revenue = latest?.operatingRevenues ?? null;
@@ -255,6 +256,17 @@ export default function ReportView({ financialReports }) {
     });
   }, [yearVoteId, quarterVoteId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("panel") !== "report") return;
+    if (!topEntryRef.current) return;
+    const handle = window.setTimeout(() => {
+      topEntryRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+    return () => window.clearTimeout(handle);
+  }, []);
+
   const handleVote = async (id, type) => {
     if (!id || !["up", "down"].includes(type)) return;
     const existing = votes[id]?.userVote;
@@ -355,7 +367,7 @@ export default function ReportView({ financialReports }) {
           <Stack spacing={3}>
             {yearSummary ? (
               <>
-                <Box sx={{ textAlign: "center" }}>
+                <Box sx={{ textAlign: "center" }} ref={topEntryRef}>
                   <Typography variant="h4" sx={{ fontWeight: 800 }}>
                     {summaryYear
                       ? translate(

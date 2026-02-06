@@ -203,7 +203,6 @@ const formatChangeValue = (metricConfigs, metric, value, label, translate) => {
 
 const METRIC_TOGGLE_OPTIONS = [
   { value: "revenue", labelSv: "Omsättning", labelEn: "Revenue" },
-  { value: "freeCashFlow", labelSv: "Fritt kassaflöde", labelEn: "Free cash flow" },
   { value: "margin", labelSv: "Marginal", labelEn: "Margin" },
   { value: "eps", labelSv: "EPS", labelEn: "EPS" },
   { value: "dividend", labelSv: "Utdelning", labelEn: "Dividend" },
