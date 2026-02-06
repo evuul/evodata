@@ -129,6 +129,17 @@ const BASE_METRIC_CONFIGS = {
     background: "rgba(167,139,250,0.12)",
     border: "rgba(196,181,253,0.25)",
   },
+  freeCashFlow: {
+    labelSv: "Fritt kassaflöde",
+    labelEn: "Free cash flow",
+    valueKey: "freeCashFlow",
+    decimals: 1,
+    unit: "€M",
+    changeMode: "percent",
+    accent: "#22d3ee",
+    background: "rgba(34,211,238,0.12)",
+    border: "rgba(34,211,238,0.25)",
+  },
   geo: {
     labelSv: "Geografisk översikt",
     labelEn: "Geographic overview",
@@ -192,6 +203,7 @@ const formatChangeValue = (metricConfigs, metric, value, label, translate) => {
 
 const METRIC_TOGGLE_OPTIONS = [
   { value: "revenue", labelSv: "Omsättning", labelEn: "Revenue" },
+  { value: "freeCashFlow", labelSv: "Fritt kassaflöde", labelEn: "Free cash flow" },
   { value: "margin", labelSv: "Marginal", labelEn: "Margin" },
   { value: "eps", labelSv: "EPS", labelEn: "EPS" },
   { value: "dividend", labelSv: "Utdelning", labelEn: "Dividend" },
@@ -1894,37 +1906,80 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                 >
                   {option.label}
                 </ToggleButton>
-              ))}
+                ))}
             </ToggleButtonGroup>
 
-            <ToggleButtonGroup
-              value={wideViewMode}
-              exclusive
-              onChange={(_e, v) => v && setWideViewMode(v)}
-              size="small"
-              sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
-            >
-              {viewToggleOptions.map((option) => (
-                <ToggleButton
-                  key={`wide-${option.value}`}
-                  value={option.value}
-                  disabled={wideMetric === "dividend" && option.value === "quarterly"}
+            <Stack direction="row" spacing={1} alignItems="center">
+              {Number.isFinite(currentYearProfit) && (
+                <Box
                   sx={{
-                    textTransform: "none",
-                    color: "rgba(226,232,240,0.75)",
-                    border: 0,
-                    borderRadius: "999px!important",
-                    px: { xs: 1.5, md: 2 },
-                    "&.Mui-selected": {
-                      color: "#f8fafc",
-                      backgroundColor: "rgba(96,165,250,0.25)",
-                    },
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.1,
+                    minWidth: { xs: 190, md: 230 },
+                    background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08))",
+                    borderRadius: "12px",
+                    border: "1px solid rgba(34,197,94,0.35)",
+                    px: { xs: 1.4, md: 2 },
+                    py: { xs: 0.7, md: 0.85 },
                   }}
                 >
-                  {option.label}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 30,
+                      borderRadius: "999px",
+                      background: "linear-gradient(180deg, #22c55e, #16a34a)",
+                      boxShadow: "0 0 10px rgba(34,197,94,0.45)",
+                    }}
+                  />
+                  <Box>
+                    <Typography
+                      sx={{
+                        color: "rgba(148,163,184,0.75)",
+                        fontSize: "0.7rem",
+                        letterSpacing: 0.5,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {translate("Årets vinst", "Year profit")}
+                    </Typography>
+                    <Typography sx={{ fontWeight: 700, color: "#f8fafc", fontSize: "1rem" }}>
+                      {`${formatMillion(currentYearProfit, 1)} €M`}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              <ToggleButtonGroup
+                value={wideViewMode}
+                exclusive
+                onChange={(_e, v) => v && setWideViewMode(v)}
+                size="small"
+                sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
+              >
+                {viewToggleOptions.map((option) => (
+                  <ToggleButton
+                    key={`wide-${option.value}`}
+                    value={option.value}
+                    disabled={wideMetric === "dividend" && option.value === "quarterly"}
+                    sx={{
+                      textTransform: "none",
+                      color: "rgba(226,232,240,0.75)",
+                      border: 0,
+                      borderRadius: "999px!important",
+                      px: { xs: 1.5, md: 2 },
+                      "&.Mui-selected": {
+                        color: "#f8fafc",
+                        backgroundColor: "rgba(96,165,250,0.25)",
+                      },
+                    }}
+                  >
+                    {option.label}
+                  </ToggleButton>
+                ))}
+              </ToggleButtonGroup>
+            </Stack>
           </Stack>
 
           <Box

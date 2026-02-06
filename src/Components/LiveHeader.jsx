@@ -112,6 +112,7 @@ const LiveInvestmentCalculatorPanel = dynamic(() => import("./LiveInvestmentCalc
   ssr: false,
   loading: PanelLoader,
 });
+const ReportViewPanel = dynamic(() => import("./ReportView"), { ssr: false, loading: PanelLoader });
 const CashPositionPanel = dynamic(() => import("./CashPositionCard"), { ssr: false, loading: PanelLoader });
 const CapitalAllocationPanel = dynamic(() => import("./CapitalAllocationCard"), { ssr: false, loading: PanelLoader });
 
@@ -433,6 +434,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const exchangeName =
     stockPrice?.price?.fullExchangeName ?? stockPrice?.price?.exchangeName ?? "Nasdaq Stockholm";
   const venueChipLabel = `${stockSymbol} · ${exchangeName}`;
+  const marketDotColor = isMarketOpen() ? "#22c55e" : "#f87171";
 
   const priceDisplay = Number.isFinite(stockPriceValue)
     ? `${stockPriceValue.toLocaleString("sv-SE", {
@@ -553,16 +555,15 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   }, [latestTopWinLabel]);
   const panelOptions = useMemo(
     () => [
-      { value: "live", label: translate("Live Intelligence", "Live Intelligence") },
+      { value: "live", label: translate("Gameshows", "Gameshows") },
       { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
       { value: "cash", label: translate("Kassa", "Cash position") },
+      { value: "gameshow", label: translate("Forecast Earnings", "Forecast earnings") },
       { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
-      { value: "gameshow", label: translate("Gameshow Earnings", "Gameshow earnings") },
-      { value: "topwins", label: translate("Top wins", "Top wins") },
+      { value: "report", label: translate("Rapportanalys", "Report analysis") },
       { value: "money", label: translate("Live Money", "Live money") },
-      { value: "buybacks", label: translate("Återköp (live)", "Buybacks (live)") },
-      { value: "short", label: translate("Blankning & handel", "Short interest & trading") },
-      { value: "investment", label: translate("Live Investment", "Live investment") },
+      { value: "buybacks", label: translate("Återköp", "Buybacks") },
+      { value: "short", label: translate("Blankning", "Short interest") },
     ],
     [translate]
   );
@@ -682,8 +683,15 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       );
     }
 
-    if (activePanel === "topwins") {
-      return <LiveTop3Panel variant="embedded" />;
+    if (activePanel === "report") {
+      if (!financialReports) {
+        return (
+          <Box sx={{ color: "rgba(148,163,184,0.75)", p: 3 }}>
+            {translate("Finansiella rapporter saknas för denna vy.", "Financial reports are missing for this view.")}
+          </Box>
+        );
+      }
+      return <ReportViewPanel financialReports={financialReports} />;
     }
 
     if (activePanel === "money") return <LiveMoneyCounterPanel />;
@@ -698,9 +706,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       );
 
     if (activePanel === "short") return <ShortIntelligencePanel />;
-
-    if (activePanel === "investment")
-      return <LiveInvestmentCalculatorPanel dividendData={dividendData} />;
 
     return <ShortIntelligencePanel />;
   }, [activePanel, averagePlayersData, buybackData, cashView, dividendData, financialReports, sharesData, translate]);
@@ -733,30 +738,22 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             }}
           >
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 0.6, sm: 1.2 } }}>
-              {!isMobileMenu && (
-                <Chip
-                  size="small"
-                  label={venueChipLabel}
-                  sx={{
-                    backgroundColor: "rgba(15,23,42,0.55)",
-                    color: "#cbd5f5",
-                    borderRadius: "999px",
-                  }}
-                />
-              )}
               <Chip
                 size="small"
-                label={marketStatusChip.label}
+                label={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                    <Typography component="span" sx={{ fontSize: { xs: "0.64rem", sm: "0.8rem" }, color: "inherit" }}>
+                      {venueChipLabel}
+                    </Typography>
+                    <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: marketDotColor }} />
+                  </Box>
+                }
                 sx={{
-                  backgroundColor: marketStatusChip.bg,
-                  color: marketStatusChip.color,
+                  backgroundColor: "rgba(15,23,42,0.55)",
+                  color: "#cbd5f5",
                   borderRadius: "999px",
-                  border: marketStatusChip.border,
                   height: { xs: 22, sm: 28 },
-                  "& .MuiChip-label": {
-                    px: { xs: 0.7, sm: 1.2 },
-                    fontSize: { xs: "0.64rem", sm: "0.8rem" },
-                  },
+                  "& .MuiChip-label": { px: { xs: 0.7, sm: 1.2 }, display: "flex" },
                 }}
               />
               <Chip

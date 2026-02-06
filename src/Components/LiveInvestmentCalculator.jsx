@@ -76,7 +76,7 @@ const pickLatestDividend = (dividendData) => {
   return Number(dividendData?.currentDividendPerShare) || 0;
 };
 
-const ScenarioCard = ({ title, accent, data }) => {
+const ScenarioCard = ({ title, accent, data, compact = false }) => {
   const translate = useTranslate();
   const projectionText = data.reinvest
     ? translate(
@@ -87,26 +87,29 @@ const ScenarioCard = ({ title, accent, data }) => {
         "Projekterat portföljvärde inklusive utbetalda utdelningar.",
         "Projected portfolio value including dividends paid out."
       );
+  const padding = compact ? { xs: 1.8, md: 2 } : { xs: 2.5, md: 3 };
+  const titleVariant = compact ? "caption" : "overline";
+  const valueVariant = compact ? "h6" : "h5";
   return (
     <Box
       sx={{
         background: "linear-gradient(135deg, rgba(15,23,42,0.7), rgba(30,41,59,0.72))",
-        borderRadius: "16px",
-        border: `1px solid ${accent}33`,
+        borderRadius: compact ? "14px" : "16px",
+        border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 40px rgba(15,23,42,0.35)",
-        p: { xs: 2.5, md: 3 },
+        p: padding,
         display: "flex",
         flexDirection: "column",
-        gap: 1.5,
+        gap: compact ? 1 : 1.5,
         color: "#f8fafc",
         height: "100%",
       }}
     >
-      <Typography variant="overline" sx={{ letterSpacing: 1.5, color: `${accent}cc`, fontWeight: 600 }}>
+      <Typography variant={titleVariant} sx={{ letterSpacing: 1.2, color: `${accent}cc`, fontWeight: 600 }}>
         {title}
       </Typography>
       <Stack spacing={1}>
-        <Typography variant="h5" sx={{ fontWeight: 700 }}>
+        <Typography variant={valueVariant} sx={{ fontWeight: 700 }}>
           {formatSekCompact(data.finalValue)}
         </Typography>
         <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
@@ -287,7 +290,9 @@ export default function LiveInvestmentCalculator({ dividendData }) {
       const annualGrowth = Math.max(annualGrowthPercent, -95) / 100;
       const dividendGrowthRate = Math.max(dividendGrowth + dividendAdjust, -95) / 100;
       const effectiveBuyback = Math.min(Math.max(buybackRate, 0), 25) / 100;
-      const buybackMultiplier = 1 / Math.max(1 - effectiveBuyback, 0.01);
+      const monthlyGrowth = Math.pow(1 + annualGrowth, 1 / 12) - 1;
+      const monthlyDividendGrowth = Math.pow(1 + dividendGrowthRate, 1 / 12) - 1;
+      const monthlyBuyback = 1 - Math.pow(1 - effectiveBuyback, 1 / 12);
       let sharesHeld = shareCount;
       let price = priceForSimulation;
       let dividendPerShare = latestDividend;
@@ -296,23 +301,24 @@ export default function LiveInvestmentCalculator({ dividendData }) {
       let outstanding = Number.isFinite(outstandingShares) && outstandingShares > 0 ? outstandingShares : null;
       let totalBuybackShares = 0;
 
-      for (let year = 1; year <= years; year += 1) {
-        price *= (1 + annualGrowth) * buybackMultiplier;
-        dividendPerShare *= (1 + dividendGrowthRate) * buybackMultiplier;
+      const totalMonths = Math.max(years * 12, 1);
+      for (let month = 1; month <= totalMonths; month += 1) {
+        price *= 1 + monthlyGrowth;
+        dividendPerShare *= 1 + monthlyDividendGrowth;
 
-        if (Number.isFinite(outstanding) && effectiveBuyback > 0) {
-          const newOutstanding = Math.max(outstanding * (1 - effectiveBuyback), 1);
+        if (Number.isFinite(outstanding) && monthlyBuyback > 0) {
+          const newOutstanding = Math.max(outstanding * (1 - monthlyBuyback), 1);
           totalBuybackShares += Math.max(outstanding - newOutstanding, 0);
           outstanding = newOutstanding;
         }
 
-        if (yearlyContribution > 0 && price > 0) {
-          const addedShares = yearlyContribution / price;
+        if (monthlyContributionAmount > 0 && price > 0) {
+          const addedShares = monthlyContributionAmount / price;
           sharesHeld += addedShares;
-          contributions += yearlyContribution;
+          contributions += monthlyContributionAmount;
         }
 
-        const dividendCash = sharesHeld * dividendPerShare;
+        const dividendCash = sharesHeld * (dividendPerShare / 12);
         aggregatedDividends += dividendCash;
         if (reinvestDividends && price > 0) {
           sharesHeld += dividendCash / price;
@@ -345,7 +351,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
     return {
       base: runScenario(growthRate, 0),
       bull: runScenario(growthRate + 5, 3),
-      bear: runScenario(Math.max(growthRate - 5, 0), -3),
+      bear: runScenario(growthRate - 5, -3),
     };
   }, [
     dividendGrowth,
@@ -356,7 +362,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
     priceForSimulation,
     reinvestDividends,
     shareCount,
-    yearlyContribution,
+    monthlyContributionAmount,
     years,
     outstandingShares,
   ]);
@@ -493,10 +499,10 @@ export default function LiveInvestmentCalculator({ dividendData }) {
     >
       <Stack spacing={1.5}>
         <Typography variant="overline" sx={{ letterSpacing: 2, color: "rgba(148,163,184,0.72)", fontWeight: 700 }}>
-          {translate("Live Investment", "Live Investment")}
+          {translate("Kalkylator", "Calculator")}
         </Typography>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          {translate("Investment Studio", "Investment Studio")}
+          {translate("Investeringskalkylator", "Investment calculator")}
         </Typography>
         <Typography variant="body1" sx={{ color: "rgba(226,232,240,0.72)", maxWidth: 720 }}>
           {translate(
@@ -582,7 +588,7 @@ export default function LiveInvestmentCalculator({ dividendData }) {
       </Stack>
 
       <Grid container spacing={{ xs: 3, md: 4 }}>
-        <Grid item xs={12} lg={5}>
+        <Grid item xs={12} lg={7}>
           <Box
             sx={{
               background: "rgba(15,23,42,0.55)",
@@ -769,8 +775,22 @@ export default function LiveInvestmentCalculator({ dividendData }) {
           </Box>
         </Grid>
 
-        <Grid item xs={12} lg={7}>
+        <Grid item xs={12} lg={5}>
           <Stack spacing={3}>
+            <Stack spacing={2}>
+              {scenarioCards.map((card) => (
+                <ScenarioCard
+                  key={card.key}
+                  title={card.title}
+                  accent={card.accent}
+                  data={card.data}
+                  compact
+                />
+              ))}
+            </Stack>
+
+            <Divider sx={{ borderColor: "rgba(148,163,184,0.12)" }} />
+
             <Grid container spacing={2}>
               {summaryCards.map((card) => (
                 <Grid key={card.key} item xs={12} sm={6}>
@@ -796,16 +816,6 @@ export default function LiveInvestmentCalculator({ dividendData }) {
                       {card.subtitle}
                     </Typography>
                   </Box>
-                </Grid>
-              ))}
-            </Grid>
-
-            <Divider sx={{ borderColor: "rgba(148,163,184,0.12)" }} />
-
-            <Grid container spacing={2.5}>
-              {scenarioCards.map((card) => (
-                <Grid key={card.key} item xs={12} md={4}>
-                  <ScenarioCard title={card.title} accent={card.accent} data={card.data} />
                 </Grid>
               ))}
             </Grid>

@@ -1,0 +1,82 @@
+{
+  "2025": {
+    "title": "Finansiell inbromsning men operationell styrka",
+    "titleEn": "Financial Slowdown but Operational Strength",
+    "publishedAt": "2026-02-06",
+    "kpis": [
+      {
+        "label": "Nettoomsättning",
+        "value": 2066.5,
+        "unit": "MEUR",
+        "dataKey": "revenue"
+      },
+      {
+        "label": "EBITDA-marginal (justerad)",
+        "value": 66.1,
+        "unit": "%",
+        "dataKey": "ebitdaMargin",
+        "points": true
+      },
+      {
+        "label": "Årets resultat",
+        "value": 1062.1,
+        "unit": "MEUR",
+        "dataKey": "profit"
+      },
+      {
+        "label": "Vinst per aktie",
+        "value": 5.24,
+        "unit": "EUR",
+        "dataKey": "eps"
+      },
+      {
+        "label": "Utdelning",
+        "value": 572.5,
+        "unit": "MEUR"
+      },
+      {
+        "label": "Återköp",
+        "value": 500.2,
+        "unit": "MEUR"
+      }
+    ],
+    "sections": [
+      {
+        "heading": "Finansiell inbromsning men operationell styrka",
+        "body": "2025 blev året då Evolution AB:s tidigare hyper-tillväxt planade ut finansiellt. Nettoomsättningen uppgick till 2 066,5 MEUR, vilket motsvarar en marginell ökning om 0,2 % jämfört med 2024. Rensat för valutaeffekter fanns dock en underliggande tillväxt, men de rapporterade siffrorna tyngdes av externa faktorer såsom cyberbrottslighet, aggressiv konkurrens samt regulatoriska ring-fencing-krav – framför allt i Europa. Utvecklingen under året ska därför i första hand ses som en normalisering efter flera år av exceptionell tillväxt, snarare än ett tecken på strukturell svaghet i affären.",
+        "headingEn": "Financial slowdown but operational strength",
+        "bodyEn": "2025 was the year when Evolution AB’s previous hyper-growth flattened out financially. Net revenue amounted to EUR 2,066.5 million, corresponding to a marginal increase of 0.2% compared to 2024. Adjusted for currency effects, there was underlying growth, but reported figures were weighed down by external factors such as cybercrime, aggressive competition, and regulatory ring-fencing requirements—primarily in Europe. The development during the year should therefore primarily be viewed as a normalization following several years of exceptional growth, rather than a sign of structural weakness in the business."
+      },
+      {
+        "heading": "Marginaler och lönsamhet – affärsmodellens styrka består",
+        "body": "Trots betydande motvind uppvisade Evolution en imponerande operationell motståndskraft. Den justerade EBITDA-marginalen uppgick till 66,1 % (68,4 % föregående år). Även om marginalen pressades något är detta fortfarande en nivå som mycket få globala mjukvaru- och spelbolag kan matcha, vilket tydligt visar affärsmodellens skalbarhet och prissättningskraft även i ett mer utmanande marknadsklimat. Årets resultat landade på 1 062,1 MEUR, motsvarande en vinst per aktie om 5,24 EUR.",
+        "headingEn": "Margins and profitability – the strength of the business model remains",
+        "bodyEn": "Despite significant headwinds, Evolution demonstrated impressive operational resilience. The adjusted EBITDA margin amounted to 66.1% (68.4% the previous year). Although the margin was slightly compressed, this is still a level that very few global software and gaming companies can match, clearly demonstrating the scalability and pricing power of the business model even in a more challenging market climate. The profit for the year landed at EUR 1,062.1 million, corresponding to earnings per share of EUR 5.24."
+      },
+      {
+        "heading": "Kassaflöde och kapitalallokering – en maskin för aktieägarvärde",
+        "body": "Det kanske tydligaste styrkebeskedet under 2025 var bolagets förmåga att generera starkt kassaflöde och samtidigt återföra betydande kapital till aktieägarna. Kassaflödet från den löpande verksamheten uppgick till 1 255,2 MEUR. Under året skiftades sammanlagt över 1 miljard euro ut till aktieägarna: utdelning 572,5 MEUR och återköp av aktier 500,2 MEUR. Detta skedde utan att kompromissa med investeringar i nya studior, spelutveckling eller bolagets finansiella flexibilitet. Samtidigt valde styrelsen att avvakta med besked om framtida kapitalallokering till senare under första kvartalet. Detta beror sannolikt på en vilja att invänta mer klarhet kring den pågående utredningen i Storbritannien (UK Gambling Commission), för att säkerställa en ansvarsfull balans mellan riskhantering och fortsatt värdeskapande kapitalåterföring.",
+        "headingEn": "Cash flow and capital allocation – a machine for shareholder value",
+        "bodyEn": "Perhaps the clearest sign of strength during 2025 was the company's ability to generate strong cash flow while simultaneously returning significant capital to shareholders. Cash flow from operating activities amounted to EUR 1,255.2 million. During the year, a total of over EUR 1 billion was distributed to shareholders: dividend EUR 572.5 million and share buybacks EUR 500.2 million. This was achieved without compromising investments in new studios, game development, or the company's financial flexibility. At the same time, the Board chose to withhold the announcement regarding future capital allocation until later in the first quarter. This is likely due to a desire to await further clarity regarding the ongoing investigation in the UK (UK Gambling Commission), to ensure a responsible balance between risk management and continued value-creating capital return."
+      },
+      {
+        "heading": "Förbättrad intäktskvalitet och regional utveckling",
+        "body": "En positiv strukturell förändring under året var att andelen intäkter från reglerade marknader ökade till 47 % i Q4, vilket förbättrar affärens långsiktiga hållbarhet och minskar regulatorisk osäkerhet över tid. Geografiskt var utvecklingen blandad: Asien upplevde ett svagt tredje kvartal men visade återigen tillväxt mot slutet av året, ett viktigt tecken på stabilisering efter omfattande åtgärder mot cyberbrottslighet. Nordamerika och Latinamerika fortsatte att växa i stabil takt. Tillväxten här var dock inte tillräcklig för att fullt ut kompensera för den kraftiga inbromsningen i Europa. Europa pressades av regulatoriska förändringar och ring-fencing, vilket fortsatt tynger koncernens totala volymer.",
+        "headingEn": "Improved revenue quality and regional development",
+        "bodyEn": "A positive structural change during the year was that the share of revenue from regulated markets increased to 47% in Q4, which improves the long-term sustainability of the business and reduces regulatory uncertainty over time. Geographically, development was mixed: Asia experienced a weak third quarter but showed growth again toward the end of the year, an important sign of stabilization following extensive measures against cybercrime. North America and Latin America continued to grow at a steady pace. However, growth here was not sufficient to fully offset the sharp slowdown in Europe. Europe was pressured by regulatory changes and ring-fencing, which continues to weigh on the Group's total volumes."
+      },
+      {
+        "heading": "Viktiga händelser under året",
+        "body": "Strategiska avtal: Ett exklusivt flerårigt licensavtal med Hasbro säkrades, vilket banar väg för större lanseringar som MONOPOLY Filthy Rich och andra titlar under 2026. Rättsliga frågor: En betydande delseger togs i USA där en grupptalan avskrevs, samtidigt som året avslutades med ny osäkerhet kring granskningen i UK. Produktpipeline: Bolaget går in i 2026 med en av sina starkaste produktplaner hittills, även om marknaden ännu inte diskonterar detta fullt ut.",
+        "headingEn": "Key events during the year",
+        "bodyEn": "Strategic agreements: An exclusive multi-year licensing agreement with Hasbro was secured, paving the way for major launches such as MONOPOLY Filthy Rich and other titles in 2026. Legal matters: A significant partial victory was won in the US where a class-action lawsuit was dismissed, while the year ended with new uncertainty regarding the review in the UK. Product pipeline: The company enters 2026 with one of its strongest product plans to date, even if the market is not yet fully discounting this."
+      },
+      {
+        "heading": "Sammanfattning",
+        "body": "2025 blev ett prövningarnas år där Evolution tvingades kämpa för varje tillväxtkrona. Samtidigt visade bolaget tydligt att affären är robust: marginalerna förblev exceptionella, kassaflödet starkt och balansräkningen solid. Med en stabiliserad utveckling i Asien, växande reglerade marknader i USA och Latinamerika samt en stark produktpipeline inför 2026 står bolaget väl rustat inför nästa fas. I väntan på att tillväxten åter tar fart framstår effektiv kapitalallokering – särskilt återköp på nuvarande värderingsnivåer – som den mest rationella och värdeskapande vägen för aktieägarna.",
+        "headingEn": "Summary",
+        "bodyEn": "2025 was a testing year where Evolution had to fight for every euro of growth. At the same time, the company clearly showed that the business is robust: margins remained exceptional, cash flow strong, and the balance sheet solid. With stabilized development in Asia, growing regulated markets in the US and Latin America, and a strong product pipeline for 2026, the company is well-equipped for the next phase. While waiting for growth to pick up again, efficient capital allocation—particularly buybacks at current valuation levels—appears to be the most rational and value-creating path for shareholders."
+      }
+    ]
+  }
+}

@@ -899,7 +899,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           >
             <Stack spacing={0.4}>
               <Typography variant="overline" sx={{ letterSpacing: 1 }}>
-                {translate("Q4 rapport-estimat", "Q4 report estimate")}
+                {translate(
+                  `${combinedQ4Estimate.period} rapport-estimat`,
+                  `${combinedQ4Estimate.period} report estimate`
+                )}
               </Typography>
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                 {combinedQ4Estimate.period}
