@@ -171,23 +171,25 @@ export default function ReportView({ financialReports }) {
     const current = annualAggregates.get(yearNumber);
     const previous = annualAggregates.get(yearNumber - 1);
     return yearKpis.map((kpi) => {
+      const displayLabel = translate(kpi.label, kpi.labelEn || kpi.label);
       if (!kpi?.dataKey || !current || !previous) {
-        return kpi;
+        return { ...kpi, displayLabel };
       }
       const currentValue = current[kpi.dataKey];
       const previousValue = previous[kpi.dataKey];
       if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue)) {
-        return kpi;
+        return { ...kpi, displayLabel };
       }
       const yoy = kpi.points
         ? currentValue - previousValue
         : ((currentValue - previousValue) / previousValue) * 100;
       return {
         ...kpi,
+        displayLabel,
         yoy,
       };
     });
-  }, [annualAggregates, summaryYear, yearKpis]);
+  }, [annualAggregates, summaryYear, yearKpis, translate]);
   const opinion = {
     positives: translate(
       commentary?.positives ?? [],
@@ -435,7 +437,7 @@ export default function ReportView({ financialReports }) {
                             }}
                           >
                             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                              {kpi.label}
+                              {kpi.displayLabel ?? kpi.label}
                             </Typography>
                             <Typography variant="h6" sx={{ fontWeight: 700 }}>
                               {formatUnitValue(kpi.value, kpi.unit)}

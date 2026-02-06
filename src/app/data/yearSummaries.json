@@ -6,12 +6,14 @@
     "kpis": [
       {
         "label": "Nettoomsättning",
+        "labelEn": "Net revenue",
         "value": 2066.5,
         "unit": "MEUR",
         "dataKey": "revenue"
       },
       {
         "label": "EBITDA-marginal (justerad)",
+        "labelEn": "EBITDA margin (adjusted)",
         "value": 66.1,
         "unit": "%",
         "dataKey": "ebitdaMargin",
@@ -19,23 +21,27 @@
       },
       {
         "label": "Årets resultat",
+        "labelEn": "Profit for the year",
         "value": 1062.1,
         "unit": "MEUR",
         "dataKey": "profit"
       },
       {
         "label": "Vinst per aktie",
+        "labelEn": "Earnings per share",
         "value": 5.24,
         "unit": "EUR",
         "dataKey": "eps"
       },
       {
         "label": "Utdelning",
+        "labelEn": "Dividends",
         "value": 572.5,
         "unit": "MEUR"
       },
       {
         "label": "Återköp",
+        "labelEn": "Buybacks",
         "value": 500.2,
         "unit": "MEUR"
       }
