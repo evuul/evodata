@@ -1066,7 +1066,8 @@ export default function MinaSidorPage() {
                           <Stack spacing={1}>
                             {adminActivityRows.map((row) => {
                               const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
-                              const identity = name || row?.email || "unknown";
+                              const email = String(row?.email || "").trim();
+                              const identity = name || email || "unknown";
                               const statusLabel = row?.isActive
                                 ? translate("Aktiv nu", "Active now")
                                 : translate("Inaktiv", "Inactive");
@@ -1090,7 +1091,32 @@ export default function MinaSidorPage() {
                                     gap: 1,
                                   }}
                                 >
-                                  <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{identity}</Typography>
+                                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
+                                    <Typography
+                                      sx={{
+                                        color: "#f8fafc",
+                                        fontWeight: 800,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {identity}
+                                    </Typography>
+                                    {email ? (
+                                      <Typography
+                                        sx={{
+                                          color: "rgba(226,232,240,0.65)",
+                                          fontSize: "0.82rem",
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {email}
+                                      </Typography>
+                                    ) : null}
+                                  </Box>
                                   <Typography
                                     sx={{
                                       color: row?.isActive ? "#86efac" : "rgba(226,232,240,0.7)",
@@ -1152,7 +1178,8 @@ export default function MinaSidorPage() {
                             <Stack spacing={1}>
                               {adminUsersRows.map((row) => {
                                 const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
-                                const identity = name || row?.email || "unknown";
+                                const email = String(row?.email || "").trim();
+                                const identity = name || email || "unknown";
                                 const statusLabel = row?.isActive
                                   ? translate("Aktiv nu", "Active now")
                                   : translate("Inaktiv", "Inactive");
@@ -1173,7 +1200,32 @@ export default function MinaSidorPage() {
                                       gap: 1,
                                     }}
                                   >
-                                    <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{identity}</Typography>
+                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
+                                      <Typography
+                                        sx={{
+                                          color: "#f8fafc",
+                                          fontWeight: 800,
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                        }}
+                                      >
+                                        {identity}
+                                      </Typography>
+                                      {email ? (
+                                        <Typography
+                                          sx={{
+                                            color: "rgba(226,232,240,0.65)",
+                                            fontSize: "0.82rem",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                          }}
+                                        >
+                                          {email}
+                                        </Typography>
+                                      ) : null}
+                                    </Box>
                                     <Typography
                                       sx={{
                                         color: row?.isActive ? "#86efac" : "rgba(226,232,240,0.7)",
