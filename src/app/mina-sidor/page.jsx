@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, Button, Dialog, DialogContent, DialogTitle, Divider, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useTranslate } from "@/context/LocaleContext";
+import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { usePlayersLive } from "@/context/PlayersLiveContext";
 import dividendData from "@/app/data/dividendData.json";
@@ -20,6 +20,7 @@ import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } f
 export default function MinaSidorPage() {
   const router = useRouter();
   const translate = useTranslate();
+  const { locale } = useLocale();
   const { token, isAuthenticated, initialized, user } = useAuth();
   const { stockPrice } = useStockPriceContext();
   const { data: playersData } = usePlayersLive();
@@ -48,6 +49,14 @@ export default function MinaSidorPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewHtml, setPreviewHtml] = useState("");
+  const [adminPanel, setAdminPanel] = useState("tools");
+  const [adminActivityLoading, setAdminActivityLoading] = useState(false);
+  const [adminActivityError, setAdminActivityError] = useState("");
+  const [adminActivityRows, setAdminActivityRows] = useState([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
+  const [adminUsersError, setAdminUsersError] = useState("");
+  const [adminUsersRows, setAdminUsersRows] = useState([]);
+  const [adminUsersTotal, setAdminUsersTotal] = useState(0);
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const [buybackData, setBuybackData] = useState(
     Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -551,6 +560,123 @@ export default function MinaSidorPage() {
     }
   };
 
+  const loadAdminActivity = async () => {
+    if (!token) return;
+    try {
+      setAdminActivityLoading(true);
+      setAdminActivityError("");
+      const res = await fetch("/api/admin/activity", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAdminActivityRows([]);
+        setAdminActivityError(payload?.error || translate("Kunde inte läsa aktivitet.", "Could not load activity."));
+        return;
+      }
+      setAdminActivityRows(Array.isArray(payload?.users) ? payload.users : []);
+    } catch {
+      setAdminActivityRows([]);
+      setAdminActivityError(translate("Kunde inte läsa aktivitet.", "Could not load activity."));
+    } finally {
+      setAdminActivityLoading(false);
+    }
+  };
+
+  const loadAdminUsers = async () => {
+    if (!token) return;
+    try {
+      setAdminUsersLoading(true);
+      setAdminUsersError("");
+      const res = await fetch("/api/admin/users", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAdminUsersRows([]);
+        setAdminUsersTotal(0);
+        setAdminUsersError(payload?.error || translate("Kunde inte läsa användare.", "Could not load users."));
+        return;
+      }
+      setAdminUsersRows(Array.isArray(payload?.users) ? payload.users : []);
+      setAdminUsersTotal(Number(payload?.totalUsers) || 0);
+    } catch {
+      setAdminUsersRows([]);
+      setAdminUsersTotal(0);
+      setAdminUsersError(translate("Kunde inte läsa användare.", "Could not load users."));
+    } finally {
+      setAdminUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    let cancelled = false;
+    const sendHeartbeat = async () => {
+      if (cancelled || typeof window === "undefined") return;
+      try {
+        await fetch("/api/admin/activity/heartbeat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            path: window.location.pathname,
+            panel: "my-page",
+            locale,
+          }),
+        });
+      } catch {
+        // silent
+      }
+    };
+    sendHeartbeat();
+    const id = setInterval(sendHeartbeat, 20 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [isAuthenticated, locale, token]);
+
+  useEffect(() => {
+    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "activity") return;
+    let cancelled = false;
+    const load = async () => {
+      if (cancelled) return;
+      await loadAdminActivity();
+    };
+    load();
+    const id = setInterval(load, 20 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+
+  useEffect(() => {
+    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "users") return;
+    let cancelled = false;
+    const load = async () => {
+      if (cancelled) return;
+      await loadAdminUsers();
+    };
+    load();
+    const id = setInterval(load, 20 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+
   return (
     <Box
       sx={{
@@ -697,6 +823,59 @@ export default function MinaSidorPage() {
 
                   {adminMode ? (
                     <Stack spacing={1.1} alignItems="center">
+                      <ToggleButtonGroup
+                        value={adminPanel}
+                        exclusive
+                        onChange={(_, value) => value && setAdminPanel(value)}
+                        size="small"
+                        sx={{
+                          backgroundColor: "rgba(148,163,184,0.12)",
+                          borderRadius: "999px",
+                          p: 0.5,
+                        }}
+                      >
+                        <ToggleButton
+                          value="tools"
+                          sx={{
+                            textTransform: "none",
+                            border: 0,
+                            borderRadius: "999px!important",
+                            px: 1.4,
+                            color: "rgba(226,232,240,0.8)",
+                            "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.25)" },
+                          }}
+                        >
+                          {translate("Verktyg", "Tools")}
+                        </ToggleButton>
+                        <ToggleButton
+                          value="activity"
+                          sx={{
+                            textTransform: "none",
+                            border: 0,
+                            borderRadius: "999px!important",
+                            px: 1.4,
+                            color: "rgba(226,232,240,0.8)",
+                            "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(34,197,94,0.25)" },
+                          }}
+                        >
+                          {translate("Aktivitet", "Activity")}
+                        </ToggleButton>
+                        <ToggleButton
+                          value="users"
+                          sx={{
+                            textTransform: "none",
+                            border: 0,
+                            borderRadius: "999px!important",
+                            px: 1.4,
+                            color: "rgba(226,232,240,0.8)",
+                            "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(167,139,250,0.28)" },
+                          }}
+                        >
+                          {translate("Användare", "Users")}
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+
+                      {adminPanel === "tools" ? (
                       <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
                         <Button
                           variant="outlined"
@@ -749,10 +928,174 @@ export default function MinaSidorPage() {
                           {translate("Preview reset", "Preview reset")}
                         </Button>
                       </Stack>
+                      ) : null}
                       {mailTestMessage ? (
                         <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center" }}>
                           {mailTestMessage}
                         </Typography>
+                      ) : null}
+
+                      {adminPanel === "activity" ? (
+                      <Stack spacing={1} sx={{ width: "100%", maxWidth: 980, pt: 1 }}>
+                        <Button
+                          variant="outlined"
+                          onClick={loadAdminActivity}
+                          disabled={adminActivityLoading}
+                          sx={{
+                            alignSelf: "center",
+                            textTransform: "none",
+                            borderColor: "rgba(148,163,184,0.35)",
+                            color: "#e2e8f0",
+                            "&:hover": {
+                              borderColor: "rgba(148,163,184,0.55)",
+                              backgroundColor: "rgba(148,163,184,0.08)",
+                            },
+                          }}
+                        >
+                          {adminActivityLoading
+                            ? translate("Laddar aktivitet...", "Loading activity...")
+                            : translate("Ladda om aktivitet", "Refresh activity")}
+                        </Button>
+
+                        {adminActivityError ? (
+                          <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
+                            {adminActivityError}
+                          </Typography>
+                        ) : null}
+
+                        {adminActivityRows.length ? (
+                          <Stack spacing={1}>
+                            {adminActivityRows.map((row) => {
+                              const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
+                              const identity = name || row?.email || "unknown";
+                              const statusLabel = row?.isActive
+                                ? translate("Aktiv nu", "Active now")
+                                : translate("Inaktiv", "Inactive");
+                              const whenLabel = row?.lastSeenAt
+                                ? new Date(row.lastSeenAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
+                                : "—";
+                              const locationLabel = row?.lastPanel
+                                ? `${row?.lastPath || "/"} · ${row.lastPanel}`
+                                : row?.lastPath || "—";
+                              return (
+                                <Box
+                                  key={row?.email || identity}
+                                  sx={{
+                                    border: "1px solid rgba(148,163,184,0.22)",
+                                    borderRadius: "12px",
+                                    background: "rgba(15,23,42,0.45)",
+                                    px: 1.4,
+                                    py: 1.1,
+                                    display: "grid",
+                                    gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 2fr" },
+                                    gap: 1,
+                                  }}
+                                >
+                                  <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{identity}</Typography>
+                                  <Typography
+                                    sx={{
+                                      color: row?.isActive ? "#86efac" : "rgba(226,232,240,0.7)",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {statusLabel}
+                                  </Typography>
+                                  <Typography sx={{ color: "rgba(226,232,240,0.75)" }}>
+                                    {translate("Senast", "Last")}: {whenLabel}
+                                    {" • "}
+                                    {translate("Vy", "View")}: {locationLabel}
+                                  </Typography>
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+                        ) : !adminActivityLoading ? (
+                          <Typography sx={{ color: "rgba(226,232,240,0.7)", textAlign: "center" }}>
+                            {translate("Ingen aktivitet ännu.", "No activity yet.")}
+                          </Typography>
+                        ) : null}
+                      </Stack>
+                      ) : null}
+
+                      {adminPanel === "users" ? (
+                        <Stack spacing={1} sx={{ width: "100%", maxWidth: 980, pt: 1 }}>
+                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
+                            <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>
+                              {translate("Totalt registrerade", "Total registered")}: {adminUsersTotal}
+                            </Typography>
+                            <Button
+                              variant="outlined"
+                              onClick={loadAdminUsers}
+                              disabled={adminUsersLoading}
+                              sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(148,163,184,0.35)",
+                                color: "#e2e8f0",
+                                "&:hover": {
+                                  borderColor: "rgba(148,163,184,0.55)",
+                                  backgroundColor: "rgba(148,163,184,0.08)",
+                                },
+                              }}
+                            >
+                              {adminUsersLoading
+                                ? translate("Laddar användare...", "Loading users...")
+                                : translate("Ladda om användare", "Refresh users")}
+                            </Button>
+                          </Stack>
+
+                          {adminUsersError ? (
+                            <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
+                              {adminUsersError}
+                            </Typography>
+                          ) : null}
+
+                          {adminUsersRows.length ? (
+                            <Stack spacing={1}>
+                              {adminUsersRows.map((row) => {
+                                const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
+                                const identity = name || row?.email || "unknown";
+                                const statusLabel = row?.isActive
+                                  ? translate("Aktiv nu", "Active now")
+                                  : translate("Inaktiv", "Inactive");
+                                const whenLabel = row?.lastSeenAt
+                                  ? new Date(row.lastSeenAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
+                                  : translate("Aldrig", "Never");
+                                return (
+                                  <Box
+                                    key={row?.email || identity}
+                                    sx={{
+                                      border: "1px solid rgba(148,163,184,0.22)",
+                                      borderRadius: "12px",
+                                      background: "rgba(15,23,42,0.45)",
+                                      px: 1.4,
+                                      py: 1.1,
+                                      display: "grid",
+                                      gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 2fr" },
+                                      gap: 1,
+                                    }}
+                                  >
+                                    <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{identity}</Typography>
+                                    <Typography
+                                      sx={{
+                                        color: row?.isActive ? "#86efac" : "rgba(226,232,240,0.7)",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {statusLabel}
+                                    </Typography>
+                                    <Typography sx={{ color: "rgba(226,232,240,0.75)" }}>
+                                      {translate("Senast online", "Last online")}: {whenLabel}
+                                    </Typography>
+                                  </Box>
+                                );
+                              })}
+                            </Stack>
+                          ) : !adminUsersLoading ? (
+                            <Typography sx={{ color: "rgba(226,232,240,0.7)", textAlign: "center" }}>
+                              {translate("Inga användare ännu.", "No users yet.")}
+                            </Typography>
+                          ) : null}
+                        </Stack>
                       ) : null}
                     </Stack>
                   ) : null}

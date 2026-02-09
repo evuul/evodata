@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSession, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
+import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
 import { buildWelcomeEmail } from "@/lib/emailTemplates";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 
@@ -60,6 +60,7 @@ export async function POST(request) {
   };
 
   await setJson(getUserKey(email), user);
+  await addUserToIndex(email);
 
   try {
     if (isMailerConfigured()) {

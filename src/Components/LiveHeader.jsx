@@ -139,7 +139,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     lastUpdated: playersLastUpdated,
   } = usePlayersLive();
 
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, token, logout } = useAuth();
   const router = useRouter();
   const { locale, setLocale } = useLocale();
   const translate = useTranslate();
@@ -767,6 +767,37 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     return maybeFirst.charAt(0).toUpperCase() + maybeFirst.slice(1);
   }, [user?.email, user?.firstName]);
   const isLiveMoneyPanel = activePanel === "money";
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    let cancelled = false;
+    const sendHeartbeat = async () => {
+      if (cancelled || typeof window === "undefined") return;
+      try {
+        await fetch("/api/admin/activity/heartbeat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            path: window.location.pathname,
+            panel: activePanel,
+            locale,
+          }),
+        });
+      } catch {
+        // silent
+      }
+    };
+
+    sendHeartbeat();
+    const id = setInterval(sendHeartbeat, 20 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [activePanel, isAuthenticated, locale, token]);
   const panelContent = renderActivePanel();
 
   return (

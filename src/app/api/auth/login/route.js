@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSession, getJson, getUserKey, setJson, verifyPassword } from "@/lib/authStore";
+import { addUserToIndex, createSession, getJson, getUserKey, setJson, verifyPassword } from "@/lib/authStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,6 +41,7 @@ export async function POST(request) {
   }
 
   const { token } = await createSession(email);
+  await addUserToIndex(email);
 
   return json({
     token,

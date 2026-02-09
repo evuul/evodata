@@ -48,6 +48,7 @@ export const verifyPassword = (password, hash) => {
 export const getUserKey = (email) => `user:${email.toLowerCase()}`;
 export const getSessionKey = (token) => `session:${token}`;
 export const getPasswordResetKey = (tokenId) => `pwdreset:${tokenId}`;
+export const getUserIndexKey = () => "admin:user:index";
 
 export const getJson = async (key) => {
   const data = await upstashRequest(`/get/${encodeURIComponent(key)}`);
@@ -65,6 +66,19 @@ export const setJson = async (key, value, ttlSeconds) => {
     Number.isFinite(ttlSeconds) && ttlSeconds > 0 ? `?EX=${ttlSeconds}` : "";
   await upstashRequest(`/set/${encodeURIComponent(key)}/${encodeValue(payload)}${ttlParam}`, {
     method: "POST",
+  });
+};
+
+export const addUserToIndex = async (email) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return;
+  const key = getUserIndexKey();
+  const index = (await getJson(key)) || {};
+  const emails = Array.isArray(index?.emails) ? index.emails : [];
+  if (emails.includes(normalizedEmail)) return;
+  await setJson(key, {
+    emails: [...emails, normalizedEmail].slice(-5000),
+    updatedAt: new Date().toISOString(),
   });
 };
 
