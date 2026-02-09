@@ -16,6 +16,7 @@ import HoldingsKpiRow from "@/Components/MinaSidor/HoldingsKpiRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
+import { formatSek } from "@/Components/MinaSidor/utils";
 
 export default function MinaSidorPage() {
   const router = useRouter();
@@ -119,6 +120,21 @@ export default function MinaSidorPage() {
       ? (referenceDividendPerShare / currentPrice) * 100
       : null;
   const todaysChangePercent = Number(stockPrice?.price?.regularMarketChangePercent?.raw ?? null);
+  const todaysChangePerShare = useMemo(() => {
+    if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
+    if (!Number.isFinite(todaysChangePercent)) return null;
+    const p = todaysChangePercent / 100;
+    if (p <= -0.999999) return null;
+    // percent = (change / prevClose) => prevClose = current / (1 + p)
+    const prevClose = currentPrice / (1 + p);
+    const change = currentPrice - prevClose;
+    return Number.isFinite(change) ? change : null;
+  }, [currentPrice, todaysChangePercent]);
+  const todaysHoldingChangeSek = useMemo(() => {
+    if (!(profile.shares > 0)) return null;
+    if (!Number.isFinite(todaysChangePerShare)) return null;
+    return profile.shares * todaysChangePerShare;
+  }, [profile.shares, todaysChangePerShare]);
   const dividendsReceivedValue = Number(dividendsReceived);
   const hasManualDividends = dividendsReceived !== "" && Number.isFinite(dividendsReceivedValue);
   const acquisitionDateValue =
@@ -753,6 +769,42 @@ export default function MinaSidorPage() {
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
             />
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                textAlign: "center",
+                mt: { xs: 0.5, md: 0 },
+              }}
+            >
+              <Stack spacing={0.2} sx={{ alignItems: "center" }}>
+                <Typography sx={{ color: "rgba(226,232,240,0.68)", fontWeight: 700, fontSize: "0.78rem" }}>
+                  {translate("Dagens rörelse (ditt innehav)", "Today (your holding)")}
+                </Typography>
+                <Typography
+                  sx={{
+                    fontWeight: 900,
+                    letterSpacing: 0.2,
+                    fontSize: { xs: "1.15rem", md: "1.35rem" },
+                    color:
+                      Number.isFinite(todaysHoldingChangeSek) && todaysHoldingChangeSek < 0
+                        ? "#fecaca"
+                        : "#86efac",
+                    textShadow:
+                      Number.isFinite(todaysHoldingChangeSek) && todaysHoldingChangeSek < 0
+                        ? "0 0 18px rgba(248,113,113,0.12)"
+                        : "0 0 18px rgba(34,197,94,0.14)",
+                  }}
+                >
+                  {Number.isFinite(todaysHoldingChangeSek)
+                    ? `${todaysHoldingChangeSek >= 0 ? "+" : ""}${formatSek(todaysHoldingChangeSek)}`
+                    : "–"}
+                </Typography>
+              </Stack>
+            </Box>
           </Box>
 
           <Box sx={contentWrapSx}>
