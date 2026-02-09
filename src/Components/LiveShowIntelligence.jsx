@@ -48,7 +48,15 @@ const QUARTERLY_PLAYER_SNAPSHOTS = {
     rawPlayers: 56310, // frozen snapshot so Q4 stays visible after rolling into Q1
   },
 };
-const TABLE_OVERRIDES = {};
+const TABLE_OVERRIDES = {
+  // Isolated override so only the historical Q4 2025 row is adjusted.
+  // This does not affect current-quarter estimates or other periods.
+  "2025 Q4": {
+    playersUsed: 67200,
+    estimated: 414.0,
+    actual: 438.6,
+  },
+};
 const BASELINE_WHITELIST = new Set(["2025 Q1", "2025 Q2", "2025 Q3"]); // historiska kvartal vi accepterar trots få datapunkter
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;

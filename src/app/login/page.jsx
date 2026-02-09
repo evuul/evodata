@@ -19,8 +19,6 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Typography,
-  useMediaQuery,
-  useTheme,
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
@@ -60,11 +58,9 @@ function LoginPageFallback() {
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, requestPasswordReset, isAuthenticated, initialized, authDisabled } = useAuth();
+  const { login, requestPasswordReset, isAuthenticated, initialized, authDisabled, passwordResetEnabled } = useAuth();
   const translate = useTranslate();
   const { locale, setLocale } = useLocale();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -88,15 +84,6 @@ function LoginPageContent() {
   const passwordLabel = translate("Lösenord", "Password");
   const loginTitle = translate("Logga in", "Log in");
   const loginSubtitle = translate("Ange dina uppgifter för att fortsätta.", "Enter your details to continue.");
-  const desktopColdStartNotice = translate(
-    "Obs! Inloggningen kan ta upp till 20 sekunder vid kallstart av databasen eftersom vi kör ett budgetvänligt upplägg då jag är student och tjänar inga pengar på dashboarden.",
-    "Heads up! Login may take up to 20 seconds on a cold database start because I keep infrastructure lean while running this student project."
-  );
-  const mobileColdStartNotice = translate(
-    "Mobilhint: Låt fliken vara öppen. Vid kallstart kan inloggningen ta upp till 20 sekunder innan databasen vaknar.",
-    "Mobile heads-up: keep the tab open. On a cold start the login can take up to 20 seconds while the database wakes up."
-  );
-  const coldStartNotice = isMobile ? mobileColdStartNotice : desktopColdStartNotice;
   const loginButtonLabel = translate("Logga in", "Log in");
   const loginLoadingLabel = translate("Loggar in...", "Logging in...");
   const forgotPasswordLabel = translate("Glömt ditt lösenord?", "Forgot your password?");
@@ -266,17 +253,6 @@ function LoginPageContent() {
           <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1 }}>
             {loginSubtitle}
           </Typography>
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              color: "rgba(130,193,255,0.85)",
-              mt: 1.5,
-              fontStyle: "italic",
-            }}
-          >
-            {coldStartNotice}
-          </Typography>
         </Box>
 
         <Box component="form" onSubmit={handleSubmit} sx={{ display: "grid", gap: 2.5 }}>
@@ -327,17 +303,19 @@ function LoginPageContent() {
           </Button>
         </Box>
 
-        <Box sx={{ mt: 2, textAlign: "center" }}>
-          <Link
-            component="button"
-            type="button"
-            onClick={handleOpenReset}
-            underline="hover"
-            sx={{ color: "#4a90e2", fontWeight: 500 }}
-          >
-            {forgotPasswordLabel}
-          </Link>
-        </Box>
+        {passwordResetEnabled ? (
+          <Box sx={{ mt: 2, textAlign: "center" }}>
+            <Link
+              component="button"
+              type="button"
+              onClick={handleOpenReset}
+              underline="hover"
+              sx={{ color: "#4a90e2", fontWeight: 500 }}
+            >
+              {forgotPasswordLabel}
+            </Link>
+          </Box>
+        ) : null}
 
         <Box sx={{ mt: 3, textAlign: "center" }}>
           <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)" }}>

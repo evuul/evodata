@@ -230,64 +230,134 @@ const formatSignedNumber = (value, suffix = "", locale = NUMBER_LOCALE_MAP.sv) =
   return `${value > 0 ? "+" : "-"}${formatted}${suffix}`;
 };
 
-const StatCard = ({ icon, title, value, subtitle, badge }) => (
-  <Card
-    sx={{
-      height: "100%",
-      background: "linear-gradient(145deg, rgba(30,30,30,0.95), rgba(50,50,50,0.9))",
-      border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 3,
-      boxShadow: "0 12px 35px rgba(0, 0, 0, 0.35)",
-      minWidth: { xs: 260, sm: 280, md: 0 },
-      scrollSnapAlign: { xs: "center", md: "unset" },
-    }}
-  >
-    <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-        <Box
-          sx={{
-            width: 46,
-            height: 46,
-            borderRadius: "14px",
-            background: "linear-gradient(135deg, rgba(74,144,226,0.25), rgba(0,119,255,0.4))",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#4a90e2",
-          }}
-        >
-          {icon}
-        </Box>
-        <Typography variant="h6" sx={{ color: "#fff", fontWeight: 600 }}>
-          {title}
-        </Typography>
-      </Box>
+const CARD_TONES = {
+  live: {
+    cardBg: "linear-gradient(145deg, rgba(4,30,52,0.96), rgba(7,69,64,0.86))",
+    border: "1px solid rgba(45,212,191,0.34)",
+    iconBg: "linear-gradient(135deg, rgba(45,212,191,0.24), rgba(16,185,129,0.42))",
+    iconColor: "#2dd4bf",
+    badgeBg: "rgba(45,212,191,0.2)",
+    badgeColor: "#99f6e4",
+    badgeBorder: "1px solid rgba(45,212,191,0.35)",
+  },
+  growth: {
+    cardBg: "linear-gradient(145deg, rgba(6,22,60,0.95), rgba(16,74,98,0.86))",
+    border: "1px solid rgba(56,189,248,0.34)",
+    iconBg: "linear-gradient(135deg, rgba(56,189,248,0.24), rgba(14,165,233,0.42))",
+    iconColor: "#38bdf8",
+    badgeBg: "rgba(56,189,248,0.2)",
+    badgeColor: "#bae6fd",
+    badgeBorder: "1px solid rgba(56,189,248,0.35)",
+  },
+  forecast: {
+    cardBg: "linear-gradient(145deg, rgba(41,30,7,0.95), rgba(80,52,12,0.86))",
+    border: "1px solid rgba(245,158,11,0.34)",
+    iconBg: "linear-gradient(135deg, rgba(251,191,36,0.24), rgba(245,158,11,0.42))",
+    iconColor: "#fbbf24",
+    badgeBg: "rgba(245,158,11,0.2)",
+    badgeColor: "#fde68a",
+    badgeBorder: "1px solid rgba(251,191,36,0.35)",
+  },
+  value: {
+    cardBg: "linear-gradient(145deg, rgba(26,13,63,0.95), rgba(56,23,98,0.85))",
+    border: "1px solid rgba(167,139,250,0.34)",
+    iconBg: "linear-gradient(135deg, rgba(167,139,250,0.24), rgba(139,92,246,0.42))",
+    iconColor: "#a78bfa",
+    badgeBg: "rgba(139,92,246,0.2)",
+    badgeColor: "#ddd6fe",
+    badgeBorder: "1px solid rgba(167,139,250,0.35)",
+  },
+  report: {
+    cardBg: "linear-gradient(145deg, rgba(52,13,33,0.95), rgba(92,26,63,0.85))",
+    border: "1px solid rgba(244,114,182,0.34)",
+    iconBg: "linear-gradient(135deg, rgba(244,114,182,0.24), rgba(236,72,153,0.42))",
+    iconColor: "#f472b6",
+    badgeBg: "rgba(236,72,153,0.2)",
+    badgeColor: "#fbcfe8",
+    badgeBorder: "1px solid rgba(244,114,182,0.35)",
+  },
+  base: {
+    cardBg: "linear-gradient(145deg, rgba(14,26,47,0.95), rgba(26,43,69,0.9))",
+    border: "1px solid rgba(148,163,184,0.26)",
+    iconBg: "linear-gradient(135deg, rgba(96,165,250,0.24), rgba(59,130,246,0.4))",
+    iconColor: "#93c5fd",
+    badgeBg: "rgba(96,165,250,0.2)",
+    badgeColor: "#bfdbfe",
+    badgeBorder: "1px solid rgba(147,197,253,0.35)",
+  },
+};
 
-      <Box>
-        <Typography variant="h3" sx={{ color: "#fff", fontWeight: 700, letterSpacing: 1, mb: 0.5 }}>
-          {value}
-        </Typography>
-        {badge && (
-          <Chip
-            label={badge}
-            size="small"
+const toneForCardKey = (key) => {
+  if (!key) return "base";
+  if (key.includes("live") || key.includes("lobby")) return "live";
+  if (key.includes("forecast")) return "forecast";
+  if (key.includes("fair") || key.includes("value")) return "value";
+  if (key.includes("report")) return "report";
+  if (key.includes("trend") || key.includes("leader") || key.includes("growth")) return "growth";
+  return "base";
+};
+
+const StatCard = ({ icon, title, value, subtitle, badge, tone = "base" }) => {
+  const palette = CARD_TONES[tone] ?? CARD_TONES.base;
+  return (
+    <Card
+      sx={{
+        height: "100%",
+        background: palette.cardBg,
+        border: palette.border,
+        borderRadius: 3,
+        boxShadow: "0 12px 35px rgba(0, 0, 0, 0.35)",
+        minWidth: { xs: 260, sm: 280, md: 0 },
+        scrollSnapAlign: { xs: "center", md: "unset" },
+      }}
+    >
+      <CardContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+          <Box
             sx={{
-              backgroundColor: "rgba(74,144,226,0.2)",
-              color: "#82c1ff",
-              border: "1px solid rgba(130,193,255,0.3)",
-              fontWeight: 600,
+              width: 46,
+              height: 46,
+              borderRadius: "14px",
+              background: palette.iconBg,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: palette.iconColor,
             }}
-          />
-        )}
-        {subtitle && (
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1.5, lineHeight: 1.5 }}>
-            {subtitle}
+          >
+            {icon}
+          </Box>
+          <Typography variant="h6" sx={{ color: "#fff", fontWeight: 600 }}>
+            {title}
           </Typography>
-        )}
-      </Box>
-    </CardContent>
-  </Card>
-);
+        </Box>
+
+        <Box>
+          <Typography variant="h3" sx={{ color: "#fff", fontWeight: 700, letterSpacing: 1, mb: 0.5 }}>
+            {value}
+          </Typography>
+          {badge && (
+            <Chip
+              label={badge}
+              size="small"
+              sx={{
+                backgroundColor: palette.badgeBg,
+                color: palette.badgeColor,
+                border: palette.badgeBorder,
+                fontWeight: 600,
+              }}
+            />
+          )}
+          {subtitle && (
+            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.72)", mt: 1.5, lineHeight: 1.5 }}>
+              {subtitle}
+            </Typography>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default function LiveLoggedOutPreview({
   financialReports,
@@ -866,20 +936,10 @@ export default function LiveLoggedOutPreview({
   const theme = useTheme();
   const isSmUp = useMediaQuery(theme.breakpoints.up("sm"));
   const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const columns = isMdUp ? 3 : isSmUp ? 2 : 1;
   const rows = 2;
   const cardsPerPage = Math.max(1, columns * rows);
 
-  const desktopColdStartCopy = translate(
-    "Obs! Inloggningen kan dröja upp till 20 sekunder vid kallstart av databasen – Jag håller nere kostnaderna så länge sajten är studentdriven.",
-    "Heads up! Login may take up to 20 seconds on a cold start while I keep infrastructure costs low for this student-run site."
-  );
-  const mobileColdStartCopy = translate(
-    "Mobilhint: Låt fliken vara öppen. Vid kallstart kan inloggningen ta upp till 20 sekunder innan databasen vaknar.",
-    "Mobile heads-up: keep the tab open. On a cold start the login can take up to 20 seconds while the database wakes up."
-  );
-  const coldStartCopy = isMobile ? mobileColdStartCopy : desktopColdStartCopy;
 
   const [page, setPage] = useState(0);
   const totalPages = Math.max(1, Math.ceil(cards.length / cardsPerPage));
@@ -964,7 +1024,7 @@ export default function LiveLoggedOutPreview({
             textTransform: "uppercase",
           }}
         >
-          {translate("Smakprov ur dashboards", "Dashboard sneak peek")}
+          {translate("Evolution tracker", "Evolution tracker")}
         </Typography>
         <Typography
           variant="h4"
@@ -976,7 +1036,7 @@ export default function LiveLoggedOutPreview({
             letterSpacing: 0.8,
           }}
         >
-          {translate("Live-uppdaterad data när du loggar in", "Live-updated data once you log in")}
+          {translate("Följ live-spelare, trend och forecast i realtid", "Track live players, trend, and forecast in real time")}
         </Typography>
         <Typography
           variant="body1"
@@ -1033,17 +1093,6 @@ export default function LiveLoggedOutPreview({
             {translate("Skapa konto", "Create account")}
           </Button>
         </Stack>
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            color: "rgba(130,193,255,0.85)",
-            mt: 2,
-            fontStyle: "italic",
-          }}
-        >
-          {coldStartCopy}
-        </Typography>
       </Box>
 
       <Box
@@ -1081,7 +1130,7 @@ export default function LiveLoggedOutPreview({
             }}
           >
             {visibleCards.map((card) => (
-              <StatCard key={card.key} {...card} />
+              <StatCard key={card.key} {...card} tone={toneForCardKey(card.key)} />
             ))}
           </Box>
         </Box>

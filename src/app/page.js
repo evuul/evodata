@@ -2,7 +2,7 @@
 
 import LiveHeader from "../Components/LiveHeader";
 import dynamic from "next/dynamic";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import financialReports from "./data/financialReports.json";
 import averagePlayersData from "./data/averagePlayers.json";
@@ -13,30 +13,6 @@ import shortHistoryData from "./data/shortHistory.json";
 import insiderTransactions from "./data/insiderTransactions.json";
 import outstandingShares from "./data/amountOfShares.json";
 import { useAuth } from "../context/AuthContext";
-
-function useInViewOnce(ref) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    if (!ref.current || visible || typeof IntersectionObserver === "undefined") return undefined;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setVisible(true);
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, [ref, visible]);
-
-  return visible;
-}
 
 export default function Home() {
   const { isAuthenticated, initialized } = useAuth();

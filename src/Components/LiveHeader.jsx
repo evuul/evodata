@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   Typography,
   Box,
@@ -40,6 +41,7 @@ const DONATION_NUDGE_STORAGE_KEY = "evodata_donation_nudge_dismissed_v1";
 const DONATION_NUDGE_TTL_MS = 24 * 60 * 60 * 1000;
 const LIVE_CACHE_MS = 10 * 60 * 1000;
 const LOBBY_ATH_DAYS = 365; // hämta tillräckligt många dagar för att få ATH (använder snapshotens ATH oavsett)
+const SHOW_MY_PAGE_NEW_BADGE = true;
 
 const liveCaches = {
   short: { ts: 0, percent: null },
@@ -113,6 +115,7 @@ const LiveInvestmentCalculatorPanel = dynamic(() => import("./LiveInvestmentCalc
   loading: PanelLoader,
 });
 const ReportViewPanel = dynamic(() => import("./ReportView"), { ssr: false, loading: PanelLoader });
+const FaqPanel = dynamic(() => import("./FaqPanel"), { ssr: false, loading: PanelLoader });
 const CashPositionPanel = dynamic(() => import("./CashPositionCard"), { ssr: false, loading: PanelLoader });
 const CapitalAllocationPanel = dynamic(() => import("./CapitalAllocationCard"), { ssr: false, loading: PanelLoader });
 
@@ -137,6 +140,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   } = usePlayersLive();
 
   const { isAuthenticated, user, logout } = useAuth();
+  const router = useRouter();
   const { locale, setLocale } = useLocale();
   const translate = useTranslate();
   const [cashView, setCashView] = useState("cash");
@@ -515,6 +519,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         "gameshow",
         "fairvalue",
         "report",
+        "faq",
         "money",
         "buybacks",
         "short",
@@ -576,6 +581,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       { value: "gameshow", label: translate("Forecast Earnings", "Forecast earnings") },
       { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
       { value: "report", label: translate("Rapportanalys", "Report analysis") },
+      { value: "faq", label: translate("FAQ", "FAQ") },
       { value: "money", label: translate("Live Money", "Live money") },
       { value: "buybacks", label: translate("Återköp", "Buybacks") },
       { value: "short", label: translate("Blankning", "Short interest") },
@@ -604,6 +610,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     }
     window.history.replaceState(null, "", url.toString());
   }, []);
+
+  const handleLogout = useCallback(() => {
+    logout();
+    router.replace("/");
+  }, [logout, router]);
 
   const renderActivePanel = useCallback(() => {
     if (activePanel === "live") return <LivePlayersControlPanel />;
@@ -727,6 +738,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       return <ReportViewPanel financialReports={financialReports} />;
     }
 
+    if (activePanel === "faq") return <FaqPanel />;
+
     if (activePanel === "money") return <LiveMoneyCounterPanel />;
 
     if (activePanel === "buybacks")
@@ -743,7 +756,16 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     return <ShortIntelligencePanel />;
   }, [activePanel, averagePlayersData, buybackData, cashView, dividendData, financialReports, sharesData, translate]);
 
-  const userEmail = user?.email ?? null;
+  const userNameLabel = useMemo(() => {
+    const first = String(user?.firstName || "").trim();
+    if (first) return first;
+    const email = String(user?.email || "").trim();
+    if (!email) return null;
+    const localPart = email.split("@")[0] || "";
+    const maybeFirst = localPart.split(/[._-]/)[0] || localPart;
+    if (!maybeFirst) return null;
+    return maybeFirst.charAt(0).toUpperCase() + maybeFirst.slice(1);
+  }, [user?.email, user?.firstName]);
   const isLiveMoneyPanel = activePanel === "money";
   const panelContent = renderActivePanel();
 
@@ -764,13 +786,23 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             sx={{
               display: "flex",
               justifyContent: "space-between",
-              alignItems: { xs: "flex-start", md: "center" },
+              alignItems: "center",
               flexDirection: { xs: "row", md: "row" },
               gap: { xs: 1.5, md: 2.5 },
-              flexWrap: { xs: "nowrap", md: "wrap" },
+              flexWrap: { xs: "wrap", lg: "nowrap" },
             }}
           >
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: { xs: 0.6, sm: 1.2 } }}>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: { xs: 0.6, sm: 1.2 },
+                minWidth: 0,
+                flex: { xs: "1 1 100%", lg: 1 },
+                pr: { xs: 0, md: 1 },
+                "& .MuiChip-root": { flexShrink: 0 },
+              }}
+            >
               <Chip
                 size="small"
                 label={
@@ -963,14 +995,21 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               </Box>
             </Box>
 
-            <Box sx={{ ml: "auto", display: "flex", width: { xs: "auto", md: "auto" } }}>
+            <Box
+              sx={{
+                ml: { xs: 0, lg: "auto" },
+                display: "flex",
+                width: { xs: "100%", lg: "auto" },
+                justifyContent: { xs: "flex-end", lg: "initial" },
+              }}
+            >
               <Stack
                 direction="row"
-                spacing={1}
+                spacing={{ xs: 0.6, sm: 1 }}
                 alignItems="center"
                 justifyContent="flex-end"
-                flexWrap="wrap"
-                sx={{ ml: "auto" }}
+                flexWrap="nowrap"
+                sx={{ ml: "auto", flexShrink: 0 }}
               >
               <Button
                 size="small"
@@ -995,10 +1034,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 {locale === "sv" ? "EN" : "SV"}
               </Button>
 
-              {isAuthenticated && userEmail && (
+              {isAuthenticated && userNameLabel && (
                 <Chip
                   size="small"
-                  label={userEmail}
+                  label={userNameLabel}
                   sx={{ backgroundColor: "rgba(15,23,42,0.55)", color: "#cbd5f5", borderRadius: "999px" }}
                 />
               )}
@@ -1006,7 +1045,51 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 <Button
                   size="small"
                   variant="outlined"
-                  onClick={logout}
+                  component={NextLink}
+                  href="/mina-sidor"
+                  sx={{
+                    textTransform: "none",
+                    borderColor: "rgba(59,130,246,0.35)",
+                    color: "#bfdbfe",
+                    minHeight: { xs: 20, sm: "auto" },
+                    px: { xs: 0.55, sm: 1.4 },
+                    fontSize: { xs: "0.6rem", sm: "0.82rem" },
+                    "&:hover": {
+                      borderColor: "rgba(59,130,246,0.6)",
+                      backgroundColor: "rgba(59,130,246,0.12)",
+                    },
+                  }}
+                >
+                  <Stack direction="row" spacing={0.75} alignItems="center">
+                    <Box component="span">{translate("Min sida", "My page")}</Box>
+                    {SHOW_MY_PAGE_NEW_BADGE ? (
+                      <Box
+                        component="span"
+                        sx={{
+                          px: 0.7,
+                          py: 0.12,
+                          borderRadius: "999px",
+                          fontSize: { xs: "0.5rem", sm: "0.62rem" },
+                          fontWeight: 800,
+                          letterSpacing: 0.5,
+                          lineHeight: 1.45,
+                          color: "#fef9c3",
+                          background:
+                            "linear-gradient(135deg, rgba(245,158,11,0.3), rgba(251,191,36,0.4))",
+                          border: "1px solid rgba(251,191,36,0.45)",
+                        }}
+                      >
+                        {translate("NY", "NEW")}
+                      </Box>
+                    ) : null}
+                  </Stack>
+                </Button>
+              )}
+              {isAuthenticated && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleLogout}
                   sx={{
                     textTransform: "none",
                     borderColor: "rgba(148,163,184,0.35)",

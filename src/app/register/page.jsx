@@ -24,7 +24,13 @@ export default function RegisterPage() {
   const translate = useTranslate();
   const { locale, setLocale } = useLocale();
 
-  const [form, setForm] = useState({ email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const passwordMismatchMessage = translate("Lösenorden matchar inte.", "Passwords do not match.");
@@ -33,6 +39,8 @@ export default function RegisterPage() {
     "Registration failed. Please try again."
   );
   const emailLabel = translate("E-post", "Email");
+  const firstNameLabel = translate("Förnamn", "First name");
+  const lastNameLabel = translate("Efternamn", "Last name");
   const passwordLabel = translate("Lösenord", "Password");
   const confirmPasswordLabel = translate("Bekräfta lösenord", "Confirm password");
   const helperText = translate(
@@ -75,11 +83,20 @@ export default function RegisterPage() {
       setError(passwordMismatchMessage);
       return;
     }
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setError(translate("Ange förnamn och efternamn.", "Please enter first and last name."));
+      return;
+    }
 
     setSubmitting(true);
 
     try {
-      await register({ email: form.email.trim(), password: form.password });
+      await register({
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        password: form.password,
+      });
       router.replace("/");
     } catch (err) {
       setError(err?.message || defaultRegisterError);
@@ -157,6 +174,30 @@ export default function RegisterPage() {
               {error}
             </Alert>
           )}
+
+          <TextField
+            label={firstNameLabel}
+            name="firstName"
+            value={form.firstName}
+            onChange={handleChange}
+            autoComplete="given-name"
+            required
+            fullWidth
+            InputLabelProps={{ sx: { color: "rgba(255,255,255,0.7)" } }}
+            InputProps={{ sx: { color: "#fff" } }}
+          />
+
+          <TextField
+            label={lastNameLabel}
+            name="lastName"
+            value={form.lastName}
+            onChange={handleChange}
+            autoComplete="family-name"
+            required
+            fullWidth
+            InputLabelProps={{ sx: { color: "rgba(255,255,255,0.7)" } }}
+            InputProps={{ sx: { color: "#fff" } }}
+          />
 
           <TextField
             label={emailLabel}
