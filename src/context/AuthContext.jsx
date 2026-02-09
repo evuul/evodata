@@ -16,7 +16,7 @@ const REGISTER_PATH = "/api/auth/register";
 const FORGOT_PASSWORD_PATH = "/api/auth/forgot-password";
 const RESET_PASSWORD_PATH = "/api/auth/reset-password";
 const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
-const PASSWORD_RESET_ENABLED = false;
+const PASSWORD_RESET_ENABLED = process.env.NEXT_PUBLIC_PASSWORD_RESET_ENABLED === "true";
 const GUEST_AUTH_STATE = AUTH_DISABLED
   ? { token: "guest-token", user: null, accessExpiresAt: null, initialized: true }
   : { token: null, user: null, accessExpiresAt: null, initialized: false };

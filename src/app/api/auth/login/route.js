@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createSession, getJson, getUserKey, verifyPassword } from "@/lib/authStore";
+import { createSession, getJson, getUserKey, setJson, verifyPassword } from "@/lib/authStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,6 +10,8 @@ const json = (data, init = {}) =>
     status: init.status ?? 200,
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
+
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 
 export async function POST(request) {
   let payload = null;
@@ -31,6 +33,13 @@ export async function POST(request) {
     return json({ error: "Fel e-post eller lösenord." }, { status: 401 });
   }
 
+  const isAdmin = email === ADMIN_EMAIL;
+  if (Boolean(user.isAdmin) !== isAdmin) {
+    user.isAdmin = isAdmin;
+    user.updatedAt = new Date().toISOString();
+    await setJson(getUserKey(email), user);
+  }
+
   const { token } = await createSession(email);
 
   return json({
@@ -40,6 +49,7 @@ export async function POST(request) {
       firstName: user.firstName ?? "",
       lastName: user.lastName ?? "",
       isSubscriber: Boolean(user.isSubscriber),
+      isAdmin,
       profile: user.profile ?? { shares: 0, avgCost: 0 },
     },
   });

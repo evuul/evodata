@@ -4,6 +4,7 @@ const UPSTASH_REST_URL = process.env.UPSTASH_REST_URL;
 const UPSTASH_REST_TOKEN = process.env.UPSTASH_REST_TOKEN;
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
+const PASSWORD_RESET_TTL_SECONDS = 60 * 30; // 30 minutes
 
 const requireUpstash = () => {
   if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
@@ -46,6 +47,7 @@ export const verifyPassword = (password, hash) => {
 
 export const getUserKey = (email) => `user:${email.toLowerCase()}`;
 export const getSessionKey = (token) => `session:${token}`;
+export const getPasswordResetKey = (tokenId) => `pwdreset:${tokenId}`;
 
 export const getJson = async (key) => {
   const data = await upstashRequest(`/get/${encodeURIComponent(key)}`);
@@ -66,6 +68,15 @@ export const setJson = async (key, value, ttlSeconds) => {
   });
 };
 
+export const deleteKey = async (key) => {
+  await upstashRequest(`/del/${encodeURIComponent(key)}`, {
+    method: "POST",
+  });
+};
+
+const hashResetSecret = (secret) =>
+  crypto.createHash("sha256").update(secret).digest("hex");
+
 export const createSession = async (email) => {
   const token = crypto.randomUUID();
   const session = {
@@ -75,4 +86,47 @@ export const createSession = async (email) => {
   };
   await setJson(getSessionKey(token), session, SESSION_TTL_SECONDS);
   return { token, session };
+};
+
+export const createPasswordResetToken = async (
+  email,
+  ttlSeconds = PASSWORD_RESET_TTL_SECONDS
+) => {
+  const tokenId = crypto.randomUUID();
+  const secret = crypto.randomBytes(32).toString("hex");
+  const token = `${tokenId}.${secret}`;
+  const payload = {
+    email: String(email).toLowerCase(),
+    tokenHash: hashResetSecret(secret),
+    createdAt: new Date().toISOString(),
+    expiresAt: new Date(Date.now() + ttlSeconds * 1000).toISOString(),
+  };
+  await setJson(getPasswordResetKey(tokenId), payload, ttlSeconds);
+  return { token, tokenId, expiresAt: payload.expiresAt };
+};
+
+export const verifyAndConsumePasswordResetToken = async (email, token) => {
+  if (!email || !token || typeof token !== "string") return false;
+  const [tokenId, secret] = token.split(".");
+  if (!tokenId || !secret) return false;
+
+  const key = getPasswordResetKey(tokenId);
+  const record = await getJson(key);
+  if (!record?.email || !record?.tokenHash) return false;
+  if (String(record.email).toLowerCase() !== String(email).toLowerCase()) return false;
+
+  const now = Date.now();
+  const expiresAt = Date.parse(record.expiresAt || "");
+  if (!Number.isFinite(expiresAt) || expiresAt <= now) {
+    await deleteKey(key).catch(() => {});
+    return false;
+  }
+
+  const candidateHash = hashResetSecret(secret);
+  const a = Buffer.from(String(record.tokenHash), "hex");
+  const b = Buffer.from(candidateHash, "hex");
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return false;
+
+  await deleteKey(key);
+  return true;
 };

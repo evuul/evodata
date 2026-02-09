@@ -11,6 +11,8 @@ const json = (data, init = {}) =>
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
 
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
+
 const getToken = (request) => {
   const auth = request.headers.get("authorization") || "";
   if (!auth.toLowerCase().startsWith("bearer ")) return null;
@@ -32,11 +34,13 @@ export async function GET(request) {
     return json({ error: "Unauthorized" }, { status: 401 });
   }
   const { user } = resolved;
+  const isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL;
   return json({
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
+    isAdmin,
     profile: user.profile ?? { shares: 0, avgCost: 0 },
   });
 }
@@ -56,6 +60,7 @@ export async function PUT(request) {
   }
 
   const { user } = resolved;
+  user.isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL;
   const profile = user.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] };
   const action = payload?.action;
   const shares = Number(payload?.shares ?? 0);
@@ -170,6 +175,7 @@ export async function PUT(request) {
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
+    isAdmin: Boolean(user.isAdmin),
     profile,
   });
 }

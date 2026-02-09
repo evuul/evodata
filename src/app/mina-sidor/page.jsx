@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Box, Divider, Grid, Stack, Typography } from "@mui/material";
+import { Box, Button, Divider, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
@@ -40,6 +40,10 @@ export default function MinaSidorPage() {
   const [setAvgCost, setSetAvgCost] = useState("");
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
   const [profileIdentity, setProfileIdentity] = useState({ firstName: "", lastName: "", email: "" });
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
+  const [mailTestLoading, setMailTestLoading] = useState(false);
+  const [mailTestMessage, setMailTestMessage] = useState("");
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const [buybackData, setBuybackData] = useState(
     Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -169,6 +173,13 @@ export default function MinaSidorPage() {
     const maybeFirst = localPart.split(/[._-]/)[0] || localPart;
     return maybeFirst ? maybeFirst.charAt(0).toUpperCase() + maybeFirst.slice(1) : "";
   }, [profileIdentity.email, profileIdentity.firstName, user?.email, user?.firstName]);
+  const effectiveIsAdmin = useMemo(
+    () =>
+      Boolean(user?.isAdmin) ||
+      isAdminUser ||
+      String(user?.email || profileIdentity.email || "").toLowerCase() === "alexander.ek@live.se",
+    [isAdminUser, profileIdentity.email, user?.email, user?.isAdmin]
+  );
 
   const totalLivePlayers = useMemo(() => {
     if (!playersData) return null;
@@ -337,6 +348,7 @@ export default function MinaSidorPage() {
           lastName: data.lastName ?? "",
           email: data.email ?? "",
         });
+        setIsAdminUser(Boolean(data.isAdmin));
         setProfile(data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
         setError("");
       } catch (err) {
@@ -475,6 +487,40 @@ export default function MinaSidorPage() {
     }
   };
 
+  const handleAdminMailTest = async () => {
+    if (!token) return;
+    try {
+      setMailTestLoading(true);
+      setMailTestMessage("");
+      const res = await fetch("/api/admin/mail-test", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          toEmail: profileIdentity.email || user?.email || "alexander.ek@live.se",
+          subject: "EvoData admin mail test",
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMailTestMessage(payload?.error || translate("Mailtest misslyckades.", "Mail test failed."));
+        return;
+      }
+      setMailTestMessage(
+        translate(
+          `Testmail skickat till ${payload?.toEmail || "din adress"}.`,
+          `Test email sent to ${payload?.toEmail || "your address"}.`
+        )
+      );
+    } catch {
+      setMailTestMessage(translate("Kunde inte skicka testmail.", "Could not send test email."));
+    } finally {
+      setMailTestLoading(false);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -566,6 +612,91 @@ export default function MinaSidorPage() {
             />
           </Box>
 
+          {effectiveIsAdmin ? (
+            <>
+              <Box sx={contentWrapSx}>
+                <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
+                  <Box sx={sectionRule} />
+                  {translate("Admin", "Admin")}
+                  <Box sx={sectionRule} />
+                </Box>
+              </Box>
+              <Box sx={contentWrapSx}>
+                <Stack spacing={2} alignItems="center">
+                  <ToggleButtonGroup
+                    value={adminMode ? "on" : "off"}
+                    exclusive
+                    onChange={(_, value) => {
+                      if (!value) return;
+                      setAdminMode(value === "on");
+                    }}
+                    size="small"
+                    sx={{
+                      backgroundColor: "rgba(148,163,184,0.12)",
+                      borderRadius: "999px",
+                      p: 0.5,
+                    }}
+                  >
+                    <ToggleButton
+                      value="off"
+                      sx={{
+                        textTransform: "none",
+                        border: 0,
+                        borderRadius: "999px!important",
+                        px: 1.6,
+                        color: "rgba(226,232,240,0.8)",
+                        "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.25)" },
+                      }}
+                    >
+                      {translate("Admin vy av", "Admin view off")}
+                    </ToggleButton>
+                    <ToggleButton
+                      value="on"
+                      sx={{
+                        textTransform: "none",
+                        border: 0,
+                        borderRadius: "999px!important",
+                        px: 1.6,
+                        color: "rgba(226,232,240,0.8)",
+                        "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(34,197,94,0.28)" },
+                      }}
+                    >
+                      {translate("Admin vy på", "Admin view on")}
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+
+                  {adminMode ? (
+                    <Stack spacing={1.1} alignItems="center">
+                      <Button
+                        variant="outlined"
+                        onClick={handleAdminMailTest}
+                        disabled={mailTestLoading}
+                        sx={{
+                          textTransform: "none",
+                          borderColor: "rgba(56,189,248,0.45)",
+                          color: "#bae6fd",
+                          "&:hover": {
+                            borderColor: "rgba(56,189,248,0.7)",
+                            backgroundColor: "rgba(56,189,248,0.1)",
+                          },
+                        }}
+                      >
+                        {mailTestLoading
+                          ? translate("Skickar testmail...", "Sending test email...")
+                          : translate("Skicka testmail", "Send test email")}
+                      </Button>
+                      {mailTestMessage ? (
+                        <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center" }}>
+                          {mailTestMessage}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  ) : null}
+                </Stack>
+              </Box>
+            </>
+          ) : null}
+
           <Divider sx={sectionDivider} />
 
           <Divider sx={sectionDivider} />
@@ -597,7 +728,6 @@ export default function MinaSidorPage() {
         acquisitionDate={setAcquisitionDate}
         onAcquisitionDateChange={(event) => setSetAcquisitionDate(event.target.value)}
         estimatedDividendsFromDate={estimatedDividendsFromDate}
-        hasManualDividends={hasManualDividends}
         dividendInputMode={dividendInputMode}
         onDividendInputModeChange={handleDividendModeChange}
         onBuy={handleBuy}

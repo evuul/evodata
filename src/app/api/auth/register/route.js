@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSession, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
+import { buildWelcomeEmail } from "@/lib/emailTemplates";
+import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -10,6 +12,8 @@ const json = (data, init = {}) =>
     status: init.status ?? 200,
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
+
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 
 export async function POST(request) {
   let payload = null;
@@ -33,6 +37,8 @@ export async function POST(request) {
     return json({ error: "E-postadressen är redan registrerad." }, { status: 409 });
   }
 
+  const isAdmin = email === ADMIN_EMAIL;
+
   const passwordHash = hashPassword(password);
   const now = new Date().toISOString();
   const user = {
@@ -43,6 +49,7 @@ export async function POST(request) {
     createdAt: now,
     updatedAt: now,
     isSubscriber: false,
+    isAdmin,
     profile: {
       shares: 0,
       avgCost: 0,
@@ -54,6 +61,20 @@ export async function POST(request) {
 
   await setJson(getUserKey(email), user);
 
+  try {
+    if (isMailerConfigured()) {
+      const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+      const { subject, html } = buildWelcomeEmail({
+        email,
+        firstName,
+        coffeeUrl,
+      });
+      await sendEmail({ toEmail: email, subject, html });
+    }
+  } catch (error) {
+    console.error("Failed to send welcome email:", error);
+  }
+
   const { token } = await createSession(email);
 
   return json({
@@ -63,6 +84,7 @@ export async function POST(request) {
       firstName: user.firstName,
       lastName: user.lastName,
       isSubscriber: user.isSubscriber,
+      isAdmin,
       profile: user.profile,
     },
   });
