@@ -10,6 +10,7 @@ export default function MinaSidorHeader({
   translate,
   totalLivePlayers,
   onManageHoldings,
+  onOpenPasswordDialog,
   greetingName,
   currentPrice,
   todaysChangePercent,
@@ -104,6 +105,22 @@ export default function MinaSidorHeader({
             }}
           >
             {translate("Hantera innehav", "Manage holdings")}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={onOpenPasswordDialog}
+            sx={{
+              textTransform: "none",
+              fontWeight: 700,
+              color: "#dbeafe",
+              borderColor: "rgba(125,211,252,0.35)",
+              "&:hover": {
+                borderColor: "rgba(125,211,252,0.65)",
+                backgroundColor: "rgba(56,189,248,0.08)",
+              },
+            }}
+          >
+            {translate("Byt lösenord", "Change password")}
           </Button>
         </Stack>
       </Stack>

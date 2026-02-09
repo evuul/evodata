@@ -15,6 +15,7 @@ const LOGIN_PATH = "/api/auth/login";
 const REGISTER_PATH = "/api/auth/register";
 const FORGOT_PASSWORD_PATH = "/api/auth/forgot-password";
 const RESET_PASSWORD_PATH = "/api/auth/reset-password";
+const CHANGE_PASSWORD_PATH = "/api/auth/change-password";
 const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 const PASSWORD_RESET_ENABLED = process.env.NEXT_PUBLIC_PASSWORD_RESET_ENABLED === "true";
 const GUEST_AUTH_STATE = AUTH_DISABLED
@@ -216,6 +217,42 @@ export function AuthProvider({ children }) {
     return payload;
   }, []);
 
+  const changePassword = useCallback(async ({ token, currentPassword, newPassword }) => {
+    if (AUTH_DISABLED) {
+      return { message: "Password change is disabled." };
+    }
+    if (!token) {
+      throw new Error("Unauthorized");
+    }
+
+    const response = await fetch(`${API_BASE_URL}${CHANGE_PASSWORD_PATH}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch {
+      // Ignore parse errors when request fails; handled below.
+    }
+
+    if (!response.ok) {
+      const message =
+        payload?.message ||
+        payload?.error ||
+        payload?.errors?.[0] ||
+        "Could not update password. Please try again.";
+      throw new Error(message);
+    }
+
+    return payload;
+  }, []);
+
   const logout = useCallback(() => {
     if (AUTH_DISABLED) {
       setAuthState({ ...GUEST_AUTH_STATE });
@@ -237,10 +274,11 @@ export function AuthProvider({ children }) {
       logout,
       requestPasswordReset,
       resetPassword,
+      changePassword,
       passwordResetEnabled: PASSWORD_RESET_ENABLED,
       authDisabled: AUTH_DISABLED,
     }),
-    [authState, login, register, logout, requestPasswordReset, resetPassword]
+    [authState, login, register, logout, requestPasswordReset, resetPassword, changePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

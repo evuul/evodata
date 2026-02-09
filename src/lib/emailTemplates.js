@@ -24,7 +24,7 @@ const shell = ({ title, body, preheader = "" }) => `
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background:linear-gradient(145deg,#111b31,#0d1630);border:1px solid rgba(148,163,184,.25);border-radius:16px;overflow:hidden;">
             <tr>
               <td style="padding:26px 28px 10px 28px;">
-                <div style="font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:#93c5fd;font-weight:700;">EvoData</div>
+                <div style="font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:#93c5fd;font-weight:700;">EvoTracker</div>
                 <h1 style="margin:10px 0 0 0;font-size:28px;line-height:1.2;color:#f8fafc;">${escapeHtml(title)}</h1>
               </td>
             </tr>
@@ -33,7 +33,7 @@ const shell = ({ title, body, preheader = "" }) => `
                 ${body}
                 <hr style="border:none;border-top:1px solid rgba(148,163,184,.22);margin:22px 0;" />
                 <p style="margin:0;color:#94a3b8;font-size:13px;">
-                  EvoData • student-built dashboard for Evolution tracking
+                  EvoTracker • student-built dashboard for Evolution tracking
                 </p>
               </td>
             </tr>
@@ -58,21 +58,21 @@ export const buildWelcomeEmail = ({ email, firstName, coffeeUrl }) => {
       You can switch the dashboard language between English and Swedish at any time from the top navigation.
     </p>
     <p style="margin:0 0 16px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
-      If EvoData helps you, supporting server costs keeps everything fast and free.
+      If EvoTracker helps you, supporting server costs keeps everything fast and free.
     </p>
     <p style="margin:0 0 18px 0;">
       <a href="${safeCoffeeUrl}" target="_blank" rel="noopener"
          style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;text-decoration:none;font-weight:800;">
-         Support EvoData
+         Support EvoTracker
       </a>
     </p>
     <p style="margin:0;color:#94a3b8;font-size:14px;">/ Alexander</p>
   `;
   return {
-    subject: "Welcome to EvoData",
+    subject: "Welcome to EvoTracker",
     html: shell({
-      title: "Welcome to EvoData",
-      preheader: "Your EvoData account is ready.",
+      title: "Welcome to EvoTracker",
+      preheader: "Your EvoTracker account is ready.",
       body,
     }),
   };
@@ -103,10 +103,10 @@ export const buildResetPasswordEmail = ({ email, resetUrl }) => {
     </p>
   `;
   return {
-    subject: "Reset your EvoData password",
+    subject: "Reset your EvoTracker password",
     html: shell({
       title: "Reset your password",
-      preheader: "Reset link for your EvoData account.",
+      preheader: "Reset link for your EvoTracker account.",
       body,
     }),
   };

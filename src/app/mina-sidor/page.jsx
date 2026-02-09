@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, Dialog, DialogContent, DialogTitle, Divider, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Divider, Grid, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -21,7 +21,7 @@ export default function MinaSidorPage() {
   const router = useRouter();
   const translate = useTranslate();
   const { locale } = useLocale();
-  const { token, isAuthenticated, initialized, user } = useAuth();
+  const { token, isAuthenticated, initialized, user, changePassword } = useAuth();
   const { stockPrice } = useStockPriceContext();
   const { data: playersData } = usePlayersLive();
 
@@ -57,6 +57,13 @@ export default function MinaSidorPage() {
   const [adminUsersError, setAdminUsersError] = useState("");
   const [adminUsersRows, setAdminUsersRows] = useState([]);
   const [adminUsersTotal, setAdminUsersTotal] = useState(0);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const [buybackData, setBuybackData] = useState(
     Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -617,6 +624,45 @@ export default function MinaSidorPage() {
     }
   };
 
+  const handleOpenPasswordDialog = () => {
+    setPasswordError("");
+    setPasswordSuccess("");
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setPasswordDialogOpen(true);
+  };
+
+  const handleSubmitPasswordChange = async () => {
+    if (!token) return;
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError(translate("Fyll i alla fält.", "Fill in all fields."));
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPasswordError(translate("Nytt lösenord måste vara minst 8 tecken.", "New password must be at least 8 characters."));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError(translate("Lösenorden matchar inte.", "Passwords do not match."));
+      return;
+    }
+    try {
+      setPasswordLoading(true);
+      setPasswordError("");
+      setPasswordSuccess("");
+      await changePassword({ token, currentPassword, newPassword });
+      setPasswordSuccess(translate("Lösenordet är uppdaterat.", "Password updated."));
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (err) {
+      setPasswordError(err?.message || translate("Kunde inte uppdatera lösenord.", "Could not update password."));
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated || !token) return;
     let cancelled = false;
@@ -702,6 +748,7 @@ export default function MinaSidorPage() {
               translate={translate}
               totalLivePlayers={totalLivePlayers}
               onManageHoldings={() => setManageOpen(true)}
+              onOpenPasswordDialog={handleOpenPasswordDialog}
               greetingName={greetingName}
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
@@ -1171,6 +1218,91 @@ export default function MinaSidorPage() {
               style={{ width: "100%", height: "560px", border: 0, borderRadius: "8px", background: "#0b1220" }}
             />
           </Box>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={passwordDialogOpen}
+        onClose={() => setPasswordDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+        PaperProps={{
+          sx: {
+            background: "rgba(15,23,42,0.96)",
+            border: "1px solid rgba(148,163,184,0.2)",
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: "#f8fafc", fontWeight: 700 }}>
+          {translate("Byt lösenord", "Change password")}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.6} sx={{ mt: 0.5 }}>
+            {passwordError ? <Alert severity="error">{passwordError}</Alert> : null}
+            {passwordSuccess ? <Alert severity="success">{passwordSuccess}</Alert> : null}
+            <TextField
+              type="password"
+              label={translate("Nuvarande lösenord", "Current password")}
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              fullWidth
+              sx={{
+                "& .MuiInputBase-input": { color: "#f8fafc" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.35)" },
+              }}
+              InputLabelProps={{ sx: { color: "rgba(226,232,240,0.7)" } }}
+            />
+            <TextField
+              type="password"
+              label={translate("Nytt lösenord", "New password")}
+              value={newPassword}
+              onChange={(event) => setNewPassword(event.target.value)}
+              fullWidth
+              sx={{
+                "& .MuiInputBase-input": { color: "#f8fafc" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.35)" },
+              }}
+              InputLabelProps={{ sx: { color: "rgba(226,232,240,0.7)" } }}
+            />
+            <TextField
+              type="password"
+              label={translate("Bekräfta nytt lösenord", "Confirm new password")}
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              fullWidth
+              sx={{
+                "& .MuiInputBase-input": { color: "#f8fafc" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.35)" },
+              }}
+              InputLabelProps={{ sx: { color: "rgba(226,232,240,0.7)" } }}
+            />
+            <Stack direction="row" spacing={1} justifyContent="flex-end">
+              <Button
+                variant="text"
+                onClick={() => setPasswordDialogOpen(false)}
+                sx={{ color: "rgba(226,232,240,0.75)", textTransform: "none" }}
+              >
+                {translate("Stäng", "Close")}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSubmitPasswordChange}
+                disabled={passwordLoading}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 700,
+                  color: "#e0f2fe",
+                  background: "linear-gradient(135deg, rgba(37,99,235,0.78), rgba(14,165,233,0.72))",
+                  border: "1px solid rgba(125,211,252,0.32)",
+                  "&:hover": {
+                    background: "linear-gradient(135deg, rgba(59,130,246,0.82), rgba(34,211,238,0.76))",
+                  },
+                }}
+              >
+                {passwordLoading ? translate("Sparar...", "Saving...") : translate("Uppdatera lösenord", "Update password")}
+              </Button>
+            </Stack>
+          </Stack>
         </DialogContent>
       </Dialog>
     </Box>

@@ -7,6 +7,7 @@ export const revalidate = 0;
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 const ACTIVITY_KEY_PREFIX = "admin:activity:user:";
+const ACTIVITY_INDEX_KEY = "admin:activity:index";
 const ACTIVE_WINDOW_MS = 2 * 60 * 1000;
 
 const json = (data, init = {}) =>
@@ -38,25 +39,34 @@ export async function GET(request) {
   if (actorEmail !== ADMIN_EMAIL) return json({ error: "Forbidden" }, { status: 403 });
 
   const index = (await getJson(getUserIndexKey())) || {};
-  const emails = Array.isArray(index?.emails) ? index.emails : [];
+  const activityIndex = (await getJson(ACTIVITY_INDEX_KEY)) || {};
+  const userEmails = Array.isArray(index?.emails) ? index.emails : [];
+  const activityEmails = Array.isArray(activityIndex?.emails) ? activityIndex.emails : [];
+  const emails = Array.from(
+    new Set(
+      [...userEmails, ...activityEmails]
+        .map((value) => String(value || "").trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
   const now = Date.now();
 
   const users = (
     await Promise.all(
       emails.map(async (email) => {
-        const user = await getJson(getUserKey(email));
-        if (!user?.email) return null;
         const activity = await getJson(`${ACTIVITY_KEY_PREFIX}${email.toLowerCase()}`);
+        const user = await getJson(getUserKey(email));
+        if (!user?.email && !activity?.email) return null;
         const lastSeenAt = activity?.lastSeenAt || null;
         const seenAtTs = lastSeenAt ? Date.parse(lastSeenAt) : NaN;
         const isActive = Number.isFinite(seenAtTs) && now - seenAtTs <= ACTIVE_WINDOW_MS;
         return {
-          email: user.email,
-          firstName: user.firstName || "",
-          lastName: user.lastName || "",
-          isSubscriber: Boolean(user.isSubscriber),
-          createdAt: user.createdAt || null,
-          updatedAt: user.updatedAt || null,
+          email: user?.email || activity?.email || email,
+          firstName: user?.firstName || activity?.firstName || "",
+          lastName: user?.lastName || activity?.lastName || "",
+          isSubscriber: Boolean(user?.isSubscriber),
+          createdAt: user?.createdAt || null,
+          updatedAt: user?.updatedAt || null,
           lastSeenAt,
           lastPath: activity?.lastPath || null,
           lastPanel: activity?.lastPanel || null,
@@ -81,4 +91,3 @@ export async function GET(request) {
     users,
   });
 }
-

@@ -36,10 +36,10 @@ const buildTestMailHtml = ({ to }) => `
       <tr><td align="center">
         <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px;background:linear-gradient(145deg,#111b31,#0d1630);border:1px solid rgba(148,163,184,.25);border-radius:16px;">
           <tr><td style="padding:26px 28px;">
-            <div style="font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:#93c5fd;font-weight:700;">EvoData Admin</div>
+            <div style="font-size:12px;letter-spacing:1.6px;text-transform:uppercase;color:#93c5fd;font-weight:700;">EvoTracker Admin</div>
             <h1 style="margin:10px 0 0 0;font-size:26px;color:#f8fafc;">Mail test successful</h1>
             <p style="margin:14px 0 0 0;color:#cbd5e1;line-height:1.65;">
-              This is a test email from <strong>/api/admin/mail-test</strong>.
+              This is a test email from <strong>EvoTracker</strong> (<code>/api/admin/mail-test</code>).
             </p>
             <p style="margin:8px 0 0 0;color:#94a3b8;">Recipient: ${to}</p>
             <p style="margin:8px 0 0 0;color:#94a3b8;">Sent at: ${new Date().toISOString()}</p>
@@ -72,7 +72,7 @@ export async function POST(request) {
   }
 
   const toEmail = String(payload?.toEmail || actorEmail).trim().toLowerCase();
-  const subject = String(payload?.subject || "EvoData mail test").trim();
+  const subject = String(payload?.subject || "EvoTracker mail test").trim();
   if (!toEmail) return json({ error: "toEmail missing" }, { status: 400 });
 
   await sendEmail({
