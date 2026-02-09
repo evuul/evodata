@@ -54,6 +54,9 @@ export const buildWelcomeEmail = ({ email, firstName, coffeeUrl }) => {
       Your account is ready with <strong>${safeEmail}</strong>. You now have access to live players, trend analysis,
       forecast modules, and portfolio tracking in one place.
     </p>
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      You can switch the dashboard language between English and Swedish at any time from the top navigation.
+    </p>
     <p style="margin:0 0 16px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
       If EvoData helps you, supporting server costs keeps everything fast and free.
     </p>

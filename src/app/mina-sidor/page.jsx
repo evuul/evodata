@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, Divider, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Box, Button, Dialog, DialogContent, DialogTitle, Divider, Grid, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
@@ -44,6 +44,10 @@ export default function MinaSidorPage() {
   const [adminMode, setAdminMode] = useState(false);
   const [mailTestLoading, setMailTestLoading] = useState(false);
   const [mailTestMessage, setMailTestMessage] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTitle, setPreviewTitle] = useState("");
+  const [previewHtml, setPreviewHtml] = useState("");
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const [buybackData, setBuybackData] = useState(
     Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -521,6 +525,32 @@ export default function MinaSidorPage() {
     }
   };
 
+  const handleAdminMailPreview = async (type) => {
+    if (!token) return;
+    try {
+      setPreviewLoading(true);
+      setMailTestMessage("");
+      const res = await fetch(`/api/admin/mail-preview?type=${encodeURIComponent(type)}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMailTestMessage(payload?.error || translate("Kunde inte hämta preview.", "Could not load preview."));
+        return;
+      }
+      setPreviewTitle(payload?.subject || (type === "reset" ? "Reset preview" : "Welcome preview"));
+      setPreviewHtml(payload?.html || "");
+      setPreviewOpen(true);
+    } catch {
+      setMailTestMessage(translate("Kunde inte hämta preview.", "Could not load preview."));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   return (
     <Box
       sx={{
@@ -667,24 +697,58 @@ export default function MinaSidorPage() {
 
                   {adminMode ? (
                     <Stack spacing={1.1} alignItems="center">
-                      <Button
-                        variant="outlined"
-                        onClick={handleAdminMailTest}
-                        disabled={mailTestLoading}
-                        sx={{
-                          textTransform: "none",
-                          borderColor: "rgba(56,189,248,0.45)",
-                          color: "#bae6fd",
-                          "&:hover": {
-                            borderColor: "rgba(56,189,248,0.7)",
-                            backgroundColor: "rgba(56,189,248,0.1)",
-                          },
-                        }}
-                      >
-                        {mailTestLoading
-                          ? translate("Skickar testmail...", "Sending test email...")
-                          : translate("Skicka testmail", "Send test email")}
-                      </Button>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
+                        <Button
+                          variant="outlined"
+                          onClick={handleAdminMailTest}
+                          disabled={mailTestLoading}
+                          sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(56,189,248,0.45)",
+                            color: "#bae6fd",
+                            "&:hover": {
+                              borderColor: "rgba(56,189,248,0.7)",
+                              backgroundColor: "rgba(56,189,248,0.1)",
+                            },
+                          }}
+                        >
+                          {mailTestLoading
+                            ? translate("Skickar testmail...", "Sending test email...")
+                            : translate("Skicka testmail", "Send test email")}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => handleAdminMailPreview("welcome")}
+                          disabled={previewLoading}
+                          sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(34,197,94,0.45)",
+                            color: "#bbf7d0",
+                            "&:hover": {
+                              borderColor: "rgba(34,197,94,0.75)",
+                              backgroundColor: "rgba(34,197,94,0.1)",
+                            },
+                          }}
+                        >
+                          {translate("Preview welcome", "Preview welcome")}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={() => handleAdminMailPreview("reset")}
+                          disabled={previewLoading}
+                          sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(167,139,250,0.45)",
+                            color: "#ddd6fe",
+                            "&:hover": {
+                              borderColor: "rgba(167,139,250,0.75)",
+                              backgroundColor: "rgba(167,139,250,0.1)",
+                            },
+                          }}
+                        >
+                          {translate("Preview reset", "Preview reset")}
+                        </Button>
+                      </Stack>
                       {mailTestMessage ? (
                         <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center" }}>
                           {mailTestMessage}
@@ -735,6 +799,37 @@ export default function MinaSidorPage() {
         onSet={handleSet}
         loading={loading}
       />
+
+      <Dialog
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{
+          sx: {
+            background: "rgba(15,23,42,0.96)",
+            border: "1px solid rgba(148,163,184,0.2)",
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: "#f8fafc", fontWeight: 700 }}>{previewTitle}</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              background: "#0b1220",
+              borderRadius: 2,
+              border: "1px solid rgba(148,163,184,0.2)",
+              p: 1,
+            }}
+          >
+            <iframe
+              title="mail-preview"
+              srcDoc={previewHtml}
+              style={{ width: "100%", height: "560px", border: 0, borderRadius: "8px", background: "#0b1220" }}
+            />
+          </Box>
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
