@@ -6,7 +6,7 @@ const STORAGE_KEY = "evodata.auth";
 const AuthContext = createContext(undefined);
 
 const normalizeBaseUrl = (value) => {
-  if (!value) return "https://authevo-dvezc6g5f6gufpgf.francecentral-01.azurewebsites.net";
+  if (!value) return "";
   return value.endsWith("/") ? value.slice(0, -1) : value;
 };
 
@@ -16,6 +16,7 @@ const REGISTER_PATH = "/api/auth/register";
 const FORGOT_PASSWORD_PATH = "/api/auth/forgot-password";
 const RESET_PASSWORD_PATH = "/api/auth/reset-password";
 const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+const PASSWORD_RESET_ENABLED = false;
 const GUEST_AUTH_STATE = AUTH_DISABLED
   ? { token: "guest-token", user: null, accessExpiresAt: null, initialized: true }
   : { token: null, user: null, accessExpiresAt: null, initialized: false };
@@ -107,7 +108,7 @@ export function AuthProvider({ children }) {
     return { token, user, accessExpiresAt };
   }, [persistAuth]);
 
-  const register = useCallback(async ({ email, password }) => {
+  const register = useCallback(async ({ email, password, firstName, lastName }) => {
     if (AUTH_DISABLED) {
       const guestState = { token: "guest-token", user: { email }, accessExpiresAt: null, initialized: true };
       setAuthState(guestState);
@@ -117,7 +118,7 @@ export function AuthProvider({ children }) {
     const response = await fetch(`${API_BASE_URL}${REGISTER_PATH}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, firstName, lastName }),
     });
 
     let payload = {};
@@ -153,6 +154,9 @@ export function AuthProvider({ children }) {
     if (AUTH_DISABLED) {
       return { message: "Återställning av lösenord är inaktiverad." };
     }
+    if (!PASSWORD_RESET_ENABLED) {
+      throw new Error("Återställning av lösenord är inte aktiverad.");
+    }
 
     const response = await fetch(`${API_BASE_URL}${FORGOT_PASSWORD_PATH}`, {
       method: "POST",
@@ -182,6 +186,9 @@ export function AuthProvider({ children }) {
   const resetPassword = useCallback(async ({ email, token, newPassword }) => {
     if (AUTH_DISABLED) {
       return { message: "Återställning av lösenord är inaktiverad." };
+    }
+    if (!PASSWORD_RESET_ENABLED) {
+      throw new Error("Återställning av lösenord är inte aktiverad.");
     }
 
     const response = await fetch(`${API_BASE_URL}${RESET_PASSWORD_PATH}`, {
@@ -230,6 +237,7 @@ export function AuthProvider({ children }) {
       logout,
       requestPasswordReset,
       resetPassword,
+      passwordResetEnabled: PASSWORD_RESET_ENABLED,
       authDisabled: AUTH_DISABLED,
     }),
     [authState, login, register, logout, requestPasswordReset, resetPassword]
