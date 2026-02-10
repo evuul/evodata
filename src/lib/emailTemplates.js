@@ -111,3 +111,210 @@ export const buildResetPasswordEmail = ({ email, resetUrl }) => {
     }),
   };
 };
+
+export const buildAthAlertEmail = ({
+  email,
+  firstName,
+  events = [],
+  topTrends = [],
+  coffeeUrl,
+}) => {
+  const safeName = escapeHtml(firstName || "there");
+  const safeEmail = escapeHtml(email);
+  const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
+
+  const eventRows = (Array.isArray(events) ? events : [])
+    .slice(0, 8)
+    .map((e) => {
+      const name = escapeHtml(e?.name || e?.id || "Unknown");
+      const ath = Number(e?.athValue);
+      const athLabel = Number.isFinite(ath) ? ath.toLocaleString("sv-SE") : "–";
+      const at = e?.athAt ? escapeHtml(e.athAt) : "";
+      const cur = Number(e?.currentValue);
+      const curLabel = Number.isFinite(cur) ? cur.toLocaleString("sv-SE") : "–";
+      return `
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#f8fafc;font-weight:800;">${name}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#86efac;font-weight:800;">${athLabel}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#cbd5e1;">${curLabel}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#94a3b8;font-size:12px;">${at}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const trendRows = (Array.isArray(topTrends) ? topTrends : [])
+    .slice(0, 5)
+    .map((t) => {
+      const name = escapeHtml(t?.name || t?.id || "Unknown");
+      const pct = Number(t?.pctChange);
+      const pctLabel = Number.isFinite(pct) ? `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%` : "–";
+      const color = Number.isFinite(pct) && pct < 0 ? "#fecaca" : "#bbf7d0";
+      return `
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(148,163,184,.12);">
+          <div style="color:#e2e8f0;font-weight:700;">${name}</div>
+          <div style="color:${color};font-weight:900;">${pctLabel}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const body = `
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:16px;">
+      Hi ${safeName}, a new All-Time High (ATH) was detected.
+    </p>
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      Account: <strong>${safeEmail}</strong>
+    </p>
+
+    <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
+      <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#93c5fd;font-weight:800;margin-bottom:10px;">
+        New ATH
+      </div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Game</th>
+            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">ATH</th>
+            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Now</th>
+            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">At</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${eventRows || ""}
+        </tbody>
+      </table>
+    </div>
+
+    ${
+      trendRows
+        ? `
+      <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
+        <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#a7f3d0;font-weight:800;margin-bottom:8px;">
+          Top trend (last 30d vs prev 30d)
+        </div>
+        ${trendRows}
+      </div>
+    `
+        : ""
+    }
+
+    <p style="margin:16px 0 16px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      You can disable ATH emails anytime from <strong>My page</strong>.
+    </p>
+
+    <p style="margin:0 0 18px 0;">
+      <a href="${safeCoffeeUrl}" target="_blank" rel="noopener"
+         style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;text-decoration:none;font-weight:800;">
+         Support EvoTracker
+      </a>
+    </p>
+    <p style="margin:0;color:#94a3b8;font-size:14px;">/ Alexander</p>
+  `;
+
+  return {
+    subject: "New ATH detected",
+    html: shell({
+      title: "New ATH detected",
+      preheader: "A game just hit a new All-Time High.",
+      body,
+    }),
+  };
+};
+
+export const buildDailyAvgPlayersEmail = ({
+  email,
+  firstName,
+  dateLabel,
+  totalAvgPlayers,
+  changeAbs,
+  changePct,
+  coverageLabel,
+  topGames = [],
+  coffeeUrl,
+}) => {
+  const safeName = escapeHtml(firstName || "there");
+  const safeEmail = escapeHtml(email);
+  const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
+
+  const totalLabel = Number.isFinite(totalAvgPlayers)
+    ? Math.round(totalAvgPlayers).toLocaleString("sv-SE")
+    : "–";
+  const absLabel = Number.isFinite(changeAbs)
+    ? `${changeAbs >= 0 ? "+" : ""}${Math.round(changeAbs).toLocaleString("sv-SE")}`
+    : "–";
+  const pctLabel = Number.isFinite(changePct)
+    ? `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`
+    : "–";
+  const deltaColor =
+    Number.isFinite(changeAbs) && changeAbs < 0 ? "#fecaca" : "#bbf7d0";
+
+  const topRows = (Array.isArray(topGames) ? topGames : [])
+    .slice(0, 5)
+    .map((g) => {
+      const name = escapeHtml(g?.name || g?.id || "Unknown");
+      const avg = Number(g?.avg);
+      const avgLabel = Number.isFinite(avg) ? Math.round(avg).toLocaleString("sv-SE") : "–";
+      return `
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(148,163,184,.12);">
+          <div style="color:#e2e8f0;font-weight:700;">${name}</div>
+          <div style="color:#f8fafc;font-weight:900;">${avgLabel}</div>
+        </div>
+      `;
+    })
+    .join("");
+
+  const body = `
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:16px;">
+      Hi ${safeName}, here is yesterday’s average lobby activity (tracked games only).
+    </p>
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      Account: <strong>${safeEmail}</strong>
+    </p>
+
+    <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
+      <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#93c5fd;font-weight:800;margin-bottom:8px;">
+        Daily AVG players (${escapeHtml(dateLabel || "")})
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:baseline;">
+        <div style="font-size:34px;color:#f8fafc;font-weight:900;line-height:1;">${totalLabel}</div>
+        <div style="font-size:14px;color:${deltaColor};font-weight:900;">${absLabel} (${pctLabel}) vs prior day</div>
+        <div style="font-size:13px;color:#94a3b8;">${escapeHtml(coverageLabel || "")}</div>
+      </div>
+    </div>
+
+    ${
+      topRows
+        ? `
+      <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
+        <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#a7f3d0;font-weight:800;margin-bottom:8px;">
+          Top games by AVG players
+        </div>
+        ${topRows}
+      </div>
+    `
+        : ""
+    }
+
+    <p style="margin:16px 0 16px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      Note: “AVG players” is based on tracked games. Use “Simulate lobby (+10%)” in the live view for a closer match to the full lobby.
+    </p>
+
+    <p style="margin:0 0 18px 0;">
+      <a href="${safeCoffeeUrl}" target="_blank" rel="noopener"
+         style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;text-decoration:none;font-weight:800;">
+         Support EvoTracker
+      </a>
+    </p>
+    <p style="margin:0;color:#94a3b8;font-size:14px;">/ Alexander</p>
+  `;
+
+  return {
+    subject: `Daily AVG players (${dateLabel || "yesterday"})`,
+    html: shell({
+      title: "Daily AVG players",
+      preheader: "Yesterday’s average players with day-over-day comparison.",
+      body,
+    }),
+  };
+};

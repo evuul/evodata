@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { usePlayersLive } from "@/context/PlayersLiveContext";
+import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import dividendData from "@/app/data/dividendData.json";
 import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
@@ -58,6 +59,9 @@ export default function MinaSidorPage() {
   const [adminUsersError, setAdminUsersError] = useState("");
   const [adminUsersRows, setAdminUsersRows] = useState([]);
   const [adminUsersTotal, setAdminUsersTotal] = useState(0);
+  const [athEmailEnabled, setAthEmailEnabled] = useState(false);
+  const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
+  const [notificationsSaving, setNotificationsSaving] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -65,6 +69,11 @@ export default function MinaSidorPage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [alertsSettingsLoading, setAlertsSettingsLoading] = useState(false);
+  const [alertsSettingsError, setAlertsSettingsError] = useState("");
+  const [alertsTestOnlyAdmin, setAlertsTestOnlyAdmin] = useState(false);
+  const [alertsAthEnabled, setAlertsAthEnabled] = useState(true);
+  const [alertsDailyAvgEnabled, setAlertsDailyAvgEnabled] = useState(true);
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const [buybackData, setBuybackData] = useState(
     Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -265,8 +274,15 @@ export default function MinaSidorPage() {
     const ownershipLiftPct =
       ownershipBefore > 0 ? ((ownershipAfter / ownershipBefore) - 1) * 100 : null;
     const buybackBenefit = ownershipBefore > 0 ? totalBuybackSpend * ownershipBefore : 0;
+    // Use last paid dividend as "2025 dividend" reference for shareholder return.
+    // This is an estimate: assumes the user held the shares at record date.
+    const lastPaidDividendPerShare = Number(lastDividend?.dividendPerShare ?? null);
+    const dividendBenefit =
+      Number.isFinite(lastPaidDividendPerShare) && lastPaidDividendPerShare > 0
+        ? profile.shares * lastPaidDividendPerShare
+        : 0;
     const totalShareholderReturn =
-      (Number.isFinite(expectedDividendCash) ? expectedDividendCash : 0) + buybackBenefit;
+      (Number.isFinite(dividendBenefit) ? dividendBenefit : 0) + buybackBenefit;
     const totalShareholderReturnPct =
       totalValue > 0 ? (totalShareholderReturn / totalValue) * 100 : null;
 
@@ -275,11 +291,12 @@ export default function MinaSidorPage() {
       ownershipAfter,
       ownershipLiftPct,
       buybackBenefit,
+      dividendBenefit,
       totalShareholderReturn,
       totalShareholderReturnPct,
       latestSharesDate: amountOfShares?.[amountOfShares.length - 1]?.date,
     };
-  }, [buybackData, expectedDividendCash, profile.shares, totalValue]);
+  }, [buybackData, lastDividend?.dividendPerShare, profile.shares, totalValue]);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -385,6 +402,8 @@ export default function MinaSidorPage() {
           email: data.email ?? "",
         });
         setIsAdminUser(Boolean(data.isAdmin));
+        setAthEmailEnabled(Boolean(data?.notifications?.athEmail));
+        setDailyAvgEmailEnabled(Boolean(data?.notifications?.dailyAvgEmail));
         setProfile(data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
         setError("");
       } catch (err) {
@@ -396,6 +415,106 @@ export default function MinaSidorPage() {
 
     loadProfile();
   }, [initialized, isAuthenticated, router, token]);
+
+  const saveAthEmailEnabled = async (nextValue) => {
+    if (!token) return;
+    try {
+      setNotificationsSaving(true);
+      const res = await fetch("/api/user/notifications", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ athEmail: Boolean(nextValue) }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Could not save notifications.");
+      }
+      setAthEmailEnabled(Boolean(payload?.notifications?.athEmail));
+    } catch (err) {
+      setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
+      setAthEmailEnabled((prev) => prev); // no-op
+    } finally {
+      setNotificationsSaving(false);
+    }
+  };
+
+  const saveDailyAvgEmailEnabled = async (nextValue) => {
+    if (!token) return;
+    try {
+      setNotificationsSaving(true);
+      const res = await fetch("/api/user/notifications", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dailyAvgEmail: Boolean(nextValue) }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || "Could not save notifications.");
+      }
+      setDailyAvgEmailEnabled(Boolean(payload?.notifications?.dailyAvgEmail));
+    } catch (err) {
+      setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
+      setDailyAvgEmailEnabled((prev) => prev); // no-op
+    } finally {
+      setNotificationsSaving(false);
+    }
+  };
+
+  const loadAlertsSettings = async () => {
+    if (!token) return;
+    try {
+      setAlertsSettingsLoading(true);
+      setAlertsSettingsError("");
+      const res = await fetch("/api/admin/alerts-settings", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAlertsSettingsError(payload?.error || translate("Kunde inte läsa settings.", "Could not load settings."));
+        return;
+      }
+      setAlertsTestOnlyAdmin(Boolean(payload?.settings?.testOnlyAdmin));
+      setAlertsAthEnabled(Boolean(payload?.settings?.athEnabled));
+      setAlertsDailyAvgEnabled(Boolean(payload?.settings?.dailyAvgEnabled));
+    } catch {
+      setAlertsSettingsError(translate("Kunde inte läsa settings.", "Could not load settings."));
+    } finally {
+      setAlertsSettingsLoading(false);
+    }
+  };
+
+  const saveAlertsSettings = async (next) => {
+    if (!token) return;
+    try {
+      setAlertsSettingsLoading(true);
+      setAlertsSettingsError("");
+      const res = await fetch("/api/admin/alerts-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(next),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAlertsSettingsError(payload?.error || translate("Kunde inte spara settings.", "Could not save settings."));
+        return;
+      }
+      setAlertsTestOnlyAdmin(Boolean(payload?.settings?.testOnlyAdmin));
+      setAlertsAthEnabled(Boolean(payload?.settings?.athEnabled));
+      setAlertsDailyAvgEnabled(Boolean(payload?.settings?.dailyAvgEnabled));
+    } catch {
+      setAlertsSettingsError(translate("Kunde inte spara settings.", "Could not save settings."));
+    } finally {
+      setAlertsSettingsLoading(false);
+    }
+  };
 
   const handleBuy = async () => {
     const shares = Number(buyShares);
@@ -583,6 +702,62 @@ export default function MinaSidorPage() {
     }
   };
 
+  const handleAdminAthPreview = async () => {
+    if (!token) return;
+    try {
+      setPreviewLoading(true);
+      setMailTestMessage("");
+      const res = await fetch("/api/admin/ath-preview", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMailTestMessage(payload?.error || translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
+        return;
+      }
+      setPreviewTitle(payload?.subject || "ATH preview");
+      setPreviewHtml(payload?.html || "");
+      setPreviewOpen(true);
+    } catch {
+      setMailTestMessage(translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleAdminDailyAvgPreview = async () => {
+    if (!token) return;
+    try {
+      setPreviewLoading(true);
+      setMailTestMessage("");
+      const res = await fetch("/api/admin/daily-avg-preview", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMailTestMessage(
+          payload?.error || translate("Kunde inte hämta daily avg-preview.", "Could not load daily avg preview.")
+        );
+        return;
+      }
+      setPreviewTitle(payload?.subject || "Daily AVG preview");
+      setPreviewHtml(payload?.html || "");
+      setPreviewOpen(true);
+    } catch {
+      setMailTestMessage(translate("Kunde inte hämta daily avg-preview.", "Could not load daily avg preview."));
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const loadAdminActivity = async () => {
     if (!token) return;
     try {
@@ -739,6 +914,12 @@ export default function MinaSidorPage() {
     };
   }, [adminMode, adminPanel, effectiveIsAdmin, token]);
 
+  useEffect(() => {
+    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "tools") return;
+    loadAlertsSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+
   return (
     <Box
       sx={{
@@ -765,6 +946,17 @@ export default function MinaSidorPage() {
               totalLivePlayers={totalLivePlayers}
               onManageHoldings={() => setManageOpen(true)}
               onOpenPasswordDialog={handleOpenPasswordDialog}
+              athEmailEnabled={athEmailEnabled}
+              dailyAvgEmailEnabled={dailyAvgEmailEnabled}
+              notificationsSaving={notificationsSaving}
+              onToggleAthEmail={(nextValue) => {
+                setAthEmailEnabled(Boolean(nextValue));
+                saveAthEmailEnabled(Boolean(nextValue));
+              }}
+              onToggleDailyAvgEmail={(nextValue) => {
+                setDailyAvgEmailEnabled(Boolean(nextValue));
+                saveDailyAvgEmailEnabled(Boolean(nextValue));
+              }}
               greetingName={greetingName}
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
@@ -975,7 +1167,145 @@ export default function MinaSidorPage() {
                       </ToggleButtonGroup>
 
                       {adminPanel === "tools" ? (
-                      <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
+                      <Stack spacing={1.2} sx={{ width: "100%", alignItems: "center" }}>
+                        <Stack spacing={0.8} sx={{ width: "100%", maxWidth: 980 }}>
+                          <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center", fontWeight: 800 }}>
+                            {translate("Alert-inställningar", "Alert settings")}
+                          </Typography>
+                          {alertsSettingsError ? (
+                            <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
+                              {alertsSettingsError}
+                            </Typography>
+                          ) : null}
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ justifyContent: "center" }}>
+                            <ToggleButtonGroup
+                              exclusive
+                              size="small"
+                              value={alertsTestOnlyAdmin ? "admin" : "live"}
+                              onChange={(_, value) => {
+                                if (!value) return;
+                                saveAlertsSettings({ testOnlyAdmin: value === "admin" });
+                              }}
+                              sx={{
+                                backgroundColor: "rgba(15,23,42,0.45)",
+                                borderRadius: "999px",
+                                p: 0.3,
+                              }}
+                            >
+                              <ToggleButton
+                                value="admin"
+                                sx={{
+                                  textTransform: "none",
+                                  border: 0,
+                                  borderRadius: "999px!important",
+                                  px: 1.4,
+                                  color: "rgba(226,232,240,0.8)",
+                                  "&.Mui-selected": { color: "#bbf7d0", backgroundColor: "rgba(34,197,94,0.22)" },
+                                }}
+                              >
+                                {translate("Test: endast admin", "Test: admin only")}
+                              </ToggleButton>
+                              <ToggleButton
+                                value="live"
+                                sx={{
+                                  textTransform: "none",
+                                  border: 0,
+                                  borderRadius: "999px!important",
+                                  px: 1.4,
+                                  color: "rgba(226,232,240,0.8)",
+                                  "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(148,163,184,0.18)" },
+                                }}
+                              >
+                                {translate("Live utskick", "Live sending")}
+                              </ToggleButton>
+                            </ToggleButtonGroup>
+
+                            <ToggleButtonGroup
+                              exclusive
+                              size="small"
+                              value={alertsAthEnabled ? "on" : "off"}
+                              onChange={(_, value) => value && saveAlertsSettings({ athEnabled: value === "on" })}
+                              sx={{
+                                backgroundColor: "rgba(15,23,42,0.45)",
+                                borderRadius: "999px",
+                                p: 0.3,
+                              }}
+                            >
+                              <ToggleButton
+                                value="on"
+                                sx={{
+                                  textTransform: "none",
+                                  border: 0,
+                                  borderRadius: "999px!important",
+                                  px: 1.4,
+                                  color: "rgba(226,232,240,0.8)",
+                                  "&.Mui-selected": { color: "#fde68a", backgroundColor: "rgba(245,158,11,0.18)" },
+                                }}
+                              >
+                                {translate("ATH: På", "ATH: On")}
+                              </ToggleButton>
+                              <ToggleButton
+                                value="off"
+                                sx={{
+                                  textTransform: "none",
+                                  border: 0,
+                                  borderRadius: "999px!important",
+                                  px: 1.4,
+                                  color: "rgba(226,232,240,0.8)",
+                                  "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(148,163,184,0.18)" },
+                                }}
+                              >
+                                {translate("ATH: Av", "ATH: Off")}
+                              </ToggleButton>
+                            </ToggleButtonGroup>
+
+                            <ToggleButtonGroup
+                              exclusive
+                              size="small"
+                              value={alertsDailyAvgEnabled ? "on" : "off"}
+                              onChange={(_, value) => value && saveAlertsSettings({ dailyAvgEnabled: value === "on" })}
+                              sx={{
+                                backgroundColor: "rgba(15,23,42,0.45)",
+                                borderRadius: "999px",
+                                p: 0.3,
+                              }}
+                            >
+                              <ToggleButton
+                                value="on"
+                                sx={{
+                                  textTransform: "none",
+                                  border: 0,
+                                  borderRadius: "999px!important",
+                                  px: 1.4,
+                                  color: "rgba(226,232,240,0.8)",
+                                  "&.Mui-selected": { color: "#bfdbfe", backgroundColor: "rgba(59,130,246,0.18)" },
+                                }}
+                              >
+                                {translate("Daily AVG: På", "Daily AVG: On")}
+                              </ToggleButton>
+                              <ToggleButton
+                                value="off"
+                                sx={{
+                                  textTransform: "none",
+                                  border: 0,
+                                  borderRadius: "999px!important",
+                                  px: 1.4,
+                                  color: "rgba(226,232,240,0.8)",
+                                  "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(148,163,184,0.18)" },
+                                }}
+                              >
+                                {translate("Daily AVG: Av", "Daily AVG: Off")}
+                              </ToggleButton>
+                            </ToggleButtonGroup>
+                          </Stack>
+                          {alertsSettingsLoading ? (
+                            <Typography sx={{ color: "rgba(226,232,240,0.6)", textAlign: "center" }}>
+                              {translate("Laddar...", "Loading...")}
+                            </Typography>
+                          ) : null}
+                        </Stack>
+
+                        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
                         <Button
                           variant="outlined"
                           onClick={handleAdminMailTest}
@@ -1026,6 +1356,39 @@ export default function MinaSidorPage() {
                         >
                           {translate("Preview reset", "Preview reset")}
                         </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={handleAdminAthPreview}
+                          disabled={previewLoading}
+                          sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(245,158,11,0.45)",
+                            color: "#fde68a",
+                            "&:hover": {
+                              borderColor: "rgba(245,158,11,0.75)",
+                              backgroundColor: "rgba(245,158,11,0.08)",
+                            },
+                          }}
+                        >
+                          {translate("Preview ATH", "Preview ATH")}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={handleAdminDailyAvgPreview}
+                          disabled={previewLoading}
+                          sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(96,165,250,0.45)",
+                            color: "#bfdbfe",
+                            "&:hover": {
+                              borderColor: "rgba(96,165,250,0.75)",
+                              backgroundColor: "rgba(96,165,250,0.08)",
+                            },
+                          }}
+                        >
+                          {translate("Preview daily AVG", "Preview daily AVG")}
+                        </Button>
+                      </Stack>
                       </Stack>
                       ) : null}
                       {mailTestMessage ? (
@@ -1101,7 +1464,14 @@ export default function MinaSidorPage() {
                                         whiteSpace: "nowrap",
                                       }}
                                     >
-                                      {identity}
+                                      <Stack direction="row" spacing={0.8} alignItems="center" sx={{ minWidth: 0 }}>
+                                        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                          {identity}
+                                        </Box>
+                                        {row?.hasHoldings ? (
+                                          <CheckCircleRounded sx={{ fontSize: 18, color: "#34d399", flexShrink: 0 }} />
+                                        ) : null}
+                                      </Stack>
                                     </Typography>
                                     {email ? (
                                       <Typography
@@ -1210,7 +1580,14 @@ export default function MinaSidorPage() {
                                           whiteSpace: "nowrap",
                                         }}
                                       >
-                                        {identity}
+                                        <Stack direction="row" spacing={0.8} alignItems="center" sx={{ minWidth: 0 }}>
+                                          <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {identity}
+                                          </Box>
+                                          {row?.hasHoldings ? (
+                                            <CheckCircleRounded sx={{ fontSize: 18, color: "#34d399", flexShrink: 0 }} />
+                                          ) : null}
+                                        </Stack>
                                       </Typography>
                                       {email ? (
                                         <Typography
@@ -1298,28 +1675,38 @@ export default function MinaSidorPage() {
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         fullWidth
-        maxWidth="md"
+        maxWidth="lg"
         PaperProps={{
           sx: {
             background: "rgba(15,23,42,0.96)",
             border: "1px solid rgba(148,163,184,0.2)",
+            height: { xs: "92vh", md: "90vh" },
+            maxHeight: { xs: "92vh", md: "90vh" },
           },
         }}
       >
         <DialogTitle sx={{ color: "#f8fafc", fontWeight: 700 }}>{previewTitle}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 0.5, height: "100%" }}>
           <Box
             sx={{
               background: "#0b1220",
               borderRadius: 2,
               border: "1px solid rgba(148,163,184,0.2)",
               p: 1,
+              height: "100%",
             }}
           >
             <iframe
               title="mail-preview"
               srcDoc={previewHtml}
-              style={{ width: "100%", height: "560px", border: 0, borderRadius: "8px", background: "#0b1220" }}
+              style={{
+                width: "100%",
+                height: "100%",
+                minHeight: "70vh",
+                border: 0,
+                borderRadius: "8px",
+                background: "#0b1220",
+              }}
             />
           </Box>
         </DialogContent>

@@ -30,6 +30,15 @@ const resolveUserFromToken = async (token) => {
   return user ? { user, email: session.email } : null;
 };
 
+const hasHoldings = (user) => {
+  const profile = user?.profile ?? null;
+  const shares = Number(profile?.shares ?? 0);
+  const avgCost = Number(profile?.avgCost ?? 0);
+  const lots = Array.isArray(profile?.lots) ? profile.lots : [];
+  const hasLots = lots.some((lot) => Number(lot?.shares ?? 0) > 0);
+  return (Number.isFinite(shares) && shares > 0) || (Number.isFinite(avgCost) && avgCost > 0) || hasLots;
+};
+
 export async function GET(request) {
   const token = getToken(request);
   const resolved = await resolveUserFromToken(token);
@@ -67,6 +76,7 @@ export async function GET(request) {
           isSubscriber: Boolean(user?.isSubscriber),
           createdAt: user?.createdAt || null,
           updatedAt: user?.updatedAt || null,
+          hasHoldings: hasHoldings(user),
           lastSeenAt,
           lastPath: activity?.lastPath || null,
           lastPanel: activity?.lastPanel || null,

@@ -50,6 +50,9 @@ export async function POST(request) {
     updatedAt: now,
     isSubscriber: false,
     isAdmin,
+    notifications: {
+      athEmail: false,
+    },
     profile: {
       shares: 0,
       avgCost: 0,

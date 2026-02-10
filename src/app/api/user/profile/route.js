@@ -41,6 +41,7 @@ export async function GET(request) {
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin,
+    notifications: user.notifications ?? { athEmail: false },
     profile: user.profile ?? { shares: 0, avgCost: 0 },
   });
 }
@@ -176,6 +177,7 @@ export async function PUT(request) {
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin: Boolean(user.isAdmin),
+    notifications: user.notifications ?? { athEmail: false },
     profile,
   });
 }

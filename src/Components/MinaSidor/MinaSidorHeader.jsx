@@ -2,6 +2,7 @@
 
 import NextLink from "next/link";
 import { Box, Button, Link, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import Switch from "@mui/material/Switch";
 import { LOCALE_OPTIONS, useLocale } from "@/context/LocaleContext";
 import { liveDot, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
@@ -11,6 +12,11 @@ export default function MinaSidorHeader({
   totalLivePlayers,
   onManageHoldings,
   onOpenPasswordDialog,
+  athEmailEnabled,
+  dailyAvgEmailEnabled,
+  notificationsSaving,
+  onToggleAthEmail,
+  onToggleDailyAvgEmail,
   greetingName,
   currentPrice,
   todaysChangePercent,
@@ -122,6 +128,43 @@ export default function MinaSidorHeader({
           >
             {translate("Byt lösenord", "Change password")}
           </Button>
+        </Stack>
+
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          sx={{ mt: 0.2, color: "rgba(226,232,240,0.75)" }}
+        >
+          <Typography sx={{ color: "rgba(226,232,240,0.75)", fontWeight: 700, fontSize: "0.92rem" }}>
+            {translate("Mail vid nytt ATH", "Email on new ATH")}
+          </Typography>
+          <Switch
+            checked={Boolean(athEmailEnabled)}
+            disabled={Boolean(notificationsSaving)}
+            onChange={(event) => onToggleAthEmail?.(Boolean(event.target.checked))}
+            sx={{
+              "& .MuiSwitch-thumb": { backgroundColor: "#f8fafc" },
+              "& .MuiSwitch-track": { backgroundColor: "rgba(148,163,184,0.25)" },
+              "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "rgba(34,197,94,0.35)!important" },
+            }}
+          />
+        </Stack>
+
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: -0.2, color: "rgba(226,232,240,0.75)" }}>
+          <Typography sx={{ color: "rgba(226,232,240,0.75)", fontWeight: 700, fontSize: "0.92rem" }}>
+            {translate("Mail: Daily AVG", "Email: Daily AVG")}
+          </Typography>
+          <Switch
+            checked={Boolean(dailyAvgEmailEnabled)}
+            disabled={Boolean(notificationsSaving)}
+            onChange={(event) => onToggleDailyAvgEmail?.(Boolean(event.target.checked))}
+            sx={{
+              "& .MuiSwitch-thumb": { backgroundColor: "#f8fafc" },
+              "& .MuiSwitch-track": { backgroundColor: "rgba(148,163,184,0.25)" },
+              "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "rgba(59,130,246,0.35)!important" },
+            }}
+          />
         </Stack>
       </Stack>
 
