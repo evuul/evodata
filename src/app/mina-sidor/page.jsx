@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Dialog, DialogContent, DialogTitle, Divider, Grid, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, Dialog, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -14,11 +14,13 @@ import amountOfShares from "@/app/data/amountOfShares.json";
 import MinaSidorHeader from "@/Components/MinaSidor/MinaSidorHeader";
 import HoldingsChips from "@/Components/MinaSidor/HoldingsChips";
 import HoldingsKpiRow from "@/Components/MinaSidor/HoldingsKpiRow";
+import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
 import HoldingsHistoryChart from "@/Components/MinaSidor/HoldingsHistoryChart";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 import { formatSek } from "@/Components/MinaSidor/utils";
+import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 
 export default function MinaSidorPage() {
   const router = useRouter();
@@ -35,6 +37,7 @@ export default function MinaSidorPage() {
   const [buyPrice, setBuyPrice] = useState("");
   const [buyDate, setBuyDate] = useState("");
   const [sellShares, setSellShares] = useState("");
+  const [sellPrice, setSellPrice] = useState("");
   const [activity, setActivity] = useState([]);
   const [ownershipView, setOwnershipView] = useState("after");
   const [dividendsReceived, setDividendsReceived] = useState("");
@@ -75,6 +78,7 @@ export default function MinaSidorPage() {
   const [alertsTestOnlyAdmin, setAlertsTestOnlyAdmin] = useState(false);
   const [alertsAthEnabled, setAlertsAthEnabled] = useState(true);
   const [alertsDailyAvgEnabled, setAlertsDailyAvgEnabled] = useState(true);
+  const [isTraderMode, setIsTraderMode] = useState(false);
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const [buybackData, setBuybackData] = useState(
     Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -201,6 +205,15 @@ export default function MinaSidorPage() {
   const totalReturnWithDividends = totalValue + dividendsReceivedSafe - totalCost;
   const totalReturnPctWithDividends =
     totalCost > 0 ? (totalReturnWithDividends / totalCost) * 100 : null;
+
+  const traderPnl = useMemo(() => {
+    if (!isTraderMode) return null;
+    return computeTraderPnl({
+      transactions: profile?.transactions,
+      currentPrice,
+      dividendsReceived: dividendsReceivedSafe,
+    });
+  }, [currentPrice, dividendsReceivedSafe, isTraderMode, profile?.transactions]);
   const breakEvenWithDividends =
     profile.shares > 0 ? (totalCost - dividendsReceivedSafe) / profile.shares : null;
   const breakEvenPaidBack =
@@ -417,6 +430,27 @@ export default function MinaSidorPage() {
     loadProfile();
   }, [initialized, isAuthenticated, router, token]);
 
+  useEffect(() => {
+    if (!user?.email) return;
+    try {
+      const raw = window.localStorage.getItem(`evodata.ui.traderMode:${user.email}`) || "";
+      setIsTraderMode(raw === "1");
+    } catch {
+      // ignore
+    }
+  }, [user?.email]);
+
+  const handleTraderModeChange = (next) => {
+    const value = Boolean(next);
+    setIsTraderMode(value);
+    if (!user?.email) return;
+    try {
+      window.localStorage.setItem(`evodata.ui.traderMode:${user.email}`, value ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  };
+
   const saveAthEmailEnabled = async (nextValue) => {
     if (!token) return;
     try {
@@ -554,8 +588,9 @@ export default function MinaSidorPage() {
 
   const handleSell = async () => {
     const shares = Number(sellShares);
-    if (!(shares > 0)) {
-      setError(translate("Ange antal att sälja.", "Enter shares to sell."));
+    const price = Number(sellPrice);
+    if (!(shares > 0) || !(price > 0)) {
+      setError(translate("Ange antal och pris.", "Enter shares and price."));
       return;
     }
     try {
@@ -563,7 +598,7 @@ export default function MinaSidorPage() {
       const res = await fetch("/api/user/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "sell", shares }),
+        body: JSON.stringify({ action: "sell", shares, price }),
       });
       if (!res.ok) throw new Error("Kunde inte uppdatera innehav.");
       const data = await res.json();
@@ -571,9 +606,11 @@ export default function MinaSidorPage() {
       pushActivity({
         type: "sell",
         shares,
+        price,
         timestamp: new Date().toISOString(),
       });
       setSellShares("");
+      setSellPrice("");
       setError("");
     } catch (err) {
       setError(err?.message || "Något gick fel.");
@@ -1040,6 +1077,34 @@ export default function MinaSidorPage() {
           </Box>
 
           <Box sx={{ ...contentWrapSx, display: "flex", justifyContent: "center" }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={isTraderMode}
+                  onChange={(e) => handleTraderModeChange(e.target.checked)}
+                  sx={{
+                    color: "rgba(226,232,240,0.65)",
+                    "&.Mui-checked": { color: "#34d399" },
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontWeight: 800 }}>
+                  {translate("Jag är trader (visa total P/L)", "I’m a trader (show total P/L)")}
+                </Typography>
+              }
+              sx={{
+                m: 0,
+                px: 1.2,
+                py: 0.6,
+                borderRadius: "999px",
+                border: "1px solid rgba(148,163,184,0.18)",
+                background: "rgba(15,23,42,0.35)",
+              }}
+            />
+          </Box>
+
+          <Box sx={{ ...contentWrapSx, display: "flex", justifyContent: "center" }}>
             <HoldingsChips
               translate={translate}
               profile={profile}
@@ -1073,6 +1138,12 @@ export default function MinaSidorPage() {
               lastDividend={lastDividend}
             />
           </Box>
+
+          {isTraderMode ? (
+            <Box sx={contentWrapSx}>
+              <TraderPnlRow translate={translate} pnl={traderPnl} />
+            </Box>
+          ) : null}
 
           <Box sx={contentWrapSx}>
             <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
@@ -1698,6 +1769,7 @@ export default function MinaSidorPage() {
         buyPrice={buyPrice}
         buyDate={buyDate}
         sellShares={sellShares}
+        sellPrice={sellPrice}
         setShares={setShares}
         setAvgCost={setAvgCost}
         dividendsReceived={dividendsReceived}
@@ -1708,6 +1780,7 @@ export default function MinaSidorPage() {
         onBuyPriceChange={(event) => setBuyPrice(event.target.value)}
         onBuyDateChange={(event) => setBuyDate(event.target.value)}
         onSellSharesChange={(event) => setSellShares(event.target.value)}
+        onSellPriceChange={(event) => setSellPrice(event.target.value)}
         onSetSharesChange={(event) => setSetShares(event.target.value)}
         onSetAvgCostChange={(event) => setSetAvgCost(event.target.value)}
         acquisitionDate={setAcquisitionDate}

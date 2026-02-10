@@ -15,6 +15,7 @@ export default function ManageHoldingsModal({
   buyPrice,
   buyDate,
   sellShares,
+  sellPrice,
   setShares,
   setAvgCost,
   acquisitionDate,
@@ -29,6 +30,7 @@ export default function ManageHoldingsModal({
   onBuyPriceChange,
   onBuyDateChange,
   onSellSharesChange,
+  onSellPriceChange,
   onSetSharesChange,
   onSetAvgCostChange,
   onAcquisitionDateChange,
@@ -40,7 +42,7 @@ export default function ManageHoldingsModal({
 }) {
   const [tab, setTab] = useState(0);
   const canBuy = Number(buyShares) > 0 && Number(buyPrice) > 0 && Boolean(buyDate);
-  const canSell = Number(sellShares) > 0;
+  const canSell = Number(sellShares) > 0 && Number(sellPrice) > 0;
   const canSet = Number(setShares) >= 0 && Number(setAvgCost) >= 0;
 
   return (
@@ -162,6 +164,16 @@ export default function ManageHoldingsModal({
                 type="number"
                 value={sellShares}
                 onChange={onSellSharesChange}
+                fullWidth
+                InputLabelProps={{ sx: inputLabelSx }}
+                InputProps={{ sx: { color: text.heading } }}
+                sx={inputSx}
+              />
+              <TextField
+                label={translate("Säljkurs per aktie (SEK)", "Sell price per share (SEK)")}
+                type="number"
+                value={sellPrice}
+                onChange={onSellPriceChange}
                 fullWidth
                 InputLabelProps={{ sx: inputLabelSx }}
                 InputProps={{ sx: { color: text.heading } }}

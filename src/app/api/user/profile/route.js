@@ -106,12 +106,13 @@ export async function PUT(request) {
       shares,
       price,
       date: lotDate,
+      fee: 0,
     });
     if (!profile.acquisitionDate || (typeof profile.acquisitionDate === "string" && lotDate < profile.acquisitionDate)) {
       profile.acquisitionDate = lotDate;
     }
   } else if (action === "sell") {
-    if (!(shares > 0)) {
+    if (!(shares > 0) || !(price > 0)) {
       return json({ error: "Ogiltig säljdata." }, { status: 400 });
     }
     if (shares > profile.shares) {
@@ -144,8 +145,9 @@ export async function PUT(request) {
     transactions.push({
       type: "sell",
       shares,
-      price: null,
+      price,
       date: normalizedSellDate ?? now.slice(0, 10),
+      fee: 0,
     });
     if (newShares === 0) {
       profile.avgCost = 0;
@@ -200,7 +202,7 @@ export async function PUT(request) {
         if (!type || !date) return null;
         if (!(Number.isFinite(sharesNum) && sharesNum > 0)) return null;
         if (type === "buy" && price == null) return null;
-        return { type, date, shares: sharesNum, price: type === "buy" ? price : null, fee };
+        return { type, date, shares: sharesNum, price, fee };
       })
       .filter(Boolean)
       .sort((a, b) => a.date.localeCompare(b.date));
@@ -223,7 +225,10 @@ export async function PUT(request) {
       } else {
         if (tx.shares > computedShares) {
           return json(
-            { error: "Importen innehåller en säljrad som överskrider innehavet. Saknar du tidigare köp?" },
+            {
+              error:
+                "Importen innehåller en säljrad som överskrider innehavet. Det beror oftast på att exporten saknar tidigare köp eller att du flyttat aktier mellan Avanza-konton (ÖVERFÖR I/U) och bara exporterat ett konto. Testa att exportera transaktioner för alla konton och hela perioden, eller sätt en baseline via 'Justera GAV' innan du importerar.",
+            },
             { status: 400 }
           );
         }
