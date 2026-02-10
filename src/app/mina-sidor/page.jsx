@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, Checkbox, Dialog, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { Box, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { usePlayersLive } from "@/context/PlayersLiveContext";
-import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
-import dividendData from "@/app/data/dividendData.json";
-import buybackDataStatic from "@/app/data/buybackData.json";
-import amountOfShares from "@/app/data/amountOfShares.json";
 import MinaSidorHeader from "@/Components/MinaSidor/MinaSidorHeader";
 import HoldingsChips from "@/Components/MinaSidor/HoldingsChips";
 import HoldingsKpiRow from "@/Components/MinaSidor/HoldingsKpiRow";
@@ -18,54 +13,96 @@ import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
 import HoldingsHistoryChart from "@/Components/MinaSidor/HoldingsHistoryChart";
+import SupportModal from "@/Components/MinaSidor/SupportModal";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 import { formatSek } from "@/Components/MinaSidor/utils";
-import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
+
+import dividendData from "@/app/data/dividendData.json";
+
+import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
+import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions";
+import { useAdminTools } from "@/app/mina-sidor/hooks/useAdminTools";
+import { AdminPanel } from "@/app/mina-sidor/components/AdminPanel";
+import { AdminDialogs } from "@/app/mina-sidor/components/AdminDialogs";
+import { PasswordDialog } from "@/app/mina-sidor/components/PasswordDialog";
 
 export default function MinaSidorPage() {
-  const router = useRouter();
   const translate = useTranslate();
   const { locale } = useLocale();
   const { token, isAuthenticated, initialized, user, changePassword } = useAuth();
   const { stockPrice } = useStockPriceContext();
-  const { data: playersData } = usePlayersLive();
+  const { data: playersLive } = usePlayersLive();
 
-  const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  // --- Portfolio Data Hook ---
+  const {
+    profile, setProfile,
+    loading, setLoading,
+    error, setError,
+    profileIdentity,
+    effectiveIsAdmin,
+    athEmailEnabled, setAthEmailEnabled,
+    dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
+    dividendsReceived, setDividendsReceived,
+    dividendInputMode, setDividendInputMode,
+    isTraderMode, setIsTraderMode,
+    buybackData,
+
+    currentPrice,
+    upcomingDividend,
+    lastDividend,
+    totalValue,
+    totalCost,
+    gain,
+    gainPercent,
+    expectedDividendCash,
+    dividendYield,
+    todaysChangePercent,
+    todaysHoldingChangeSek,
+    estimatedDividendsFromDate,
+    dividendsReceivedSafe,
+    totalReturnWithDividends,
+    totalReturnPctWithDividends,
+    traderPnl,
+    breakEvenDisplay,
+    breakEvenPaidBack,
+    buybackSummary,
+    greetingName,
+    totalLivePlayers
+  } = usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive });
+
+  // --- Portfolio Actions Hook ---
+  const {
+    handleBuy,
+    handleSell,
+    handleReset,
+    handleSet,
+    handleImportTransactions
+  } = usePortfolioActions({ token, user, profile, setProfile, setLoading, setError, translate });
+
+  // --- Admin Tools Hook ---
+  const adminTools = useAdminTools({ token, effectiveIsAdmin, locale, translate });
+  const {
+    adminMode, setAdminMode,
+    adminPanel, setAdminPanel
+  } = adminTools;
+
+  // --- Local State ---
+  const [ownershipView, setOwnershipView] = useState("after");
+  const [manageOpen, setManageOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const [supportIndicator, setSupportIndicator] = useState(null); // null | "open" | "reply"
+
+  // Manage Modal State (local to page or extract? keeping local as it's UI state)
   const [buyShares, setBuyShares] = useState("");
   const [buyPrice, setBuyPrice] = useState("");
   const [buyDate, setBuyDate] = useState("");
   const [sellShares, setSellShares] = useState("");
   const [sellPrice, setSellPrice] = useState("");
-  const [activity, setActivity] = useState([]);
-  const [ownershipView, setOwnershipView] = useState("after");
-  const [dividendsReceived, setDividendsReceived] = useState("");
-  const [dividendInputMode, setDividendInputMode] = useState("manual");
-  const [manageOpen, setManageOpen] = useState(false);
   const [setShares, setSetShares] = useState("");
   const [setAvgCost, setSetAvgCost] = useState("");
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
-  const [profileIdentity, setProfileIdentity] = useState({ firstName: "", lastName: "", email: "" });
-  const [isAdminUser, setIsAdminUser] = useState(false);
-  const [adminMode, setAdminMode] = useState(false);
-  const [mailTestLoading, setMailTestLoading] = useState(false);
-  const [mailTestMessage, setMailTestMessage] = useState("");
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewTitle, setPreviewTitle] = useState("");
-  const [previewHtml, setPreviewHtml] = useState("");
-  const [adminPanel, setAdminPanel] = useState("tools");
-  const [adminActivityLoading, setAdminActivityLoading] = useState(false);
-  const [adminActivityError, setAdminActivityError] = useState("");
-  const [adminActivityRows, setAdminActivityRows] = useState([]);
-  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
-  const [adminUsersError, setAdminUsersError] = useState("");
-  const [adminUsersRows, setAdminUsersRows] = useState([]);
-  const [adminUsersTotal, setAdminUsersTotal] = useState(0);
-  const [athEmailEnabled, setAthEmailEnabled] = useState(false);
-  const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
-  const [notificationsSaving, setNotificationsSaving] = useState(false);
+
+  // Password Modal State
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -73,260 +110,12 @@ export default function MinaSidorPage() {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState("");
-  const [alertsSettingsLoading, setAlertsSettingsLoading] = useState(false);
-  const [alertsSettingsError, setAlertsSettingsError] = useState("");
-  const [alertsTestOnlyAdmin, setAlertsTestOnlyAdmin] = useState(false);
-  const [alertsAthEnabled, setAlertsAthEnabled] = useState(true);
-  const [alertsDailyAvgEnabled, setAlertsDailyAvgEnabled] = useState(true);
-  const [isTraderMode, setIsTraderMode] = useState(false);
-  const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
-  const [buybackData, setBuybackData] = useState(
-    Array.isArray(buybackDataStatic) ? buybackDataStatic : []
-  );
 
-  const currentPrice = useMemo(() => {
-    const live = stockPrice?.price?.regularMarketPrice;
-    const liveRaw = Number(live?.raw ?? live);
-    if (Number.isFinite(liveRaw) && liveRaw > 0) return liveRaw;
-    return 0;
-  }, [stockPrice]);
+  const [notificationsSaving, setNotificationsSaving] = useState(false);
 
-  const upcomingDividend = useMemo(() => {
-    const planned = Array.isArray(dividendData?.plannedDividends)
-      ? dividendData.plannedDividends
-      : [];
-    if (!planned.length) return null;
+  // --- Handlers ---
 
-    const today = new Date();
-    const futurePlanned = planned
-      .filter((item) => {
-        if (!item?.date) return true;
-        const date = new Date(item.date);
-        return !Number.isNaN(date.getTime()) && date >= today;
-      })
-      .sort((a, b) => {
-        const da = new Date(a?.date || 0).getTime();
-        const db = new Date(b?.date || 0).getTime();
-        return da - db;
-      });
-
-    return futurePlanned[0] ?? null;
-  }, []);
-
-  const lastDividend = useMemo(() => {
-    const historical = Array.isArray(dividendData?.historicalDividends)
-      ? dividendData.historicalDividends
-      : [];
-    return historical[historical.length - 1] ?? null;
-  }, []);
-
-  const totalValue = profile.shares * currentPrice;
-  const totalCost = profile.shares * profile.avgCost;
-  const gain = totalValue - totalCost;
-  const gainPercent = totalCost > 0 ? (gain / totalCost) * 100 : null;
-  const upcomingDividendPerShare = upcomingDividend?.dividendPerShare ?? null;
-  const referenceDividendPerShare =
-    upcomingDividend?.dividendPerShare ?? lastDividend?.dividendPerShare ?? null;
-  const expectedDividendCash =
-    Number.isFinite(upcomingDividendPerShare) ? profile.shares * upcomingDividendPerShare : null;
-  const dividendYield =
-    currentPrice > 0 && Number.isFinite(referenceDividendPerShare)
-      ? (referenceDividendPerShare / currentPrice) * 100
-      : null;
-  const todaysChangePercent = Number(stockPrice?.price?.regularMarketChangePercent?.raw ?? null);
-  const todaysChangePerShare = useMemo(() => {
-    if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
-    if (!Number.isFinite(todaysChangePercent)) return null;
-    const p = todaysChangePercent / 100;
-    if (p <= -0.999999) return null;
-    // percent = (change / prevClose) => prevClose = current / (1 + p)
-    const prevClose = currentPrice / (1 + p);
-    const change = currentPrice - prevClose;
-    return Number.isFinite(change) ? change : null;
-  }, [currentPrice, todaysChangePercent]);
-  const todaysHoldingChangeSek = useMemo(() => {
-    if (!(profile.shares > 0)) return null;
-    if (!Number.isFinite(todaysChangePerShare)) return null;
-    return profile.shares * todaysChangePerShare;
-  }, [profile.shares, todaysChangePerShare]);
-  const dividendsReceivedValue = Number(dividendsReceived);
-  const hasManualDividends = dividendsReceived !== "" && Number.isFinite(dividendsReceivedValue);
-  const acquisitionDateValue =
-    typeof profile?.acquisitionDate === "string" && profile.acquisitionDate.trim()
-      ? profile.acquisitionDate.trim().slice(0, 10)
-      : null;
-  const estimatedDividendsFromDate = useMemo(() => {
-    const lots = Array.isArray(profile?.lots) ? profile.lots : [];
-    const historical = Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : [];
-    if (!historical.length) return null;
-    const normalizeDate = (value) => {
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return null;
-      d.setHours(0, 0, 0, 0);
-      return d;
-    };
-    if (lots.length) {
-      const total = lots.reduce((sum, lot) => {
-        const lotShares = Number(lot?.shares ?? 0);
-        if (!(lotShares > 0) || !lot?.date) return sum;
-        const lotDate = normalizeDate(lot.date);
-        if (!lotDate) return sum;
-        const lotDividend = historical.reduce((acc, row) => {
-          const perShare = Number(row?.dividendPerShare);
-          if (!Number.isFinite(perShare) || !row?.date) return acc;
-          const divDate = normalizeDate(row.date);
-          if (!divDate) return acc;
-          return divDate >= lotDate ? acc + perShare : acc;
-        }, 0);
-        return sum + lotDividend * lotShares;
-      }, 0);
-      return total;
-    }
-    if (!acquisitionDateValue || !(profile.shares > 0)) return null;
-    const start = normalizeDate(acquisitionDateValue);
-    if (!start) return null;
-    const sumPerShare = historical.reduce((sum, row) => {
-      const perShare = Number(row?.dividendPerShare);
-      if (!Number.isFinite(perShare) || !row?.date) return sum;
-      const d = normalizeDate(row.date);
-      if (!d) return sum;
-      return d >= start ? sum + perShare : sum;
-    }, 0);
-    return sumPerShare * profile.shares;
-  }, [acquisitionDateValue, profile?.lots, profile.shares]);
-  const dividendsReceivedSafe =
-    dividendInputMode === "acquisition"
-      ? Number.isFinite(estimatedDividendsFromDate)
-        ? estimatedDividendsFromDate
-        : 0
-      : hasManualDividends
-      ? dividendsReceivedValue
-      : 0;
-  const totalReturnWithDividends = totalValue + dividendsReceivedSafe - totalCost;
-  const totalReturnPctWithDividends =
-    totalCost > 0 ? (totalReturnWithDividends / totalCost) * 100 : null;
-
-  const traderPnl = useMemo(() => {
-    if (!isTraderMode) return null;
-    return computeTraderPnl({
-      transactions: profile?.transactions,
-      currentPrice,
-      dividendsReceived: dividendsReceivedSafe,
-    });
-  }, [currentPrice, dividendsReceivedSafe, isTraderMode, profile?.transactions]);
-  const breakEvenWithDividends =
-    profile.shares > 0 ? (totalCost - dividendsReceivedSafe) / profile.shares : null;
-  const breakEvenPaidBack =
-    breakEvenWithDividends != null && Number.isFinite(breakEvenWithDividends) && breakEvenWithDividends <= 0;
-  const breakEvenDisplay =
-    breakEvenWithDividends != null && Number.isFinite(breakEvenWithDividends)
-      ? Math.max(breakEvenWithDividends, 0)
-      : null;
-  const greetingName = useMemo(() => {
-    const first = String(user?.firstName || profileIdentity.firstName || "").trim();
-    if (first) return first;
-    const email = String(user?.email || profileIdentity.email || "").trim();
-    if (!email) return "";
-    if (email.toLowerCase() === "alexander.ek@live.se") return "Alexander";
-    const localPart = email.split("@")[0] || "";
-    const maybeFirst = localPart.split(/[._-]/)[0] || localPart;
-    return maybeFirst ? maybeFirst.charAt(0).toUpperCase() + maybeFirst.slice(1) : "";
-  }, [profileIdentity.email, profileIdentity.firstName, user?.email, user?.firstName]);
-  const effectiveIsAdmin = useMemo(
-    () =>
-      Boolean(user?.isAdmin) ||
-      isAdminUser ||
-      String(user?.email || profileIdentity.email || "").toLowerCase() === "alexander.ek@live.se",
-    [isAdminUser, profileIdentity.email, user?.email, user?.isAdmin]
-  );
-
-  const totalLivePlayers = useMemo(() => {
-    if (!playersData) return null;
-    return Object.values(playersData).reduce((sum, item) => {
-      const val = Number(item?.players);
-      return Number.isFinite(val) ? sum + val : sum;
-    }, 0);
-  }, [playersData]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadBuybacks = async () => {
-      try {
-        const res = await fetch("/api/buybacks/data", { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
-        if (cancelled) return;
-        const currentRows = Array.isArray(json?.current) ? json.current : [];
-        setBuybackData(currentRows);
-      } catch {
-        // Keep static fallback data if API is unavailable.
-      }
-    };
-    loadBuybacks();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const buybackSummary = useMemo(() => {
-    const latestShares = amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding;
-    const currentOutstanding = Number.isFinite(latestShares) ? latestShares * 1_000_000 : null;
-    const totalBuybackShares = Array.isArray(buybackData)
-      ? buybackData.reduce((sum, row) => sum + (Number(row["Antal_aktier"]) || 0), 0)
-      : 0;
-    const totalBuybackSpend = Array.isArray(buybackData)
-      ? buybackData.reduce((sum, row) => sum + (Number(row["Transaktionsvärde"]) || 0), 0)
-      : 0;
-
-    if (!Number.isFinite(currentOutstanding) || currentOutstanding <= 0) {
-      return null;
-    }
-
-    const preBuybackOutstanding = currentOutstanding + totalBuybackShares;
-    const ownershipBefore = preBuybackOutstanding > 0 ? profile.shares / preBuybackOutstanding : 0;
-    const ownershipAfter = profile.shares / currentOutstanding;
-    const ownershipLiftPct =
-      ownershipBefore > 0 ? ((ownershipAfter / ownershipBefore) - 1) * 100 : null;
-    const buybackBenefit = ownershipBefore > 0 ? totalBuybackSpend * ownershipBefore : 0;
-    // Use last paid dividend as "2025 dividend" reference for shareholder return.
-    // This is an estimate: assumes the user held the shares at record date.
-    const lastPaidDividendPerShare = Number(lastDividend?.dividendPerShare ?? null);
-    const dividendBenefit =
-      Number.isFinite(lastPaidDividendPerShare) && lastPaidDividendPerShare > 0
-        ? profile.shares * lastPaidDividendPerShare
-        : 0;
-    const totalShareholderReturn =
-      (Number.isFinite(dividendBenefit) ? dividendBenefit : 0) + buybackBenefit;
-    const totalShareholderReturnPct =
-      totalValue > 0 ? (totalShareholderReturn / totalValue) * 100 : null;
-
-    return {
-      ownershipBefore,
-      ownershipAfter,
-      ownershipLiftPct,
-      buybackBenefit,
-      dividendBenefit,
-      totalShareholderReturn,
-      totalShareholderReturnPct,
-      latestSharesDate: amountOfShares?.[amountOfShares.length - 1]?.date,
-    };
-  }, [buybackData, lastDividend?.dividendPerShare, profile.shares, totalValue]);
-
-  useEffect(() => {
-    if (!user?.email) return;
-    try {
-      const stored = window.localStorage.getItem(`evodata.holdings.history:${user.email}`);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) setActivity(parsed);
-      }
-    } catch {
-      // ignore
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    if (!manageOpen) return;
+  const handleOpenManage = () => {
     setSetShares(profile.shares ? String(profile.shares) : "");
     setSetAvgCost(profile.avgCost ? String(profile.avgCost) : "");
     setSetAcquisitionDate(
@@ -335,119 +124,35 @@ export default function MinaSidorPage() {
         : ""
     );
     setBuyDate(new Date().toISOString().slice(0, 10));
-  }, [manageOpen, profile.acquisitionDate, profile.avgCost, profile.shares]);
-
-  useEffect(() => {
-    if (!user?.email) return;
-    try {
-      const stored = window.localStorage.getItem(`evodata.holdings.dividends:${user.email}`);
-      if (stored) setDividendsReceived(stored);
-    } catch {
-      // ignore
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    if (!user?.email) return;
-    try {
-      const stored = window.localStorage.getItem(`evodata.holdings.dividendMode:${user.email}`);
-      if (stored === "manual" || stored === "acquisition") {
-        setDividendInputMode(stored);
-      }
-    } catch {
-      // ignore
-    }
-  }, [user?.email]);
-
-  const pushActivity = (entry) => {
-    if (!user?.email) return;
-    setActivity((prev) => {
-      const next = [entry, ...prev].slice(0, 10);
-      try {
-        window.localStorage.setItem(`evodata.holdings.history:${user.email}`, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+    setManageOpen(true);
   };
 
-  const handleDividendsChange = (event) => {
-    const value = event.target.value;
+  const onDividendsChange = (e) => {
+    const value = e.target.value;
     setDividendsReceived(value);
-    if (!user?.email) return;
-    try {
-      window.localStorage.setItem(`evodata.holdings.dividends:${user.email}`, value);
-    } catch {
-      // ignore
+    if (user?.email) {
+      try {
+        window.localStorage.setItem(`evodata.holdings.dividends:${user.email}`, value);
+      } catch { }
     }
   };
 
-  const handleDividendModeChange = (nextMode) => {
+  const onDividendModeChange = (nextMode) => {
     if (nextMode !== "manual" && nextMode !== "acquisition") return;
     setDividendInputMode(nextMode);
-    if (!user?.email) return;
-    try {
-      window.localStorage.setItem(`evodata.holdings.dividendMode:${user.email}`, nextMode);
-    } catch {
-      // ignore
+    if (user?.email) {
+      try {
+        window.localStorage.setItem(`evodata.holdings.dividendMode:${user.email}`, nextMode);
+      } catch { }
     }
   };
 
-  useEffect(() => {
-    if (!initialized) return;
-    if (!isAuthenticated) {
-      router.replace("/login?next=/mina-sidor");
-      return;
-    }
-
-    const loadProfile = async () => {
+  const onTraderModeChange = (checked) => {
+    setIsTraderMode(checked);
+    if (user?.email) {
       try {
-        setLoading(true);
-        const res = await fetch("/api/user/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error("Kunde inte läsa profil.");
-        const data = await res.json();
-        setProfileIdentity({
-          firstName: data.firstName ?? "",
-          lastName: data.lastName ?? "",
-          email: data.email ?? "",
-        });
-        setIsAdminUser(Boolean(data.isAdmin));
-        setAthEmailEnabled(Boolean(data?.notifications?.athEmail));
-        setDailyAvgEmailEnabled(Boolean(data?.notifications?.dailyAvgEmail));
-        setProfile(data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
-        setError("");
-      } catch (err) {
-        setError(err?.message || "Något gick fel.");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadProfile();
-  }, [initialized, isAuthenticated, router, token]);
-
-  useEffect(() => {
-    if (!user?.email) return;
-    try {
-      const raw = window.localStorage.getItem(`evodata.ui.traderMode:${user.email}`) || "";
-      setIsTraderMode(raw === "1");
-    } catch {
-      // ignore
-    }
-  }, [user?.email]);
-
-  const handleTraderModeChange = (next) => {
-    const value = Boolean(next);
-    setIsTraderMode(value);
-    if (!user?.email) return;
-    try {
-      window.localStorage.setItem(`evodata.ui.traderMode:${user.email}`, value ? "1" : "0");
-    } catch {
-      // ignore
+        window.localStorage.setItem(`evodata.ui.traderMode:${user.email}`, checked ? "1" : "0");
+      } catch { }
     }
   };
 
@@ -501,389 +206,7 @@ export default function MinaSidorPage() {
     }
   };
 
-  const loadAlertsSettings = async () => {
-    if (!token) return;
-    try {
-      setAlertsSettingsLoading(true);
-      setAlertsSettingsError("");
-      const res = await fetch("/api/admin/alerts-settings", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAlertsSettingsError(payload?.error || translate("Kunde inte läsa settings.", "Could not load settings."));
-        return;
-      }
-      setAlertsTestOnlyAdmin(Boolean(payload?.settings?.testOnlyAdmin));
-      setAlertsAthEnabled(Boolean(payload?.settings?.athEnabled));
-      setAlertsDailyAvgEnabled(Boolean(payload?.settings?.dailyAvgEnabled));
-    } catch {
-      setAlertsSettingsError(translate("Kunde inte läsa settings.", "Could not load settings."));
-    } finally {
-      setAlertsSettingsLoading(false);
-    }
-  };
-
-  const saveAlertsSettings = async (next) => {
-    if (!token) return;
-    try {
-      setAlertsSettingsLoading(true);
-      setAlertsSettingsError("");
-      const res = await fetch("/api/admin/alerts-settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(next),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAlertsSettingsError(payload?.error || translate("Kunde inte spara settings.", "Could not save settings."));
-        return;
-      }
-      setAlertsTestOnlyAdmin(Boolean(payload?.settings?.testOnlyAdmin));
-      setAlertsAthEnabled(Boolean(payload?.settings?.athEnabled));
-      setAlertsDailyAvgEnabled(Boolean(payload?.settings?.dailyAvgEnabled));
-    } catch {
-      setAlertsSettingsError(translate("Kunde inte spara settings.", "Could not save settings."));
-    } finally {
-      setAlertsSettingsLoading(false);
-    }
-  };
-
-  const handleBuy = async () => {
-    const shares = Number(buyShares);
-    const price = Number(buyPrice);
-    if (!(shares > 0) || !(price > 0) || !buyDate) {
-      setError(translate("Ange antal, pris och datum.", "Enter shares, price and date."));
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "buy", shares, price, buyDate }),
-      });
-      if (!res.ok) throw new Error("Kunde inte uppdatera innehav.");
-      const data = await res.json();
-      setProfile(data.profile ?? profile);
-      pushActivity({
-        type: "buy",
-        shares,
-        price,
-        buyDate,
-        timestamp: new Date().toISOString(),
-      });
-      setBuyShares("");
-      setBuyPrice("");
-      setBuyDate("");
-      setError("");
-    } catch (err) {
-      setError(err?.message || "Något gick fel.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSell = async () => {
-    const shares = Number(sellShares);
-    const price = Number(sellPrice);
-    if (!(shares > 0) || !(price > 0)) {
-      setError(translate("Ange antal och pris.", "Enter shares and price."));
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "sell", shares, price }),
-      });
-      if (!res.ok) throw new Error("Kunde inte uppdatera innehav.");
-      const data = await res.json();
-      setProfile(data.profile ?? profile);
-      pushActivity({
-        type: "sell",
-        shares,
-        price,
-        timestamp: new Date().toISOString(),
-      });
-      setSellShares("");
-      setSellPrice("");
-      setError("");
-    } catch (err) {
-      setError(err?.message || "Något gick fel.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReset = async () => {
-    if (!window.confirm(translate("Vill du verkligen nollställa ditt innehav?", "Reset your holdings?"))) {
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "reset" }),
-      });
-      if (!res.ok) throw new Error("Kunde inte nollställa innehavet.");
-      const data = await res.json();
-      setProfile(data.profile ?? profile);
-      pushActivity({
-        type: "reset",
-        timestamp: new Date().toISOString(),
-      });
-      setError("");
-    } catch (err) {
-      setError(err?.message || "Något gick fel.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSet = async () => {
-    const shares = Number(setShares);
-    const avgCost = Number(setAvgCost);
-    if (!(shares >= 0) || !(avgCost >= 0)) {
-      setError(translate("Ange giltiga värden.", "Enter valid values."));
-      return;
-    }
-    try {
-      setLoading(true);
-      const res = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          action: "set",
-          shares,
-          avgCost,
-          acquisitionDate: setAcquisitionDate || null,
-        }),
-      });
-      if (!res.ok) throw new Error("Kunde inte spara ändringar.");
-      const data = await res.json();
-      setProfile(data.profile ?? profile);
-      pushActivity({
-        type: "set",
-        timestamp: new Date().toISOString(),
-      });
-      setError("");
-      setManageOpen(false);
-    } catch (err) {
-      setError(err?.message || "Något gick fel.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleImportTransactions = async (transactions) => {
-    if (!token) {
-      throw new Error(translate("Inte inloggad.", "Not logged in."));
-    }
-    if (!Array.isArray(transactions) || !transactions.length) {
-      throw new Error(translate("Ingen transaktionsdata.", "No transaction data."));
-    }
-    try {
-      setLoading(true);
-      setError("");
-      const res = await fetch("/api/user/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "importTransactions", transactions }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(payload?.error || translate("Importen misslyckades.", "Import failed."));
-      }
-      setProfile(payload.profile ?? profile);
-      pushActivity({
-        type: "import",
-        timestamp: new Date().toISOString(),
-      });
-      setError("");
-      setManageOpen(false);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAdminMailTest = async () => {
-    if (!token) return;
-    try {
-      setMailTestLoading(true);
-      setMailTestMessage("");
-      const res = await fetch("/api/admin/mail-test", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          toEmail: profileIdentity.email || user?.email || "alexander.ek@live.se",
-          subject: "EvoData admin mail test",
-        }),
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Mailtest misslyckades.", "Mail test failed."));
-        return;
-      }
-      setMailTestMessage(
-        translate(
-          `Testmail skickat till ${payload?.toEmail || "din adress"}.`,
-          `Test email sent to ${payload?.toEmail || "your address"}.`
-        )
-      );
-    } catch {
-      setMailTestMessage(translate("Kunde inte skicka testmail.", "Could not send test email."));
-    } finally {
-      setMailTestLoading(false);
-    }
-  };
-
-  const handleAdminMailPreview = async (type) => {
-    if (!token) return;
-    try {
-      setPreviewLoading(true);
-      setMailTestMessage("");
-      const res = await fetch(`/api/admin/mail-preview?type=${encodeURIComponent(type)}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Kunde inte hämta preview.", "Could not load preview."));
-        return;
-      }
-      setPreviewTitle(payload?.subject || (type === "reset" ? "Reset preview" : "Welcome preview"));
-      setPreviewHtml(payload?.html || "");
-      setPreviewOpen(true);
-    } catch {
-      setMailTestMessage(translate("Kunde inte hämta preview.", "Could not load preview."));
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const handleAdminAthPreview = async () => {
-    if (!token) return;
-    try {
-      setPreviewLoading(true);
-      setMailTestMessage("");
-      const res = await fetch("/api/admin/ath-preview", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
-        return;
-      }
-      setPreviewTitle(payload?.subject || "ATH preview");
-      setPreviewHtml(payload?.html || "");
-      setPreviewOpen(true);
-    } catch {
-      setMailTestMessage(translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const handleAdminDailyAvgPreview = async () => {
-    if (!token) return;
-    try {
-      setPreviewLoading(true);
-      setMailTestMessage("");
-      const res = await fetch("/api/admin/daily-avg-preview", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(
-          payload?.error || translate("Kunde inte hämta daily avg-preview.", "Could not load daily avg preview.")
-        );
-        return;
-      }
-      setPreviewTitle(payload?.subject || "Daily AVG preview");
-      setPreviewHtml(payload?.html || "");
-      setPreviewOpen(true);
-    } catch {
-      setMailTestMessage(translate("Kunde inte hämta daily avg-preview.", "Could not load daily avg preview."));
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const loadAdminActivity = async () => {
-    if (!token) return;
-    try {
-      setAdminActivityLoading(true);
-      setAdminActivityError("");
-      const res = await fetch("/api/admin/activity", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminActivityRows([]);
-        setAdminActivityError(payload?.error || translate("Kunde inte läsa aktivitet.", "Could not load activity."));
-        return;
-      }
-      setAdminActivityRows(Array.isArray(payload?.users) ? payload.users : []);
-    } catch {
-      setAdminActivityRows([]);
-      setAdminActivityError(translate("Kunde inte läsa aktivitet.", "Could not load activity."));
-    } finally {
-      setAdminActivityLoading(false);
-    }
-  };
-
-  const loadAdminUsers = async () => {
-    if (!token) return;
-    try {
-      setAdminUsersLoading(true);
-      setAdminUsersError("");
-      const res = await fetch("/api/admin/users", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store",
-      });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminUsersRows([]);
-        setAdminUsersTotal(0);
-        setAdminUsersError(payload?.error || translate("Kunde inte läsa användare.", "Could not load users."));
-        return;
-      }
-      setAdminUsersRows(Array.isArray(payload?.users) ? payload.users : []);
-      setAdminUsersTotal(Number(payload?.totalUsers) || 0);
-    } catch {
-      setAdminUsersRows([]);
-      setAdminUsersTotal(0);
-      setAdminUsersError(translate("Kunde inte läsa användare.", "Could not load users."));
-    } finally {
-      setAdminUsersLoading(false);
-    }
-  };
-
+  // Password Handlers
   const handleOpenPasswordDialog = () => {
     setPasswordError("");
     setPasswordSuccess("");
@@ -923,71 +246,25 @@ export default function MinaSidorPage() {
     }
   };
 
-  useEffect(() => {
-    if (!isAuthenticated || !token) return;
-    let cancelled = false;
-    const sendHeartbeat = async () => {
-      if (cancelled || typeof window === "undefined") return;
-      try {
-        await fetch("/api/admin/activity/heartbeat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            path: window.location.pathname,
-            panel: "my-page",
-            locale,
-          }),
-        });
-      } catch {
-        // silent
-      }
-    };
-    sendHeartbeat();
-    const id = setInterval(sendHeartbeat, 20 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [isAuthenticated, locale, token]);
+  // Support Indicator Logic (move to page effect)
+  const loadSupportIndicator = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/support/tickets", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
+      const hasReply = tickets.some((t) => t?.hasReply && t?.status === "answered");
+      const hasOpen = tickets.some((t) => t?.status === "open");
+      setSupportIndicator(hasReply ? "reply" : hasOpen ? "open" : null);
+    } catch { }
+  };
 
-  useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "activity") return;
-    let cancelled = false;
-    const load = async () => {
-      if (cancelled) return;
-      await loadAdminActivity();
-    };
-    load();
-    const id = setInterval(load, 20 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
-
-  useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "users") return;
-    let cancelled = false;
-    const load = async () => {
-      if (cancelled) return;
-      await loadAdminUsers();
-    };
-    load();
-    const id = setInterval(load, 20 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
-
-  useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "tools") return;
-    loadAlertsSettings();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+  // --- UI Constants ---
+  const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
 
   return (
     <Box
@@ -1008,13 +285,15 @@ export default function MinaSidorPage() {
           minHeight: "100vh",
         }}
       >
-        <Stack spacing={{ xs: 3, md: 4 }} alignItems="center">
+        <Stack spacing={{ xs: 2, md: 4 }} alignItems="center">
           <Box sx={contentWrapSx}>
             <MinaSidorHeader
               translate={translate}
               totalLivePlayers={totalLivePlayers}
-              onManageHoldings={() => setManageOpen(true)}
+              onManageHoldings={handleOpenManage}
               onOpenPasswordDialog={handleOpenPasswordDialog}
+              onOpenSupport={() => setSupportOpen(true)}
+              supportIndicator={supportIndicator}
               athEmailEnabled={athEmailEnabled}
               dailyAvgEmailEnabled={dailyAvgEmailEnabled}
               notificationsSaving={notificationsSaving}
@@ -1029,27 +308,28 @@ export default function MinaSidorPage() {
               greetingName={greetingName}
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
+              isTraderMode={isTraderMode}
+              onToggleTraderMode={onTraderModeChange}
             />
-          </Box>
 
-          <Box sx={contentWrapSx}>
+            {/* Merged "Today Holding" Stat to reduce gap */}
             <Box
               sx={{
                 display: "flex",
                 justifyContent: "center",
                 textAlign: "center",
-                mt: { xs: 0.5, md: 0 },
+                mt: { xs: 0, md: 0 }, // Removed mt because Header has some mb
               }}
             >
               <Stack spacing={0.2} sx={{ alignItems: "center" }}>
-                <Typography sx={{ color: "rgba(226,232,240,0.68)", fontWeight: 700, fontSize: "0.78rem" }}>
+                <Typography sx={{ color: "rgba(226,232,240,0.68)", fontWeight: 700, fontSize: { xs: "0.95rem", md: "0.85rem" } }}>
                   {translate("Dagens rörelse (ditt innehav)", "Today (your holding)")}
                 </Typography>
                 <Typography
                   sx={{
                     fontWeight: 900,
                     letterSpacing: 0.2,
-                    fontSize: { xs: "1.15rem", md: "1.35rem" },
+                    fontSize: { xs: "1.55rem", md: "1.35rem" },
                     color:
                       Number.isFinite(todaysHoldingChangeSek) && todaysHoldingChangeSek < 0
                         ? "#fecaca"
@@ -1074,34 +354,6 @@ export default function MinaSidorPage() {
               {translate("Översikt", "Overview")}
               <Box sx={sectionRule} />
             </Box>
-          </Box>
-
-          <Box sx={{ ...contentWrapSx, display: "flex", justifyContent: "center" }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={isTraderMode}
-                  onChange={(e) => handleTraderModeChange(e.target.checked)}
-                  sx={{
-                    color: "rgba(226,232,240,0.65)",
-                    "&.Mui-checked": { color: "#34d399" },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontWeight: 800 }}>
-                  {translate("Jag är trader (visa total P/L)", "I’m a trader (show total P/L)")}
-                </Typography>
-              }
-              sx={{
-                m: 0,
-                px: 1.2,
-                py: 0.6,
-                borderRadius: "999px",
-                border: "1px solid rgba(148,163,184,0.18)",
-                background: "rgba(15,23,42,0.35)",
-              }}
-            />
           </Box>
 
           <Box sx={{ ...contentWrapSx, display: "flex", justifyContent: "center" }}>
@@ -1234,519 +486,15 @@ export default function MinaSidorPage() {
                   </ToggleButtonGroup>
 
                   {adminMode ? (
-                    <Stack spacing={1.1} alignItems="center">
-                      <ToggleButtonGroup
-                        value={adminPanel}
-                        exclusive
-                        onChange={(_, value) => value && setAdminPanel(value)}
-                        size="small"
-                        sx={{
-                          backgroundColor: "rgba(148,163,184,0.12)",
-                          borderRadius: "999px",
-                          p: 0.5,
-                        }}
-                      >
-                        <ToggleButton
-                          value="tools"
-                          sx={{
-                            textTransform: "none",
-                            border: 0,
-                            borderRadius: "999px!important",
-                            px: 1.4,
-                            color: "rgba(226,232,240,0.8)",
-                            "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.25)" },
-                          }}
-                        >
-                          {translate("Verktyg", "Tools")}
-                        </ToggleButton>
-                        <ToggleButton
-                          value="activity"
-                          sx={{
-                            textTransform: "none",
-                            border: 0,
-                            borderRadius: "999px!important",
-                            px: 1.4,
-                            color: "rgba(226,232,240,0.8)",
-                            "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(34,197,94,0.25)" },
-                          }}
-                        >
-                          {translate("Aktivitet", "Activity")}
-                        </ToggleButton>
-                        <ToggleButton
-                          value="users"
-                          sx={{
-                            textTransform: "none",
-                            border: 0,
-                            borderRadius: "999px!important",
-                            px: 1.4,
-                            color: "rgba(226,232,240,0.8)",
-                            "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(167,139,250,0.28)" },
-                          }}
-                        >
-                          {translate("Användare", "Users")}
-                        </ToggleButton>
-                      </ToggleButtonGroup>
-
-                      {adminPanel === "tools" ? (
-                      <Stack spacing={1.2} sx={{ width: "100%", alignItems: "center" }}>
-                        <Stack spacing={0.8} sx={{ width: "100%", maxWidth: 980 }}>
-                          <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center", fontWeight: 800 }}>
-                            {translate("Alert-inställningar", "Alert settings")}
-                          </Typography>
-                          {alertsSettingsError ? (
-                            <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
-                              {alertsSettingsError}
-                            </Typography>
-                          ) : null}
-                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ justifyContent: "center" }}>
-                            <ToggleButtonGroup
-                              exclusive
-                              size="small"
-                              value={alertsTestOnlyAdmin ? "admin" : "live"}
-                              onChange={(_, value) => {
-                                if (!value) return;
-                                saveAlertsSettings({ testOnlyAdmin: value === "admin" });
-                              }}
-                              sx={{
-                                backgroundColor: "rgba(15,23,42,0.45)",
-                                borderRadius: "999px",
-                                p: 0.3,
-                              }}
-                            >
-                              <ToggleButton
-                                value="admin"
-                                sx={{
-                                  textTransform: "none",
-                                  border: 0,
-                                  borderRadius: "999px!important",
-                                  px: 1.4,
-                                  color: "rgba(226,232,240,0.8)",
-                                  "&.Mui-selected": { color: "#bbf7d0", backgroundColor: "rgba(34,197,94,0.22)" },
-                                }}
-                              >
-                                {translate("Test: endast admin", "Test: admin only")}
-                              </ToggleButton>
-                              <ToggleButton
-                                value="live"
-                                sx={{
-                                  textTransform: "none",
-                                  border: 0,
-                                  borderRadius: "999px!important",
-                                  px: 1.4,
-                                  color: "rgba(226,232,240,0.8)",
-                                  "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(148,163,184,0.18)" },
-                                }}
-                              >
-                                {translate("Live utskick", "Live sending")}
-                              </ToggleButton>
-                            </ToggleButtonGroup>
-
-                            <ToggleButtonGroup
-                              exclusive
-                              size="small"
-                              value={alertsAthEnabled ? "on" : "off"}
-                              onChange={(_, value) => value && saveAlertsSettings({ athEnabled: value === "on" })}
-                              sx={{
-                                backgroundColor: "rgba(15,23,42,0.45)",
-                                borderRadius: "999px",
-                                p: 0.3,
-                              }}
-                            >
-                              <ToggleButton
-                                value="on"
-                                sx={{
-                                  textTransform: "none",
-                                  border: 0,
-                                  borderRadius: "999px!important",
-                                  px: 1.4,
-                                  color: "rgba(226,232,240,0.8)",
-                                  "&.Mui-selected": { color: "#fde68a", backgroundColor: "rgba(245,158,11,0.18)" },
-                                }}
-                              >
-                                {translate("ATH: På", "ATH: On")}
-                              </ToggleButton>
-                              <ToggleButton
-                                value="off"
-                                sx={{
-                                  textTransform: "none",
-                                  border: 0,
-                                  borderRadius: "999px!important",
-                                  px: 1.4,
-                                  color: "rgba(226,232,240,0.8)",
-                                  "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(148,163,184,0.18)" },
-                                }}
-                              >
-                                {translate("ATH: Av", "ATH: Off")}
-                              </ToggleButton>
-                            </ToggleButtonGroup>
-
-                            <ToggleButtonGroup
-                              exclusive
-                              size="small"
-                              value={alertsDailyAvgEnabled ? "on" : "off"}
-                              onChange={(_, value) => value && saveAlertsSettings({ dailyAvgEnabled: value === "on" })}
-                              sx={{
-                                backgroundColor: "rgba(15,23,42,0.45)",
-                                borderRadius: "999px",
-                                p: 0.3,
-                              }}
-                            >
-                              <ToggleButton
-                                value="on"
-                                sx={{
-                                  textTransform: "none",
-                                  border: 0,
-                                  borderRadius: "999px!important",
-                                  px: 1.4,
-                                  color: "rgba(226,232,240,0.8)",
-                                  "&.Mui-selected": { color: "#bfdbfe", backgroundColor: "rgba(59,130,246,0.18)" },
-                                }}
-                              >
-                                {translate("Daily AVG: På", "Daily AVG: On")}
-                              </ToggleButton>
-                              <ToggleButton
-                                value="off"
-                                sx={{
-                                  textTransform: "none",
-                                  border: 0,
-                                  borderRadius: "999px!important",
-                                  px: 1.4,
-                                  color: "rgba(226,232,240,0.8)",
-                                  "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(148,163,184,0.18)" },
-                                }}
-                              >
-                                {translate("Daily AVG: Av", "Daily AVG: Off")}
-                              </ToggleButton>
-                            </ToggleButtonGroup>
-                          </Stack>
-                          {alertsSettingsLoading ? (
-                            <Typography sx={{ color: "rgba(226,232,240,0.6)", textAlign: "center" }}>
-                              {translate("Laddar...", "Loading...")}
-                            </Typography>
-                          ) : null}
-                        </Stack>
-
-                        <Stack direction="row" spacing={1} flexWrap="wrap" justifyContent="center">
-                        <Button
-                          variant="outlined"
-                          onClick={handleAdminMailTest}
-                          disabled={mailTestLoading}
-                          sx={{
-                            textTransform: "none",
-                            borderColor: "rgba(56,189,248,0.45)",
-                            color: "#bae6fd",
-                            "&:hover": {
-                              borderColor: "rgba(56,189,248,0.7)",
-                              backgroundColor: "rgba(56,189,248,0.1)",
-                            },
-                          }}
-                        >
-                          {mailTestLoading
-                            ? translate("Skickar testmail...", "Sending test email...")
-                            : translate("Skicka testmail", "Send test email")}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={() => handleAdminMailPreview("welcome")}
-                          disabled={previewLoading}
-                          sx={{
-                            textTransform: "none",
-                            borderColor: "rgba(34,197,94,0.45)",
-                            color: "#bbf7d0",
-                            "&:hover": {
-                              borderColor: "rgba(34,197,94,0.75)",
-                              backgroundColor: "rgba(34,197,94,0.1)",
-                            },
-                          }}
-                        >
-                          {translate("Preview welcome", "Preview welcome")}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={() => handleAdminMailPreview("reset")}
-                          disabled={previewLoading}
-                          sx={{
-                            textTransform: "none",
-                            borderColor: "rgba(167,139,250,0.45)",
-                            color: "#ddd6fe",
-                            "&:hover": {
-                              borderColor: "rgba(167,139,250,0.75)",
-                              backgroundColor: "rgba(167,139,250,0.1)",
-                            },
-                          }}
-                        >
-                          {translate("Preview reset", "Preview reset")}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={handleAdminAthPreview}
-                          disabled={previewLoading}
-                          sx={{
-                            textTransform: "none",
-                            borderColor: "rgba(245,158,11,0.45)",
-                            color: "#fde68a",
-                            "&:hover": {
-                              borderColor: "rgba(245,158,11,0.75)",
-                              backgroundColor: "rgba(245,158,11,0.08)",
-                            },
-                          }}
-                        >
-                          {translate("Preview ATH", "Preview ATH")}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={handleAdminDailyAvgPreview}
-                          disabled={previewLoading}
-                          sx={{
-                            textTransform: "none",
-                            borderColor: "rgba(96,165,250,0.45)",
-                            color: "#bfdbfe",
-                            "&:hover": {
-                              borderColor: "rgba(96,165,250,0.75)",
-                              backgroundColor: "rgba(96,165,250,0.08)",
-                            },
-                          }}
-                        >
-                          {translate("Preview daily AVG", "Preview daily AVG")}
-                        </Button>
-                      </Stack>
-                      </Stack>
-                      ) : null}
-                      {mailTestMessage ? (
-                        <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center" }}>
-                          {mailTestMessage}
-                        </Typography>
-                      ) : null}
-
-                      {adminPanel === "activity" ? (
-                      <Stack spacing={1} sx={{ width: "100%", maxWidth: 980, pt: 1 }}>
-                        <Button
-                          variant="outlined"
-                          onClick={loadAdminActivity}
-                          disabled={adminActivityLoading}
-                          sx={{
-                            alignSelf: "center",
-                            textTransform: "none",
-                            borderColor: "rgba(148,163,184,0.35)",
-                            color: "#e2e8f0",
-                            "&:hover": {
-                              borderColor: "rgba(148,163,184,0.55)",
-                              backgroundColor: "rgba(148,163,184,0.08)",
-                            },
-                          }}
-                        >
-                          {adminActivityLoading
-                            ? translate("Laddar aktivitet...", "Loading activity...")
-                            : translate("Ladda om aktivitet", "Refresh activity")}
-                        </Button>
-
-                        {adminActivityError ? (
-                          <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
-                            {adminActivityError}
-                          </Typography>
-                        ) : null}
-
-                        {adminActivityRows.length ? (
-                          <Stack spacing={1}>
-                            {adminActivityRows.map((row) => {
-                              const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
-                              const email = String(row?.email || "").trim();
-                              const identity = name || email || "unknown";
-                              const statusLabel = row?.isActive
-                                ? translate("Aktiv nu", "Active now")
-                                : translate("Inaktiv", "Inactive");
-                              const whenLabel = row?.lastSeenAt
-                                ? new Date(row.lastSeenAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
-                                : "—";
-                              const locationLabel = row?.lastPanel
-                                ? `${row?.lastPath || "/"} · ${row.lastPanel}`
-                                : row?.lastPath || "—";
-                              return (
-                                <Box
-                                  key={row?.email || identity}
-                                  sx={{
-                                    border: "1px solid rgba(148,163,184,0.22)",
-                                    borderRadius: "12px",
-                                    background: "rgba(15,23,42,0.45)",
-                                    px: 1.4,
-                                    py: 1.1,
-                                    display: "grid",
-                                    gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 2fr" },
-                                    gap: 1,
-                                  }}
-                                >
-                                  <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
-                                    <Typography
-                                      sx={{
-                                        color: "#f8fafc",
-                                        fontWeight: 800,
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                      }}
-                                    >
-                                      <Stack direction="row" spacing={0.8} alignItems="center" sx={{ minWidth: 0 }}>
-                                        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                          {identity}
-                                        </Box>
-                                        {row?.hasHoldings ? (
-                                          <CheckCircleRounded sx={{ fontSize: 18, color: "#34d399", flexShrink: 0 }} />
-                                        ) : null}
-                                      </Stack>
-                                    </Typography>
-                                    {email ? (
-                                      <Typography
-                                        sx={{
-                                          color: "rgba(226,232,240,0.65)",
-                                          fontSize: "0.82rem",
-                                          overflow: "hidden",
-                                          textOverflow: "ellipsis",
-                                          whiteSpace: "nowrap",
-                                        }}
-                                      >
-                                        {email}
-                                      </Typography>
-                                    ) : null}
-                                  </Box>
-                                  <Typography
-                                    sx={{
-                                      color: row?.isActive ? "#86efac" : "rgba(226,232,240,0.7)",
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {statusLabel}
-                                  </Typography>
-                                  <Typography sx={{ color: "rgba(226,232,240,0.75)" }}>
-                                    {translate("Senast", "Last")}: {whenLabel}
-                                    {" • "}
-                                    {translate("Vy", "View")}: {locationLabel}
-                                  </Typography>
-                                </Box>
-                              );
-                            })}
-                          </Stack>
-                        ) : !adminActivityLoading ? (
-                          <Typography sx={{ color: "rgba(226,232,240,0.7)", textAlign: "center" }}>
-                            {translate("Ingen aktivitet ännu.", "No activity yet.")}
-                          </Typography>
-                        ) : null}
-                      </Stack>
-                      ) : null}
-
-                      {adminPanel === "users" ? (
-                        <Stack spacing={1} sx={{ width: "100%", maxWidth: 980, pt: 1 }}>
-                          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
-                            <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>
-                              {translate("Totalt registrerade", "Total registered")}: {adminUsersTotal}
-                            </Typography>
-                            <Button
-                              variant="outlined"
-                              onClick={loadAdminUsers}
-                              disabled={adminUsersLoading}
-                              sx={{
-                                textTransform: "none",
-                                borderColor: "rgba(148,163,184,0.35)",
-                                color: "#e2e8f0",
-                                "&:hover": {
-                                  borderColor: "rgba(148,163,184,0.55)",
-                                  backgroundColor: "rgba(148,163,184,0.08)",
-                                },
-                              }}
-                            >
-                              {adminUsersLoading
-                                ? translate("Laddar användare...", "Loading users...")
-                                : translate("Ladda om användare", "Refresh users")}
-                            </Button>
-                          </Stack>
-
-                          {adminUsersError ? (
-                            <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
-                              {adminUsersError}
-                            </Typography>
-                          ) : null}
-
-                          {adminUsersRows.length ? (
-                            <Stack spacing={1}>
-                              {adminUsersRows.map((row) => {
-                                const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
-                                const email = String(row?.email || "").trim();
-                                const identity = name || email || "unknown";
-                                const statusLabel = row?.isActive
-                                  ? translate("Aktiv nu", "Active now")
-                                  : translate("Inaktiv", "Inactive");
-                                const whenLabel = row?.lastSeenAt
-                                  ? new Date(row.lastSeenAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
-                                  : translate("Aldrig", "Never");
-                                return (
-                                  <Box
-                                    key={row?.email || identity}
-                                    sx={{
-                                      border: "1px solid rgba(148,163,184,0.22)",
-                                      borderRadius: "12px",
-                                      background: "rgba(15,23,42,0.45)",
-                                      px: 1.4,
-                                      py: 1.1,
-                                      display: "grid",
-                                      gridTemplateColumns: { xs: "1fr", md: "2fr 1fr 2fr" },
-                                      gap: 1,
-                                    }}
-                                  >
-                                    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
-                                      <Typography
-                                        sx={{
-                                          color: "#f8fafc",
-                                          fontWeight: 800,
-                                          overflow: "hidden",
-                                          textOverflow: "ellipsis",
-                                          whiteSpace: "nowrap",
-                                        }}
-                                      >
-                                        <Stack direction="row" spacing={0.8} alignItems="center" sx={{ minWidth: 0 }}>
-                                          <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                            {identity}
-                                          </Box>
-                                          {row?.hasHoldings ? (
-                                            <CheckCircleRounded sx={{ fontSize: 18, color: "#34d399", flexShrink: 0 }} />
-                                          ) : null}
-                                        </Stack>
-                                      </Typography>
-                                      {email ? (
-                                        <Typography
-                                          sx={{
-                                            color: "rgba(226,232,240,0.65)",
-                                            fontSize: "0.82rem",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                          }}
-                                        >
-                                          {email}
-                                        </Typography>
-                                      ) : null}
-                                    </Box>
-                                    <Typography
-                                      sx={{
-                                        color: row?.isActive ? "#86efac" : "rgba(226,232,240,0.7)",
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      {statusLabel}
-                                    </Typography>
-                                    <Typography sx={{ color: "rgba(226,232,240,0.75)" }}>
-                                      {translate("Senast online", "Last online")}: {whenLabel}
-                                    </Typography>
-                                  </Box>
-                                );
-                              })}
-                            </Stack>
-                          ) : !adminUsersLoading ? (
-                            <Typography sx={{ color: "rgba(226,232,240,0.7)", textAlign: "center" }}>
-                              {translate("Inga användare ännu.", "No users yet.")}
-                            </Typography>
-                          ) : null}
-                        </Stack>
-                      ) : null}
-                    </Stack>
+                    <AdminPanel
+                      adminPanel={adminPanel}
+                      setAdminPanel={setAdminPanel}
+                      translate={translate}
+                      locale={locale}
+                      {...adminTools}
+                      profileIdentity={profileIdentity}
+                      user={user}
+                    />
                   ) : null}
                 </Stack>
               </Box>
@@ -1773,7 +521,7 @@ export default function MinaSidorPage() {
         setShares={setShares}
         setAvgCost={setAvgCost}
         dividendsReceived={dividendsReceived}
-        onDividendsChange={handleDividendsChange}
+        onDividendsChange={onDividendsChange}
         breakEvenDisplay={breakEvenDisplay}
         breakEvenPaidBack={breakEvenPaidBack}
         onBuySharesChange={(event) => setBuyShares(event.target.value)}
@@ -1787,139 +535,44 @@ export default function MinaSidorPage() {
         onAcquisitionDateChange={(event) => setSetAcquisitionDate(event.target.value)}
         estimatedDividendsFromDate={estimatedDividendsFromDate}
         dividendInputMode={dividendInputMode}
-        onDividendInputModeChange={handleDividendModeChange}
-        onBuy={handleBuy}
-        onSell={handleSell}
-        onSet={handleSet}
-        onImportTransactions={handleImportTransactions}
+        onDividendInputModeChange={onDividendModeChange}
+        onBuy={() => handleBuy({ shares: Number(buyShares), price: Number(buyPrice), buyDate }).then(() => { setBuyShares(""); setBuyPrice(""); setBuyDate(""); })}
+        onSell={() => handleSell({ shares: Number(sellShares), price: Number(sellPrice) }).then(() => { setSellShares(""); setSellPrice(""); })}
+        onSet={() => handleSet({ shares: Number(setShares), avgCost: Number(setAvgCost), acquisitionDate: setAcquisitionDate }).then((success) => { if (success) setManageOpen(false); })}
+        onImportTransactions={(t) => handleImportTransactions(t).then(() => setManageOpen(false))}
         loading={loading}
       />
 
-      <Dialog
-        open={previewOpen}
-        onClose={() => setPreviewOpen(false)}
-        fullWidth
-        maxWidth="lg"
-        PaperProps={{
-          sx: {
-            background: "rgba(15,23,42,0.96)",
-            border: "1px solid rgba(148,163,184,0.2)",
-            height: { xs: "92vh", md: "90vh" },
-            maxHeight: { xs: "92vh", md: "90vh" },
-          },
+      <SupportModal
+        open={supportOpen}
+        onClose={() => {
+          setSupportOpen(false);
+          loadSupportIndicator();
         }}
-      >
-        <DialogTitle sx={{ color: "#f8fafc", fontWeight: 700 }}>{previewTitle}</DialogTitle>
-        <DialogContent sx={{ pt: 0.5, height: "100%" }}>
-          <Box
-            sx={{
-              background: "#0b1220",
-              borderRadius: 2,
-              border: "1px solid rgba(148,163,184,0.2)",
-              p: 1,
-              height: "100%",
-            }}
-          >
-            <iframe
-              title="mail-preview"
-              srcDoc={previewHtml}
-              style={{
-                width: "100%",
-                height: "100%",
-                minHeight: "70vh",
-                border: 0,
-                borderRadius: "8px",
-                background: "#0b1220",
-              }}
-            />
-          </Box>
-        </DialogContent>
-      </Dialog>
+        translate={translate}
+        token={token}
+      />
 
-      <Dialog
+      <AdminDialogs
+        {...adminTools}
+        translate={translate}
+      />
+
+      <PasswordDialog
         open={passwordDialogOpen}
         onClose={() => setPasswordDialogOpen(false)}
-        fullWidth
-        maxWidth="xs"
-        PaperProps={{
-          sx: {
-            background: "rgba(15,23,42,0.96)",
-            border: "1px solid rgba(148,163,184,0.2)",
-          },
-        }}
-      >
-        <DialogTitle sx={{ color: "#f8fafc", fontWeight: 700 }}>
-          {translate("Byt lösenord", "Change password")}
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={1.6} sx={{ mt: 0.5 }}>
-            {passwordError ? <Alert severity="error">{passwordError}</Alert> : null}
-            {passwordSuccess ? <Alert severity="success">{passwordSuccess}</Alert> : null}
-            <TextField
-              type="password"
-              label={translate("Nuvarande lösenord", "Current password")}
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              fullWidth
-              sx={{
-                "& .MuiInputBase-input": { color: "#f8fafc" },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.35)" },
-              }}
-              InputLabelProps={{ sx: { color: "rgba(226,232,240,0.7)" } }}
-            />
-            <TextField
-              type="password"
-              label={translate("Nytt lösenord", "New password")}
-              value={newPassword}
-              onChange={(event) => setNewPassword(event.target.value)}
-              fullWidth
-              sx={{
-                "& .MuiInputBase-input": { color: "#f8fafc" },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.35)" },
-              }}
-              InputLabelProps={{ sx: { color: "rgba(226,232,240,0.7)" } }}
-            />
-            <TextField
-              type="password"
-              label={translate("Bekräfta nytt lösenord", "Confirm new password")}
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              fullWidth
-              sx={{
-                "& .MuiInputBase-input": { color: "#f8fafc" },
-                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.35)" },
-              }}
-              InputLabelProps={{ sx: { color: "rgba(226,232,240,0.7)" } }}
-            />
-            <Stack direction="row" spacing={1} justifyContent="flex-end">
-              <Button
-                variant="text"
-                onClick={() => setPasswordDialogOpen(false)}
-                sx={{ color: "rgba(226,232,240,0.75)", textTransform: "none" }}
-              >
-                {translate("Stäng", "Close")}
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handleSubmitPasswordChange}
-                disabled={passwordLoading}
-                sx={{
-                  textTransform: "none",
-                  fontWeight: 700,
-                  color: "#e0f2fe",
-                  background: "linear-gradient(135deg, rgba(37,99,235,0.78), rgba(14,165,233,0.72))",
-                  border: "1px solid rgba(125,211,252,0.32)",
-                  "&:hover": {
-                    background: "linear-gradient(135deg, rgba(59,130,246,0.82), rgba(34,211,238,0.76))",
-                  },
-                }}
-              >
-                {passwordLoading ? translate("Sparar...", "Saving...") : translate("Uppdatera lösenord", "Update password")}
-              </Button>
-            </Stack>
-          </Stack>
-        </DialogContent>
-      </Dialog>
+        translate={translate}
+        currentPassword={currentPassword}
+        setCurrentPassword={setCurrentPassword}
+        newPassword={newPassword}
+        setNewPassword={setNewPassword}
+        confirmPassword={confirmPassword}
+        setConfirmPassword={setConfirmPassword}
+        passwordError={passwordError}
+        passwordSuccess={passwordSuccess}
+        passwordLoading={passwordLoading}
+        onSubmit={handleSubmitPasswordChange}
+      />
     </Box>
   );
 }
