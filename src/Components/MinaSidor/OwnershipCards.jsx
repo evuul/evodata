@@ -129,6 +129,14 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
                 )
               : translate("Utdelning + återköp", "Dividend + buybacks")}
           </Typography>
+          {buybackSummary?.dividendBenefit != null ? (
+            <Typography sx={{ color: "rgba(226,232,240,0.55)", fontSize: "0.82rem" }}>
+              {translate(
+                `Utdelning (senast): ${formatSek(buybackSummary.dividendBenefit)} + återköp: ${formatSek(buybackSummary.buybackBenefit)}`,
+                `Dividend (last paid): ${formatSek(buybackSummary.dividendBenefit)} + buybacks: ${formatSek(buybackSummary.buybackBenefit)}`
+              )}
+            </Typography>
+          ) : null}
         </Paper>
       </Box>
     </Box>
