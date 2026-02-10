@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Box, Button, Dialog, Stack, Tab, Tabs, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { actionCard, buttonStyles, inputLabelSx, inputSx, modalPaper, statusColors, text } from "./styles";
+import ImportTransactionsTab from "./ImportTransactionsTab";
 
 export default function ManageHoldingsModal({
   open,
@@ -34,6 +35,7 @@ export default function ManageHoldingsModal({
   onBuy,
   onSell,
   onSet,
+  onImportTransactions,
   loading,
 }) {
   const [tab, setTab] = useState(0);
@@ -97,6 +99,7 @@ export default function ManageHoldingsModal({
           <Tab label={translate("Sälj/Minska", "Sell/Reduce")} />
           <Tab label={translate("Justera GAV", "Adjust cost basis")} />
           <Tab label={translate("Utdelning", "Dividends")} />
+          <Tab label={translate("Import", "Import")} />
         </Tabs>
 
         {tab === 0 && (
@@ -332,6 +335,17 @@ export default function ManageHoldingsModal({
               </Box>
             </Stack>
           </Box>
+        )}
+
+        {tab === 4 && (
+          <ImportTransactionsTab
+            translate={translate}
+            loading={loading}
+            onImportTransactions={async (trades) => {
+              await onImportTransactions?.(trades);
+              setTab(0);
+            }}
+          />
         )}
 
         <Button variant="text" onClick={onClose} sx={{ mt: 2, color: text.muted }}>

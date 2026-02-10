@@ -16,6 +16,7 @@ import HoldingsChips from "@/Components/MinaSidor/HoldingsChips";
 import HoldingsKpiRow from "@/Components/MinaSidor/HoldingsKpiRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
+import HoldingsHistoryChart from "@/Components/MinaSidor/HoldingsHistoryChart";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 import { formatSek } from "@/Components/MinaSidor/utils";
 
@@ -642,6 +643,37 @@ export default function MinaSidorPage() {
     }
   };
 
+  const handleImportTransactions = async (transactions) => {
+    if (!token) {
+      throw new Error(translate("Inte inloggad.", "Not logged in."));
+    }
+    if (!Array.isArray(transactions) || !transactions.length) {
+      throw new Error(translate("Ingen transaktionsdata.", "No transaction data."));
+    }
+    try {
+      setLoading(true);
+      setError("");
+      const res = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "importTransactions", transactions }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || translate("Importen misslyckades.", "Import failed."));
+      }
+      setProfile(payload.profile ?? profile);
+      pushActivity({
+        type: "import",
+        timestamp: new Date().toISOString(),
+      });
+      setError("");
+      setManageOpen(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAdminMailTest = async () => {
     if (!token) return;
     try {
@@ -1056,6 +1088,24 @@ export default function MinaSidorPage() {
               buybackSummary={buybackSummary}
               ownershipView={ownershipView}
               onChangeView={setOwnershipView}
+            />
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
+              <Box sx={sectionRule} />
+              {translate("Utdelning & Innehav", "Dividends & Holdings")}
+              <Box sx={sectionRule} />
+            </Box>
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <HoldingsHistoryChart
+              translate={translate}
+              profile={profile}
+              historicalDividends={
+                Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
+              }
             />
           </Box>
 
@@ -1668,6 +1718,7 @@ export default function MinaSidorPage() {
         onBuy={handleBuy}
         onSell={handleSell}
         onSet={handleSet}
+        onImportTransactions={handleImportTransactions}
         loading={loading}
       />
 
