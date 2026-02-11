@@ -6,7 +6,7 @@ import { Alert, Button, Snackbar } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
 
-const POLL_MS = 20_000;
+const POLL_MS = 60 * 60 * 1000;
 const PREVIEW_EVENT = "evodata.support.notify.preview";
 
 const toMs = (value) => {

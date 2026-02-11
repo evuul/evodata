@@ -46,6 +46,11 @@ export function AdminPanel({
     profileIdentity,
     user
 }) {
+    const athOnCount = adminUsersRows.filter((row) => Boolean(row?.athEmailEnabled)).length;
+    const athOffCount = adminUsersRows.length - athOnCount;
+    const dailyAvgOnCount = adminUsersRows.filter((row) => Boolean(row?.dailyAvgEmailEnabled)).length;
+    const dailyAvgOffCount = adminUsersRows.length - dailyAvgOnCount;
+
     return (
         <Stack spacing={1.1} alignItems="center">
             <ToggleButtonGroup
@@ -504,6 +509,21 @@ export function AdminPanel({
                         </Button>
                     </Stack>
 
+                    <Stack direction="row" spacing={1} justifyContent="center" flexWrap="wrap">
+                        <Typography sx={{ color: "rgba(226,232,240,0.78)", fontSize: "0.9rem", fontWeight: 700 }}>
+                            {translate(
+                                `ATH På/Av: ${athOnCount}/${athOffCount}`,
+                                `ATH On/Off: ${athOnCount}/${athOffCount}`
+                            )}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(226,232,240,0.78)", fontSize: "0.9rem", fontWeight: 700 }}>
+                            {translate(
+                                `Daily AVG På/Av: ${dailyAvgOnCount}/${dailyAvgOffCount}`,
+                                `Daily AVG On/Off: ${dailyAvgOnCount}/${dailyAvgOffCount}`
+                            )}
+                        </Typography>
+                    </Stack>
+
                     {adminUsersError ? (
                         <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
                             {adminUsersError}
@@ -522,6 +542,12 @@ export function AdminPanel({
                                 const whenLabel = row?.lastSeenAt
                                     ? new Date(row.lastSeenAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
                                     : translate("Aldrig", "Never");
+                                const athLabel = row?.athEmailEnabled
+                                    ? translate("ATH: På", "ATH: On")
+                                    : translate("ATH: Av", "ATH: Off");
+                                const dailyAvgLabel = row?.dailyAvgEmailEnabled
+                                    ? translate("Daily AVG: På", "Daily AVG: On")
+                                    : translate("Daily AVG: Av", "Daily AVG: Off");
                                 return (
                                     <Box
                                         key={row?.email || identity}
@@ -577,9 +603,16 @@ export function AdminPanel({
                                         >
                                             {statusLabel}
                                         </Typography>
-                                        <Typography sx={{ color: "rgba(226,232,240,0.75)" }}>
-                                            {translate("Senast online", "Last online")}: {whenLabel}
-                                        </Typography>
+                                        <Stack spacing={0.25}>
+                                            <Typography sx={{ color: "rgba(226,232,240,0.75)" }}>
+                                                {translate("Senast online", "Last online")}: {whenLabel}
+                                            </Typography>
+                                            <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.82rem" }}>
+                                                {athLabel}
+                                                {" • "}
+                                                {dailyAvgLabel}
+                                            </Typography>
+                                        </Stack>
                                     </Box>
                                 );
                             })}

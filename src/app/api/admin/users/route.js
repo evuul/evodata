@@ -74,6 +74,8 @@ export async function GET(request) {
           firstName: user?.firstName || activity?.firstName || "",
           lastName: user?.lastName || activity?.lastName || "",
           isSubscriber: Boolean(user?.isSubscriber),
+          athEmailEnabled: Boolean(user?.notifications?.athEmail),
+          dailyAvgEmailEnabled: Boolean(user?.notifications?.dailyAvgEmail),
           createdAt: user?.createdAt || null,
           updatedAt: user?.updatedAt || null,
           hasHoldings: hasHoldings(user),
