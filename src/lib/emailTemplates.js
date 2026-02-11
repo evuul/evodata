@@ -6,6 +6,17 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
+
+const resolveAccountDisplay = ({ email, firstName }) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (normalizedEmail && normalizedEmail === ADMIN_EMAIL) {
+    return "Alexander";
+  }
+  const maybeName = String(firstName || "").trim();
+  return maybeName || String(email || "").trim();
+};
+
 const shell = ({ title, body, preheader = "" }) => `
 <!doctype html>
 <html>
@@ -120,7 +131,7 @@ export const buildAthAlertEmail = ({
   coffeeUrl,
 }) => {
   const safeName = escapeHtml(firstName || "there");
-  const safeEmail = escapeHtml(email);
+  const safeAccount = escapeHtml(resolveAccountDisplay({ email, firstName }));
   const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
 
   const eventRows = (Array.isArray(events) ? events : [])
@@ -164,7 +175,7 @@ export const buildAthAlertEmail = ({
       Hi ${safeName}, a new All-Time High (ATH) was detected.
     </p>
     <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
-      Account: <strong>${safeEmail}</strong>
+      Account: <strong>${safeAccount}</strong>
     </p>
 
     <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
@@ -234,7 +245,7 @@ export const buildDailyAvgPlayersEmail = ({
   coffeeUrl,
 }) => {
   const safeName = escapeHtml(firstName || "there");
-  const safeEmail = escapeHtml(email);
+  const safeAccount = escapeHtml(resolveAccountDisplay({ email, firstName }));
   const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
 
   const totalLabel = Number.isFinite(totalAvgPlayers)
@@ -269,7 +280,7 @@ export const buildDailyAvgPlayersEmail = ({
       Hi ${safeName}, here is yesterday’s average lobby activity (tracked games only).
     </p>
     <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
-      Account: <strong>${safeEmail}</strong>
+      Account: <strong>${safeAccount}</strong>
     </p>
 
     <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
