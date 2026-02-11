@@ -78,7 +78,10 @@ const computePlayersPreview = (rows) => {
 const pickLatestDividend = (data) => {
   const history = Array.isArray(data?.historicalDividends) ? data.historicalDividends : [];
   if (!history.length) return null;
-  return history[history.length - 1];
+  return [...history]
+    .filter((row) => row?.date)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-1)[0] ?? null;
 };
 
 const formatNumberCompact = (value, locale = NUMBER_LOCALE_MAP.sv, options = {}) =>

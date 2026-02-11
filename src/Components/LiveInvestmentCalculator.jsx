@@ -64,7 +64,10 @@ const pickLatestDividend = (dividendData) => {
     ? dividendData.historicalDividends
     : [];
   if (history.length) {
-    const last = history[history.length - 1];
+    const last = [...history]
+      .filter((row) => row?.date)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(-1)[0];
     return Number(last?.dividendPerShare) || 0;
   }
   const planned = Array.isArray(dividendData?.plannedDividends)

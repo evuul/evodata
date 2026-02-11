@@ -140,7 +140,11 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         const historical = Array.isArray(dividendData?.historicalDividends)
             ? dividendData.historicalDividends
             : [];
-        return historical[historical.length - 1] ?? null;
+        if (!historical.length) return null;
+        return [...historical]
+            .filter((row) => row?.date)
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .slice(-1)[0] ?? null;
     }, []);
 
     const totalValue = profile.shares * currentPrice;
