@@ -6,7 +6,8 @@ import {
   Area,
   AreaChart,
   Bar,
-  BarChart,
+  Cell,
+  ComposedChart,
   CartesianGrid,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
@@ -15,6 +16,9 @@ import {
 } from "recharts";
 import { cardBase, text } from "./styles";
 import { normalizeYmd, resolveDividendExDate } from "@/lib/dividendEligibility";
+import { useFxRateContext } from "@/context/FxRateContext";
+import financialReportsData from "@/app/data/financialReports.json";
+import amountOfShares from "@/app/data/amountOfShares.json";
 
 const sumShares = (lots) =>
   (Array.isArray(lots) ? lots : []).reduce((sum, lot) => sum + Math.max(0, Number(lot?.shares) || 0), 0);
@@ -37,6 +41,60 @@ const applySellFifo = (lots, sharesToSell) => {
     remaining = 0;
   }
   return next;
+};
+
+const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+
+const buildDividendEstimate = ({ profileShares, fxRate }) => {
+  const rows = Array.isArray(financialReportsData?.financialReports)
+    ? financialReportsData.financialReports
+    : [];
+  if (!rows.length) return null;
+  const byYear = new Map();
+  for (const row of rows) {
+    const year = Number(row?.year);
+    if (!Number.isFinite(year)) continue;
+    if (!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year).push(row);
+  }
+  const years = Array.from(byYear.keys()).sort((a, b) => a - b);
+  const latestFullYear = [...years]
+    .reverse()
+    .find((year) => {
+      const quarters = byYear.get(year) || [];
+      const unique = new Set(quarters.map((q) => String(q?.quarter || "")));
+      return unique.has("Q1") && unique.has("Q2") && unique.has("Q3") && unique.has("Q4");
+    });
+  if (!Number.isFinite(latestFullYear)) return null;
+
+  const latestYearRows = (byYear.get(latestFullYear) || []).sort(
+    (a, b) => (QUARTER_ORDER[a?.quarter] || 0) - (QUARTER_ORDER[b?.quarter] || 0)
+  );
+  const annualProfitEur = latestYearRows.reduce((sum, row) => {
+    const val = Number(row?.adjustedProfitForPeriod);
+    return Number.isFinite(val) ? sum + val : sum;
+  }, 0);
+  if (!(annualProfitEur > 0)) return null;
+
+  const latestSharesOutstandingMillions = Number(
+    amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding
+  );
+  if (!(latestSharesOutstandingMillions > 0)) return null;
+
+  const fx = Number.isFinite(Number(fxRate)) && Number(fxRate) > 0 ? Number(fxRate) : 11.02;
+  const payoutRatio = 0.5;
+  const estimatedDpsSek = (annualProfitEur * payoutRatio * fx) / latestSharesOutstandingMillions;
+  if (!(estimatedDpsSek > 0)) return null;
+
+  const estimatedCashSek = (Number(profileShares) || 0) * estimatedDpsSek;
+
+  return {
+    yearLabel: `${latestFullYear + 1} EST`,
+    estimatedCashSek,
+    estimatedDpsSek,
+    sourceYear: latestFullYear,
+    payoutRatio,
+  };
 };
 
 const computeDividendYearSeries = ({ transactions, lots, historicalDividends }) => {
@@ -146,6 +204,7 @@ const computeHoldingsSeries = ({ transactions, lots }) => {
 
 export default function HoldingsHistoryChart({ translate, profile, historicalDividends }) {
   const [mode, setMode] = useState("dividends");
+  const { rate: fxRate } = useFxRateContext();
 
   const dividendsSeries = useMemo(() => {
     const rows = computeDividendYearSeries({
@@ -153,8 +212,21 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
       lots: profile?.lots,
       historicalDividends,
     });
-    return rows.map((r) => ({ year: r.year, cash: r.cash }));
-  }, [historicalDividends, profile?.lots, profile?.transactions]);
+    const base = rows
+      .filter((r) => Number(r?.cash) > 0)
+      .map((r) => ({ year: r.year, cashValue: r.cash, isEstimate: false }));
+    const estimate = buildDividendEstimate({ profileShares: profile?.shares, fxRate });
+    if (!estimate) return base;
+    return [
+      ...base,
+      {
+        year: estimate.yearLabel,
+        cashValue: estimate.estimatedCashSek,
+        isEstimate: true,
+        estimateMeta: estimate,
+      },
+    ];
+  }, [fxRate, historicalDividends, profile?.lots, profile?.shares, profile?.transactions]);
 
   const holdingsSeries = useMemo(
     () =>
@@ -165,7 +237,7 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
     [profile?.lots, profile?.transactions]
   );
 
-  const hasDividendData = dividendsSeries.length > 0 && dividendsSeries.some((r) => Number.isFinite(r.cash));
+  const hasDividendData = dividendsSeries.length > 0 && dividendsSeries.some((r) => Number.isFinite(r.cashValue));
   const hasHoldingsData = holdingsSeries.length > 0 && holdingsSeries.some((r) => Number.isFinite(r.shares));
 
   return (
@@ -227,8 +299,8 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
         <Typography sx={{ color: text.muted, fontSize: "0.9rem" }}>
           {mode === "dividends"
             ? translate(
-                "Beräknas från dina köp/sälj-datum och historiska utdelningar.",
-                "Calculated from your buy/sell dates and historical dividends."
+                "Beräknas från dina köp/sälj-datum och historiska utdelningar. Mönstrad 2026 EST bygger på 50% payout av senaste helårsvinst.",
+                "Calculated from your buy/sell dates and historical dividends. Patterned 2026 EST is based on 50% payout of the latest full-year profit."
               )
             : translate(
                 "Bygger på dina köp/sälj och visar hur antalet aktier förändrats.",
@@ -240,7 +312,13 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
           {mode === "dividends" ? (
             hasDividendData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dividendsSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart data={dividendsSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <pattern id="estimateBarPattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+                      <rect width="8" height="8" fill="rgba(245,158,11,0.17)" />
+                      <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(251,191,36,0.45)" strokeWidth="2" />
+                    </pattern>
+                  </defs>
                   <CartesianGrid stroke="rgba(148,163,184,0.16)" strokeDasharray="4 4" />
                   <XAxis
                     dataKey="year"
@@ -260,19 +338,33 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
                       borderRadius: 12,
                       color: "#f8fafc",
                     }}
-                    formatter={(value) => {
+                    labelStyle={{ color: "#f8fafc", fontWeight: 700 }}
+                    itemStyle={{ color: "#f8fafc" }}
+                    formatter={(value, name, item) => {
                       const v = Number(value);
                       const label = Number.isFinite(v) ? `${Math.round(v).toLocaleString("sv-SE")} SEK` : "–";
+                      if (item?.payload?.isEstimate) {
+                        return [label, translate("Estimat (50% payout)", "Estimate (50% payout)")];
+                      }
                       return [label, translate("Utdelning", "Dividends")];
                     }}
                   />
                   <Bar
-                    dataKey="cash"
-                    fill="rgba(56,189,248,0.75)"
-                    stroke="rgba(125,211,252,0.9)"
+                    dataKey="cashValue"
                     radius={[10, 10, 2, 2]}
-                  />
-                </BarChart>
+                    maxBarSize={74}
+                  >
+                    {dividendsSeries.map((row, idx) => (
+                      <Cell
+                        // eslint-disable-next-line react/no-array-index-key
+                        key={`${row.year}-${idx}`}
+                        fill={row?.isEstimate ? "url(#estimateBarPattern)" : "rgba(56,189,248,0.75)"}
+                        stroke={row?.isEstimate ? "rgba(251,191,36,0.95)" : "rgba(125,211,252,0.9)"}
+                        strokeWidth={row?.isEstimate ? 2 : 1}
+                      />
+                    ))}
+                  </Bar>
+                </ComposedChart>
               </ResponsiveContainer>
             ) : (
               <Box sx={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
