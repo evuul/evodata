@@ -218,6 +218,142 @@ const FaqPanel = () => {
             </Typography>
           </AccordionDetails>
         </Accordion>
+
+        <Accordion
+          expanded={expanded === "faq-5"}
+          onChange={handleChange("faq-5")}
+          disableGutters
+          sx={{
+            borderRadius: "14px",
+            border: "1px solid rgba(56,189,248,0.28)",
+            background: "rgba(2,6,23,0.42)",
+            color: "#f8fafc",
+            boxShadow: "none",
+            "&:before": { display: "none" },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreRounded sx={{ color: "rgba(226,232,240,0.8)" }} />}
+            sx={{ px: { xs: 2, md: 2.4 } }}
+          >
+            <Typography sx={{ fontWeight: 700 }}>
+              {translate(
+                "Varför får jag importfel: “sälj överskrider innehavet”?",
+                "Why do I get import error: “sell exceeds holdings”?"
+              )}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
+            <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
+              {translate(
+                "Vanligast är att exporten saknar äldre köp eller kontoflytt. Importen använder bara Evolution-rader (ISIN SE0012673267). Lösning: exportera hela perioden med alla transaktioner, eller sätt en baseline via “Justera GAV” innan import.",
+                "Most commonly, the export is missing older buys or account transfers. Import only uses Evolution rows (ISIN SE0012673267). Fix: export the full period with all transactions, or set a baseline via “Adjust cost basis” before import."
+              )}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion
+          expanded={expanded === "faq-6"}
+          onChange={handleChange("faq-6")}
+          disableGutters
+          sx={{
+            borderRadius: "14px",
+            border: "1px solid rgba(52,211,153,0.28)",
+            background: "rgba(2,6,23,0.42)",
+            color: "#f8fafc",
+            boxShadow: "none",
+            "&:before": { display: "none" },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreRounded sx={{ color: "rgba(226,232,240,0.8)" }} />}
+            sx={{ px: { xs: 2, md: 2.4 } }}
+          >
+            <Typography sx={{ fontWeight: 700 }}>
+              {translate(
+                "Hur räknas utdelning i Mina sidor?",
+                "How are dividends calculated in My Page?"
+              )}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
+            <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
+              {translate(
+                "Du kan välja manuell total utdelning eller datum-baserad auto-beräkning. I datum-läget används köp/sälj-datum och X-dag: köp på eller efter X-dagen ger normalt inte utdelning för det året.",
+                "You can choose manual total dividends or date-based auto calculation. In date mode, buy/sell dates and ex-date (X-day) are used: buys on or after X-day typically do not receive that year’s dividend."
+              )}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion
+          expanded={expanded === "faq-7"}
+          onChange={handleChange("faq-7")}
+          disableGutters
+          sx={{
+            borderRadius: "14px",
+            border: "1px solid rgba(250,204,21,0.28)",
+            background: "rgba(2,6,23,0.42)",
+            color: "#f8fafc",
+            boxShadow: "none",
+            "&:before": { display: "none" },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreRounded sx={{ color: "rgba(226,232,240,0.8)" }} />}
+            sx={{ px: { xs: 2, md: 2.4 } }}
+          >
+            <Typography sx={{ fontWeight: 700 }}>
+              {translate(
+                "Hur aktiverar jag Daily AVG / ATH-notiser?",
+                "How do I enable Daily AVG / ATH notifications?"
+              )}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
+            <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
+              {translate(
+                "Gå till Mina sidor och öppna notis-menyn (klockikonen). Där kan du slå på “Nytt ATH” och “Daily AVG”. Daily AVG skickas på en fast daglig tid när gårdagens data är klar.",
+                "Go to My Page and open the notifications menu (bell icon). There you can enable “New ATH” and “Daily AVG”. Daily AVG is sent at a fixed daily time when yesterday’s data is ready."
+              )}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
+
+        <Accordion
+          expanded={expanded === "faq-8"}
+          onChange={handleChange("faq-8")}
+          disableGutters
+          sx={{
+            borderRadius: "14px",
+            border: "1px solid rgba(168,85,247,0.28)",
+            background: "rgba(2,6,23,0.42)",
+            color: "#f8fafc",
+            boxShadow: "none",
+            "&:before": { display: "none" },
+          }}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreRounded sx={{ color: "rgba(226,232,240,0.8)" }} />}
+            sx={{ px: { xs: 2, md: 2.4 } }}
+          >
+            <Typography sx={{ fontWeight: 700 }}>
+              {translate(
+                "Hur byter jag namn/lösenord eller raderar konto?",
+                "How do I change name/password or delete my account?"
+              )}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
+            <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
+              {translate(
+                "Öppna kugghjulet i Mina sidor. I Inställningar finns flikarna Profil, Lösenord och Radera konto. Kontoradering är permanent och kräver både lösenord och exakt e-postbekräftelse.",
+                "Open the gear icon in My Page. In Settings you have Profile, Password, and Delete account tabs. Account deletion is permanent and requires both password and exact email confirmation."
+              )}
+            </Typography>
+          </AccordionDetails>
+        </Accordion>
       </Stack>
     </Box>
   );

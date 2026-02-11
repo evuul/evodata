@@ -553,10 +553,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         "gameshow",
         "fairvalue",
         "report",
-        "faq",
         "money",
         "buybacks",
         "short",
+        "faq",
       ]),
     []
   );
@@ -615,10 +615,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       { value: "gameshow", label: translate("Forecast Earnings", "Forecast earnings") },
       { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
       { value: "report", label: translate("Rapportanalys", "Report analysis") },
-      { value: "faq", label: translate("FAQ", "FAQ") },
       { value: "money", label: translate("Live Money", "Live money") },
       { value: "buybacks", label: translate("Återköp", "Buybacks") },
       { value: "short", label: translate("Blankning", "Short interest") },
+      { value: "faq", label: translate("FAQ", "FAQ") },
     ],
     [translate]
   );

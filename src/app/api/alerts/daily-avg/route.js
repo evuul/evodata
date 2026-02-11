@@ -20,6 +20,11 @@ const TEST_ONLY_ADMIN = ["1", "true", "yes"].includes(
   String(process.env.ALERTS_TEST_ONLY_ADMIN || "").trim().toLowerCase()
 );
 const SETTINGS_KEY = "alerts:settings";
+const SEND_HOUR_RAW = Number(process.env.DAILY_AVG_SEND_HOUR_STOCKHOLM);
+const SEND_HOUR_STOCKHOLM =
+  Number.isFinite(SEND_HOUR_RAW) && SEND_HOUR_RAW >= 0 && SEND_HOUR_RAW <= 23
+    ? Math.floor(SEND_HOUR_RAW)
+    : 6; // default 06:00 Stockholm
 
 const resolveTestOnlyAdmin = (raw) => {
   if (typeof raw?.testOnlyAdmin === "boolean") return raw.testOnlyAdmin;
@@ -175,9 +180,9 @@ async function handler(req) {
     return json({ ok: false, error: "Could not resolve Stockholm time" }, { status: 500 });
   }
 
-  // Run hourly (UTC) but only send once per day and only during Stockholm early morning window.
-  // This ensures "yesterday" is complete.
-  const withinWindow = stockholmHour >= 0 && stockholmHour < 6;
+  // Run hourly (UTC) but send at one fixed local Stockholm hour.
+  // This ensures predictable timing and that "yesterday" is typically complete.
+  const atScheduledHour = stockholmHour === SEND_HOUR_STOCKHOLM;
   const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
 
   const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
@@ -208,14 +213,15 @@ async function handler(req) {
     prevYmd = dateKeys[idx - 1];
   }
 
-  if (!withinWindow && !dryRun && !forceSend) {
+  if (!atScheduledHour && !dryRun && !forceSend) {
     return json({
       ok: true,
       dryRun,
       sent: 0,
       skipped: true,
-      reason: "Outside Stockholm send window",
+      reason: "Outside Stockholm scheduled send hour",
       stockholmHour,
+      scheduledHour: SEND_HOUR_STOCKHOLM,
       targetYmd,
       prevYmd,
     });
@@ -316,6 +322,7 @@ async function handler(req) {
     recipients: recipients.map((r) => r.email),
     testOnlyAdmin: effectiveTestOnlyAdmin,
     stockholmHour,
+    scheduledHour: SEND_HOUR_STOCKHOLM,
     forceSend,
     targetYmd,
     prevYmd,
