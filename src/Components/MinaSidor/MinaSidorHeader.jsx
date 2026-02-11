@@ -5,6 +5,7 @@ import NextLink from "next/link";
 import { Box, Button, Link, Stack, ToggleButton, ToggleButtonGroup, Typography, IconButton, Menu, MenuItem } from "@mui/material";
 import Switch from "@mui/material/Switch";
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
+import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
 import { LOCALE_OPTIONS, useLocale } from "@/context/LocaleContext";
 import { liveDot, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
@@ -13,7 +14,7 @@ export default function MinaSidorHeader({
   translate,
   totalLivePlayers,
   onManageHoldings,
-  onOpenPasswordDialog,
+  onOpenSettings,
   onOpenSupport,
   supportIndicator,
   athEmailEnabled,
@@ -21,6 +22,9 @@ export default function MinaSidorHeader({
   notificationsSaving,
   onToggleAthEmail,
   onToggleDailyAvgEmail,
+  isAdminView,
+  onPreviewUserSupportNotice,
+  onPreviewAdminSupportNotice,
   greetingName,
   currentPrice,
   todaysChangePercent,
@@ -70,6 +74,17 @@ export default function MinaSidorHeader({
         </Link>
 
         <Stack direction="row" spacing={1} alignItems="center">
+          <IconButton
+            onClick={onOpenSettings}
+            size="small"
+            sx={{
+              color: "rgba(226,232,240,0.75)",
+              "&:hover": { color: "#fff", backgroundColor: "rgba(255,255,255,0.05)" }
+            }}
+          >
+            <SettingsRoundedIcon fontSize="small" />
+          </IconButton>
+
           {/* Notification Menu Button (Mobile & Desktop) */}
           <IconButton
             onClick={handleNotifClick}
@@ -168,6 +183,48 @@ export default function MinaSidorHeader({
                     "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "rgba(16,185,129,0.35)!important" },
                   }}
                 />
+              </Stack>
+            </MenuItem>
+
+            <MenuItem disableRipple sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default", pt: 1.3, borderTop: "1px solid rgba(148,163,184,0.15)" }}>
+              <Stack spacing={0.9} sx={{ width: "100%" }}>
+                <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "rgba(226,232,240,0.78)" }}>
+                  {translate("Preview notiser", "Preview notifications")}
+                </Typography>
+                <Stack direction="row" spacing={0.8} flexWrap="wrap">
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => onPreviewUserSupportNotice?.()}
+                    sx={{
+                      textTransform: "none",
+                      color: "#e2e8f0",
+                      borderColor: "rgba(148,163,184,0.4)",
+                      fontSize: "0.75rem",
+                      py: 0.2,
+                      px: 1,
+                    }}
+                  >
+                    {translate("Som användare", "As user")}
+                  </Button>
+                  {isAdminView ? (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => onPreviewAdminSupportNotice?.()}
+                      sx={{
+                        textTransform: "none",
+                        color: "#e2e8f0",
+                        borderColor: "rgba(148,163,184,0.4)",
+                        fontSize: "0.75rem",
+                        py: 0.2,
+                        px: 1,
+                      }}
+                    >
+                      {translate("Som admin", "As admin")}
+                    </Button>
+                  ) : null}
+                </Stack>
               </Stack>
             </MenuItem>
           </Menu>
@@ -326,7 +383,7 @@ export default function MinaSidorHeader({
               </Button>
               <Button
                 variant="outlined"
-                onClick={onOpenPasswordDialog}
+                onClick={onOpenSettings}
                 sx={{
                   py: 1,
                   px: 2,
@@ -340,7 +397,7 @@ export default function MinaSidorHeader({
                   },
                 }}
               >
-                {translate("Byt lösenord", "Change password")}
+                {translate("Inställningar", "Settings")}
               </Button>
             </Stack>
           </Stack>
