@@ -6,7 +6,7 @@ import { Alert, Button, Snackbar } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
 
-const POLL_MS = 45_000;
+const POLL_MS = 20_000;
 const PREVIEW_EVENT = "evodata.support.notify.preview";
 
 const toMs = (value) => {
@@ -84,16 +84,19 @@ export default function SupportNotificationWatcher() {
       const tickets = Array.isArray(payload?.tickets) ? payload.tickets : [];
       const replied = tickets.filter((t) => Boolean(t?.hasReply) && String(t?.status || "").toLowerCase() === "answered");
       const latestReplyAt = replied.reduce((max, t) => Math.max(max, toMs(t?.updatedAt)), 0);
-      if (!latestReplyAt) return;
 
       let seenAt = getNumberFromStorage(userReplyStorageKey);
-      if (!userBootstrappedRef.current) {
+      const isFirstPoll = !userBootstrappedRef.current;
+      if (isFirstPoll) {
         userBootstrappedRef.current = true;
-        if (!seenAt) {
+        // Avoid firing old replies on first mount.
+        if (!seenAt && latestReplyAt > 0) {
           setNumberInStorage(userReplyStorageKey, latestReplyAt);
           return;
         }
       }
+
+      if (!latestReplyAt) return;
 
       if (latestReplyAt <= seenAt) return;
 
@@ -125,16 +128,19 @@ export default function SupportNotificationWatcher() {
         (t) => String(t?.status || "").toLowerCase() === "open" && !Boolean(t?.hasReply)
       );
       const latestCreatedAt = openUnanswered.reduce((max, t) => Math.max(max, toMs(t?.createdAt)), 0);
-      if (!latestCreatedAt) return;
 
       let seenCreatedAt = getNumberFromStorage(adminTicketStorageKey);
-      if (!adminBootstrappedRef.current) {
+      const isFirstPoll = !adminBootstrappedRef.current;
+      if (isFirstPoll) {
         adminBootstrappedRef.current = true;
-        if (!seenCreatedAt) {
+        // Avoid firing historical open tickets on first mount.
+        if (!seenCreatedAt && latestCreatedAt > 0) {
           setNumberInStorage(adminTicketStorageKey, latestCreatedAt);
           return;
         }
       }
+
+      if (!latestCreatedAt) return;
 
       if (latestCreatedAt <= seenCreatedAt) return;
 

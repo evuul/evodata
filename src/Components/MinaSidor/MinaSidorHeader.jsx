@@ -186,28 +186,28 @@ export default function MinaSidorHeader({
               </Stack>
             </MenuItem>
 
-            <MenuItem disableRipple sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default", pt: 1.3, borderTop: "1px solid rgba(148,163,184,0.15)" }}>
-              <Stack spacing={0.9} sx={{ width: "100%" }}>
-                <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "rgba(226,232,240,0.78)" }}>
-                  {translate("Preview notiser", "Preview notifications")}
-                </Typography>
-                <Stack direction="row" spacing={0.8} flexWrap="wrap">
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => onPreviewUserSupportNotice?.()}
-                    sx={{
-                      textTransform: "none",
-                      color: "#e2e8f0",
-                      borderColor: "rgba(148,163,184,0.4)",
-                      fontSize: "0.75rem",
-                      py: 0.2,
-                      px: 1,
-                    }}
-                  >
-                    {translate("Som användare", "As user")}
-                  </Button>
-                  {isAdminView ? (
+            {isAdminView ? (
+              <MenuItem disableRipple sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default", pt: 1.3, borderTop: "1px solid rgba(148,163,184,0.15)" }}>
+                <Stack spacing={0.9} sx={{ width: "100%" }}>
+                  <Typography sx={{ fontSize: "0.8rem", fontWeight: 700, color: "rgba(226,232,240,0.78)" }}>
+                    {translate("Preview notiser", "Preview notifications")}
+                  </Typography>
+                  <Stack direction="row" spacing={0.8} flexWrap="wrap">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => onPreviewUserSupportNotice?.()}
+                      sx={{
+                        textTransform: "none",
+                        color: "#e2e8f0",
+                        borderColor: "rgba(148,163,184,0.4)",
+                        fontSize: "0.75rem",
+                        py: 0.2,
+                        px: 1,
+                      }}
+                    >
+                      {translate("Som användare", "As user")}
+                    </Button>
                     <Button
                       size="small"
                       variant="outlined"
@@ -223,10 +223,10 @@ export default function MinaSidorHeader({
                     >
                       {translate("Som admin", "As admin")}
                     </Button>
-                  ) : null}
+                  </Stack>
                 </Stack>
-              </Stack>
-            </MenuItem>
+              </MenuItem>
+            ) : null}
           </Menu>
 
           <ToggleButtonGroup
