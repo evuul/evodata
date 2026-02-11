@@ -4,6 +4,7 @@ import dividendData from "@/app/data/dividendData.json";
 import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
+import { isBuyEligibleForDividend } from "@/lib/dividendEligibility";
 
 export function usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive }) {
     const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
@@ -185,38 +186,24 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         const lots = Array.isArray(profile?.lots) ? profile.lots : [];
         const historical = Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : [];
         if (!historical.length) return null;
-        const normalizeDate = (value) => {
-            const d = new Date(value);
-            if (Number.isNaN(d.getTime())) return null;
-            d.setHours(0, 0, 0, 0);
-            return d;
-        };
         if (lots.length) {
             const total = lots.reduce((sum, lot) => {
                 const lotShares = Number(lot?.shares ?? 0);
                 if (!(lotShares > 0) || !lot?.date) return sum;
-                const lotDate = normalizeDate(lot.date);
-                if (!lotDate) return sum;
                 const lotDividend = historical.reduce((acc, row) => {
                     const perShare = Number(row?.dividendPerShare);
-                    if (!Number.isFinite(perShare) || !row?.date) return acc;
-                    const divDate = normalizeDate(row.date);
-                    if (!divDate) return acc;
-                    return divDate >= lotDate ? acc + perShare : acc;
+                    if (!Number.isFinite(perShare) || perShare <= 0) return acc;
+                    return isBuyEligibleForDividend(lot.date, row) ? acc + perShare : acc;
                 }, 0);
                 return sum + lotDividend * lotShares;
             }, 0);
             return total;
         }
         if (!acquisitionDateValue || !(profile.shares > 0)) return null;
-        const start = normalizeDate(acquisitionDateValue);
-        if (!start) return null;
         const sumPerShare = historical.reduce((sum, row) => {
             const perShare = Number(row?.dividendPerShare);
-            if (!Number.isFinite(perShare) || !row?.date) return sum;
-            const d = normalizeDate(row.date);
-            if (!d) return sum;
-            return d >= start ? sum + perShare : sum;
+            if (!Number.isFinite(perShare) || perShare <= 0) return sum;
+            return isBuyEligibleForDividend(acquisitionDateValue, row) ? sum + perShare : sum;
         }, 0);
         return sumPerShare * profile.shares;
     }, [acquisitionDateValue, profile?.lots, profile.shares]);

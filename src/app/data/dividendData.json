@@ -2,33 +2,69 @@
   "historicalDividends": [
     {
       "date": "2020-06-18",
+      "exDate": "2020-06-18",
+      "paymentDate": "2020-06-29",
       "dividendPerShare": 4.42,
       "sharePriceAtDividend": 588
     },
     {
       "date": "2021-04-19",
+      "exDate": "2021-04-19",
+      "paymentDate": "2021-04-27",
       "dividendPerShare": 6.87,
       "sharePriceAtDividend": 1426
     },
     {
       "date": "2022-04-11",
+      "exDate": "2022-04-11",
+      "paymentDate": "2022-04-21",
       "dividendPerShare": 14.60,
       "sharePriceAtDividend": 986
     },
     {
       "date": "2023-04-05",
+      "exDate": "2023-04-05",
+      "paymentDate": "2023-04-17",
       "dividendPerShare": 22.63,
       "sharePriceAtDividend": 1369
     },
     {
       "date": "2024-04-29",
+      "exDate": "2024-04-29",
+      "paymentDate": "2024-05-08",
       "dividendPerShare": 31.01,
       "sharePriceAtDividend": 1224
     },
     {
       "date": "2025-05-12",
+      "exDate": "2025-05-12",
+      "paymentDate": "2025-05-20",
       "dividendPerShare": 32.07,
       "sharePriceAtDividend": 657.2
+    },
+    {
+      "date": "2019-04-29",
+      "exDate": "2019-04-29",
+      "paymentDate": "2019-05-06",
+      "dividendPerShare": 2.545
+    },
+    {
+      "date": "2018-04-23",
+      "exDate": "2018-04-23",
+      "paymentDate": "2018-05-02",
+      "dividendPerShare": 1.8691
+    },
+    {
+      "date": "2017-04-24",
+      "exDate": "2017-04-24",
+      "paymentDate": "2017-04-28",
+      "dividendPerShare": 0.8671
+    },
+    {
+      "date": "2016-04-29",
+      "exDate": "2016-04-29",
+      "paymentDate": "2016-05-06",
+      "dividendPerShare": 0.5854
     }
   ],
   "plannedDividends": []

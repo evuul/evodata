@@ -6,6 +6,15 @@ import { actionCard, buttonStyles, statusColors, text } from "./styles";
 
 const EVOLUTION_ISIN = "SE0012673267";
 
+const normalizeTransactionType = (rawType) => {
+  const t = String(rawType || "").trim().toLowerCase();
+  if (t === "köp" || t === "buy") return "buy";
+  if (t === "sälj" || t === "sell") return "sell";
+  // Treat transfer-in as buy so account moves don't break FIFO import.
+  if (t === "värdepappersinsättning" || t === "insättning") return "buy";
+  return null;
+};
+
 const parseSvNumber = (value) => {
   if (value == null) return null;
   const cleaned = String(value)
@@ -84,7 +93,7 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
         rawDesc.toLowerCase().startsWith("evolution ");
       if (!isEvolution) continue;
 
-      const type = rawType === "Köp" ? "buy" : rawType === "Sälj" ? "sell" : null;
+      const type = normalizeTransactionType(rawType);
       if (!type) continue;
 
       const shares = Math.abs(Math.round(parseSvNumber(rawQty) ?? 0));
@@ -100,6 +109,7 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
         shares,
         price: type === "buy" ? price : price ?? null,
         fee: Number.isFinite(fee) && fee > 0 ? fee : 0,
+        sourceOrder: i,
       });
     }
 
@@ -113,7 +123,12 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
       return;
     }
 
-    trades.sort((a, b) => a.date.localeCompare(b.date));
+    trades.sort((a, b) => {
+      const c = a.date.localeCompare(b.date);
+      if (c !== 0) return c;
+      if (a.type !== b.type) return a.type === "buy" ? -1 : 1;
+      return (a.sourceOrder ?? 0) - (b.sourceOrder ?? 0);
+    });
     const buyCount = trades.filter((t) => t.type === "buy").length;
     const sellCount = trades.filter((t) => t.type === "sell").length;
     const buySharesTotal = trades.filter((t) => t.type === "buy").reduce((s, t) => s + t.shares, 0);

@@ -4,11 +4,7 @@ import { useMemo } from "react";
 import { Box, Stack, Typography } from "@mui/material";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { cardBase, text } from "./styles";
-
-const normalizeYmd = (value) => {
-  const s = String(value || "").trim().slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
-};
+import { normalizeYmd, resolveDividendExDate } from "@/lib/dividendEligibility";
 
 const sumShares = (lots) =>
   (Array.isArray(lots) ? lots : []).reduce((sum, lot) => sum + Math.max(0, Number(lot?.shares) || 0), 0);
@@ -37,10 +33,11 @@ const computeYearSeries = ({ transactions, lots, historicalDividends }) => {
   const divs = (Array.isArray(historicalDividends) ? historicalDividends : [])
     .map((d) => ({
       date: normalizeYmd(d?.date),
+      exDate: resolveDividendExDate(d),
       perShare: Number(d?.dividendPerShare),
     }))
-    .filter((d) => d.date && Number.isFinite(d.perShare) && d.perShare > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .filter((d) => d.date && d.exDate && Number.isFinite(d.perShare) && d.perShare > 0)
+    .sort((a, b) => a.exDate.localeCompare(b.exDate));
 
   if (!divs.length) return [];
 
@@ -81,8 +78,8 @@ const computeYearSeries = ({ transactions, lots, historicalDividends }) => {
   let i = 0;
 
   for (const div of divs) {
-    // Apply transactions up to and including dividend date.
-    while (i < timeline.length && timeline[i].date <= div.date) {
+    // Shares held before X-day are dividend-eligible.
+    while (i < timeline.length && timeline[i].date < div.exDate) {
       const t = timeline[i];
       if (t.type === "buy") {
         lotState.push({ shares: t.shares, date: t.date, price: t.price, fee: t.fee });
@@ -179,4 +176,3 @@ export default function DividendYearChart({ translate, profile, historicalDivide
     </Box>
   );
 }
-

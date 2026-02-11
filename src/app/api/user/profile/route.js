@@ -190,7 +190,7 @@ export async function PUT(request) {
     }
 
     const normalized = incoming
-      .map((t) => {
+      .map((t, idx) => {
         const type = t?.type === "buy" || t?.type === "sell" ? t.type : null;
         const dateRaw = typeof t?.date === "string" ? t.date.trim().slice(0, 10) : "";
         const date = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : null;
@@ -199,13 +199,20 @@ export async function PUT(request) {
         const price = Number.isFinite(priceNum) && priceNum > 0 ? priceNum : null;
         const feeNum = Number(t?.fee);
         const fee = Number.isFinite(feeNum) && feeNum > 0 ? feeNum : 0;
+        const sourceOrderNum = Number(t?.sourceOrder);
+        const sourceOrder = Number.isFinite(sourceOrderNum) ? sourceOrderNum : idx;
         if (!type || !date) return null;
         if (!(Number.isFinite(sharesNum) && sharesNum > 0)) return null;
         if (type === "buy" && price == null) return null;
-        return { type, date, shares: sharesNum, price, fee };
+        return { type, date, shares: sharesNum, price, fee, sourceOrder };
       })
       .filter(Boolean)
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a, b) => {
+        const c = a.date.localeCompare(b.date);
+        if (c !== 0) return c;
+        if (a.type !== b.type) return a.type === "buy" ? -1 : 1;
+        return a.sourceOrder - b.sourceOrder;
+      });
 
     if (!normalized.length) {
       return json({ error: "Kunde inte tolka transaktionerna." }, { status: 400 });
