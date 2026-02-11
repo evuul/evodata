@@ -112,7 +112,7 @@ function ymd(dateStr) {
 
 async function fetchText(url) {
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0)' },
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoTrackerBot/1.0)' },
     cache: 'no-store',
   });
   if (!res.ok) throw new Error(`Fetch failed ${res.status}`);
