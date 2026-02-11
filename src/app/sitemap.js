@@ -1,5 +1,5 @@
 export default function sitemap() {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://evodata.app";
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://evotracker.org";
   const now = new Date();
 
   const pages = [

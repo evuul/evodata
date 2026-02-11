@@ -84,7 +84,7 @@ export async function POST(req) {
     // Optional e‑post via Resend
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
     const TO = process.env.FEEDBACK_EMAIL_TO;
-    const FROM = process.env.FEEDBACK_EMAIL_FROM || "Evolution Tracker <noreply@evodata.app>";
+    const FROM = process.env.FEEDBACK_EMAIL_FROM || "Evolution Tracker <noreply@evotracker.org>";
 
     if (RESEND_API_KEY && TO) {
       const subject = `Feedback: ${payload.category}`;

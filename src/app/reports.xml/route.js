@@ -1,6 +1,6 @@
 import data from "../data/financialReports.json";
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "https://evodata.app";
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://evotracker.org";
 const qOrder = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
 function escapeXml(str = "") {
@@ -37,7 +37,7 @@ export async function GET() {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>EvoData – Finansiella rapporter</title>
+    <title>EvoTracker – Finansiella rapporter</title>
     <link>${site}/</link>
     <description>Senaste finansiella rapporter och nyckeltal</description>
     <language>sv-SE</language>

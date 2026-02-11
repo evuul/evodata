@@ -16,7 +16,7 @@ function parsePercent(s) {
 async function fetchText(url) {
   const res = await fetch(url, {
     headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; EvoDataBot/1.0)",
+      "User-Agent": "Mozilla/5.0 (compatible; EvoTrackerBot/1.0)",
       "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
       "Referer": "https://www.fi.se/sv/vara-register/blankningsregistret/",
     },

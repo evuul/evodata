@@ -55,7 +55,7 @@ export default async function OpengraphImage() {
             fontSize: 22,
           }}
         >
-          evodata
+          EvoTracker
         </div>
       </div>
     ),

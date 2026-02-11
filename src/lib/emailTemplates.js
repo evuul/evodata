@@ -363,7 +363,7 @@ export const buildDailyAvgPlayersEmail = ({
         ? `
       <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
         <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#a7f3d0;font-weight:800;margin-bottom:8px;">
-          Top games by AVG players
+          Top games by AVG players (14d)
         </div>
         ${topRows}
       </div>

@@ -179,7 +179,7 @@ export async function GET(request) {
         if (!u.hostname.includes('news.google.com')) return url;
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 1500);
-        const res = await fetch(url, { redirect: 'follow', signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0; +https://evodata.app)' } });
+        const res = await fetch(url, { redirect: 'follow', signal: controller.signal, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoTrackerBot/1.0; +https://evotracker.org)' } });
         clearTimeout(timeout);
         if (res && res.url && !res.url.includes('news.google.com')) {
           return normalizeUrl(res.url);
@@ -206,7 +206,7 @@ export async function GET(request) {
               const tryUrls = [String(u), 'https://mfn.se/all/a/evolution', 'https://www.mfn.se/all/a/evolution'];
               for (const mu of tryUrls) {
                 try {
-                  const r = await fetch(mu, { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoDataBot/1.0)' } });
+                  const r = await fetch(mu, { cache: 'no-store', headers: { 'User-Agent': 'Mozilla/5.0 (compatible; EvoTrackerBot/1.0)' } });
                   if (!r.ok) continue;
                   const html = await r.text();
                   const items = parseMfnList(html);

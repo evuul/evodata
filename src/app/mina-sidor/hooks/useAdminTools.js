@@ -55,7 +55,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
         },
         body: JSON.stringify({
           toEmail: profileIdentity?.email || email || "alexander.ek@live.se",
-          subject: "EvoData admin mail test",
+          subject: "EvoTracker admin mail test",
         }),
       });
       const payload = await res.json().catch(() => ({}));

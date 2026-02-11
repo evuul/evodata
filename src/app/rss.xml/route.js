@@ -1,6 +1,6 @@
 import buybacks from "../data/buybackData.json";
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "https://evodata.app";
+const site = process.env.NEXT_PUBLIC_SITE_URL || "https://evotracker.org";
 
 function escapeXml(str = "") {
   return String(str)
@@ -42,9 +42,9 @@ export async function GET() {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
-    <title>EvoData – Uppdateringar</title>
+    <title>EvoTracker – Uppdateringar</title>
     <link>${site}/</link>
-    <description>Senaste återköp och uppdateringar från EvoData</description>
+    <description>Senaste återköp och uppdateringar från EvoTracker</description>
     <language>sv-SE</language>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
     ${items
