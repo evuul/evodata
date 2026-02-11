@@ -1,5 +1,7 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.AUTH_EMAIL_FROM || process.env.FEEDBACK_EMAIL_FROM;
+const DEFAULT_FROM_EMAIL = "EvoTracker <noreply@evotracker.org>";
+const RAW_FROM_EMAIL = process.env.AUTH_EMAIL_FROM || process.env.FEEDBACK_EMAIL_FROM || DEFAULT_FROM_EMAIL;
+const FROM_EMAIL = RAW_FROM_EMAIL.replace(/EvoData/gi, "EvoTracker").replace(/evodata\.app/gi, "evotracker.org");
 
 const isConfigured = () => Boolean(RESEND_API_KEY && FROM_EMAIL);
 
