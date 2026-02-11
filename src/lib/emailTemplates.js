@@ -286,35 +286,51 @@ export const buildDailyAvgPlayersEmail = ({
 
   const trendChart = (() => {
     if (trendRows.length < 2) return "";
+    const movingAverage = (rows, windowSize) =>
+      rows.map((_, idx) => {
+        const start = Math.max(0, idx - (windowSize - 1));
+        const slice = rows.slice(start, idx + 1);
+        const sum = slice.reduce((acc, row) => acc + row.avgPlayers, 0);
+        return { ...rows[idx], avgPlayers: sum / slice.length };
+      });
+    const ma7Rows = movingAverage(trendRows, 7);
+    const ma30Rows = movingAverage(trendRows, 30);
     const width = 560;
     const height = 170;
     const padX = 14;
     const padY = 14;
-    const min = Math.min(...trendRows.map((r) => r.avgPlayers));
-    const max = Math.max(...trendRows.map((r) => r.avgPlayers));
+    const min = Math.min(...ma30Rows.map((r) => r.avgPlayers));
+    const max = Math.max(...ma7Rows.map((r) => r.avgPlayers));
     const range = Math.max(1, max - min);
     const toX = (idx) =>
       padX + (idx / (trendRows.length - 1)) * (width - padX * 2);
     const toY = (value) =>
       height - padY - ((value - min) / range) * (height - padY * 2);
-    const linePath = trendRows
+    const ma7LinePath = ma7Rows
+      .map((r, idx) => `${idx === 0 ? "M" : "L"} ${toX(idx).toFixed(2)} ${toY(r.avgPlayers).toFixed(2)}`)
+      .join(" ");
+    const ma30LinePath = ma30Rows
       .map((r, idx) => `${idx === 0 ? "M" : "L"} ${toX(idx).toFixed(2)} ${toY(r.avgPlayers).toFixed(2)}`)
       .join(" ");
     const areaPath =
-      `${linePath} L ${toX(trendRows.length - 1).toFixed(2)} ${(height - padY).toFixed(2)} ` +
+      `${ma7LinePath} L ${toX(trendRows.length - 1).toFixed(2)} ${(height - padY).toFixed(2)} ` +
       `L ${toX(0).toFixed(2)} ${(height - padY).toFixed(2)} Z`;
     const firstDate = escapeHtml(trendRows[0]?.ymd || "");
     const lastDate = escapeHtml(trendRows[trendRows.length - 1]?.ymd || "");
     const minLabel = Math.round(min).toLocaleString("sv-SE");
     const maxLabel = Math.round(max).toLocaleString("sv-SE");
-    const latestLabel = Math.round(trendRows[trendRows.length - 1]?.avgPlayers || 0).toLocaleString("sv-SE");
+    const latestMa7Label = Math.round(ma7Rows[ma7Rows.length - 1]?.avgPlayers || 0).toLocaleString("sv-SE");
+    const latestMa30Label = Math.round(ma30Rows[ma30Rows.length - 1]?.avgPlayers || 0).toLocaleString("sv-SE");
 
     return `
       <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
         <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#7dd3fc;font-weight:800;margin-bottom:8px;">
           AVG players trend (90d)
         </div>
-        <svg viewBox="0 0 ${width} ${height}" width="100%" height="170" role="img" aria-label="90-day average players trend">
+        <div style="font-size:12px;color:#94a3b8;margin-bottom:8px;">
+          Smoothed with MA7 (short trend) and MA30 (long trend)
+        </div>
+        <svg viewBox="0 0 ${width} ${height}" width="100%" height="170" role="img" aria-label="90-day average players trend moving average">
           <defs>
             <linearGradient id="avgTrendFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.35" />
@@ -323,14 +339,20 @@ export const buildDailyAvgPlayersEmail = ({
           </defs>
           <rect x="0" y="0" width="${width}" height="${height}" fill="rgba(2,6,23,0.35)" rx="10" />
           <path d="${areaPath}" fill="url(#avgTrendFill)" />
-          <path d="${linePath}" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-          <circle cx="${toX(trendRows.length - 1).toFixed(2)}" cy="${toY(trendRows[trendRows.length - 1].avgPlayers).toFixed(2)}" r="4.5" fill="#f8fafc" stroke="#38bdf8" stroke-width="2" />
+          <path d="${ma30LinePath}" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.95" />
+          <path d="${ma7LinePath}" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="${toX(ma7Rows.length - 1).toFixed(2)}" cy="${toY(ma7Rows[ma7Rows.length - 1].avgPlayers).toFixed(2)}" r="4.5" fill="#f8fafc" stroke="#38bdf8" stroke-width="2" />
         </svg>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;color:#94a3b8;font-size:12px;">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#38bdf8;margin-right:6px;"></span>MA7</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:#fbbf24;margin-right:6px;"></span>MA30</span>
+        </div>
         <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:6px;color:#94a3b8;font-size:12px;">
           <span>${firstDate}</span>
           <span>Min: ${minLabel}</span>
           <span>Max: ${maxLabel}</span>
-          <span>Latest: <strong style="color:#e2e8f0;">${latestLabel}</strong></span>
+          <span>Latest MA7: <strong style="color:#e2e8f0;">${latestMa7Label}</strong></span>
+          <span>Latest MA30: <strong style="color:#fde68a;">${latestMa30Label}</strong></span>
           <span>${lastDate}</span>
         </div>
       </div>
