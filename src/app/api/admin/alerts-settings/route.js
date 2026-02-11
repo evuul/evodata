@@ -7,6 +7,9 @@ export const revalidate = 0;
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 const SETTINGS_KEY = "alerts:settings";
+const TEST_ONLY_ADMIN_ENV = ["1", "true", "yes"].includes(
+  String(process.env.ALERTS_TEST_ONLY_ADMIN || "").trim().toLowerCase()
+);
 
 const json = (data, init = {}) =>
   NextResponse.json(data, {
@@ -29,7 +32,7 @@ const resolveUserFromToken = async (token) => {
 };
 
 const defaults = (raw) => ({
-  testOnlyAdmin: Boolean(raw?.testOnlyAdmin),
+  testOnlyAdmin: typeof raw?.testOnlyAdmin === "boolean" ? raw.testOnlyAdmin : TEST_ONLY_ADMIN_ENV,
   athEnabled: raw?.athEnabled === false ? false : true,
   dailyAvgEnabled: raw?.dailyAvgEnabled === false ? false : true,
 });
@@ -69,4 +72,3 @@ export async function PUT(request) {
   await setJson(SETTINGS_KEY, next);
   return json({ ok: true, settings: defaults(next) });
 }
-

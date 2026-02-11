@@ -21,6 +21,11 @@ const TEST_ONLY_ADMIN = ["1", "true", "yes"].includes(
 );
 const SETTINGS_KEY = "alerts:settings";
 
+const resolveTestOnlyAdmin = (raw) => {
+  if (typeof raw?.testOnlyAdmin === "boolean") return raw.testOnlyAdmin;
+  return TEST_ONLY_ADMIN;
+};
+
 const TZ = "Europe/Stockholm";
 const STOCKHOLM_PARTS = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
@@ -155,8 +160,7 @@ async function handler(req) {
 
   const settingsRaw = (await getJson(SETTINGS_KEY)) || {};
   const dailyAvgEnabled = settingsRaw?.dailyAvgEnabled === false ? false : true;
-  const testOnlyAdminSetting = Boolean(settingsRaw?.testOnlyAdmin);
-  const effectiveTestOnlyAdmin = TEST_ONLY_ADMIN || testOnlyAdminSetting;
+  const effectiveTestOnlyAdmin = resolveTestOnlyAdmin(settingsRaw);
 
   if (!dailyAvgEnabled) {
     return json({ ok: true, dryRun, sent: 0, skipped: true, reason: "Daily AVG alerts disabled" });
@@ -310,6 +314,7 @@ async function handler(req) {
     dryRun,
     sent,
     recipients: recipients.map((r) => r.email),
+    testOnlyAdmin: effectiveTestOnlyAdmin,
     stockholmHour,
     forceSend,
     targetYmd,
