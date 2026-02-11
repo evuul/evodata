@@ -313,7 +313,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         profile, setProfile,
         loading, setLoading,
         error, setError,
-        profileIdentity,
+        profileIdentity, setProfileIdentity,
         isAdminUser,
         effectiveIsAdmin,
         athEmailEnabled, setAthEmailEnabled,

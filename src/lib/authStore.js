@@ -82,6 +82,19 @@ export const addUserToIndex = async (email) => {
   });
 };
 
+export const removeUserFromIndex = async (email) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  if (!normalizedEmail) return;
+  const key = getUserIndexKey();
+  const index = (await getJson(key)) || {};
+  const emails = Array.isArray(index?.emails) ? index.emails : [];
+  if (!emails.includes(normalizedEmail)) return;
+  await setJson(key, {
+    emails: emails.filter((value) => value !== normalizedEmail),
+    updatedAt: new Date().toISOString(),
+  });
+};
+
 export const deleteKey = async (key) => {
   await upstashRequest(`/del/${encodeURIComponent(key)}`, {
     method: "POST",

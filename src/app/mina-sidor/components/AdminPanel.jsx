@@ -17,6 +17,7 @@ export function AdminPanel({
     handleAdminMailPreview,
     handleAdminAthPreview,
     handleAdminDailyAvgPreview,
+    handleAdminDailyAvgSendNow,
     loadAdminActivity,
     loadAdminUsers,
     loadAdminSupport,
@@ -333,6 +334,24 @@ export function AdminPanel({
                             }}
                         >
                             {translate("Preview daily AVG", "Preview daily AVG")}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleAdminDailyAvgSendNow}
+                            disabled={mailTestLoading}
+                            sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(14,165,233,0.5)",
+                                color: "#7dd3fc",
+                                "&:hover": {
+                                    borderColor: "rgba(14,165,233,0.8)",
+                                    backgroundColor: "rgba(14,165,233,0.1)",
+                                },
+                            }}
+                        >
+                            {mailTestLoading
+                                ? translate("Skickar daily AVG...", "Sending daily AVG...")
+                                : translate("Skicka daily AVG nu", "Send daily AVG now")}
                         </Button>
                     </Stack>
                 </Stack>

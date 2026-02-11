@@ -158,6 +158,49 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
+  const handleAdminDailyAvgSendNow = async () => {
+    if (!token) return;
+    try {
+      setMailTestLoading(true);
+      setMailTestMessage("");
+      const res = await fetch("/api/admin/daily-avg-send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ force: true }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMailTestMessage(payload?.error || translate("Kunde inte skicka daily AVG.", "Could not send daily AVG."));
+        return;
+      }
+      const sent = Number(payload?.result?.sent || 0);
+      const targetYmd = payload?.result?.targetYmd || "";
+      if (sent > 0) {
+        setMailTestMessage(
+          translate(
+            `Daily AVG utskickat till ${sent} mottagare${targetYmd ? ` (${targetYmd})` : ""}.`,
+            `Daily AVG sent to ${sent} recipients${targetYmd ? ` (${targetYmd})` : ""}.`
+          )
+        );
+      } else {
+        const reason = payload?.result?.reason || "";
+        setMailTestMessage(
+          translate(
+            `Inget skickades${reason ? `: ${reason}` : "."}`,
+            `Nothing was sent${reason ? `: ${reason}` : "."}`
+          )
+        );
+      }
+    } catch {
+      setMailTestMessage(translate("Kunde inte skicka daily AVG.", "Could not send daily AVG."));
+    } finally {
+      setMailTestLoading(false);
+    }
+  };
+
   const loadAdminActivity = async () => {
     if (!token) return;
     try {
@@ -458,6 +501,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     handleAdminMailTest,
     handleAdminMailPreview,
     handleAdminAthPreview,
-    handleAdminDailyAvgPreview
+    handleAdminDailyAvgPreview,
+    handleAdminDailyAvgSendNow
   };
 }

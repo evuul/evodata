@@ -97,6 +97,9 @@ async function handler(req) {
 
   const { searchParams } = new URL(req.url);
   const dryRun = searchParams.get("dryRun") === "1";
+  const forceSend = searchParams.get("force") === "1";
+  const targetYmdParam = String(searchParams.get("targetYmd") || "").trim();
+  const hasExplicitTarget = /^\d{4}-\d{2}-\d{2}$/.test(targetYmdParam);
 
   const settingsRaw = (await getJson(SETTINGS_KEY)) || {};
   const dailyAvgEnabled = settingsRaw?.dailyAvgEnabled === false ? false : true;
@@ -128,11 +131,28 @@ async function handler(req) {
     return json({ ok: true, dryRun, sent: 0, skipped: true, reason: "Not enough daily data" });
   }
 
-  // dateKeys includes today as last. We want yesterday and day-before.
-  const targetYmd = dateKeys[dateKeys.length - 2];
-  const prevYmd = dateKeys[dateKeys.length - 3];
+  // dateKeys includes today as last. Default target is yesterday and prev is day-before.
+  let targetYmd = dateKeys[dateKeys.length - 2];
+  let prevYmd = dateKeys[dateKeys.length - 3];
+  if (hasExplicitTarget) {
+    const idx = dateKeys.lastIndexOf(targetYmdParam);
+    if (idx <= 0) {
+      return json(
+        {
+          ok: false,
+          error: "targetYmd is outside available daily data range",
+          targetYmd: targetYmdParam,
+          availableFrom: dateKeys[0],
+          availableTo: dateKeys[dateKeys.length - 1],
+        },
+        { status: 400 }
+      );
+    }
+    targetYmd = dateKeys[idx];
+    prevYmd = dateKeys[idx - 1];
+  }
 
-  if (!withinWindow && !dryRun) {
+  if (!withinWindow && !dryRun && !forceSend) {
     return json({
       ok: true,
       dryRun,
@@ -145,7 +165,7 @@ async function handler(req) {
     });
   }
 
-  if (!dryRun && lastSentYmd === targetYmd) {
+  if (!dryRun && !forceSend && lastSentYmd === targetYmd) {
     return json({
       ok: true,
       dryRun,
@@ -236,6 +256,7 @@ async function handler(req) {
     sent,
     recipients: recipients.map((r) => r.email),
     stockholmHour,
+    forceSend,
     targetYmd,
     prevYmd,
     totalAvgPlayers: target.totalAvgPlayers,

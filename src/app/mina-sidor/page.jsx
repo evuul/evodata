@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Box, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { useStockPriceContext } from "@/context/StockPriceContext";
@@ -24,12 +25,13 @@ import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions"
 import { useAdminTools } from "@/app/mina-sidor/hooks/useAdminTools";
 import { AdminPanel } from "@/app/mina-sidor/components/AdminPanel";
 import { AdminDialogs } from "@/app/mina-sidor/components/AdminDialogs";
-import { PasswordDialog } from "@/app/mina-sidor/components/PasswordDialog";
+import { AccountSettingsDialog } from "@/app/mina-sidor/components/AccountSettingsDialog";
 
 export default function MinaSidorPage() {
   const translate = useTranslate();
   const { locale } = useLocale();
-  const { token, isAuthenticated, initialized, user, changePassword } = useAuth();
+  const router = useRouter();
+  const { token, isAuthenticated, initialized, user, changePassword, logout } = useAuth();
   const { stockPrice } = useStockPriceContext();
   const { data: playersLive } = usePlayersLive();
 
@@ -38,7 +40,7 @@ export default function MinaSidorPage() {
     profile, setProfile,
     loading, setLoading,
     error, setError,
-    profileIdentity,
+    profileIdentity, setProfileIdentity,
     effectiveIsAdmin,
     athEmailEnabled, setAthEmailEnabled,
     dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
@@ -89,6 +91,7 @@ export default function MinaSidorPage() {
   // --- Local State ---
   const [ownershipView, setOwnershipView] = useState("after");
   const [manageOpen, setManageOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportIndicator, setSupportIndicator] = useState(null); // null | "open" | "reply"
 
@@ -102,16 +105,16 @@ export default function MinaSidorPage() {
   const [setAvgCost, setSetAvgCost] = useState("");
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
 
-  // Password Modal State
-  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordLoading, setPasswordLoading] = useState(false);
-  const [passwordError, setPasswordError] = useState("");
-  const [passwordSuccess, setPasswordSuccess] = useState("");
-
   const [notificationsSaving, setNotificationsSaving] = useState(false);
+
+  const triggerSupportPreview = (type) => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent("evodata.support.notify.preview", {
+        detail: { type },
+      })
+    );
+  };
 
   // --- Handlers ---
 
@@ -206,44 +209,48 @@ export default function MinaSidorPage() {
     }
   };
 
-  // Password Handlers
-  const handleOpenPasswordDialog = () => {
-    setPasswordError("");
-    setPasswordSuccess("");
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setPasswordDialogOpen(true);
+  const handleSaveProfileSettings = async ({ firstName, lastName }) => {
+    if (!token) throw new Error(translate("Inte inloggad.", "Not logged in."));
+    const res = await fetch("/api/user/account", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ firstName, lastName }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload?.error || translate("Kunde inte uppdatera profil.", "Could not update profile."));
+    }
+    setProfileIdentity((prev) => ({
+      ...prev,
+      firstName: payload?.user?.firstName ?? firstName,
+      lastName: payload?.user?.lastName ?? lastName,
+    }));
   };
 
-  const handleSubmitPasswordChange = async () => {
-    if (!token) return;
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordError(translate("Fyll i alla fält.", "Fill in all fields."));
-      return;
+  const handleChangePasswordSettings = async ({ currentPassword, newPassword }) => {
+    if (!token) throw new Error(translate("Inte inloggad.", "Not logged in."));
+    await changePassword({ token, currentPassword, newPassword });
+  };
+
+  const handleDeleteAccount = async ({ currentPassword, confirmation }) => {
+    if (!token) throw new Error(translate("Inte inloggad.", "Not logged in."));
+    const res = await fetch("/api/user/account", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ currentPassword, confirmation }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload?.error || translate("Kunde inte radera kontot.", "Could not delete account."));
     }
-    if (newPassword.length < 8) {
-      setPasswordError(translate("Nytt lösenord måste vara minst 8 tecken.", "New password must be at least 8 characters."));
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError(translate("Lösenorden matchar inte.", "Passwords do not match."));
-      return;
-    }
-    try {
-      setPasswordLoading(true);
-      setPasswordError("");
-      setPasswordSuccess("");
-      await changePassword({ token, currentPassword, newPassword });
-      setPasswordSuccess(translate("Lösenordet är uppdaterat.", "Password updated."));
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      setPasswordError(err?.message || translate("Kunde inte uppdatera lösenord.", "Could not update password."));
-    } finally {
-      setPasswordLoading(false);
-    }
+    logout();
+    router.push("/");
   };
 
   // Support Indicator Logic (move to page effect)
@@ -291,7 +298,7 @@ export default function MinaSidorPage() {
               translate={translate}
               totalLivePlayers={totalLivePlayers}
               onManageHoldings={handleOpenManage}
-              onOpenPasswordDialog={handleOpenPasswordDialog}
+              onOpenSettings={() => setSettingsOpen(true)}
               onOpenSupport={() => setSupportOpen(true)}
               supportIndicator={supportIndicator}
               athEmailEnabled={athEmailEnabled}
@@ -305,6 +312,9 @@ export default function MinaSidorPage() {
                 setDailyAvgEmailEnabled(Boolean(nextValue));
                 saveDailyAvgEmailEnabled(Boolean(nextValue));
               }}
+              isAdminView={effectiveIsAdmin}
+              onPreviewUserSupportNotice={() => triggerSupportPreview("user")}
+              onPreviewAdminSupportNotice={() => triggerSupportPreview("admin")}
               greetingName={greetingName}
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
@@ -558,20 +568,16 @@ export default function MinaSidorPage() {
         translate={translate}
       />
 
-      <PasswordDialog
-        open={passwordDialogOpen}
-        onClose={() => setPasswordDialogOpen(false)}
+      <AccountSettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
         translate={translate}
-        currentPassword={currentPassword}
-        setCurrentPassword={setCurrentPassword}
-        newPassword={newPassword}
-        setNewPassword={setNewPassword}
-        confirmPassword={confirmPassword}
-        setConfirmPassword={setConfirmPassword}
-        passwordError={passwordError}
-        passwordSuccess={passwordSuccess}
-        passwordLoading={passwordLoading}
-        onSubmit={handleSubmitPasswordChange}
+        email={profileIdentity?.email || user?.email || ""}
+        firstName={profileIdentity?.firstName || user?.firstName || ""}
+        lastName={profileIdentity?.lastName || user?.lastName || ""}
+        onSaveProfile={handleSaveProfileSettings}
+        onChangePassword={handleChangePasswordSettings}
+        onDeleteAccount={handleDeleteAccount}
       />
     </Box>
   );
