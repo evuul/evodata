@@ -73,6 +73,13 @@ export async function GET(request) {
         { id: "bac-bo", name: "Bac Bo", avg: 7654 },
       ];
 
+  const trendSeries = Array.isArray(dryRunPayload?.trendSeries)
+    ? dryRunPayload.trendSeries
+    : Array.from({ length: 90 }, (_, i) => ({
+        ymd: `2025-11-${String((i % 30) + 1).padStart(2, "0")}`,
+        avgPlayers: 52000 + Math.round(Math.sin(i / 7) * 2400) + i * 55,
+      }));
+
   const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
   const { subject, html } = buildDailyAvgPlayersEmail({
     email: actorEmail,
@@ -82,6 +89,7 @@ export async function GET(request) {
     changeAbs,
     changePct,
     coverageLabel,
+    trendSeries,
     topGames,
     coffeeUrl,
   });
@@ -93,4 +101,3 @@ export async function GET(request) {
     dryRun: dryRunPayload,
   });
 }
-

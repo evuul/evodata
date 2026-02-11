@@ -91,6 +91,24 @@ function computeTotalAvg(dailyAggMap, ymd) {
   return { totalAvgPlayers: total, slugsWithData, perGame };
 }
 
+function buildTrendSeries(dailyAggMap, dateKeys, targetYmd, days = 90) {
+  const sorted = Array.isArray(dateKeys) ? [...dateKeys].sort() : [];
+  const targetIdx = sorted.lastIndexOf(targetYmd);
+  if (targetIdx < 0) return [];
+  const start = Math.max(0, targetIdx - (days - 1));
+  const selected = sorted.slice(start, targetIdx + 1);
+  return selected
+    .map((ymd) => {
+      const row = computeTotalAvg(dailyAggMap, ymd);
+      const v = Number(row?.totalAvgPlayers);
+      return {
+        ymd,
+        avgPlayers: Number.isFinite(v) ? v : null,
+      };
+    })
+    .filter((row) => Number.isFinite(row.avgPlayers) && row.avgPlayers > 0);
+}
+
 async function handler(req) {
   const auth = requireAuth(req);
   if (!auth.ok) return json({ ok: false, error: auth.error }, { status: auth.status });
@@ -124,7 +142,7 @@ async function handler(req) {
   const withinWindow = stockholmHour >= 0 && stockholmHour < 6;
   const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
 
-  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 3).catch(() => new Map());
+  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
   const anySlug = SERIES_SLUGS.find(Boolean);
   const dateKeys = anySlug && dailyAgg.get(anySlug) ? Array.from(dailyAgg.get(anySlug).keys()).sort() : [];
   if (dateKeys.length < 3) {
@@ -179,6 +197,7 @@ async function handler(req) {
 
   const target = computeTotalAvg(dailyAgg, targetYmd);
   const prev = computeTotalAvg(dailyAgg, prevYmd);
+  const trendSeries = buildTrendSeries(dailyAgg, dateKeys, targetYmd, 90);
   const changeAbs =
     Number.isFinite(prev.totalAvgPlayers) && Number.isFinite(target.totalAvgPlayers)
       ? target.totalAvgPlayers - prev.totalAvgPlayers
@@ -232,6 +251,7 @@ async function handler(req) {
           changeAbs,
           changePct,
           coverageLabel,
+          trendSeries,
           topGames: target.perGame.slice(0, 5),
           coffeeUrl,
         });
@@ -263,6 +283,7 @@ async function handler(req) {
     changeAbs,
     changePct,
     coverage: { slugsWithData: target.slugsWithData, totalSlugs: SERIES_SLUGS.length },
+    trendSeries,
     topGames: target.perGame.slice(0, 5).map((g) => ({ id: g.id, name: g.name, avg: g.avg })),
     errors,
   });
