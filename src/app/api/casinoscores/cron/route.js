@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 
 import { CRON_TARGETS } from "../players/shared";
 
-const SECRET = process.env.CASINOSCORES_CRON_SECRET || "";
+const SECRET = process.env.CASINOSCORES_CRON_SECRET || process.env.CRON_SECRET || "";
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {

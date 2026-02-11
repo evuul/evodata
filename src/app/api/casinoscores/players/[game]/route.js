@@ -25,6 +25,9 @@ const ALLOWED = new Set(ALLOWED_SLUGS);
 const TTL_MS = 30 * 1000;
 
 const LOBBY_API = process.env.EVO_PROXY_URL ?? "https://evo-lobby-proxy.alexander-ek.workers.dev";
+const LOBBY_API_FALLBACK =
+  process.env.EVO_LOBBY_FALLBACK_URL ??
+  "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
 const RAW_LOBBY_AUTH = process.env.EVO_PROXY_SECRET || "";
 const LOBBY_AUTH =
   RAW_LOBBY_AUTH && RAW_LOBBY_AUTH.toLowerCase().startsWith("bearer ")
@@ -62,23 +65,43 @@ async function fetchLobbyCounts(force = false) {
   const now = Date.now();
   if (!force && cache.data && now - cache.ts < LOBBY_TTL_MS) return cache.data;
 
-  const res = await fetch(LOBBY_API, {
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-      "User-Agent": "Mozilla/5.0",
-      Referer: "https://casinoscores.com/",
-      ...(LOBBY_AUTH ? { Authorization: LOBBY_AUTH } : {}),
-    },
-    cache: "no-store",
-  });
+  const headers = {
+    Accept: "application/json",
+    "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
+    "User-Agent": "Mozilla/5.0",
+    Referer: "https://casinoscores.com/",
+  };
 
-  if (!res.ok) throw new Error(`Lobby HTTP ${res.status}`);
+  const tryFetch = async (url, withAuth = false) => {
+    const res = await fetch(url, {
+      headers: {
+        ...headers,
+        ...(withAuth && LOBBY_AUTH ? { Authorization: LOBBY_AUTH } : {}),
+      },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`Lobby HTTP ${res.status} (${url})`);
+    return res.json();
+  };
 
-  const data = await res.json();
-  cache.ts = now;
-  cache.data = data;
-  return data;
+  let lastError = null;
+  const targets = [
+    { url: LOBBY_API, withAuth: true },
+    { url: LOBBY_API_FALLBACK, withAuth: false },
+  ];
+
+  for (const target of targets) {
+    try {
+      const data = await tryFetch(target.url, target.withAuth);
+      cache.ts = now;
+      cache.data = data;
+      return data;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("Lobby fetch failed");
 }
 
 /* ---------------------------
