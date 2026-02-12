@@ -127,23 +127,41 @@ const computeDividendYearSeries = ({ transactions, lots, historicalDividends }) 
   const fallbackLots = (Array.isArray(lots) ? lots : [])
     .map((l, idx) => ({
       idx,
-      type: "buy",
-      date: normalizeYmd(l?.date) || "1900-01-01",
+      date: normalizeYmd(l?.date),
       shares: Math.abs(Math.round(Number(l?.shares))),
     }))
     .filter((t) => t.date && Number.isFinite(t.shares) && t.shares > 0)
     .sort((a, b) => a.date.localeCompare(b.date) || a.idx - b.idx);
 
-  const timeline = tx.length ? tx : fallbackLots;
-  if (!timeline.length) return [];
+  if (!tx.length && !fallbackLots.length) return [];
+
+  if (!tx.length && fallbackLots.length) {
+    const byYear = new Map();
+    for (const div of divs) {
+      const sharesHeld = fallbackLots.reduce((sum, lot) => {
+        return lot.date < div.exDate ? sum + lot.shares : sum;
+      }, 0);
+      if (!(sharesHeld > 0)) continue;
+      const cash = sharesHeld * div.perShare;
+      const year = String(div.date).slice(0, 4);
+      const prev = byYear.get(year) || { year, cash: 0, events: 0, lastExDate: null, lastPerShare: null, lastSharesHeld: null, source: "lots" };
+      prev.cash += cash;
+      prev.events += 1;
+      prev.lastExDate = div.exDate;
+      prev.lastPerShare = div.perShare;
+      prev.lastSharesHeld = sharesHeld;
+      byYear.set(year, prev);
+    }
+    return Array.from(byYear.values()).sort((a, b) => a.year.localeCompare(b.year));
+  }
 
   const byYear = new Map();
   let lotState = [];
   let i = 0;
 
   for (const div of divs) {
-    while (i < timeline.length && timeline[i].date < div.exDate) {
-      const t = timeline[i];
+    while (i < tx.length && tx[i].date < div.exDate) {
+      const t = tx[i];
       if (t.type === "buy") lotState.push({ shares: t.shares, date: t.date });
       if (t.type === "sell") lotState = applySellFifo(lotState, t.shares);
       i += 1;
@@ -152,8 +170,12 @@ const computeDividendYearSeries = ({ transactions, lots, historicalDividends }) 
     const sharesHeld = sumShares(lotState);
     const cash = sharesHeld * div.perShare;
     const year = String(div.date).slice(0, 4);
-    const prev = byYear.get(year) || { year, cash: 0 };
+    const prev = byYear.get(year) || { year, cash: 0, events: 0, lastExDate: null, lastPerShare: null, lastSharesHeld: null, source: "transactions" };
     prev.cash += cash;
+    prev.events += 1;
+    prev.lastExDate = div.exDate;
+    prev.lastPerShare = div.perShare;
+    prev.lastSharesHeld = sharesHeld;
     byYear.set(year, prev);
   }
 
@@ -214,7 +236,16 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
     });
     const base = rows
       .filter((r) => Number(r?.cash) > 0)
-      .map((r) => ({ year: r.year, cashValue: r.cash, isEstimate: false }));
+      .map((r) => ({
+        year: r.year,
+        cashValue: r.cash,
+        isEstimate: false,
+        source: r.source || "transactions",
+        lastExDate: r.lastExDate || null,
+        lastPerShare: Number.isFinite(r.lastPerShare) ? r.lastPerShare : null,
+        lastSharesHeld: Number.isFinite(r.lastSharesHeld) ? r.lastSharesHeld : null,
+        events: Number.isFinite(r.events) ? r.events : null,
+      }));
     const estimate = buildDividendEstimate({ profileShares: profile?.shares, fxRate });
     if (!estimate) return base;
     return [
@@ -340,13 +371,25 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
                     }}
                     labelStyle={{ color: "#f8fafc", fontWeight: 700 }}
                     itemStyle={{ color: "#f8fafc" }}
+                    labelFormatter={(label, payload) => {
+                      const row = Array.isArray(payload) && payload[0] ? payload[0].payload : null;
+                      const shares = Number(row?.lastSharesHeld);
+                      const perShare = Number(row?.lastPerShare);
+                      const exDate = row?.lastExDate;
+                      if (!Number.isFinite(shares) || !Number.isFinite(perShare) || !exDate) return label;
+                      return `${label} • ${Math.round(shares).toLocaleString("sv-SE")} st @ ${perShare.toFixed(4)} SEK • X ${exDate}`;
+                    }}
                     formatter={(value, name, item) => {
                       const v = Number(value);
                       const label = Number.isFinite(v) ? `${Math.round(v).toLocaleString("sv-SE")} SEK` : "–";
                       if (item?.payload?.isEstimate) {
                         return [label, translate("Estimat (50% payout)", "Estimate (50% payout)")];
                       }
-                      return [label, translate("Utdelning", "Dividends")];
+                      const sourceLabel =
+                        item?.payload?.source === "lots"
+                          ? translate("Utdelning (lot fallback)", "Dividends (lot fallback)")
+                          : translate("Utdelning (transaktioner)", "Dividends (transactions)");
+                      return [label, sourceLabel];
                     }}
                   />
                   <Bar

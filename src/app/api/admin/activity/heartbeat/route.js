@@ -36,6 +36,33 @@ const normalizeText = (value, maxLen = 120) => {
   return cleaned.slice(0, maxLen);
 };
 
+const clientIp = (request) => {
+  const xf = request.headers.get("x-forwarded-for");
+  if (xf) return xf.split(",")[0].trim();
+  return request.headers.get("cf-connecting-ip") || request.headers.get("x-real-ip") || null;
+};
+
+const maskIp = (ip) => {
+  const raw = String(ip || "").trim();
+  if (!raw) return null;
+  if (raw.includes(".")) {
+    const parts = raw.split(".");
+    if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.x`;
+  }
+  if (raw.includes(":")) {
+    const parts = raw.split(":").filter(Boolean);
+    if (parts.length >= 2) return `${parts.slice(0, 2).join(":")}::`;
+  }
+  return raw;
+};
+
+const resolveCountry = (request) => {
+  const fromCf = request.headers.get("cf-ipcountry");
+  const fromVercel = request.headers.get("x-vercel-ip-country");
+  const value = String(fromCf || fromVercel || "").trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(value) ? value : null;
+};
+
 export async function POST(request) {
   const token = getToken(request);
   const resolved = await resolveUserFromToken(token);
@@ -55,6 +82,8 @@ export async function POST(request) {
   const panel = normalizeText(payload?.panel, 80);
   const locale = normalizeText(payload?.locale, 8);
   const nowIso = new Date().toISOString();
+  const ipMasked = maskIp(clientIp(request));
+  const country = resolveCountry(request);
   const key = `${USER_KEY_PREFIX}${email}`;
 
   const previous = (await getJson(key)) || {};
@@ -74,6 +103,8 @@ export async function POST(request) {
     lastPath: path,
     lastPanel: panel,
     locale: locale ?? previous.locale ?? "sv",
+    country: country ?? previous.country ?? null,
+    ipMasked: ipMasked ?? previous.ipMasked ?? null,
     visits: nextVisits,
   };
 
@@ -92,4 +123,3 @@ export async function POST(request) {
 
   return json({ ok: true });
 }
-

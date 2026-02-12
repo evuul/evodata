@@ -31,6 +31,7 @@ export function AdminPanel({
     adminActivityLoading,
     adminActivityError,
     adminActivityRows,
+    adminActivityGeoSummary,
     adminUsersLoading,
     adminUsersError,
     adminUsersRows,
@@ -396,6 +397,43 @@ export function AdminPanel({
                         </Typography>
                     ) : null}
 
+                    {adminActivityGeoSummary ? (
+                        <Stack direction="row" spacing={1.5} justifyContent="center" flexWrap="wrap">
+                            <Typography sx={{ color: "rgba(226,232,240,0.8)", fontSize: "0.9rem", fontWeight: 700 }}>
+                                {translate(
+                                    `SE: ${Number(adminActivityGeoSummary?.seActive || 0)}`,
+                                    `SE: ${Number(adminActivityGeoSummary?.seActive || 0)}`
+                                )}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(226,232,240,0.8)", fontSize: "0.9rem", fontWeight: 700 }}>
+                                {translate(
+                                    `Utländska IP: ${Number(adminActivityGeoSummary?.foreignActive || 0)}`,
+                                    `Foreign IPs: ${Number(adminActivityGeoSummary?.foreignActive || 0)}`
+                                )}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(226,232,240,0.8)", fontSize: "0.9rem", fontWeight: 700 }}>
+                                {translate(
+                                    `Okänt land: ${Number(adminActivityGeoSummary?.unknownCountryActive || 0)}`,
+                                    `Unknown country: ${Number(adminActivityGeoSummary?.unknownCountryActive || 0)}`
+                                )}
+                            </Typography>
+                            {Array.isArray(adminActivityGeoSummary?.byCountry) && adminActivityGeoSummary.byCountry.length ? (
+                                <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.85rem" }}>
+                                    {translate(
+                                        `Toppländer: ${adminActivityGeoSummary.byCountry
+                                            .slice(0, 5)
+                                            .map((row) => `${row.country}:${row.count}`)
+                                            .join(" · ")}`,
+                                        `Top countries: ${adminActivityGeoSummary.byCountry
+                                            .slice(0, 5)
+                                            .map((row) => `${row.country}:${row.count}`)
+                                            .join(" · ")}`
+                                    )}
+                                </Typography>
+                            ) : null}
+                        </Stack>
+                    ) : null}
+
                     {adminActivityRows.length ? (
                         <Stack spacing={1}>
                             {adminActivityRows.map((row) => {
@@ -470,6 +508,10 @@ export function AdminPanel({
                                             {translate("Senast", "Last")}: {whenLabel}
                                             {" • "}
                                             {translate("Vy", "View")}: {locationLabel}
+                                            {" • "}
+                                            {translate("Land", "Country")}: {row?.country || "??"}
+                                            {" • "}
+                                            {translate("IP", "IP")}: {row?.ipMasked || "—"}
                                         </Typography>
                                     </Box>
                                 );

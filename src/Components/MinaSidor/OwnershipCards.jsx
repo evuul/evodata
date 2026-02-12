@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
-import { formatPercent, formatPercentPrecise, formatSek } from "./utils";
+import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
 import { cardBase, equalHeightCard, ownershipChipColors, statusColors, text } from "./styles";
 
 export default function OwnershipCards({ translate, buybackSummary, ownershipView, onChangeView }) {
@@ -33,11 +33,8 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
             {buybackSummary
-              ? formatPercentPrecise(
-                  (ownershipView === "before"
-                    ? buybackSummary.ownershipBefore
-                    : buybackSummary.ownershipAfter) * 100,
-                  4
+              ? formatOwnershipPercent(
+                  (ownershipView === "before" ? buybackSummary.ownershipBefore : buybackSummary.ownershipAfter) * 100
                 )
               : "–"}
           </Typography>
@@ -132,8 +129,16 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
           {buybackSummary?.dividendBenefit != null ? (
             <Typography sx={{ color: "rgba(226,232,240,0.55)", fontSize: "0.82rem" }}>
               {translate(
-                `Utdelning (senast): ${formatSek(buybackSummary.dividendBenefit)} + återköp: ${formatSek(buybackSummary.buybackBenefit)}`,
-                `Dividend (last paid): ${formatSek(buybackSummary.dividendBenefit)} + buybacks: ${formatSek(buybackSummary.buybackBenefit)}`
+                `Utdelning (mottagen): ${formatSek(buybackSummary.dividendBenefit)} + återköp: ${formatSek(buybackSummary.buybackBenefit)}`,
+                `Dividends (received): ${formatSek(buybackSummary.dividendBenefit)} + buybacks: ${formatSek(buybackSummary.buybackBenefit)}`
+              )}
+            </Typography>
+          ) : null}
+          {buybackSummary?.dividendExDateFrom && buybackSummary?.dividendExDateTo ? (
+            <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.78rem" }}>
+              {translate(
+                `X-datum inkluderade: ${buybackSummary.dividendExDateFrom} → ${buybackSummary.dividendExDateTo} (${buybackSummary.dividendCountedExDates ?? 0} st)`,
+                `Ex-dates included: ${buybackSummary.dividendExDateFrom} to ${buybackSummary.dividendExDateTo} (${buybackSummary.dividendCountedExDates ?? 0})`
               )}
             </Typography>
           ) : null}

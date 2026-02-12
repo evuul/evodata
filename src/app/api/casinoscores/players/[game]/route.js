@@ -37,6 +37,7 @@ const LOBBY_AUTH =
     : "";
   // "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
 const LOBBY_TTL_MS = 30 * 1000;
+const SOURCE_STALE_AFTER_MS = 20 * 60 * 1000;
 
 const g = globalThis;
 g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
@@ -72,6 +73,17 @@ async function fetchLobbyCounts(force = false) {
     Referer: "https://casinoscores.com/",
   };
 
+  const parseCreatedAtMs = (payload) => {
+    const ts = Date.parse(String(payload?.createdAt || ""));
+    return Number.isFinite(ts) ? ts : null;
+  };
+
+  const isSourceFresh = (payload, nowMs) => {
+    const ts = parseCreatedAtMs(payload);
+    if (!Number.isFinite(ts)) return false;
+    return nowMs - ts <= SOURCE_STALE_AFTER_MS;
+  };
+
   const tryFetch = async (url, withAuth = false) => {
     const res = await fetch(url, {
       headers: {
@@ -81,10 +93,12 @@ async function fetchLobbyCounts(force = false) {
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`Lobby HTTP ${res.status} (${url})`);
-    return res.json();
+    const json = await res.json();
+    return { json, createdAtMs: parseCreatedAtMs(json) };
   };
 
   let lastError = null;
+  let best = null;
   const targets = [
     { url: LOBBY_API, withAuth: true },
     { url: LOBBY_API_FALLBACK, withAuth: false },
@@ -92,13 +106,24 @@ async function fetchLobbyCounts(force = false) {
 
   for (const target of targets) {
     try {
-      const data = await tryFetch(target.url, target.withAuth);
-      cache.ts = now;
-      cache.data = data;
-      return data;
+      const fetched = await tryFetch(target.url, target.withAuth);
+      if (!best || (Number.isFinite(fetched.createdAtMs) && fetched.createdAtMs > (best.createdAtMs || 0))) {
+        best = fetched;
+      }
+      if (isSourceFresh(fetched.json, now)) {
+        cache.ts = now;
+        cache.data = fetched.json;
+        return fetched.json;
+      }
     } catch (error) {
       lastError = error;
     }
+  }
+
+  if (best?.json) {
+    cache.ts = now;
+    cache.data = best.json;
+    return best.json;
   }
 
   throw lastError || new Error("Lobby fetch failed");

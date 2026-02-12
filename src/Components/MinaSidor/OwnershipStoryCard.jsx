@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
-import { formatPercent, formatPercentPrecise, formatSek } from "./utils";
+import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
 import { cardBase, ownershipChipColors, statusColors, text } from "./styles";
 
 export default function OwnershipStoryCard({
@@ -24,11 +24,8 @@ export default function OwnershipStoryCard({
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: text.heading }}>
             {buybackSummary
-              ? formatPercentPrecise(
-                  (ownershipView === "before"
-                    ? buybackSummary.ownershipBefore
-                    : buybackSummary.ownershipAfter) * 100,
-                  4
+              ? formatOwnershipPercent(
+                  (ownershipView === "before" ? buybackSummary.ownershipBefore : buybackSummary.ownershipAfter) * 100
                 )
               : "–"}
           </Typography>

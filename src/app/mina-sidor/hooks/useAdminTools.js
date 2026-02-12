@@ -17,6 +17,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
   const [adminActivityLoading, setAdminActivityLoading] = useState(false);
   const [adminActivityError, setAdminActivityError] = useState("");
   const [adminActivityRows, setAdminActivityRows] = useState([]);
+  const [adminActivityGeoSummary, setAdminActivityGeoSummary] = useState(null);
 
   // Users
   const [adminUsersLoading, setAdminUsersLoading] = useState(false);
@@ -216,12 +217,15 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         setAdminActivityRows([]);
+        setAdminActivityGeoSummary(null);
         setAdminActivityError(payload?.error || translate("Kunde inte läsa aktivitet.", "Could not load activity."));
         return;
       }
       setAdminActivityRows(Array.isArray(payload?.users) ? payload.users : []);
+      setAdminActivityGeoSummary(payload?.geoSummary || null);
     } catch {
       setAdminActivityRows([]);
+      setAdminActivityGeoSummary(null);
       setAdminActivityError(translate("Kunde inte läsa aktivitet.", "Could not load activity."));
     } finally {
       setAdminActivityLoading(false);
@@ -488,7 +492,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     adminPanel, setAdminPanel,
     mailTestLoading, mailTestMessage,
     previewLoading, previewOpen, setPreviewOpen, previewTitle, previewHtml,
-    adminActivityLoading, adminActivityError, adminActivityRows, loadAdminActivity,
+    adminActivityLoading, adminActivityError, adminActivityRows, adminActivityGeoSummary, loadAdminActivity,
     adminUsersLoading, adminUsersError, adminUsersRows, adminUsersTotal, loadAdminUsers,
     adminSupportLoading, adminSupportError, adminSupportRows, adminSupportSelected, 
     adminSupportReply, setAdminSupportReply, adminSupportDialogOpen, setAdminSupportDialogOpen, 

@@ -69,6 +69,8 @@ export async function GET(request) {
           lastPath: activity.lastPath || null,
           lastPanel: activity.lastPanel || null,
           locale: activity.locale || "sv",
+          country: activity.country || null,
+          ipMasked: activity.ipMasked || null,
           visits: Array.isArray(activity.visits) ? activity.visits.slice(-8) : [],
         };
       })
@@ -77,9 +79,29 @@ export async function GET(request) {
     .filter(Boolean)
     .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
 
+  const activeUsersRows = users.filter((u) => u.isActive);
+  const seActive = activeUsersRows.filter((u) => String(u?.country || "").toUpperCase() === "SE").length;
+  const knownCountryActive = activeUsersRows.filter((u) => String(u?.country || "").trim().length > 0).length;
+  const foreignActive = Math.max(0, knownCountryActive - seActive);
+  const unknownCountryActive = Math.max(0, activeUsersRows.length - knownCountryActive);
+  const byCountryMap = new Map();
+  for (const row of activeUsersRows) {
+    const c = String(row?.country || "").toUpperCase() || "??";
+    byCountryMap.set(c, (byCountryMap.get(c) || 0) + 1);
+  }
+  const byCountry = Array.from(byCountryMap.entries())
+    .map(([country, count]) => ({ country, count }))
+    .sort((a, b) => b.count - a.count);
+
   return json({
     ok: true,
-    activeUsers: users.filter((u) => u.isActive).length,
+    activeUsers: activeUsersRows.length,
+    geoSummary: {
+      seActive,
+      foreignActive,
+      unknownCountryActive,
+      byCountry,
+    },
     users,
   });
 }

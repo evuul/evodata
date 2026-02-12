@@ -4,7 +4,7 @@ import dividendData from "@/app/data/dividendData.json";
 import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
-import { isBuyEligibleForDividend } from "@/lib/dividendEligibility";
+import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
 
 export function usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive }) {
     const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
@@ -212,13 +212,98 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         return sumPerShare * profile.shares;
     }, [acquisitionDateValue, profile?.lots, profile.shares]);
 
-    const dividendsReceivedSafe =
-        dividendInputMode === "acquisition"
-            ? Number.isFinite(estimatedDividendsFromDate)
+    const estimatedDividendsFromTransactionsMeta = useMemo(() => {
+        const historical = Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : [];
+        const txs = Array.isArray(profile?.transactions) ? profile.transactions : [];
+        if (!historical.length || !txs.length) return null;
+
+        const normalizedTxs = txs
+            .map((tx) => ({
+                type: tx?.type === "buy" || tx?.type === "sell" ? tx.type : null,
+                date: typeof tx?.date === "string" ? tx.date.slice(0, 10) : null,
+                shares: Math.abs(Math.round(Number(tx?.shares))),
+            }))
+            .filter(
+                (tx) =>
+                    (tx.type === "buy" || tx.type === "sell") &&
+                    /^\d{4}-\d{2}-\d{2}$/.test(String(tx.date || "")) &&
+                    Number.isFinite(tx.shares) &&
+                    tx.shares > 0
+            )
+            .sort((a, b) => {
+                const c = a.date.localeCompare(b.date);
+                if (c !== 0) return c;
+                if (a.type !== b.type) return a.type === "buy" ? -1 : 1;
+                return 0;
+            });
+
+        if (!normalizedTxs.length) return null;
+
+        const dividends = historical
+            .map((row) => ({
+                exDate: resolveDividendExDate(row),
+                dividendPerShare: Number(row?.dividendPerShare),
+            }))
+            .filter(
+                (row) =>
+                    /^\d{4}-\d{2}-\d{2}$/.test(String(row.exDate || "")) &&
+                    Number.isFinite(row.dividendPerShare) &&
+                    row.dividendPerShare > 0
+            )
+            .sort((a, b) => a.exDate.localeCompare(b.exDate));
+
+        if (!dividends.length) return null;
+
+        let txIndex = 0;
+        let holdings = 0;
+        let total = 0;
+        let counted = 0;
+        let firstIncludedExDate = null;
+        let lastIncludedExDate = null;
+
+        for (const div of dividends) {
+            while (txIndex < normalizedTxs.length && normalizedTxs[txIndex].date < div.exDate) {
+                const tx = normalizedTxs[txIndex];
+                if (tx.type === "buy") holdings += tx.shares;
+                else holdings = Math.max(0, holdings - tx.shares);
+                txIndex += 1;
+            }
+            if (holdings > 0) {
+                total += holdings * div.dividendPerShare;
+                counted += 1;
+                if (!firstIncludedExDate) firstIncludedExDate = div.exDate;
+                lastIncludedExDate = div.exDate;
+            }
+        }
+
+        return {
+            total,
+            counted,
+            firstIncludedExDate,
+            lastIncludedExDate,
+        };
+    }, [profile?.transactions]);
+
+    const estimatedDividendsFromTransactions = Number.isFinite(estimatedDividendsFromTransactionsMeta?.total)
+        ? estimatedDividendsFromTransactionsMeta.total
+        : null;
+
+    const autoEstimatedDividends =
+        Number.isFinite(estimatedDividendsFromTransactions)
+            ? estimatedDividendsFromTransactions
+            : Number.isFinite(estimatedDividendsFromDate)
                 ? estimatedDividendsFromDate
-                : 0
-            : hasManualDividends
+                : null;
+
+    const dividendsReceivedSafe =
+        dividendInputMode === "manual"
+            ? hasManualDividends
                 ? dividendsReceivedValue
+                : Number.isFinite(autoEstimatedDividends)
+                    ? autoEstimatedDividends
+                    : 0
+            : Number.isFinite(autoEstimatedDividends)
+                ? autoEstimatedDividends
                 : 0;
 
     const totalReturnWithDividends = totalValue + dividendsReceivedSafe - totalCost;
@@ -264,10 +349,9 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
             ownershipBefore > 0 ? ((ownershipAfter / ownershipBefore) - 1) * 100 : null;
         const buybackBenefit = ownershipBefore > 0 ? totalBuybackSpend * ownershipBefore : 0;
 
-        const lastPaidDividendPerShare = Number(lastDividend?.dividendPerShare ?? null);
         const dividendBenefit =
-            Number.isFinite(lastPaidDividendPerShare) && lastPaidDividendPerShare > 0
-                ? profile.shares * lastPaidDividendPerShare
+            Number.isFinite(dividendsReceivedSafe) && dividendsReceivedSafe > 0
+                ? dividendsReceivedSafe
                 : 0;
         const totalShareholderReturn =
             (Number.isFinite(dividendBenefit) ? dividendBenefit : 0) + buybackBenefit;
@@ -280,11 +364,14 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
             ownershipLiftPct,
             buybackBenefit,
             dividendBenefit,
+            dividendCountedExDates: estimatedDividendsFromTransactionsMeta?.counted ?? null,
+            dividendExDateFrom: estimatedDividendsFromTransactionsMeta?.firstIncludedExDate ?? null,
+            dividendExDateTo: estimatedDividendsFromTransactionsMeta?.lastIncludedExDate ?? null,
             totalShareholderReturn,
             totalShareholderReturnPct,
             latestSharesDate: amountOfShares?.[amountOfShares.length - 1]?.date,
         };
-    }, [buybackData, lastDividend?.dividendPerShare, profile.shares, totalValue]);
+    }, [buybackData, dividendsReceivedSafe, estimatedDividendsFromTransactionsMeta, profile.shares, totalValue]);
 
     const greetingName = useMemo(() => {
         const first = String(user?.firstName || profileIdentity.firstName || "").trim();
@@ -342,6 +429,8 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         todaysChangePerShare,
         todaysHoldingChangeSek,
         estimatedDividendsFromDate,
+        estimatedDividendsFromTransactions,
+        estimatedDividendsFromTransactionsMeta,
         dividendsReceivedSafe,
         totalReturnWithDividends,
         totalReturnPctWithDividends,
