@@ -71,9 +71,28 @@ export async function PUT(request, { params }) {
   if (String(t.email || "").toLowerCase() !== email) return json({ error: "Forbidden" }, { status: 403 });
 
   const action = String(payload?.action || "").trim();
-  if (action !== "close") return json({ error: "Unknown action" }, { status: 400 });
+  if (action !== "reopen") return json({ error: "Unknown action" }, { status: 400 });
+  if (String(t.status || "").toLowerCase() !== "closed") {
+    return json({ error: "Only closed tickets can be reopened." }, { status: 400 });
+  }
 
-  const next = await updateSupportTicket(id, { status: "closed" });
+  const followUp = String(payload?.message || "").trim();
+  if (followUp.length < 3) {
+    return json({ error: "Follow-up message is too short." }, { status: 400 });
+  }
+
+  const reopenStamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+  const prevReply = String(t?.adminReply?.message || "").trim();
+  const prevReplyAt = String(t?.adminReply?.repliedAt || "").slice(0, 16).replace("T", " ");
+  const replyBlock = prevReply
+    ? `\n\n---\nSupport reply (${prevReplyAt || reopenStamp})\n${prevReply}`
+    : "";
+  const nextMessage = `${String(t.message || "").trim()}${replyBlock}\n\n---\nFollow-up (${reopenStamp})\n${followUp}`;
+  const next = await updateSupportTicket(id, {
+    status: "open",
+    message: nextMessage,
+    adminReply: null,
+  });
   return json({
     ticket: {
       id: next.id,

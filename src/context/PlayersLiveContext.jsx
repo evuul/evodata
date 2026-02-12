@@ -104,10 +104,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       if (json.fetchedAt) {
         const parsed = Date.parse(json.fetchedAt);
         if (Number.isFinite(parsed)) {
-          setLastUpdated((prev) => {
-            const prevMs = prev ? prev.getTime() : 0;
-            return parsed > prevMs ? new Date(parsed) : prev || new Date(parsed);
-          });
+          setLastUpdated(new Date(parsed));
         }
       }
 

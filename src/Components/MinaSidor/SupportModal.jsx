@@ -11,6 +11,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
   const [selected, setSelected] = useState(null);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
+  const [reopenMessage, setReopenMessage] = useState("");
 
   const hasTickets = tickets.length > 0;
 
@@ -52,22 +53,28 @@ export default function SupportModal({ open, onClose, translate, token }) {
     }
   };
 
-  const closeTicket = async (id) => {
+  const reopenTicket = async (id) => {
     if (!token || !id) return;
+    const msg = String(reopenMessage || "").trim();
+    if (msg.length < 3) {
+      setError(translate("Skriv en följdfråga innan du öppnar igen.", "Write a follow-up before reopening."));
+      return;
+    }
     try {
       setLoading(true);
       setError("");
       const res = await fetch(`/api/support/tickets/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "close" }),
+        body: JSON.stringify({ action: "reopen", message: msg }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed");
       setSelected(data?.ticket || null);
+      setReopenMessage("");
       await loadTickets();
     } catch (e) {
-      setError(e?.message || translate("Kunde inte stänga ticket.", "Could not close ticket."));
+      setError(e?.message || translate("Kunde inte öppna ticket igen.", "Could not reopen ticket."));
     } finally {
       setLoading(false);
     }
@@ -76,6 +83,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
   useEffect(() => {
     if (!open) return;
     setSelected(null);
+    setReopenMessage("");
     loadTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -136,7 +144,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
       open={open}
       onClose={onClose}
       fullWidth
-      maxWidth="md"
+      maxWidth="lg"
       PaperProps={{
         sx: {
           background: "rgba(15,23,42,0.96)",
@@ -165,9 +173,30 @@ export default function SupportModal({ open, onClose, translate, token }) {
             </Button>
           </Stack>
 
+          <Box
+            sx={{
+              borderRadius: "14px",
+              border: "1px solid rgba(56,189,248,0.28)",
+              background: "linear-gradient(135deg, rgba(2,132,199,0.12), rgba(15,23,42,0.5))",
+              p: { xs: 1.4, md: 1.8 },
+            }}
+          >
+            <Stack spacing={1}>
+              <Typography sx={{ color: "#e0f2fe", fontWeight: 900 }}>
+                {translate("Så fungerar supporten", "How support works")}
+              </Typography>
+              <Typography sx={{ color: "rgba(226,232,240,0.82)", fontSize: "0.9rem", whiteSpace: "pre-line" }}>
+                {translate(
+                  "1) Skicka bugg/förslag/fråga här.\n2) Du får svar direkt i samma ticket.\n3) Endast admin kan stänga ticket.\n4) Om ticket är stängd kan du öppna igen med följdfråga.",
+                  "1) Send bug reports, feature ideas, or questions here.\n2) You get replies in the same ticket.\n3) Only admin can close a ticket.\n4) If closed, you can reopen with a follow-up."
+                )}
+              </Typography>
+            </Stack>
+          </Box>
+
           {error ? <Typography sx={{ color: statusColors.warning, fontWeight: 700 }}>{error}</Typography> : null}
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.1fr 1.4fr" }, gap: 2 }}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1.35fr 1.05fr" }, gap: 2 }}>
             <Box sx={{ ...actionCard, p: 2 }}>
               <Typography sx={{ color: text.subtle, fontWeight: 900, mb: 1 }}>
                 {translate("Skapa ticket", "Create ticket")}
@@ -196,7 +225,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
                   onChange={(e) => setMessage(e.target.value)}
                   fullWidth
                   multiline
-                  minRows={4}
+                  minRows={7}
                   InputLabelProps={{ sx: { color: "rgba(226,232,240,0.75)" } }}
                   InputProps={{ sx: { color: text.heading } }}
                   sx={{
@@ -302,8 +331,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
                   {selected.status !== "closed" ? (
                     <Button
                       variant="outlined"
-                      disabled={loading}
-                      onClick={() => closeTicket(selected.id)}
+                      disabled
                       sx={{
                         mt: 1,
                         alignSelf: "flex-start",
@@ -317,12 +345,51 @@ export default function SupportModal({ open, onClose, translate, token }) {
                         },
                       }}
                     >
-                      {translate("Markera som löst", "Mark as resolved")}
+                      {translate("Endast admin kan stänga ticket", "Only admin can close tickets")}
                     </Button>
                   ) : (
-                    <Typography sx={{ color: "rgba(226,232,240,0.65)", fontWeight: 700, fontSize: "0.85rem", mt: 0.5 }}>
-                      {translate("Ticketen är stängd.", "This ticket is closed.")}
-                    </Typography>
+                    <Stack spacing={1} sx={{ mt: 0.8 }}>
+                      <Typography sx={{ color: "rgba(226,232,240,0.65)", fontWeight: 700, fontSize: "0.85rem" }}>
+                        {translate("Ticketen är stängd. Har du följdfråga kan du öppna den igen.", "This ticket is closed. Reopen if you have a follow-up.")}
+                      </Typography>
+                      <TextField
+                        label={translate("Följdfråga", "Follow-up")}
+                        value={reopenMessage}
+                        onChange={(e) => setReopenMessage(e.target.value)}
+                        fullWidth
+                        multiline
+                        minRows={3}
+                        InputLabelProps={{ sx: { color: "rgba(226,232,240,0.75)" } }}
+                        InputProps={{ sx: { color: text.heading } }}
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "rgba(2,6,23,0.15)",
+                            borderRadius: "12px",
+                            "& fieldset": { borderColor: "rgba(148,163,184,0.25)" },
+                            "&:hover fieldset": { borderColor: "rgba(148,163,184,0.4)" },
+                            "&.Mui-focused fieldset": { borderColor: "rgba(56,189,248,0.65)" },
+                          },
+                        }}
+                      />
+                      <Button
+                        variant="outlined"
+                        disabled={loading}
+                        onClick={() => reopenTicket(selected.id)}
+                        sx={{
+                          alignSelf: "flex-start",
+                          textTransform: "none",
+                          fontWeight: 800,
+                          borderColor: "rgba(56,189,248,0.42)",
+                          color: "#bae6fd",
+                          "&:hover": {
+                            borderColor: "rgba(56,189,248,0.65)",
+                            backgroundColor: "rgba(56,189,248,0.08)",
+                          },
+                        }}
+                      >
+                        {translate("Öppna igen", "Reopen ticket")}
+                      </Button>
+                    </Stack>
                   )}
                 </Stack>
               </Box>
