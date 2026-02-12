@@ -53,10 +53,19 @@ const TotalSharesView = ({
   const areaFillId = `totalSharesArea-${useId()}`;
   const data = totalSharesData || [];
   const tickFontSize = isMobile ? 12 : 14;
-  const yTickWidth = isMobile ? 40 : 60;
-  const xHeight = isMobile ? 30 : 40;
+  const yTickWidth = isMobile ? 42 : 60;
+  const xHeight = isMobile ? 40 : 40;
   const evolutionShares = Number.isFinite(latestEvolutionShares) ? latestEvolutionShares : 0;
   const adjustedShareCount = Math.max(latestTotalShares - evolutionShares, 0);
+  const formatCompactMobileTick = (value) => {
+    if (!Number.isFinite(value)) return "–";
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}B`;
+    if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}M`;
+    if (abs >= 1_000) return `${(value / 1_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}k`;
+    return value.toLocaleString("sv-SE");
+  };
+  const yTickFormatter = isMobile ? formatCompactMobileTick : formatYAxisTick;
 
   return (
     <Box
@@ -66,7 +75,7 @@ const TotalSharesView = ({
         borderRadius: "20px",
         border: `1px solid ${COLORS.border}`,
         boxShadow: "0 18px 40px rgba(8,15,40,0.46)",
-        px: { xs: 2.2, md: 3 },
+        px: { xs: 1.2, md: 3 },
         py: { xs: 2.4, md: 3.2 },
         display: "flex",
         flexDirection: "column",
@@ -183,15 +192,16 @@ const TotalSharesView = ({
         </Tabs>
       </Box>
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+      <Box sx={{ width: "100%", mx: { xs: -0.6, md: 0 } }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 280 : 300}>
         {chartTypeTotalShares === "line" ? (
           <ComposedChart
             data={data}
             margin={{
               top: 20,
-              right: isMobile ? 10 : 20,
-              bottom: isMobile ? 10 : 20,
-              left: isMobile ? -10 : 0,
+              right: isMobile ? 6 : 20,
+              bottom: isMobile ? 14 : 20,
+              left: isMobile ? 2 : 0,
             }}
           >
             {/* Transparent accent gradient under linjen */}
@@ -223,7 +233,7 @@ const TotalSharesView = ({
               stroke={COLORS.textSecondary}
               tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               domain={yDomain}
-              tickFormatter={formatYAxisTick}
+              tickFormatter={yTickFormatter}
               width={yTickWidth}
               ticks={yTicks}
             >
@@ -269,9 +279,9 @@ const TotalSharesView = ({
             data={data}
             margin={{
               top: 20,
-              right: isMobile ? 10 : 20,
-              bottom: isMobile ? 10 : 20,
-              left: isMobile ? -10 : 0,
+              right: isMobile ? 6 : 20,
+              bottom: isMobile ? 14 : 20,
+              left: isMobile ? 2 : 0,
             }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke={COLORS.grid} />
@@ -295,7 +305,7 @@ const TotalSharesView = ({
               stroke={COLORS.textSecondary}
               tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               domain={yDomain}
-              tickFormatter={formatYAxisTick}
+              tickFormatter={yTickFormatter}
               width={yTickWidth}
               ticks={yTicks}
             >
@@ -329,6 +339,7 @@ const TotalSharesView = ({
           </BarChart>
         )}
       </ResponsiveContainer>
+      </Box>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         {translate("Historisk data", "Historical data")}

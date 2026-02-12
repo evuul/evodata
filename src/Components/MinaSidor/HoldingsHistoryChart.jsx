@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Box, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import {
   Area,
   AreaChart,
@@ -14,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { cardBase, text } from "./styles";
 import { normalizeYmd, resolveDividendExDate } from "@/lib/dividendEligibility";
 import { useFxRateContext } from "@/context/FxRateContext";
@@ -225,6 +227,8 @@ const computeHoldingsSeries = ({ transactions, lots }) => {
 };
 
 export default function HoldingsHistoryChart({ translate, profile, historicalDividends }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [mode, setMode] = useState("dividends");
   const { rate: fxRate } = useFxRateContext();
 
@@ -270,6 +274,46 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
 
   const hasDividendData = dividendsSeries.length > 0 && dividendsSeries.some((r) => Number.isFinite(r.cashValue));
   const hasHoldingsData = holdingsSeries.length > 0 && holdingsSeries.some((r) => Number.isFinite(r.shares));
+
+  const dividendTicks = useMemo(() => {
+    if (!dividendsSeries.length) return undefined;
+    const maxTicks = isMobile ? 4 : 7;
+    if (dividendsSeries.length <= maxTicks) return dividendsSeries.map((row) => row.year);
+    const step = Math.ceil((dividendsSeries.length - 1) / (maxTicks - 1));
+    const ticks = [];
+    for (let i = 0; i < dividendsSeries.length; i += step) ticks.push(dividendsSeries[i].year);
+    const last = dividendsSeries[dividendsSeries.length - 1]?.year;
+    if (last && ticks[ticks.length - 1] !== last) ticks.push(last);
+    return ticks;
+  }, [dividendsSeries, isMobile]);
+
+  const holdingsTicks = useMemo(() => {
+    if (!holdingsSeries.length) return undefined;
+    const maxTicks = isMobile ? 4 : 7;
+    if (holdingsSeries.length <= maxTicks) return holdingsSeries.map((row) => row.date);
+    const step = Math.ceil((holdingsSeries.length - 1) / (maxTicks - 1));
+    const ticks = [];
+    for (let i = 0; i < holdingsSeries.length; i += step) ticks.push(holdingsSeries[i].date);
+    const last = holdingsSeries[holdingsSeries.length - 1]?.date;
+    if (last && ticks[ticks.length - 1] !== last) ticks.push(last);
+    return ticks;
+  }, [holdingsSeries, isMobile]);
+
+  const formatDateTick = (value) => {
+    if (!value) return "";
+    const textValue = String(value);
+    if (!isMobile) return textValue;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(textValue)) return textValue.slice(5);
+    return textValue;
+  };
+
+  const formatCompactNumber = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "";
+    if (!isMobile) return Math.round(n).toLocaleString("sv-SE");
+    if (Math.abs(n) >= 1000) return `${Math.round(n / 1000)}k`;
+    return Math.round(n).toLocaleString("sv-SE");
+  };
 
   return (
     <Box sx={{ ...cardBase, p: { xs: 2, md: 2.5 } }}>
@@ -339,11 +383,15 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
               )}
         </Typography>
 
-        <Box sx={{ height: 280, width: "100%" }}>
+        <Box sx={{ height: 280, width: "100%", mx: { xs: -1, md: 0 } }}>
           {mode === "dividends" ? (
             hasDividendData ? (
               <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={dividendsSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart
+                  data={dividendsSeries}
+                  margin={isMobile ? { top: 8, right: 6, left: -14, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 0 }}
+                  barCategoryGap={isMobile ? "18%" : "24%"}
+                >
                   <defs>
                     <pattern id="estimateBarPattern" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
                       <rect width="8" height="8" fill="rgba(245,158,11,0.17)" />
@@ -353,14 +401,21 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
                   <CartesianGrid stroke="rgba(148,163,184,0.16)" strokeDasharray="4 4" />
                   <XAxis
                     dataKey="year"
-                    tick={{ fontSize: 12, fill: "rgba(226,232,240,0.7)" }}
+                    ticks={dividendTicks}
+                    interval={0}
+                    tickFormatter={formatDateTick}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(226,232,240,0.7)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    tickMargin={8}
+                    minTickGap={isMobile ? 18 : 12}
                   />
                   <YAxis
-                    tick={{ fontSize: 12, fill: "rgba(226,232,240,0.7)" }}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(226,232,240,0.7)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                    width={isMobile ? 38 : 56}
+                    tickFormatter={formatCompactNumber}
                   />
                   <RechartsTooltip
                     contentStyle={{
@@ -395,7 +450,7 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
                   <Bar
                     dataKey="cashValue"
                     radius={[10, 10, 2, 2]}
-                    maxBarSize={74}
+                    maxBarSize={isMobile ? 40 : 74}
                   >
                     {dividendsSeries.map((row, idx) => (
                       <Cell
@@ -421,7 +476,10 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
             )
           ) : hasHoldingsData ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={holdingsSeries} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart
+                data={holdingsSeries}
+                margin={isMobile ? { top: 8, right: 6, left: -14, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 0 }}
+              >
                 <defs>
                   <linearGradient id="holdingsGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#34d399" stopOpacity={0.45} />
@@ -431,15 +489,21 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
                 <CartesianGrid stroke="rgba(148,163,184,0.16)" strokeDasharray="4 4" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 12, fill: "rgba(226,232,240,0.7)" }}
+                  ticks={holdingsTicks}
+                  interval={0}
+                  tickFormatter={formatDateTick}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(226,232,240,0.7)" }}
                   tickLine={false}
                   axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                  minTickGap={18}
+                  minTickGap={isMobile ? 18 : 24}
+                  tickMargin={8}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: "rgba(226,232,240,0.7)" }}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(226,232,240,0.7)" }}
                   tickLine={false}
                   axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                  width={isMobile ? 38 : 56}
+                  tickFormatter={formatCompactNumber}
                 />
                 <RechartsTooltip
                   contentStyle={{

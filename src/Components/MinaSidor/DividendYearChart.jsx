@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { Box, Stack, Typography } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { cardBase, text } from "./styles";
 import { normalizeYmd, resolveDividendExDate } from "@/lib/dividendEligibility";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 
 const sumShares = (lots) =>
   (Array.isArray(lots) ? lots : []).reduce((sum, lot) => sum + Math.max(0, Number(lot?.shares) || 0), 0);
@@ -104,6 +106,8 @@ const computeYearSeries = ({ transactions, lots, historicalDividends }) => {
 };
 
 export default function DividendYearChart({ translate, profile, historicalDividends }) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const series = useMemo(
     () =>
       computeYearSeries({
@@ -121,6 +125,26 @@ export default function DividendYearChart({ translate, profile, historicalDivide
   );
 
   const hasData = series.length > 0 && series.some((r) => Number.isFinite(r.cash));
+
+  const yearTicks = useMemo(() => {
+    if (!series.length) return undefined;
+    const maxTicks = isMobile ? 4 : 7;
+    if (series.length <= maxTicks) return series.map((row) => row.year);
+    const step = Math.ceil((series.length - 1) / (maxTicks - 1));
+    const ticks = [];
+    for (let i = 0; i < series.length; i += step) ticks.push(series[i].year);
+    const last = series[series.length - 1]?.year;
+    if (last && ticks[ticks.length - 1] !== last) ticks.push(last);
+    return ticks;
+  }, [series, isMobile]);
+
+  const formatCompactNumber = (value) => {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return "";
+    if (!isMobile) return Math.round(n).toLocaleString("sv-SE");
+    if (Math.abs(n) >= 1000) return `${Math.round(n / 1000)}k`;
+    return Math.round(n).toLocaleString("sv-SE");
+  };
 
   return (
     <Box sx={{ ...cardBase, p: { xs: 2, md: 2.5 } }}>
@@ -140,13 +164,32 @@ export default function DividendYearChart({ translate, profile, historicalDivide
           </Typography>
         </Box>
 
-        <Box sx={{ height: 260, width: "100%" }}>
+        <Box sx={{ height: 260, width: "100%", mx: { xs: -1, md: 0 } }}>
           {hasData ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <BarChart
+                data={series}
+                margin={isMobile ? { top: 8, right: 6, left: -14, bottom: 0 } : { top: 10, right: 10, left: 0, bottom: 0 }}
+                barCategoryGap={isMobile ? "18%" : "24%"}
+              >
                 <CartesianGrid stroke="rgba(148,163,184,0.16)" strokeDasharray="4 4" />
-                <XAxis dataKey="year" tick={{ fontSize: 12, fill: "rgba(226,232,240,0.7)" }} tickLine={false} axisLine={{ stroke: "rgba(148,163,184,0.25)" }} />
-                <YAxis tick={{ fontSize: 12, fill: "rgba(226,232,240,0.7)" }} tickLine={false} axisLine={{ stroke: "rgba(148,163,184,0.25)" }} />
+                <XAxis
+                  dataKey="year"
+                  ticks={yearTicks}
+                  interval={0}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(226,232,240,0.7)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                  minTickGap={isMobile ? 18 : 12}
+                  tickMargin={8}
+                />
+                <YAxis
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(226,232,240,0.7)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                  width={isMobile ? 38 : 56}
+                  tickFormatter={formatCompactNumber}
+                />
                 <RechartsTooltip
                   contentStyle={{
                     background: "rgba(15,23,42,0.96)",
@@ -161,7 +204,7 @@ export default function DividendYearChart({ translate, profile, historicalDivide
                   }}
                   labelFormatter={(label) => `${label}`}
                 />
-                <Bar dataKey="cash" fill="rgba(56,189,248,0.75)" stroke="rgba(125,211,252,0.9)" radius={[10, 10, 2, 2]} />
+                <Bar dataKey="cash" fill="rgba(56,189,248,0.75)" stroke="rgba(125,211,252,0.9)" radius={[10, 10, 2, 2]} maxBarSize={isMobile ? 40 : 64} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
