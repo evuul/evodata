@@ -202,9 +202,19 @@ async function handler(req) {
     return json({ ok: true, dryRun, sent: 0, skipped: true, reason: "Not enough daily data" });
   }
 
-  // dateKeys includes today as last. Default target is yesterday and prev is day-before.
+  // Default target selection:
+  // - if today's key exists: target = yesterday
+  // - if today's key is missing (lagging pipeline): target = latest available day
   let targetYmd = dateKeys[dateKeys.length - 2];
   let prevYmd = dateKeys[dateKeys.length - 3];
+  const todayIdx = dateKeys.lastIndexOf(todayYmd);
+  if (todayIdx >= 1) {
+    targetYmd = dateKeys[todayIdx - 1];
+    prevYmd = todayIdx >= 2 ? dateKeys[todayIdx - 2] : null;
+  } else {
+    targetYmd = dateKeys[dateKeys.length - 1];
+    prevYmd = dateKeys[dateKeys.length - 2] ?? null;
+  }
   if (hasExplicitTarget) {
     const idx = dateKeys.lastIndexOf(targetYmdParam);
     if (idx <= 0) {
@@ -221,6 +231,17 @@ async function handler(req) {
     }
     targetYmd = dateKeys[idx];
     prevYmd = dateKeys[idx - 1];
+  }
+
+  if (!prevYmd) {
+    return json({
+      ok: true,
+      dryRun,
+      sent: 0,
+      skipped: true,
+      reason: "Not enough prior-day data",
+      targetYmd,
+    });
   }
 
   if (!atScheduledHour && !dryRun && !forceSend) {
