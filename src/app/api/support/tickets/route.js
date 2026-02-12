@@ -33,6 +33,7 @@ const toSummary = (t) => ({
   createdAt: t.createdAt,
   updatedAt: t.updatedAt,
   hasReply: Boolean(t.adminReply?.message),
+  replyAt: t.adminReply?.repliedAt ?? null,
 });
 
 export async function GET(request) {
@@ -45,6 +46,7 @@ export async function GET(request) {
   const tickets = await listSupportTicketsByIds(ids, 50);
 
   return json({
+    viewerEmail: email,
     tickets: tickets
       .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))
       .map(toSummary),
@@ -80,4 +82,3 @@ export async function POST(request) {
 
   return json({ ticket: toSummary(ticket) });
 }
-

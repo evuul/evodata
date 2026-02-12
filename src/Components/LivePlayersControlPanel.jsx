@@ -971,18 +971,27 @@ const LivePlayersControlPanel = () => {
         </Stack>
 
         {/* Totalt live + lobbykort + list */}
-        <Grid container spacing={{ xs: 2, md: 3 }}>
-          <Grid item xs={12}>
-            <Grid container spacing={{ xs: 2, md: 3 }} justifyContent="center">
-              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+        <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
+          <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                flexWrap: "wrap",
+                justifyContent: "center",
+                gap: { xs: 2, md: 3 },
+                width: "100%",
+                maxWidth: SHOW_YESTERDAY_PEAK_CARD ? 1712 : 1368,
+              }}
+            >
+              <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
                 <Box
                   sx={{
                     background: "rgba(15,23,42,0.45)",
                     borderRadius: "16px",
                     border: "1px solid rgba(52,211,153,0.45)",
                     p: { xs: 2, md: 2.5 },
-                    width: "100%",
-                    maxWidth: { xs: "100%", sm: 320 },
+                    width: { xs: "100%", sm: 320 },
+                    mx: "auto",
                     minHeight: 180,
                     display: "flex",
                     flexDirection: "column",
@@ -1034,17 +1043,17 @@ const LivePlayersControlPanel = () => {
                     </>
                   )}
                 </Box>
-              </Grid>
+              </Box>
 
-              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+              <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
                 <Box
                   sx={{
                     background: "rgba(15,23,42,0.45)",
                     borderRadius: "16px",
                     border: "1px solid rgba(251,113,133,0.25)",
                     p: { xs: 2, md: 2.5 },
-                    width: "100%",
-                    maxWidth: { xs: "100%", sm: 320 },
+                    width: { xs: "100%", sm: 320 },
+                    mx: "auto",
                     minHeight: 180,
                     display: "flex",
                     flexDirection: "column",
@@ -1106,17 +1115,17 @@ const LivePlayersControlPanel = () => {
                     </>
                   )}
                 </Box>
-              </Grid>
+              </Box>
               {SHOW_YESTERDAY_PEAK_CARD && (
-                <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+                <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
                   <Box
                     sx={{
                       background: "rgba(15,23,42,0.45)",
                       borderRadius: "16px",
                       border: "1px solid rgba(251,191,36,0.25)",
                       p: { xs: 2, md: 2.5 },
-                      width: "100%",
-                      maxWidth: { xs: "100%", sm: 320 },
+                      width: { xs: "100%", sm: 320 },
+                      mx: "auto",
                       minHeight: 180,
                       display: "flex",
                       flexDirection: "column",
@@ -1180,17 +1189,17 @@ const LivePlayersControlPanel = () => {
                       </>
                     )}
                   </Box>
-                </Grid>
+                </Box>
               )}
-              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+              <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
                 <Box
                   sx={{
                     background: "rgba(15,23,42,0.45)",
                     borderRadius: "16px",
                     border: "1px solid rgba(96,165,250,0.25)",
                     p: { xs: 2, md: 2.5 },
-                    width: "100%",
-                    maxWidth: { xs: "100%", sm: 320 },
+                    width: { xs: "100%", sm: 320 },
+                    mx: "auto",
                     minHeight: 180,
                     display: "flex",
                     flexDirection: "column",
@@ -1258,16 +1267,16 @@ const LivePlayersControlPanel = () => {
                     </>
                   )}
                 </Box>
-              </Grid>
-              <Grid item xs={12} md="auto" sx={{ display: "flex", justifyContent: "center" }}>
+              </Box>
+              <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
                 <Box
                   sx={{
                     background: "rgba(15,23,42,0.45)",
                     borderRadius: "16px",
                     border: "1px solid rgba(34,197,94,0.28)",
                     p: { xs: 2, md: 2.5 },
-                    width: "100%",
-                    maxWidth: { xs: "100%", sm: 320 },
+                    width: { xs: "100%", sm: 320 },
+                    mx: "auto",
                     minHeight: 180,
                     display: "flex",
                     flexDirection: "column",
@@ -1331,11 +1340,11 @@ const LivePlayersControlPanel = () => {
                     </Typography>
                   )}
                 </Box>
-              </Grid>
-            </Grid>
-          </Grid>
+              </Box>
+            </Box>
+          </Box>
 
-          <Grid item xs={12}>
+          <Box sx={{ width: "100%" }}>
             <Box
               sx={{
                 background: "rgba(15,23,42,0.45)",
@@ -1434,8 +1443,8 @@ const LivePlayersControlPanel = () => {
                 )}
               </Grid>
             </Box>
-          </Grid>
-        </Grid>
+          </Box>
+        </Stack>
         {/* Toggle mellan sektioner */}
         <ToggleButtonGroup
           value={detailView}
@@ -1600,6 +1609,9 @@ const TrendSection = ({
   translate,
   percentFormatter,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const formatSigned = (value) => {
     if (!Number.isFinite(value)) return "—";
     const abs = numberFormatter.format(Math.abs(value));
@@ -1632,6 +1644,39 @@ const TrendSection = ({
   const tooltipLabel = movingAverageOn
     ? movingAverageLabel
     : translate("Genomsnitt", "Average");
+  const maxXTicks = isMobile ? 4 : 6;
+
+  const xAxisTicks = useMemo(() => {
+    if (!Array.isArray(trendChartData) || !trendChartData.length) return undefined;
+    if (trendChartData.length <= maxXTicks) return trendChartData.map((row) => row.date);
+    const step = Math.ceil((trendChartData.length - 1) / (maxXTicks - 1));
+    const ticks = [];
+    for (let index = 0; index < trendChartData.length; index += step) {
+      ticks.push(trendChartData[index].date);
+    }
+    const lastDate = trendChartData[trendChartData.length - 1]?.date;
+    if (lastDate && ticks[ticks.length - 1] !== lastDate) ticks.push(lastDate);
+    return ticks;
+  }, [trendChartData, maxXTicks]);
+
+  const formatAxisDate = useCallback(
+    (value) => {
+      if (!value) return "";
+      const text = String(value);
+      return isMobile ? text.slice(5) : text;
+    },
+    [isMobile]
+  );
+
+  const formatPlayersAxis = useCallback(
+    (value) => {
+      if (!Number.isFinite(value)) return "";
+      if (!isMobile) return numberFormatter.format(value);
+      if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
+      return numberFormatter.format(value);
+    },
+    [isMobile, numberFormatter]
+  );
 
   return (
   <Box
@@ -1762,7 +1807,7 @@ const TrendSection = ({
       </Typography>
     </Stack>
 
-    <Box sx={{ height: 260 }}>
+    <Box sx={{ height: { xs: 248, md: 260 }, mx: { xs: -1, md: 0 } }}>
       {overviewLoading ? (
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
           <CircularProgress size={20} sx={{ color: "#38bdf8" }} />
@@ -1772,7 +1817,10 @@ const TrendSection = ({
         </Box>
       ) : trendChartData.length ? (
         <ResponsiveContainer>
-          <AreaChart data={trendChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+          <AreaChart
+            data={trendChartData}
+            margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+          >
             <defs>
               <linearGradient id="liveTrendGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.6} />
@@ -1782,16 +1830,21 @@ const TrendSection = ({
             <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+              ticks={xAxisTicks}
+              interval={0}
+              tickFormatter={formatAxisDate}
+              minTickGap={isMobile ? 26 : 18}
+              tickMargin={8}
+              tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
               tickLine={false}
               axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
             />
             <YAxis
-              tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+              tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
               tickLine={false}
               axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-              width={60}
-              tickFormatter={(value) => numberFormatter.format(value)}
+              width={isMobile ? 40 : 60}
+              tickFormatter={formatPlayersAxis}
             />
             <RechartsTooltip
               contentStyle={{
@@ -1809,7 +1862,7 @@ const TrendSection = ({
               type="monotone"
               dataKey="players"
               stroke="#38bdf8"
-              strokeWidth={2.5}
+              strokeWidth={isMobile ? 2.2 : 2.5}
               fill="url(#liveTrendGradient)"
               fillOpacity={1}
               dot={false}
@@ -1854,6 +1907,9 @@ const GameTrendSection = ({
   translate,
   percentFormatter,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   const formatSigned = (value) => {
     if (!Number.isFinite(value)) return "—";
     const abs = numberFormatter.format(Math.abs(value));
@@ -1887,6 +1943,39 @@ const GameTrendSection = ({
   const tooltipLabel = movingAverageOn
     ? movingAverageLabel
     : translate("Snitt", "Average");
+  const maxXTicks = isMobile ? 4 : 6;
+
+  const gameTrendTicks = useMemo(() => {
+    if (!Array.isArray(chartData) || !chartData.length) return undefined;
+    if (chartData.length <= maxXTicks) return chartData.map((row) => row.date);
+    const step = Math.ceil((chartData.length - 1) / (maxXTicks - 1));
+    const ticks = [];
+    for (let index = 0; index < chartData.length; index += step) {
+      ticks.push(chartData[index].date);
+    }
+    const lastDate = chartData[chartData.length - 1]?.date;
+    if (lastDate && ticks[ticks.length - 1] !== lastDate) ticks.push(lastDate);
+    return ticks;
+  }, [chartData, maxXTicks]);
+
+  const formatAxisDate = useCallback(
+    (value) => {
+      if (!value) return "";
+      const text = String(value);
+      return isMobile ? text.slice(5) : text;
+    },
+    [isMobile]
+  );
+
+  const formatPlayersAxis = useCallback(
+    (value) => {
+      if (!Number.isFinite(value)) return "";
+      if (!isMobile) return numberFormatter.format(value);
+      if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
+      return numberFormatter.format(value);
+    },
+    [isMobile, numberFormatter]
+  );
 
   return (
     <Box
@@ -2041,7 +2130,7 @@ const GameTrendSection = ({
         </Stack>
       )}
 
-      <Box sx={{ height: 260 }}>
+      <Box sx={{ height: { xs: 248, md: 260 }, mx: { xs: -1, md: 0 } }}>
         {overviewLoading ? (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
             <CircularProgress size={20} sx={{ color: "#38bdf8" }} />
@@ -2051,20 +2140,29 @@ const GameTrendSection = ({
           </Box>
         ) : chartData.length ? (
           <ResponsiveContainer>
-            <BarChart data={chartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+            <BarChart
+              data={chartData}
+              margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+              barCategoryGap={isMobile ? "18%" : "22%"}
+            >
               <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                ticks={gameTrendTicks}
+                interval={0}
+                tickFormatter={formatAxisDate}
+                minTickGap={isMobile ? 26 : 18}
+                tickMargin={8}
+                tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
-                tickFormatter={(value) => numberFormatter.format(value)}
+                tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
+                tickFormatter={formatPlayersAxis}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                width={60}
+                width={isMobile ? 40 : 60}
               />
               <RechartsTooltip
                 contentStyle={{
@@ -2078,7 +2176,7 @@ const GameTrendSection = ({
                   tooltipLabel,
                 ]}
               />
-              <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} maxBarSize={isMobile ? 20 : 28} />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -2126,6 +2224,8 @@ const AsiaTrackerSection = ({
   translate,
   percentFormatter,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const isTrendView = viewMode === "trend";
   const currentSummary = isTrendView ? trendSummary : gameSummary;
   const formatSigned = (value) => {
@@ -2167,6 +2267,51 @@ const AsiaTrackerSection = ({
   const tooltipLabel = movingAverageOn
     ? movingAverageLabel
     : translate("Snitt", "Average");
+  const maxXTicks = isMobile ? 4 : 6;
+
+  const asiaTrendTicks = useMemo(() => {
+    if (!Array.isArray(trendChartData) || !trendChartData.length) return undefined;
+    if (trendChartData.length <= maxXTicks) return trendChartData.map((row) => row.date);
+    const step = Math.ceil((trendChartData.length - 1) / (maxXTicks - 1));
+    const ticks = [];
+    for (let index = 0; index < trendChartData.length; index += step) {
+      ticks.push(trendChartData[index].date);
+    }
+    const lastDate = trendChartData[trendChartData.length - 1]?.date;
+    if (lastDate && ticks[ticks.length - 1] !== lastDate) ticks.push(lastDate);
+    return ticks;
+  }, [trendChartData, maxXTicks]);
+  const asiaGameTicks = useMemo(() => {
+    if (!Array.isArray(gameChartData) || !gameChartData.length) return undefined;
+    if (gameChartData.length <= maxXTicks) return gameChartData.map((row) => row.date);
+    const step = Math.ceil((gameChartData.length - 1) / (maxXTicks - 1));
+    const ticks = [];
+    for (let index = 0; index < gameChartData.length; index += step) {
+      ticks.push(gameChartData[index].date);
+    }
+    const lastDate = gameChartData[gameChartData.length - 1]?.date;
+    if (lastDate && ticks[ticks.length - 1] !== lastDate) ticks.push(lastDate);
+    return ticks;
+  }, [gameChartData, maxXTicks]);
+
+  const formatAxisDate = useCallback(
+    (value) => {
+      if (!value) return "";
+      const text = String(value);
+      return isMobile ? text.slice(5) : text;
+    },
+    [isMobile]
+  );
+
+  const formatPlayersAxis = useCallback(
+    (value) => {
+      if (!Number.isFinite(value)) return "";
+      if (!isMobile) return numberFormatter.format(value);
+      if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
+      return numberFormatter.format(value);
+    },
+    [isMobile, numberFormatter]
+  );
 
   return (
     <Box
@@ -2395,7 +2540,7 @@ const AsiaTrackerSection = ({
         </Stack>
       </Stack>
 
-      <Box sx={{ height: 260 }}>
+      <Box sx={{ height: { xs: 248, md: 260 }, mx: { xs: -1, md: 0 } }}>
         {overviewLoading ? (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", gap: 1.2 }}>
             <CircularProgress size={20} sx={{ color: isTrendView ? "#fde68a" : "#38bdf8" }} />
@@ -2406,7 +2551,10 @@ const AsiaTrackerSection = ({
         ) : isTrendView ? (
           trendChartData.length ? (
             <ResponsiveContainer>
-              <AreaChart data={trendChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+              <AreaChart
+                data={trendChartData}
+                margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+              >
                 <defs>
                   <linearGradient id="asiaTrendGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor={ASIA_AGG_COLOR} stopOpacity={0.55} />
@@ -2416,16 +2564,21 @@ const AsiaTrackerSection = ({
                 <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                  ticks={asiaTrendTicks}
+                  interval={0}
+                  tickFormatter={formatAxisDate}
+                  minTickGap={isMobile ? 26 : 18}
+                  tickMargin={8}
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
                   tickLine={false}
                   axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
                   tickLine={false}
                   axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                  tickFormatter={(value) => numberFormatter.format(value)}
-                  width={60}
+                  tickFormatter={formatPlayersAxis}
+                  width={isMobile ? 40 : 60}
                 />
                 <RechartsTooltip
                   contentStyle={{
@@ -2443,7 +2596,7 @@ const AsiaTrackerSection = ({
                   dataKey="players"
                   type="monotone"
                   stroke={ASIA_AGG_COLOR}
-                  strokeWidth={2.2}
+                  strokeWidth={isMobile ? 2 : 2.2}
                   fill="url(#asiaTrendGradient)"
                   fillOpacity={1}
                 />
@@ -2467,20 +2620,29 @@ const AsiaTrackerSection = ({
           )
         ) : gameChartData.length ? (
           <ResponsiveContainer>
-            <BarChart data={gameChartData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
+            <BarChart
+              data={gameChartData}
+              margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+              barCategoryGap={isMobile ? "18%" : "22%"}
+            >
               <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
               <XAxis
                 dataKey="date"
-                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
+                ticks={asiaGameTicks}
+                interval={0}
+                tickFormatter={formatAxisDate}
+                minTickGap={isMobile ? 26 : 18}
+                tickMargin={8}
+                tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "rgba(148,163,184,0.75)" }}
-                tickFormatter={(value) => numberFormatter.format(value)}
+                tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
+                tickFormatter={formatPlayersAxis}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                width={60}
+                width={isMobile ? 40 : 60}
               />
               <RechartsTooltip
                 contentStyle={{
@@ -2494,7 +2656,7 @@ const AsiaTrackerSection = ({
                   tooltipLabel,
                 ]}
               />
-              <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} />
+              <Bar dataKey="players" fill={activeColor} radius={[6, 6, 0, 0]} maxBarSize={isMobile ? 20 : 28} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

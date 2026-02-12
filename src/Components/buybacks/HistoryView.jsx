@@ -64,9 +64,18 @@ const HistoryView = ({
 }) => {
   const translate = useTranslate();
   const areaFillId = `histArea-${useId()}`;
-  const tickFontSize = isMobile ? 12 : 14;
+  const tickFontSize = isMobile ? 10 : 14;
   const yTickWidth = isMobile ? 40 : 60;
-  const xHeight = isMobile ? 40 : 60;
+  const xHeight = isMobile ? 44 : 60;
+  const formatCompactMobileTick = (value) => {
+    if (!Number.isFinite(value)) return "–";
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}B`;
+    if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}M`;
+    if (abs >= 1_000) return `${(value / 1_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}k`;
+    return value.toLocaleString("sv-SE");
+  };
+  const yTickFormatter = isMobile ? formatCompactMobileTick : formatYAxisTick;
   const periodLabelBase = PERIOD_LABELS[viewMode] ?? PERIOD_LABELS.daily;
   const periodLabel = {
     singular: translate(periodLabelBase.singular.sv, periodLabelBase.singular.en),
@@ -169,6 +178,28 @@ const HistoryView = ({
       ? "Monthly buybacks"
       : "Yearly buybacks"
   );
+  const pointCount = Array.isArray(historyChartData) ? historyChartData.length : 0;
+  const xAxisInterval = useMemo(() => {
+    if (!pointCount) return 0;
+    if (viewMode === "daily") {
+      const targetTicks = isMobile ? 6 : 18;
+      return Math.max(Math.ceil(pointCount / targetTicks) - 1, 0);
+    }
+    if (viewMode === "weekly") {
+      const targetTicks = isMobile ? 6 : 14;
+      return Math.max(Math.ceil(pointCount / targetTicks) - 1, 0);
+    }
+    return isMobile ? "preserveStartEnd" : 0;
+  }, [isMobile, pointCount, viewMode]);
+  const xAxisTickFormatter = useMemo(() => {
+    if (viewMode !== "daily") return undefined;
+    return (value) => {
+      if (typeof value !== "string") return value;
+      // YYYY-MM-DD -> MM-DD to keep daily axis readable
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value.slice(5);
+      return value;
+    };
+  }, [viewMode]);
 
   return (
     <Box
@@ -178,7 +209,7 @@ const HistoryView = ({
         borderRadius: "20px",
         border: `1px solid ${COLORS.border}`,
         boxShadow: "0 18px 40px rgba(8,15,40,0.46)",
-        px: { xs: 2.2, md: 3 },
+        px: { xs: 1.2, md: 3 },
         py: { xs: 2.6, md: 3.2 },
         display: "flex",
         flexDirection: "column",
@@ -385,14 +416,15 @@ const HistoryView = ({
         {datasetTitle}
       </Typography>
 
-      <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
+      <Box sx={{ width: "100%", mx: { xs: -0.6, md: 0 } }}>
+      <ResponsiveContainer width="100%" height={isMobile ? 280 : 300}>
         {chartTypeHistory === "line" ? (
           <ComposedChart
             data={historyChartData}
             margin={{
               top: 10,
-              right: isMobile ? 10 : 20,
-              bottom: isMobile ? 40 : 40,
+              right: isMobile ? 4 : 20,
+              bottom: isMobile ? 40 : viewMode === "daily" ? 24 : 32,
               left: isMobile ? 0 : 0,
             }}
           >
@@ -409,9 +441,12 @@ const HistoryView = ({
               dataKey="Datum"
               stroke={COLORS.textSecondary}
               tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
-              angle={isMobile ? -45 : 0}
-              textAnchor={isMobile ? "end" : "middle"}
-              height={xHeight}
+              angle={isMobile ? -45 : viewMode === "daily" ? -30 : 0}
+              textAnchor={isMobile || viewMode === "daily" ? "end" : "middle"}
+              height={isMobile ? xHeight : viewMode === "daily" ? 52 : xHeight}
+              interval={xAxisInterval}
+              minTickGap={isMobile ? 22 : 8}
+              tickFormatter={xAxisTickFormatter}
             >
               {!isMobile && (
                 <Label
@@ -427,7 +462,7 @@ const HistoryView = ({
               stroke={COLORS.textSecondary}
               tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               domain={yDomain}
-              tickFormatter={formatYAxisTick}
+              tickFormatter={yTickFormatter}
               width={yTickWidth}
               ticks={yTicks}
             >
@@ -475,8 +510,8 @@ const HistoryView = ({
             data={historyChartData}
             margin={{
               top: 10,
-              right: isMobile ? 10 : 20,
-              bottom: isMobile ? 40 : 40,
+              right: isMobile ? 4 : 20,
+              bottom: isMobile ? 40 : viewMode === "daily" ? 24 : 32,
               left: isMobile ? 0 : 0,
             }}
           >
@@ -485,9 +520,12 @@ const HistoryView = ({
               dataKey="Datum"
               stroke={COLORS.textSecondary}
               tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
-              angle={isMobile ? -45 : 0}
-              textAnchor={isMobile ? "end" : "middle"}
-              height={xHeight}
+              angle={isMobile ? -45 : viewMode === "daily" ? -30 : 0}
+              textAnchor={isMobile || viewMode === "daily" ? "end" : "middle"}
+              height={isMobile ? xHeight : viewMode === "daily" ? 52 : xHeight}
+              interval={xAxisInterval}
+              minTickGap={isMobile ? 22 : 8}
+              tickFormatter={xAxisTickFormatter}
             >
               {!isMobile && (
                 <Label
@@ -503,7 +541,7 @@ const HistoryView = ({
               stroke={COLORS.textSecondary}
               tick={{ fontSize: tickFontSize, fill: COLORS.textSecondary }}
               domain={yDomain}
-              tickFormatter={formatYAxisTick}
+              tickFormatter={yTickFormatter}
               width={yTickWidth}
               ticks={yTicks}
             >
@@ -538,6 +576,7 @@ const HistoryView = ({
           </BarChart>
         )}
       </ResponsiveContainer>
+      </Box>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         {translate("Transaktioner", "Transactions")}

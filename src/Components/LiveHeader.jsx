@@ -31,6 +31,7 @@ import PersonRounded from "@mui/icons-material/PersonRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import LogoutRounded from "@mui/icons-material/LogoutRounded";
 import NextLink from "next/link";
+import FinancialOverviewPanel from "./FinancialOverviewCard";
 import { useStockPriceContext } from "../context/StockPriceContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
@@ -115,7 +116,6 @@ const PanelLoader = () => (
   </Box>
 );
 
-const FinancialOverviewPanel = dynamic(() => import("./FinancialOverviewCard"), { ssr: false, loading: PanelLoader });
 const LiveAiFairValuePanel = dynamic(() => import("./LiveAiFairValue"), { ssr: false, loading: PanelLoader });
 const GameshowEarningsPanel = dynamic(() => import("./LiveShowIntelligence"), { ssr: false, loading: PanelLoader });
 const ShortIntelligencePanel = dynamic(() => import("./ShortIntellegence"), { ssr: false, loading: PanelLoader });
@@ -208,11 +208,9 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const scrollToCard = useCallback((index) => {
     const el = mobileCardsRef.current;
     if (!el) return;
-    const width = el.offsetWidth;
+    const width = el.clientWidth;
     if (!width) return;
-    const cardWidth = width * 0.82;
-    const gap = 12;
-    const step = cardWidth + gap;
+    const step = width;
     el.scrollTo({ left: index * step, behavior: "smooth" });
   }, []);
 
@@ -397,11 +395,9 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
     let rafId = 0;
     const updateIndex = () => {
-      const width = el.offsetWidth;
+      const width = el.clientWidth;
       if (!width) return;
-      const cardWidth = width * 0.82;
-      const gap = 12;
-      const step = cardWidth + gap;
+      const step = width;
       const nextIndex = Math.max(0, Math.min(2, Math.round(el.scrollLeft / step)));
       setMobileCardIndex(nextIndex);
     };
@@ -807,6 +803,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     return maybeFirst.charAt(0).toUpperCase() + maybeFirst.slice(1);
   }, [user?.email, user?.firstName]);
   const isLiveMoneyPanel = activePanel === "money";
+  const isLivePanel = activePanel === "live";
 
   useEffect(() => {
     if (!isAuthenticated || !token) return;
@@ -1541,12 +1538,12 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 flexDirection: { xs: "row", md: "row" },
                 alignItems: { xs: "stretch", md: "stretch" },
                 justifyContent: { xs: "flex-start", md: "space-between" },
-                gap: { xs: 1.2, sm: 1.4, md: 2.8 },
+                gap: { xs: 0, md: 2.8 },
                 mt: { xs: 0.2, sm: 0.6 },
-                px: { xs: "9%", md: 0 },
+                px: { xs: 0, md: 0 },
                 overflowX: { xs: "auto", md: "visible" },
                 scrollSnapType: { xs: "x mandatory", md: "none" },
-                scrollPaddingInline: { xs: "9%", md: 0 },
+                scrollPaddingInline: { xs: 0, md: 0 },
                 WebkitOverflowScrolling: "touch",
                 scrollbarWidth: { xs: "none", md: "auto" },
                 "&::-webkit-scrollbar": { display: "none" },
@@ -1554,8 +1551,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             >
               <Box
                 sx={{
-                  flex: { xs: "0 0 82%", sm: "0 0 70%", md: "0 1 320px" },
-                  scrollSnapAlign: { xs: "center", md: "none" },
+                  flex: { xs: "0 0 100%", md: "0 1 320px" },
+                  scrollSnapAlign: { xs: "start", md: "none" },
                   scrollSnapStop: { xs: "always", md: "normal" },
                   display: "flex",
                   justifyContent: "center",
@@ -1573,7 +1570,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     alignItems: "center",
                     gap: 0.9,
                     width: "100%",
-                    maxWidth: 320,
+                    maxWidth: { xs: "none", md: 320 },
                   }}
                 >
                 <Stack direction="row" spacing={0.8} alignItems="center">
@@ -1652,8 +1649,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
               <Box
                 sx={{
-                  flex: { xs: "0 0 82%", sm: "0 0 70%", md: "0 1 320px" },
-                  scrollSnapAlign: { xs: "center", md: "none" },
+                  flex: { xs: "0 0 100%", md: "0 1 320px" },
+                  scrollSnapAlign: { xs: "start", md: "none" },
                   scrollSnapStop: { xs: "always", md: "normal" },
                   display: "flex",
                   justifyContent: "center",
@@ -1671,7 +1668,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     alignItems: "center",
                     gap: 0.9,
                     width: "100%",
-                    maxWidth: 320,
+                    maxWidth: { xs: "none", md: 320 },
                   }}
                 >
                 <Stack direction="row" spacing={0.8} alignItems="center">
@@ -1706,8 +1703,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
               <Box
                 sx={{
-                  flex: { xs: "0 0 82%", sm: "0 0 70%", md: "0 1 320px" },
-                  scrollSnapAlign: { xs: "center", md: "none" },
+                  flex: { xs: "0 0 100%", md: "0 1 320px" },
+                  scrollSnapAlign: { xs: "start", md: "none" },
                   scrollSnapStop: { xs: "always", md: "normal" },
                   display: "flex",
                   justifyContent: "center",
@@ -1725,7 +1722,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     alignItems: "center",
                     gap: 0.9,
                     width: "100%",
-                    maxWidth: 320,
+                    maxWidth: { xs: "none", md: 320 },
                   }}
                 >
                 <Stack direction="row" spacing={0.8} alignItems="center">
@@ -1757,6 +1754,28 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
             {isMobileMenu && (
               <>
+                <Stack
+                  direction="row"
+                  spacing={0.7}
+                  justifyContent="center"
+                  sx={{ mt: 1.1 }}
+                >
+                  {[0, 1, 2].map((dot) => (
+                    <Box
+                      key={dot}
+                      sx={{
+                        width: dot === mobileCardIndex ? 16 : 7,
+                        height: 7,
+                        borderRadius: "999px",
+                        backgroundColor:
+                          dot === mobileCardIndex
+                            ? "rgba(56,189,248,0.9)"
+                            : "rgba(148,163,184,0.38)",
+                        transition: "all 140ms ease",
+                      }}
+                    />
+                  ))}
+                </Stack>
                 <Box
                   sx={{
                     position: "absolute",
@@ -1852,32 +1871,93 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
             {top3.length ? (
               isMobileMenu ? (
                 <Stack
-                  direction="row"
-                  spacing={1}
-                  justifyContent="center"
-                  alignItems="center"
-                  flexWrap="wrap"
+                  spacing={1.1}
                   sx={{ width: "100%", maxWidth: 640, mx: "auto" }}
                 >
                   {top3.map((item, index) => {
                     const playersLabel = Number.isFinite(item.players)
                       ? item.players.toLocaleString("sv-SE")
                       : "—";
+                    const updatedLabel = item.updated ? formatTime(item.updated) : null;
                     const displayLabel = item.label === "Monopoly Big Baller" ? "Big Baller" : item.label;
+                    const rankBg =
+                      index === 0
+                        ? "rgba(250,204,21,0.22)"
+                        : index === 1
+                        ? "rgba(148,163,184,0.22)"
+                        : "rgba(251,146,60,0.2)";
                     return (
-                      <Chip
+                      <Box
                         key={item.id ?? index}
-                        label={`#${index + 1} ${displayLabel} · ${playersLabel}`}
                         sx={{
-                          backgroundColor: "rgba(15,23,42,0.55)",
-                          color: item.color,
-                          border: `1px solid ${item.color}44`,
-                          borderRadius: "999px",
-                          fontWeight: 600,
+                          width: "100%",
+                          borderRadius: "14px",
                           px: 1.4,
-                          py: 1,
+                          py: 1.2,
+                          display: "grid",
+                          gridTemplateColumns: "auto 1fr auto",
+                          alignItems: "center",
+                          gap: 1.2,
+                          background: "linear-gradient(135deg, rgba(15,23,42,0.66), rgba(30,41,59,0.66))",
+                          border: `1px solid ${item.color}33`,
                         }}
-                      />
+                      >
+                        <Box
+                          sx={{
+                            minWidth: 34,
+                            height: 34,
+                            borderRadius: "999px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: 800,
+                            fontSize: "0.9rem",
+                            color: "#f8fafc",
+                            backgroundColor: rankBg,
+                            border: "1px solid rgba(255,255,255,0.18)",
+                          }}
+                        >
+                          #{index + 1}
+                        </Box>
+                        <Stack spacing={0.15} sx={{ minWidth: 0 }}>
+                          <Typography
+                            sx={{
+                              color: "#f8fafc",
+                              fontWeight: 700,
+                              fontSize: "0.96rem",
+                              lineHeight: 1.2,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {displayLabel}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              color: "rgba(148,163,184,0.8)",
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {updatedLabel
+                              ? translate(`Senast ${updatedLabel}`, `Latest ${updatedLabel}`)
+                              : translate("Ingen tidsstämpel", "No timestamp")}
+                          </Typography>
+                        </Stack>
+                        <Typography
+                          sx={{
+                            color: item.color,
+                            fontWeight: 800,
+                            fontSize: "1rem",
+                            lineHeight: 1,
+                            letterSpacing: 0.2,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {playersLabel}
+                        </Typography>
+                      </Box>
                     );
                   })}
                 </Stack>
@@ -2043,10 +2123,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               sx={{
                 width: "100%",
                 mt: { xs: 1, sm: 1.5 },
-                mx: isLiveMoneyPanel ? "auto" : { xs: -3, sm: -5, md: -6 },
-                maxWidth: isLiveMoneyPanel ? "min(1700px, 100%)" : "none",
-                display: isLiveMoneyPanel ? "flex" : "block",
-                justifyContent: isLiveMoneyPanel ? "center" : "flex-start",
+                mx: isLiveMoneyPanel ? "auto" : isLivePanel ? "auto" : { xs: -3, sm: -5, md: -6 },
+                maxWidth: isLiveMoneyPanel ? "min(1700px, 100%)" : isLivePanel ? "100%" : "none",
+                display: isLiveMoneyPanel || isLivePanel ? "flex" : "block",
+                justifyContent: isLiveMoneyPanel || isLivePanel ? "center" : "flex-start",
                 "& > *": {
                   background: "transparent!important",
                   border: "none!important",

@@ -588,12 +588,23 @@ const ShortIntellegence = () => {
               ))}
             </Stack>
 
-            <Box sx={{ height: isMobile ? 260 : 320 }}>
+            <Box sx={{ height: isMobile ? 280 : 320 }}>
               {blankingSeries.length ? (
+                <Box
+                  sx={{
+                    width: {
+                      xs: "calc(100% + 32px)",
+                      sm: "calc(100% + 48px)",
+                      md: "100%",
+                    },
+                    mx: { xs: -2, sm: -3, md: 0 },
+                    height: "100%",
+                  }}
+                >
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={blankingSeries}
-                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }} // inga sidmarginaler
+                    margin={{ top: 10, right: isMobile ? 4 : 0, left: 0, bottom: 8 }}
                   >
                     <defs>
                       <linearGradient id="blankingGradient" x1="0" y1="0" x2="0" y2="1">
@@ -608,24 +619,25 @@ const ShortIntellegence = () => {
                     <XAxis
                       dataKey="xLabel"
                       tick={{
-                        fontSize: isMobile ? 11 : 12,
+                        fontSize: isMobile ? 10 : 12,
                         fill: "rgba(148,163,184,0.75)",
                       }}
                       tickLine={false}
                       axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                       interval={blankingAxisInterval}
-                      minTickGap={isMobile ? 8 : 16}
+                      minTickGap={isMobile ? 14 : 16}
+                      height={isMobile ? 34 : 30}
                     />
                     <YAxis
                       tick={{
-                        fontSize: isMobile ? 11 : 12,
+                        fontSize: isMobile ? 10 : 12,
                         fill: "rgba(148,163,184,0.75)",
                       }}
                       tickLine={false}
                       axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                       domain={blankingDomain}
-                      width={isMobile ? 48 : 56}
-                      tickFormatter={(value) => `${value.toFixed(1)}%`}
+                      width={isMobile ? 40 : 56}
+                      tickFormatter={(value) => (isMobile ? `${value.toFixed(0)}%` : `${value.toFixed(1)}%`)}
                     />
                     <RechartsTooltip content={<ShortTooltip />} />
                     <Area
@@ -639,6 +651,7 @@ const ShortIntellegence = () => {
                     />
                   </AreaChart>
                 </ResponsiveContainer>
+                </Box>
               ) : (
                 <Box
                   sx={{
@@ -656,8 +669,15 @@ const ShortIntellegence = () => {
             )}
             </Box>
 
-            <Grid container spacing={isMobile ? 2 : 3}>
-              <Grid item xs={12} md={4}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+                gap: { xs: 2, md: 3 },
+                width: "100%",
+              }}
+            >
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(59,130,246,0.08)",
@@ -689,8 +709,8 @@ const ShortIntellegence = () => {
                       : "–"}
                   </Typography>
                 </Box>
-              </Grid>
-              <Grid item xs={12} md={4}>
+              </Box>
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(248,113,113,0.08)",
@@ -738,8 +758,8 @@ const ShortIntellegence = () => {
                     )}
                   </Typography>
                 </Box>
-              </Grid>
-              <Grid item xs={12} md={4}>
+              </Box>
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(45,212,191,0.08)",
@@ -785,8 +805,8 @@ const ShortIntellegence = () => {
                       : "–"}
                   </Typography>
                 </Box>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </Box>
         ) : (
           // ===== TRADING – FULLBLEED-KORT + BRED GRAF =====
@@ -827,7 +847,7 @@ const ShortIntellegence = () => {
               ))}
             </Stack>
 
-            <Box sx={{ height: isMobile ? 260 : 320 }}>
+            <Box sx={{ height: isMobile ? 280 : 320 }}>
               {tradingError ? (
                 <Box
                   sx={{
@@ -841,10 +861,21 @@ const ShortIntellegence = () => {
                   <Typography>{tradingError}</Typography>
                 </Box>
               ) : tradingSeries.length ? (
+                <Box
+                  sx={{
+                    width: {
+                      xs: "calc(100% + 32px)",
+                      sm: "calc(100% + 48px)",
+                      md: "100%",
+                    },
+                    mx: { xs: -2, sm: -3, md: 0 },
+                    height: "100%",
+                  }}
+                >
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart
                     data={tradingSeries}
-                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }} // inga sidmarginaler
+                    margin={{ top: 10, right: isMobile ? 4 : 0, left: 0, bottom: 8 }}
                   >
                     <CartesianGrid
                       stroke="rgba(148,163,184,0.15)"
@@ -853,24 +884,30 @@ const ShortIntellegence = () => {
                     <XAxis
                       dataKey="xLabel"
                       tick={{
-                        fontSize: isMobile ? 11 : 12,
+                        fontSize: isMobile ? 10 : 12,
                         fill: "rgba(148,163,184,0.75)",
                       }}
                       tickLine={false}
                       axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                       interval={tradingAxisInterval}
-                      minTickGap={isMobile ? 8 : 16}
+                      minTickGap={isMobile ? 14 : 16}
+                      height={isMobile ? 34 : 30}
                     />
                     <YAxis
                       yAxisId="left"
                       tick={{
-                        fontSize: isMobile ? 11 : 12,
+                        fontSize: isMobile ? 10 : 12,
                         fill: "rgba(74,222,128,0.85)",
                       }}
                       tickLine={false}
                       axisLine={{ stroke: "rgba(74,222,128,0.35)" }}
-                      width={isMobile ? 46 : 56}
-                      tickFormatter={(value) => `${formatMillion(value, 0)}`}
+                      width={isMobile ? 40 : 56}
+                      tickFormatter={(value) => {
+                        if (!isMobile) return `${formatMillion(value, 0)}`;
+                        if (!Number.isFinite(value)) return "–";
+                        if (Math.abs(value) >= 1000) return `${formatMillion(value / 1000, 1)}B`;
+                        return `${formatMillion(value, 0)}M`;
+                      }}
                       label={{
                         value: translate("Miljoner aktier", "Million shares"),
                         angle: -90,
@@ -884,13 +921,13 @@ const ShortIntellegence = () => {
                       yAxisId="right"
                       orientation="right"
                       tick={{
-                        fontSize: isMobile ? 11 : 12,
+                        fontSize: isMobile ? 10 : 12,
                         fill: "rgba(250,204,21,0.85)",
                       }}
                       tickLine={false}
                       axisLine={{ stroke: "rgba(250,204,21,0.35)" }}
-                      width={isMobile ? 46 : 56}
-                      tickFormatter={(value) => `${value.toFixed(1)}%`}
+                      width={isMobile ? 40 : 56}
+                      tickFormatter={(value) => (isMobile ? `${value.toFixed(0)}%` : `${value.toFixed(1)}%`)}
                     />
                     <RechartsTooltip content={<TradingTooltip />} />
                     <Bar
@@ -919,6 +956,7 @@ const ShortIntellegence = () => {
                     />
                   </ComposedChart>
                 </ResponsiveContainer>
+                </Box>
               ) : (
                 <Box
                   sx={{
@@ -936,8 +974,15 @@ const ShortIntellegence = () => {
               )}
             </Box>
 
-            <Grid container spacing={isMobile ? 2 : 3}>
-              <Grid item xs={12} md={3}>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" },
+                gap: { xs: 2, md: 3 },
+                width: "100%",
+              }}
+            >
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(250,204,21,0.12)",
@@ -969,8 +1014,8 @@ const ShortIntellegence = () => {
                     {latestTradingSummary ? latestTradingSummary.date : "–"}
                   </Typography>
                 </Box>
-              </Grid>
-              <Grid item xs={12} md={3}>
+              </Box>
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(74,222,128,0.12)",
@@ -1005,8 +1050,8 @@ const ShortIntellegence = () => {
                     )}
                   </Typography>
                 </Box>
-              </Grid>
-              <Grid item xs={12} md={3}>
+              </Box>
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(148,163,184,0.12)",
@@ -1038,8 +1083,8 @@ const ShortIntellegence = () => {
                     {translate("Andel av volym för vald period", "Share of volume for selected period")}
                   </Typography>
                 </Box>
-              </Grid>
-              <Grid item xs={12} md={3}>
+              </Box>
+              <Box>
                 <Box
                   sx={{
                     background: "rgba(56,189,248,0.12)",
@@ -1071,8 +1116,8 @@ const ShortIntellegence = () => {
                     {translate("Kort/20d volymsnitt", "Shorts / 20d avg volume")}
                   </Typography>
                 </Box>
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           </Box>
         )}
       </Box>

@@ -366,6 +366,20 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       .map((row) => ({ x: toLabel(row.Datum), sharesK: (row.Antal_aktier || 0) / 1_000 }))
       .filter((r) => Number.isFinite(r.sharesK));
   }, [viewMode, combinedBuybacks]);
+  const overviewXAxisInterval = useMemo(() => {
+    const len = chartData.length;
+    if (!len) return 0;
+    const targetTicks = isMobile ? 6 : viewMode === 'daily' ? 14 : 18;
+    return Math.max(Math.ceil(len / targetTicks) - 1, 0);
+  }, [chartData.length, isMobile, viewMode]);
+  const overviewXAxisTickFormatter = useMemo(() => {
+    if (viewMode !== 'daily') return undefined;
+    return (value) => {
+      if (typeof value !== 'string') return value;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return isMobile ? value.slice(5) : value.slice(2);
+      return value;
+    };
+  }, [isMobile, viewMode]);
 
   // ---- Subview derived data ----
   const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(oldData), [oldData]);
@@ -459,14 +473,12 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     <Box
       sx={{
         background: 'linear-gradient(135deg, #0f172a, #1f2937)',
-        borderRadius: '18px',
+        borderRadius: 0,
         border: '1px solid rgba(148,163,184,0.18)',
         boxShadow: '0 20px 45px rgba(15, 23, 42, 0.45)',
         color: '#f8fafc',
         padding: { xs: 3, md: 4 },
         width: '100%',
-        maxWidth: '1200px',
-        margin: '16px auto',
       }}
     >
       <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 2 : 3} alignItems="center" justifyContent="center">
@@ -526,31 +538,83 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
       {/* Subview menu row */}
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1.5 }}>
-        <ToggleButtonGroup
-          value={subView}
-          exclusive
-          onChange={(_e, v) => v && setSubView(v)}
-          size="small"
-          sx={{ backgroundColor: 'rgba(148,163,184,0.12)', borderRadius: '999px', p: 0.5, flexWrap: 'wrap' }}
-        >
-          {SUB_VIEWS.map((opt) => (
-            <ToggleButton
-              key={opt.value}
-              value={opt.value}
-              sx={{
-                textTransform: 'none',
-                color: 'rgba(226,232,240,0.75)',
-                border: 0,
-                borderRadius: '999px!important',
-                px: { xs: 1.6, md: 2.2 },
-                py: 0.6,
-                '&.Mui-selected': { color: '#f8fafc', backgroundColor: 'rgba(56,189,248,0.28)' },
-              }}
-            >
-              {translate(opt.labelSv, opt.labelEn)}
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+        {isMobile ? (
+          <Box
+            sx={{
+              width: '100%',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 0.8,
+            }}
+          >
+            {SUB_VIEWS.map((opt) => {
+              const active = subView === opt.value;
+              return (
+                <Box
+                  key={opt.value}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSubView(opt.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setSubView(opt.value);
+                    }
+                  }}
+                  sx={{
+                    textAlign: 'center',
+                    px: 1.2,
+                    py: 1,
+                    borderRadius: '12px',
+                    border: active ? '1px solid rgba(56,189,248,0.55)' : '1px solid rgba(148,163,184,0.2)',
+                    background: active
+                      ? 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(15,23,42,0.55))'
+                      : 'rgba(15,23,42,0.38)',
+                    color: active ? '#f8fafc' : 'rgba(226,232,240,0.78)',
+                    fontSize: '0.88rem',
+                    fontWeight: active ? 700 : 600,
+                    lineHeight: 1.2,
+                    minHeight: 44,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 120ms ease',
+                    '&:active': { transform: 'scale(0.99)' },
+                  }}
+                >
+                  {translate(opt.labelSv, opt.labelEn)}
+                </Box>
+              );
+            })}
+          </Box>
+        ) : (
+          <ToggleButtonGroup
+            value={subView}
+            exclusive
+            onChange={(_e, v) => v && setSubView(v)}
+            size="small"
+            sx={{ backgroundColor: 'rgba(148,163,184,0.12)', borderRadius: '999px', p: 0.5, flexWrap: 'wrap' }}
+          >
+            {SUB_VIEWS.map((opt) => (
+              <ToggleButton
+                key={opt.value}
+                value={opt.value}
+                sx={{
+                  textTransform: 'none',
+                  color: 'rgba(226,232,240,0.75)',
+                  border: 0,
+                  borderRadius: '999px!important',
+                  px: { xs: 1.6, md: 2.2 },
+                  py: 0.6,
+                  '&.Mui-selected': { color: '#f8fafc', backgroundColor: 'rgba(56,189,248,0.28)' },
+                }}
+              >
+                {translate(opt.labelSv, opt.labelEn)}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        )}
       </Box>
 
       {subView === 'overview' && Number.isFinite(buybackBudgetSek) && (
@@ -559,7 +623,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             mt: 2,
             background: 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(17,24,39,0.7))',
             border: '1px solid rgba(148,163,184,0.22)',
-            borderRadius: { xs: 0, md: '16px' },
+            borderRadius: { xs: '14px', md: '16px' },
             mx: { xs: -2, sm: -3, md: -4 },
             px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 2, md: 2.5 },
@@ -607,14 +671,15 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             </Stack>
           </Stack>
 
-          <Stack
-            direction={{ xs: 'column', md: 'row' }}
-            spacing={{ xs: 1.5, md: 2.5 }}
-            alignItems="stretch"
-            justifyContent="space-between"
-            flexWrap="wrap"
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
+              gap: { xs: 1.2, md: 2.2 },
+              alignItems: 'start',
+            }}
           >
-            <Stack spacing={0.75} sx={{ minWidth: { md: 220 }, flex: '1 1 220px' }}>
+            <Stack spacing={0.75} sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Kassaläge', 'Cash position')}
               </Typography>
@@ -633,7 +698,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
               </Typography>
             </Stack>
 
-            <Stack spacing={0.8} sx={{ minWidth: { md: 260 }, flex: '1 1 260px' }}>
+            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Återstående kassa', 'Remaining cash')}
               </Typography>
@@ -666,7 +731,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
               )}
             </Stack>
 
-            <Stack spacing={0.8} sx={{ minWidth: { md: 260 }, flex: '1 1 280px' }}>
+            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Kapacitet vid kurs', 'Capacity at price')}
               </Typography>
@@ -688,7 +753,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
               </Typography>
             </Stack>
 
-            <Stack spacing={0.8} sx={{ minWidth: { md: 240 }, flex: '1 1 240px' }}>
+            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
               <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
                 {translate('Framåtblick', 'Forward look')}
               </Typography>
@@ -716,7 +781,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                   : translate('Behöver kassainformation för prognos.', 'Need cash information for forecast.')}
               </Typography>
             </Stack>
-          </Stack>
+          </Box>
         </Box>
       )}
 
@@ -727,11 +792,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             mt: 2,
             background: 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(17,24,39,0.7))',
             border: '1px solid rgba(148,163,184,0.22)',
-            borderRadius: { xs: 0, md: '16px' },
+            borderRadius: { xs: '14px', md: '16px' },
 
             // Fullbleed-trick för att matcha dina andra komponenter
-            mx: { xs: -2, sm: -3, md: -4 },
-            px: { xs: 2, sm: 3, md: 4 },
+            mx: { xs: -3, sm: -3, md: -4 },
+            px: { xs: 1, sm: 3, md: 4 },
             py: { xs: 2, md: 2.5 },
 
             height: isMobile ? 240 : 280,
@@ -750,10 +815,16 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
               {translate('Fel', 'Error')}: {error}
             </Typography>
           ) : chartData.length ? (
-            <ResponsiveContainer width="100%" height="100%">
+            <Box
+              sx={{
+                width: { xs: 'calc(100% + 16px)', sm: '100%' },
+                mx: { xs: -1, sm: 0, md: 0 },
+              }}
+            >
+            <ResponsiveContainer width="100%" height={isMobile ? 220 : 250}>
               <AreaChart
                 data={chartData}
-                margin={{ top: 10, right: 0, left: 0, bottom: 0 }} // inga sidmarginaler
+                margin={{ top: 8, right: isMobile ? 0 : 8, left: isMobile ? 0 : 8, bottom: 8 }}
               >
                 <defs>
                   <linearGradient id="bbGradient" x1="0" y1="0" x2="0" y2="1">
@@ -762,8 +833,33 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                   </linearGradient>
                 </defs>
                 <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
-                <XAxis dataKey="x" tick={{ fontSize: 11, fill: 'rgba(148,163,184,0.75)' }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.25)' }} />
-                <YAxis tick={{ fontSize: 11, fill: 'rgba(148,163,184,0.75)' }} tickLine={false} axisLine={{ stroke: 'rgba(148,163,184,0.25)' }} width={60} tickFormatter={(v) => `${fmtThousands(v, 1)} k`} />
+                <XAxis
+                  dataKey="x"
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'rgba(148,163,184,0.75)' }}
+                  tickLine={false}
+                  axisLine={{ stroke: 'rgba(148,163,184,0.25)' }}
+                  height={isMobile ? 36 : viewMode === 'daily' ? 42 : 30}
+                  interval={overviewXAxisInterval}
+                  minTickGap={isMobile ? 18 : viewMode === 'daily' ? 14 : 8}
+                  angle={isMobile ? 0 : viewMode === 'daily' ? -30 : 0}
+                  textAnchor={isMobile ? 'middle' : viewMode === 'daily' ? 'end' : 'middle'}
+                  tickFormatter={overviewXAxisTickFormatter}
+                />
+                <YAxis
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'rgba(148,163,184,0.75)' }}
+                  tickLine={false}
+                  axisLine={{ stroke: 'rgba(148,163,184,0.25)' }}
+                  width={isMobile ? 40 : 60}
+                  tickFormatter={(v) => {
+                    if (!Number.isFinite(v)) return '–';
+                    if (isMobile) {
+                      if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })}M`;
+                      if (Math.abs(v) >= 1_000) return `${(v / 1_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })}k`;
+                      return Number(v).toLocaleString('sv-SE');
+                    }
+                    return `${fmtThousands(v, 1)} k`;
+                  }}
+                />
                 <RechartsTooltip
                   contentStyle={{ background: 'rgba(15,23,42,0.92)', border: '1px solid rgba(96,165,250,0.25)', borderRadius: 12, color: '#f8fafc' }}
                   formatter={(v) => [
@@ -774,6 +870,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                 <Area type="monotone" dataKey="sharesK" stroke="#38bdf8" strokeWidth={2.5} fill="url(#bbGradient)" fillOpacity={1} dot={false} />
               </AreaChart>
             </ResponsiveContainer>
+            </Box>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(148,163,184,0.75)' }}>
               {translate('Ingen återköpsdata tillgänglig.', 'No buyback data available.')}
@@ -788,15 +885,15 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             mt: 2,
             background: 'rgba(15,23,42,0.55)',
             border: '1px solid rgba(148,163,184,0.18)',
-            borderRadius: { xs: 0, md: '16px' },
-            mx: { xs: -2, sm: -3, md: -4 },
+            borderRadius: { xs: '14px', md: '16px' },
+            mx: { xs: -3, sm: -3, md: -4 },
             px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 2, md: 2.5 },
           }}
         >
           <Stack spacing={{ xs: 1.4, md: 2 }} alignItems="stretch">
             <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.8)', letterSpacing: 1.2 }}>
-              {translate('EST / Prognos 2025', 'EST / Forecast 2025')}
+              {translate('EST / Prognos 2026 (baserat på 2025)', 'EST / Forecast 2026 (based on 2025)')}
             </Typography>
 
             <Stack
@@ -807,11 +904,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             >
               <Box
                 sx={{
-                  flex: '1 1 260px',
+                  flex: { xs: '0 0 auto', md: '1 1 260px' },
                   background: 'linear-gradient(135deg, rgba(56,189,248,0.18), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(56,189,248,0.35)',
                   borderRadius: '14px',
-                  p: 2,
+                  p: { xs: 1.6, md: 2 },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
@@ -829,11 +926,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
               <Box
                 sx={{
-                  flex: '1 1 260px',
+                  flex: { xs: '0 0 auto', md: '1 1 260px' },
                   background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(16,185,129,0.35)',
                   borderRadius: '14px',
-                  p: 2,
+                  p: { xs: 1.6, md: 2 },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
@@ -851,11 +948,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
               <Box
                 sx={{
-                  flex: '1 1 260px',
+                  flex: { xs: '0 0 auto', md: '1 1 260px' },
                   background: 'linear-gradient(135deg, rgba(168,85,247,0.18), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(168,85,247,0.35)',
                   borderRadius: '14px',
-                  p: 2,
+                  p: { xs: 1.6, md: 2 },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
@@ -880,11 +977,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             >
               <Box
                 sx={{
-                  flex: '1 1 260px',
+                  flex: { xs: '0 0 auto', md: '1 1 260px' },
                   background: 'linear-gradient(135deg, rgba(56,189,248,0.14), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(56,189,248,0.35)',
                   borderRadius: '14px',
-                  p: 2,
+                  p: { xs: 1.6, md: 2 },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
@@ -910,11 +1007,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
               <Box
                 sx={{
-                  flex: '1 1 260px',
+                  flex: { xs: '0 0 auto', md: '1 1 260px' },
                   background: 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(245,158,11,0.35)',
                   borderRadius: '14px',
-                  p: 2,
+                  p: { xs: 1.6, md: 2 },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
@@ -946,11 +1043,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
               <Box
                 sx={{
-                  flex: '1 1 260px',
+                  flex: { xs: '0 0 auto', md: '1 1 260px' },
                   background: 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(59,130,246,0.35)',
                   borderRadius: '14px',
-                  p: 2,
+                  p: { xs: 1.6, md: 2 },
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
@@ -985,25 +1082,29 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         <Box
           sx={{
             mt: 2,
-            display: 'flex',
-            justifyContent: 'center',
+            background: 'rgba(15,23,42,0.55)',
+            border: '1px solid rgba(148,163,184,0.18)',
+            borderRadius: { xs: '14px', md: '16px' },
+            mx: { xs: -3, sm: -3, md: -4 },
+            px: { xs: 1, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
           }}
         >
           <Stack
             direction={{ xs: 'column', lg: 'row' }}
-            spacing={{ xs: 2, lg: 3 }}
+            spacing={{ xs: 1.4, lg: 3 }}
             alignItems="stretch"
-            justifyContent="center"
-            sx={{ width: '100%', maxWidth: 1040 }}
+            justifyContent="space-between"
+            sx={{ width: '100%' }}
           >
             <Box
               sx={{
                 flex: '1 1 0',
                 minWidth: { xs: '100%', lg: 440 },
                 background: 'rgba(15,23,42,0.45)',
-                borderRadius: '16px',
+                borderRadius: { xs: '14px', md: '16px' },
                 border: '1px solid rgba(148,163,184,0.18)',
-                p: { xs: 1.8, md: 2 },
+                p: { xs: 1.4, md: 2 },
               }}
             >
               <Typography
@@ -1066,9 +1167,9 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                 flex: '1 1 0',
                 minWidth: { xs: '100%', lg: 440 },
                 background: 'rgba(15,23,42,0.45)',
-                borderRadius: '16px',
+                borderRadius: { xs: '14px', md: '16px' },
                 border: '1px solid rgba(148,163,184,0.18)',
-                p: { xs: 1.8, md: 2 },
+                p: { xs: 1.4, md: 2 },
               }}
             >
               <Typography
@@ -1125,7 +1226,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       )}
 
       {subView === 'ownership' && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
           <OwnershipView
             isMobile={isMobile}
             evolutionOwnershipData={evolutionOwnershipData}
@@ -1143,7 +1244,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       )}
 
       {subView === 'total' && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
           <TotalSharesView
             isMobile={isMobile}
             totalSharesData={totalSharesData}
@@ -1159,7 +1260,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       )}
 
       {subView === 'history' && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
           <HistoryView
             isMobile={isMobile}
             viewMode={viewMode}
@@ -1181,7 +1282,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       )}
 
       {subView === 'returns' && (
-        <Box sx={{ mt: 2 }}>
+        <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
           <ReturnsView
             isMobile={isMobile}
             chartData={chartReturns}

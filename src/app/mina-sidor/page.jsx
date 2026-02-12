@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Box, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +26,7 @@ import { useAdminTools } from "@/app/mina-sidor/hooks/useAdminTools";
 import { AdminPanel } from "@/app/mina-sidor/components/AdminPanel";
 import { AdminDialogs } from "@/app/mina-sidor/components/AdminDialogs";
 import { AccountSettingsDialog } from "@/app/mina-sidor/components/AccountSettingsDialog";
+import { AdminSupportInboxDialog } from "@/app/mina-sidor/components/AdminSupportInboxDialog";
 
 export default function MinaSidorPage() {
   const translate = useTranslate();
@@ -94,6 +95,7 @@ export default function MinaSidorPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [supportIndicator, setSupportIndicator] = useState(null); // null | "open" | "reply"
+  const [adminSupportInboxOpen, setAdminSupportInboxOpen] = useState(false);
 
   // Manage Modal State (local to page or extract? keeping local as it's UI state)
   const [buyShares, setBuyShares] = useState("");
@@ -114,6 +116,19 @@ export default function MinaSidorPage() {
         detail: { type },
       })
     );
+  };
+
+  const handleOpenSupport = async () => {
+    if (effectiveIsAdmin) {
+      setAdminSupportInboxOpen(true);
+      try {
+        await adminTools.loadAdminSupport?.();
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    setSupportOpen(true);
   };
 
   // --- Handlers ---
@@ -257,6 +272,21 @@ export default function MinaSidorPage() {
   const loadSupportIndicator = async () => {
     if (!token) return;
     try {
+      if (effectiveIsAdmin) {
+        const res = await fetch("/api/admin/support/tickets", {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return;
+        const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
+        const hasOpenUnanswered = tickets.some(
+          (t) => String(t?.status || "").toLowerCase() === "open" && !Boolean(t?.hasReply)
+        );
+        setSupportIndicator(hasOpenUnanswered ? "open" : null);
+        return;
+      }
+
       const res = await fetch("/api/support/tickets", {
         headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
@@ -269,6 +299,25 @@ export default function MinaSidorPage() {
       setSupportIndicator(hasReply ? "reply" : hasOpen ? "open" : null);
     } catch { }
   };
+
+  useEffect(() => {
+    if (!token || !isAuthenticated) {
+      setSupportIndicator(null);
+      return;
+    }
+    let cancelled = false;
+    const run = async () => {
+      if (cancelled) return;
+      await loadSupportIndicator();
+    };
+    run();
+    const id = setInterval(run, 60 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, isAuthenticated, effectiveIsAdmin]);
 
   // --- UI Constants ---
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
@@ -299,7 +348,7 @@ export default function MinaSidorPage() {
               totalLivePlayers={totalLivePlayers}
               onManageHoldings={handleOpenManage}
               onOpenSettings={() => setSettingsOpen(true)}
-              onOpenSupport={() => setSupportOpen(true)}
+              onOpenSupport={handleOpenSupport}
               supportIndicator={supportIndicator}
               athEmailEnabled={athEmailEnabled}
               dailyAvgEmailEnabled={dailyAvgEmailEnabled}
@@ -561,6 +610,18 @@ export default function MinaSidorPage() {
         }}
         translate={translate}
         token={token}
+      />
+
+      <AdminSupportInboxDialog
+        open={adminSupportInboxOpen}
+        onClose={() => setAdminSupportInboxOpen(false)}
+        translate={translate}
+        locale={locale}
+        loading={adminTools.adminSupportLoading}
+        error={adminTools.adminSupportError}
+        rows={adminTools.adminSupportRows}
+        onRefresh={adminTools.loadAdminSupport}
+        onOpenTicket={(id) => adminTools.openAdminSupportTicket?.(id)}
       />
 
       <AdminDialogs

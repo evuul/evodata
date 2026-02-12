@@ -38,6 +38,13 @@ const ReturnsView = ({
 }) => {
   const translate = useTranslate();
   const hasData = Array.isArray(chartData) && chartData.length > 0;
+  const formatCompactAxisValue = (value) => {
+    if (!Number.isFinite(value)) return "-";
+    if (!isMobile) return value.toLocaleString("sv-SE");
+    if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}M`;
+    if (Math.abs(value) >= 1_000) return `${(value / 1_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}k`;
+    return value.toLocaleString("sv-SE");
+  };
   const formatMillionsLocalized = (value) =>
     Number.isFinite(value)
       ? `${value.toLocaleString("sv-SE")} ${translate("Mkr", "MSEK")}`
@@ -66,7 +73,7 @@ const ReturnsView = ({
         borderRadius: "20px",
         border: `1px solid ${COLORS.border}`,
         boxShadow: "0 18px 40px rgba(8,15,40,0.46)",
-        px: { xs: 2.2, md: 3 },
+        px: { xs: 1.2, md: 3 },
         py: { xs: 2.6, md: 3.2 },
         display: "flex",
         flexDirection: "column",
@@ -194,14 +201,15 @@ const ReturnsView = ({
       </Stack>
 
       {hasData ? (
-        <ResponsiveContainer width="100%" height={isMobile ? 260 : 360}>
+        <Box sx={{ width: "100%", mx: { xs: -0.6, md: 0 } }}>
+        <ResponsiveContainer width="100%" height={isMobile ? 300 : 360}>
           <BarChart
             data={chartData}
             margin={{
               top: 24,
-              right: isMobile ? 8 : 16,
-              left: isMobile ? -8 : 0,
-              bottom: 12,
+              right: isMobile ? 4 : 16,
+              left: isMobile ? 2 : 0,
+              bottom: isMobile ? 16 : 12,
             }}
           >
             <defs>
@@ -220,7 +228,7 @@ const ReturnsView = ({
               dataKey="year"
               stroke={COLORS.textSecondary}
               tick={{ fill: COLORS.textSecondary, fontSize: isMobile ? 12 : 13 }}
-              height={isMobile ? 30 : 40}
+              height={isMobile ? 38 : 40}
             >
               {!isMobile && (
                 <Label
@@ -238,8 +246,8 @@ const ReturnsView = ({
                 fill: COLORS.textSecondary,
                 fontSize: isMobile ? 12 : 13,
               }}
-              tickFormatter={(value) => value.toLocaleString("sv-SE")}
-              width={isMobile ? 40 : 60}
+              tickFormatter={formatCompactAxisValue}
+              width={isMobile ? 44 : 60}
             >
               {!isMobile && (
                 <Label
@@ -295,6 +303,7 @@ const ReturnsView = ({
             />
           </BarChart>
         </ResponsiveContainer>
+        </Box>
       ) : (
         <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
           {translate("Laddar data…", "Loading data…")}

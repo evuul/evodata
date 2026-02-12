@@ -4,6 +4,8 @@ import { useMemo } from "react";
 import { Card, CardContent, Chip, Stack, Typography, Box } from "@mui/material";
 import SavingsIcon from "@mui/icons-material/Savings";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import { useTheme } from "@mui/material/styles";
+import useMediaQuery from "@/lib/useMuiMediaQuery";
 import {
   ResponsiveContainer,
   LineChart,
@@ -30,6 +32,8 @@ const fmtCash = (value) =>
 
 export default function CashPositionCard({ financialReports }) {
   const translate = useTranslate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { series, latest, previous } = useMemo(() => {
     const rows = sortReports(financialReports?.financialReports || []).filter(
       (r) => Number.isFinite(r?.cashEnd) || Number.isFinite(r?.cashStart)
@@ -53,6 +57,36 @@ export default function CashPositionCard({ financialReports }) {
     if (!Number.isFinite(latest?.cash) || !Number.isFinite(previous?.cash) || previous.cash === 0) return null;
     return ((latest.cash - previous.cash) / previous.cash) * 100;
   }, [latest, previous]);
+
+  const xTicks = useMemo(() => {
+    if (!series.length) return undefined;
+    const maxTicks = isMobile ? 4 : 8;
+    if (series.length <= maxTicks) return series.map((row) => row.label);
+    const step = Math.ceil((series.length - 1) / (maxTicks - 1));
+    const ticks = [];
+    for (let i = 0; i < series.length; i += step) {
+      ticks.push(series[i].label);
+    }
+    const last = series[series.length - 1]?.label;
+    if (last && ticks[ticks.length - 1] !== last) ticks.push(last);
+    return ticks;
+  }, [series, isMobile]);
+
+  const formatXAxisLabel = (value) => {
+    if (!value) return "";
+    const text = String(value);
+    if (!isMobile) return text;
+    const match = text.match(/^(\d{4})\s(Q[1-4])$/);
+    if (!match) return text;
+    return `${match[1].slice(-2)} ${match[2]}`;
+  };
+
+  const formatYAxisLabel = (value) => {
+    if (!Number.isFinite(value)) return "";
+    if (!isMobile) return value.toLocaleString("sv-SE", { maximumFractionDigits: 0 });
+    if (Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
+    return value.toLocaleString("sv-SE", { maximumFractionDigits: 0 });
+  };
 
   return (
     <Card
@@ -142,24 +176,32 @@ export default function CashPositionCard({ financialReports }) {
             border: "1px solid rgba(148,163,184,0.18)",
             borderRadius: "14px",
             p: 1,
+            mx: { xs: -1, md: 0 },
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={series} margin={{ top: 10, right: 14, left: -6, bottom: 4 }}>
+            <LineChart
+              data={series}
+              margin={isMobile ? { top: 10, right: 8, left: -16, bottom: 2 } : { top: 10, right: 14, left: -6, bottom: 4 }}
+            >
               <CartesianGrid stroke="rgba(148,163,184,0.12)" vertical={false} />
               <XAxis
                 dataKey="label"
-                tick={{ fill: "rgba(226,232,240,0.78)", fontSize: 12 }}
+                ticks={xTicks}
+                interval={0}
+                tickFormatter={formatXAxisLabel}
+                tick={{ fill: "rgba(226,232,240,0.78)", fontSize: isMobile ? 10 : 12 }}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                 tickLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                minTickGap={12}
+                minTickGap={isMobile ? 20 : 12}
+                tickMargin={8}
               />
               <YAxis
-                tick={{ fill: "rgba(226,232,240,0.78)", fontSize: 12 }}
+                tick={{ fill: "rgba(226,232,240,0.78)", fontSize: isMobile ? 10 : 12 }}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                 tickLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                tickFormatter={(v) => v.toLocaleString("sv-SE", { maximumFractionDigits: 0 })}
-                width={70}
+                tickFormatter={formatYAxisLabel}
+                width={isMobile ? 40 : 70}
               />
               <RechartsTooltip
                 formatter={(value) => fmtCash(value)}

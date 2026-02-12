@@ -639,18 +639,34 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     );
   }, [metricConfigs, translate, wideMetric, wideSelectedSeries, wideViewMode]);
 
-  const xAxisInterval = useMemo(() => {
-    const config = metricConfigs[metric];
-    if (!config || config.custom) return 0;
-    const dataLength = selectedSeries.length;
-    if (!dataLength) return 0;
-    if (metric === "dividend") return Math.max(dataLength - 12, 0);
-    if (viewMode === "quarterly") {
-      const divisor = isMobile ? 6 : 10;
-      return Math.max(Math.floor(dataLength / divisor) - 1, 0);
+  const selectedSeriesTicks = useMemo(() => {
+    if (!selectedSeries.length) return undefined;
+    const maxTicks = isMobile ? 4 : 8;
+    if (selectedSeries.length <= maxTicks) return selectedSeries.map((item) => item.xLabel);
+    const step = Math.ceil((selectedSeries.length - 1) / (maxTicks - 1));
+    const ticks = [];
+    for (let i = 0; i < selectedSeries.length; i += step) {
+      ticks.push(selectedSeries[i].xLabel);
     }
-    return Math.max(Math.floor(dataLength / (isMobile ? 5 : 8)) - 1, 0);
-  }, [selectedSeries, metric, viewMode, isMobile]);
+    const lastLabel = selectedSeries[selectedSeries.length - 1]?.xLabel;
+    if (lastLabel && ticks[ticks.length - 1] !== lastLabel) ticks.push(lastLabel);
+    return ticks;
+  }, [selectedSeries, isMobile]);
+
+  const regulatedXAxisKey = regulatedView === "quarterly" ? "xLabel" : "year";
+  const regulatedXAxisTicks = useMemo(() => {
+    if (!regulatedSeries.length) return undefined;
+    const maxTicks = isMobile ? 4 : 9;
+    if (regulatedSeries.length <= maxTicks) return regulatedSeries.map((item) => item[regulatedXAxisKey]);
+    const step = Math.ceil((regulatedSeries.length - 1) / (maxTicks - 1));
+    const ticks = [];
+    for (let i = 0; i < regulatedSeries.length; i += step) {
+      ticks.push(regulatedSeries[i][regulatedXAxisKey]);
+    }
+    const lastTick = regulatedSeries[regulatedSeries.length - 1]?.[regulatedXAxisKey];
+    if (lastTick != null && ticks[ticks.length - 1] !== lastTick) ticks.push(lastTick);
+    return ticks;
+  }, [regulatedSeries, regulatedXAxisKey, isMobile]);
 
   const selectedSummary = useMemo(() => {
     const config = metricConfigs[metric];
@@ -1052,12 +1068,22 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     if (!isStandardMetric) return value;
     if (!Number.isFinite(value)) return "";
     if (metric === "revenue") {
+      if (isMobile && Math.abs(value) >= 1000) return `${Math.round(value / 1000)}k`;
       return formatMillion(value, value >= 100 ? 0 : 1);
     }
     if (metric === "margin") {
       return `${value.toFixed(0)}%`;
     }
     return value.toFixed(metricConfigs[metric].decimals);
+  };
+
+  const formatCompactAxisLabel = (value) => {
+    if (!isMobile) return value;
+    if (value == null) return "";
+    const text = String(value);
+    if (text.includes("-")) return text;
+    if (/^\d{4}\sQ\d$/.test(text)) return text.replace(" ", " ");
+    return text;
   };
 
   const formatGeoTooltipValue = (value) =>
@@ -1218,7 +1244,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
             <Stack
               direction={isMobile ? "column" : "row"}
               spacing={isMobile ? 2 : 3}
-              alignItems={isMobile ? "flex-start" : "center"}
+              alignItems={isMobile ? "stretch" : "center"}
               justifyContent="space-between"
             >
               <ToggleButtonGroup
@@ -1228,9 +1254,17 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                 size={isMobile ? "small" : "medium"}
                 sx={{
                   backgroundColor: "rgba(148,163,184,0.12)",
-                  borderRadius: "999px",
+                  borderRadius: { xs: "14px", md: "999px" },
                   p: 0.5,
-                  flexWrap: "wrap",
+                  flexWrap: { xs: "nowrap", md: "wrap" },
+                  width: { xs: "100%", md: "auto" },
+                  display: { xs: "grid", md: "inline-flex" },
+                  gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "none" },
+                  gap: { xs: 0.6, md: 0 },
+                  "& .MuiToggleButtonGroup-grouped": {
+                    border: 0,
+                    m: { xs: 0, md: 0 },
+                  },
                 }}
               >
                 {metricToggleOptions.map((option) => (
@@ -1242,8 +1276,13 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       color: "rgba(226,232,240,0.75)",
                       border: 0,
                       borderRadius: "999px!important",
-                      px: { xs: 1.5, md: 2.5 },
-                      py: 0.75,
+                      px: { xs: 1.25, md: 2.5 },
+                      py: { xs: 0.9, md: 0.75 },
+                      minHeight: { xs: 38, md: "auto" },
+                      textAlign: "center",
+                      lineHeight: { xs: 1.2, md: "normal" },
+                      whiteSpace: { xs: "normal", md: "nowrap" },
+                      justifyContent: "center",
                       "&.Mui-selected": {
                         color: "#f8fafc",
                         backgroundColor: `${metricConfigs[option.value].accent}22`,
@@ -1267,6 +1306,10 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                   backgroundColor: "rgba(148,163,184,0.12)",
                   borderRadius: "999px",
                   p: 0.5,
+                  width: { xs: "100%", md: "auto" },
+                  "& .MuiToggleButtonGroup-grouped": {
+                    flex: { xs: 1, md: "unset" },
+                  },
                 }}
               >
                 {viewToggleOptions.map((option) => (
@@ -1292,11 +1335,14 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
               </ToggleButtonGroup>
             </Stack>
 
-            <Box sx={{ height: isMobile ? 280 : 380 }}>
+            <Box sx={{ height: isMobile ? 280 : 380, mx: { xs: -1, md: 0 } }}>
               {isStandardMetric ? (
                 selectedSeries.length ? (
                   <ResponsiveContainer>
-                    <AreaChart data={selectedSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <AreaChart
+                      data={selectedSeries}
+                      margin={isMobile ? { top: 0, right: 2, left: -12, bottom: 0 } : { top: 0, right: 0, left: 0, bottom: 0 }}
+                    >
                       <defs>
                         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                           <stop offset="5%" stopColor={metricConfigs[metric].accent} stopOpacity={0.6} />
@@ -1306,18 +1352,21 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                       <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                       <XAxis
                         dataKey="xLabel"
-                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        ticks={selectedSeriesTicks}
+                        interval={0}
+                        tickFormatter={formatCompactAxisLabel}
+                        tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                         tickLine={false}
                         axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                        interval={xAxisInterval}
-                        minTickGap={isMobile ? 8 : 16}
+                        minTickGap={isMobile ? 20 : 16}
+                        tickMargin={8}
                       />
                       <YAxis
-                        tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                        tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                         tickLine={false}
                         axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                         domain={chartDomain}
-                        width={isMobile ? 46 : 56}
+                        width={isMobile ? 40 : 56}
                         tickFormatter={formatYAxisTick}
                       />
                       <RechartsTooltip
@@ -2591,33 +2640,42 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
             </Stack>
           </Stack>
 
-          <Box sx={{ height: isMobile ? 240 : 300 }}>
+          <Box sx={{ height: isMobile ? 240 : 300, mx: { xs: -1, md: 0 } }}>
             <ResponsiveContainer width="100%" height="100%">
               {regulatedChartType === "line" ? (
-                <LineChart data={regulatedSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <LineChart
+                  data={regulatedSeries}
+                  margin={isMobile ? { top: 5, right: 2, left: -8, bottom: 0 } : { top: 5, right: 10, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                   <XAxis
-                    dataKey={regulatedView === "quarterly" ? "xLabel" : "year"}
-                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    dataKey={regulatedXAxisKey}
+                    ticks={regulatedXAxisTicks}
+                    interval={0}
+                    tickFormatter={formatCompactAxisLabel}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                    interval={regulatedView === "quarterly" ? (isMobile ? 3 : 2) : 0}
+                    minTickGap={isMobile ? 22 : 16}
+                    tickMargin={8}
                   />
                   <YAxis
                     yAxisId="left"
-                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                     tickFormatter={(v) => formatMillion(v, v >= 100 ? 0 : 1)}
+                    width={isMobile ? 36 : 52}
                   />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                     tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                     domain={[0, 100]}
+                    width={isMobile ? 32 : 44}
                   />
                   <RechartsTooltip
                     contentStyle={{
@@ -2653,30 +2711,39 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
                   />
                 </LineChart>
               ) : (
-                <ComposedChart data={regulatedSeries} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                <ComposedChart
+                  data={regulatedSeries}
+                  margin={isMobile ? { top: 5, right: 2, left: -8, bottom: 0 } : { top: 5, right: 10, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
                   <XAxis
-                    dataKey={regulatedView === "quarterly" ? "xLabel" : "year"}
-                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    dataKey={regulatedXAxisKey}
+                    ticks={regulatedXAxisTicks}
+                    interval={0}
+                    tickFormatter={formatCompactAxisLabel}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                    interval={regulatedView === "quarterly" ? (isMobile ? 3 : 2) : 0}
+                    minTickGap={isMobile ? 22 : 16}
+                    tickMargin={8}
                   />
                   <YAxis
                     yAxisId="left"
-                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                     tickFormatter={(v) => formatMillion(v, v >= 100 ? 0 : 1)}
+                    width={isMobile ? 36 : 52}
                   />
                   <YAxis
                     yAxisId="right"
                     orientation="right"
-                    tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
+                    tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                     tickLine={false}
                     axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                     tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
                     domain={[0, 100]}
+                    width={isMobile ? 32 : 44}
                   />
                   <RechartsTooltip
                     contentStyle={{

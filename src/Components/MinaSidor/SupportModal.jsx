@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Box, Button, Dialog, Divider, Stack, TextField, Typography } from "@mui/material";
+import { Box, Button, Chip, Dialog, Divider, Stack, TextField, Typography } from "@mui/material";
 import { actionCard, buttonStyles, statusColors, text } from "./styles";
 
 export default function SupportModal({ open, onClose, translate, token }) {
@@ -12,8 +12,17 @@ export default function SupportModal({ open, onClose, translate, token }) {
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [reopenMessage, setReopenMessage] = useState("");
+  const [viewerEmail, setViewerEmail] = useState("");
+  const [replySeenByTicket, setReplySeenByTicket] = useState({});
 
   const hasTickets = tickets.length > 0;
+  const seenStorageKey = useMemo(
+    () =>
+      viewerEmail
+        ? `evodata.support.seenReplyByTicket:${String(viewerEmail).trim().toLowerCase()}`
+        : "",
+    [viewerEmail]
+  );
 
   const loadTickets = async () => {
     if (!token) return;
@@ -27,6 +36,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed");
       setTickets(Array.isArray(data?.tickets) ? data.tickets : []);
+      setViewerEmail(String(data?.viewerEmail || "").trim().toLowerCase());
     } catch (e) {
       setError(e?.message || translate("Kunde inte ladda tickets.", "Could not load tickets."));
     } finally {
@@ -45,7 +55,12 @@ export default function SupportModal({ open, onClose, translate, token }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed");
-      setSelected(data?.ticket || null);
+      const nextTicket = data?.ticket || null;
+      setSelected(nextTicket);
+      const repliedAt = String(nextTicket?.adminReply?.repliedAt || "").trim();
+      if (repliedAt && id) {
+        setReplySeenByTicket((prev) => ({ ...prev, [id]: repliedAt }));
+      }
     } catch (e) {
       setError(e?.message || translate("Kunde inte ladda ticket.", "Could not load ticket."));
     } finally {
@@ -87,6 +102,34 @@ export default function SupportModal({ open, onClose, translate, token }) {
     loadTickets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  useEffect(() => {
+    if (!seenStorageKey) return;
+    try {
+      const raw = window.localStorage.getItem(seenStorageKey);
+      if (!raw) {
+        setReplySeenByTicket({});
+        return;
+      }
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        setReplySeenByTicket(parsed);
+      } else {
+        setReplySeenByTicket({});
+      }
+    } catch {
+      setReplySeenByTicket({});
+    }
+  }, [seenStorageKey]);
+
+  useEffect(() => {
+    if (!seenStorageKey) return;
+    try {
+      window.localStorage.setItem(seenStorageKey, JSON.stringify(replySeenByTicket || {}));
+    } catch {
+      // ignore storage errors
+    }
+  }, [replySeenByTicket, seenStorageKey]);
 
   const createTicket = async () => {
     if (!token) return;
@@ -138,6 +181,18 @@ export default function SupportModal({ open, onClose, translate, token }) {
   const sortedTickets = useMemo(() => {
     return [...tickets].sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
   }, [tickets]);
+
+  const hasUnreadReply = (ticket) => {
+    if (String(ticket?.status || "").toLowerCase() !== "answered") return false;
+    const replyAt = String(ticket?.replyAt || "").trim();
+    if (!replyAt) return false;
+    const seenAt = String(replySeenByTicket?.[ticket?.id] || "").trim();
+    const replyMs = Date.parse(replyAt);
+    const seenMs = Date.parse(seenAt);
+    if (!Number.isFinite(replyMs)) return false;
+    if (!Number.isFinite(seenMs)) return true;
+    return replyMs > seenMs;
+  };
 
   return (
     <Dialog
@@ -281,7 +336,22 @@ export default function SupportModal({ open, onClose, translate, token }) {
                         {translate("Uppdaterad", "Updated")}: {formatWhen(t.updatedAt)}
                       </Typography>
                     </Box>
-                    <Typography sx={{ fontWeight: 900, color: statusColor(t.status) }}>{statusLabel(t.status)}</Typography>
+                    <Stack alignItems="flex-end" spacing={0.5}>
+                      <Typography sx={{ fontWeight: 900, color: statusColor(t.status) }}>{statusLabel(t.status)}</Typography>
+                      {hasUnreadReply(t) ? (
+                        <Chip
+                          size="small"
+                          label={translate("Nytt svar", "New reply")}
+                          sx={{
+                            height: 22,
+                            fontWeight: 800,
+                            color: "#bbf7d0",
+                            backgroundColor: "rgba(34,197,94,0.16)",
+                            border: "1px solid rgba(34,197,94,0.42)",
+                          }}
+                        />
+                      ) : null}
+                    </Stack>
                   </Button>
                 ))}
               </Stack>
