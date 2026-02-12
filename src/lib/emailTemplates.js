@@ -65,6 +65,65 @@ export const buildWelcomeEmail = ({ email, firstName, coffeeUrl }) => {
       Your account is ready with <strong>${safeEmail}</strong>. You now have access to live players, trend analysis,
       forecast modules, and portfolio tracking in one place.
     </p>
+    <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
+      <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#93c5fd;font-weight:800;margin-bottom:8px;">
+        Live dashboard preview
+      </div>
+      <p style="margin:0 0 10px 0;color:#cbd5e1;font-size:14px;line-height:1.6;">
+        Follow lobby activity, share price, and market value in real time from the top dashboard cards.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div style="border:1px solid rgba(45,212,191,.35);border-radius:10px;padding:10px;background:rgba(13,26,39,.55);">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#5eead4;font-weight:800;margin-bottom:8px;">Live players</div>
+          <div style="font-size:28px;line-height:1;color:#f8fafc;font-weight:900;">62 908</div>
+          <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Latest 15:20</div>
+        </div>
+        <div style="border:1px solid rgba(56,189,248,.35);border-radius:10px;padding:10px;background:rgba(13,26,39,.55);">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#7dd3fc;font-weight:800;margin-bottom:8px;">Stock price</div>
+          <div style="font-size:28px;line-height:1;color:#f8fafc;font-weight:900;">552.80 kr</div>
+          <div style="margin-top:8px;font-size:12px;color:#94a3b8;">YTD -11.0%</div>
+        </div>
+        <div style="border:1px solid rgba(167,139,250,.35);border-radius:10px;padding:10px;background:rgba(13,26,39,.55);">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#c4b5fd;font-weight:800;margin-bottom:8px;">Market cap</div>
+          <div style="font-size:28px;line-height:1;color:#f8fafc;font-weight:900;">116.2B kr</div>
+          <div style="margin-top:8px;font-size:12px;color:#94a3b8;">Live estimate</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin:14px 0 0 0;padding:14px 14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.18);">
+      <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#93c5fd;font-weight:800;margin-bottom:8px;">
+        My Page setup
+      </div>
+      <p style="margin:0 0 10px 0;color:#cbd5e1;font-size:14px;line-height:1.6;">
+        Add your shares manually or import your transactions. After that, EvoTracker shows real ownership data based on your holdings.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="border:1px solid rgba(45,212,191,.35);border-radius:10px;padding:10px;background:rgba(13,26,39,.55);">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#5eead4;font-weight:800;margin-bottom:7px;">Shares over time</div>
+          <svg viewBox="0 0 220 70" width="100%" height="70" role="img" aria-label="shares trend preview">
+            <defs>
+              <linearGradient id="welcomeSharesFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.45" />
+                <stop offset="100%" stop-color="#2dd4bf" stop-opacity="0.05" />
+              </linearGradient>
+            </defs>
+            <path d="M 0 62 L 18 55 L 35 50 L 58 44 L 80 38 L 105 30 L 130 26 L 160 18 L 188 12 L 220 6" fill="none" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M 0 62 L 18 55 L 35 50 L 58 44 L 80 38 L 105 30 L 130 26 L 160 18 L 188 12 L 220 6 L 220 70 L 0 70 Z" fill="url(#welcomeSharesFill)" />
+          </svg>
+        </div>
+        <div style="border:1px solid rgba(125,211,252,.35);border-radius:10px;padding:10px;background:rgba(13,26,39,.55);">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#7dd3fc;font-weight:800;margin-bottom:7px;">Annual dividends</div>
+          <svg viewBox="0 0 220 70" width="100%" height="70" role="img" aria-label="dividend bars preview">
+            <rect x="8" y="48" width="20" height="20" rx="4" fill="rgba(56,189,248,0.82)" />
+            <rect x="44" y="40" width="20" height="28" rx="4" fill="rgba(56,189,248,0.82)" />
+            <rect x="80" y="31" width="20" height="37" rx="4" fill="rgba(56,189,248,0.82)" />
+            <rect x="116" y="23" width="20" height="45" rx="4" fill="rgba(56,189,248,0.82)" />
+            <rect x="152" y="14" width="20" height="54" rx="4" fill="rgba(56,189,248,0.82)" />
+            <rect x="188" y="8" width="20" height="60" rx="4" fill="rgba(56,189,248,0.82)" />
+          </svg>
+        </div>
+      </div>
+    </div>
     <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
       You can switch the dashboard language between English and Swedish at any time from the top navigation.
     </p>

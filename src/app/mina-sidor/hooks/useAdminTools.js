@@ -1,6 +1,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 
+const ADMIN_ACTIVITY_REFRESH_MS = 5 * 60 * 1000;
+const ADMIN_USERS_REFRESH_MS = 5 * 60 * 1000;
+const ADMIN_SUPPORT_REFRESH_MS = 60 * 60 * 1000;
+
 export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
   const [adminMode, setAdminMode] = useState(false);
   const [adminPanel, setAdminPanel] = useState("tools");
@@ -445,7 +449,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       await loadAdminActivity();
     };
     load();
-    const id = setInterval(load, 20 * 1000);
+    const id = setInterval(load, ADMIN_ACTIVITY_REFRESH_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -460,7 +464,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       await loadAdminUsers();
     };
     load();
-    const id = setInterval(load, 20 * 1000);
+    const id = setInterval(load, ADMIN_USERS_REFRESH_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -475,7 +479,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       await loadAdminSupport();
     };
     load();
-    const id = setInterval(load, 30 * 1000);
+    const id = setInterval(load, ADMIN_SUPPORT_REFRESH_MS);
     return () => {
       cancelled = true;
       clearInterval(id);

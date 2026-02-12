@@ -8,6 +8,8 @@ export const revalidate = 0;
 const INDEX_KEY = "admin:activity:index";
 const USER_KEY_PREFIX = "admin:activity:user:";
 const HEARTBEAT_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
+const MIN_HEARTBEAT_WRITE_MS = 5 * 60 * 1000; // write at most every 5 min unless path/panel changed
+const CAPTURE_IP_MASKED = process.env.ADMIN_ACTIVITY_CAPTURE_IP === "true";
 
 const json = (data, init = {}) =>
   NextResponse.json(data, {
@@ -82,13 +84,23 @@ export async function POST(request) {
   const panel = normalizeText(payload?.panel, 80);
   const locale = normalizeText(payload?.locale, 8);
   const nowIso = new Date().toISOString();
-  const ipMasked = maskIp(clientIp(request));
+  const ipMasked = CAPTURE_IP_MASKED ? maskIp(clientIp(request)) : null;
   const country = resolveCountry(request);
   const key = `${USER_KEY_PREFIX}${email}`;
 
   const previous = (await getJson(key)) || {};
   const visits = Array.isArray(previous.visits) ? previous.visits : [];
   const shouldAppendVisit = previous.lastPath !== path || previous.lastPanel !== panel;
+  const previousSeenAtMs = Date.parse(String(previous.lastSeenAt || ""));
+  const nowMs = Date.now();
+  const shouldWriteHeartbeat =
+    shouldAppendVisit ||
+    !Number.isFinite(previousSeenAtMs) ||
+    nowMs - previousSeenAtMs >= MIN_HEARTBEAT_WRITE_MS;
+
+  if (!shouldWriteHeartbeat) {
+    return json({ ok: true, throttled: true });
+  }
 
   const nextVisits = shouldAppendVisit
     ? [...visits, { at: nowIso, path, panel }].slice(-25)

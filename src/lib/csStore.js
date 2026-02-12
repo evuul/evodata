@@ -92,6 +92,15 @@ const DEFAULT_BASELINE_BUCKET_MS = 5 * 60 * 1000; // 5 min buckets for time-of-d
 
 const DAILY_PEAK_PREFIX = "cs:lobby:today-peak:";
 const dailyPeakMem = new Map(); // key (ymd) -> entry
+const LOBBY_INGEST_CHECKPOINT_KEY = "cs:lobby:last-ingested-created-at";
+let lobbyIngestCheckpointMemTs = 0;
+const LATEST_PLAYERS_SNAPSHOT_KEY = "cs:lobby:latest-players-snapshot:v1";
+const LATEST_PLAYERS_SNAPSHOT_TTL_MS = (() => {
+  const raw = Number(process.env.CS_LATEST_PLAYERS_SNAPSHOT_TTL_MS);
+  if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000);
+  return 12 * 60 * 60 * 1000;
+})();
+let latestPlayersSnapshotMem = { data: null, exp: 0 };
 
 function overviewKey(days) {
   const n = Number(days);
@@ -910,6 +919,110 @@ export async function getOrBuildBaseline(slugs, days = 30, bucketMs = DEFAULT_BA
     await setBaselineSnapshot(days, bucketMs, computed);
   }
   return computed;
+}
+
+export async function getLatestPlayersSnapshot() {
+  if (latestPlayersSnapshotMem.data && latestPlayersSnapshotMem.exp > Date.now()) {
+    return latestPlayersSnapshotMem.data;
+  }
+  const kv = await getKv();
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(LATEST_PLAYERS_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const exp = Number(parsed?.expiresAt);
+    if (Number.isFinite(exp) && exp <= Date.now()) return null;
+    const data = parsed?.data ?? null;
+    if (!data || typeof data !== "object") return null;
+    latestPlayersSnapshotMem = {
+      data,
+      exp: Number.isFinite(exp) ? exp : Date.now() + LATEST_PLAYERS_SNAPSHOT_TTL_MS,
+    };
+    return data;
+  } catch (err) {
+    if (DEBUG) console.warn("[csStore] latest players snapshot get failed:", err);
+    return null;
+  }
+}
+
+export async function setLatestPlayersSnapshot(data, ttlMs = LATEST_PLAYERS_SNAPSHOT_TTL_MS) {
+  if (!data || typeof data !== "object") return;
+  const ttl = Math.max(60 * 1000, Number(ttlMs) || LATEST_PLAYERS_SNAPSHOT_TTL_MS);
+  const exp = Date.now() + ttl;
+  latestPlayersSnapshotMem = { data, exp };
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(
+      LATEST_PLAYERS_SNAPSHOT_KEY,
+      JSON.stringify({
+        expiresAt: exp,
+        data,
+      }),
+      {
+        ex: Math.ceil(ttl / 1000),
+      }
+    );
+  } catch (err) {
+    if (DEBUG) console.warn("[csStore] latest players snapshot set failed:", err);
+  }
+}
+
+function parseCheckpointTs(raw) {
+  if (raw == null) return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+  if (typeof raw === "object") {
+    const candidate = Number(raw.ts ?? raw.createdAtMs ?? raw.value);
+    return Number.isFinite(candidate) ? candidate : null;
+  }
+  return null;
+}
+
+export async function shouldPersistLobbySnapshot(createdAtMs) {
+  if (!Number.isFinite(createdAtMs) || createdAtMs <= 0) return false;
+
+  if (Number.isFinite(lobbyIngestCheckpointMemTs) && lobbyIngestCheckpointMemTs >= createdAtMs) {
+    return false;
+  }
+
+  const kv = await getKv();
+  if (kv) {
+    try {
+      const raw = await kv.get(LOBBY_INGEST_CHECKPOINT_KEY);
+      const kvTs = parseCheckpointTs(raw);
+      if (Number.isFinite(kvTs)) {
+        lobbyIngestCheckpointMemTs = Math.max(lobbyIngestCheckpointMemTs, kvTs);
+      }
+      if (Number.isFinite(kvTs) && kvTs >= createdAtMs) {
+        return false;
+      }
+    } catch (err) {
+      if (DEBUG) console.warn("[csStore] KV ingest checkpoint get failed:", err);
+    }
+  }
+
+  lobbyIngestCheckpointMemTs = Math.max(lobbyIngestCheckpointMemTs, createdAtMs);
+
+  if (kv) {
+    try {
+      await kv.set(
+        LOBBY_INGEST_CHECKPOINT_KEY,
+        JSON.stringify({
+          ts: lobbyIngestCheckpointMemTs,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+    } catch (err) {
+      if (DEBUG) console.warn("[csStore] KV ingest checkpoint set failed:", err);
+    }
+  }
+
+  return true;
 }
 
 /**

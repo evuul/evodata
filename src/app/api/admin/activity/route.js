@@ -8,7 +8,7 @@ export const revalidate = 0;
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 const INDEX_KEY = "admin:activity:index";
 const USER_KEY_PREFIX = "admin:activity:user:";
-const ACTIVE_WINDOW_MS = 2 * 60 * 1000;
+const ACTIVE_WINDOW_MS = 15 * 60 * 1000;
 
 const json = (data, init = {}) =>
   NextResponse.json(data, {

@@ -808,8 +808,10 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   useEffect(() => {
     if (!isAuthenticated || !token) return;
     let cancelled = false;
+    const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;
     const sendHeartbeat = async () => {
       if (cancelled || typeof window === "undefined") return;
+      if (document.visibilityState !== "visible") return;
       try {
         await fetch("/api/admin/activity/heartbeat", {
           method: "POST",
@@ -829,7 +831,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     };
 
     sendHeartbeat();
-    const id = setInterval(sendHeartbeat, 20 * 1000);
+    const id = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
     return () => {
       cancelled = true;
       clearInterval(id);

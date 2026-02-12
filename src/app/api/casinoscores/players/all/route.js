@@ -10,6 +10,8 @@ import {
   getGlobalLobbyAth,
   setGlobalLobbyAth,
   getOrBuildBaseline,
+  shouldPersistLobbySnapshot,
+  setLatestPlayersSnapshot,
   bucketLabelFromTs,
 } from "@/lib/csStore";
 import { GAMES as GAME_CONFIG } from "@/config/games";
@@ -138,6 +140,8 @@ export async function GET(req) {
   const items = [];
   let newestTs = 0;
   const lobbyCreatedAt = lobby?.createdAt ? Date.parse(lobby.createdAt) : null;
+  const shouldPersistSamples =
+    Number.isFinite(lobbyCreatedAt) && (await shouldPersistLobbySnapshot(lobbyCreatedAt));
   const fallbackPromises = [];
   const fallbackIndices = [];
 
@@ -166,7 +170,9 @@ export async function GET(req) {
       const ts = Date.parse(entry.fetchedAt);
       if (Number.isFinite(ts)) {
         newestTs = Math.max(newestTs, ts);
-        saveSample(id, entry.fetchedAt, normalized).catch(() => undefined);
+        if (shouldPersistSamples) {
+          saveSample(id, entry.fetchedAt, normalized).catch(() => undefined);
+        }
       }
     }
 
@@ -194,7 +200,7 @@ export async function GET(req) {
     });
   }
 
-  if (Number.isFinite(lobbyCreatedAt)) {
+  if (shouldPersistSamples && Number.isFinite(lobbyCreatedAt)) {
     let totalPlayers = 0;
     let countedGames = 0;
     for (const entry of items) {
@@ -219,6 +225,17 @@ export async function GET(req) {
         // Ignorerar peak/Ath fel så live-endpointen alltid svarar
       }
     }
+  }
+
+  if (shouldPersistSamples) {
+    setLatestPlayersSnapshot({
+      items: items.map((entry) => ({
+        id: entry.id,
+        players: entry.players,
+        fetchedAt: entry.fetchedAt,
+      })),
+      updatedAt: newestTs ? new Date(newestTs).toISOString() : lobby?.createdAt ?? null,
+    }).catch(() => undefined);
   }
 
   let baseline = null;

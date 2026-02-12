@@ -5,6 +5,11 @@ const UPSTASH_REST_TOKEN = process.env.UPSTASH_REST_TOKEN;
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const PASSWORD_RESET_TTL_SECONDS = 60 * 30; // 30 minutes
+const READ_CACHE_TTL_MS = (() => {
+  const raw = Number(process.env.AUTHSTORE_READ_CACHE_TTL_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 15_000;
+})();
+const readCache = new Map();
 
 const requireUpstash = () => {
   if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
@@ -31,6 +36,27 @@ const upstashRequest = async (path, init = {}) => {
 
 const encodeValue = (value) => encodeURIComponent(value);
 
+const cacheReadGet = (key) => {
+  const hit = readCache.get(key);
+  if (!hit) return undefined;
+  if (hit.exp <= Date.now()) {
+    readCache.delete(key);
+    return undefined;
+  }
+  return hit.value;
+};
+
+const cacheReadSet = (key, value) => {
+  readCache.set(key, {
+    value,
+    exp: Date.now() + READ_CACHE_TTL_MS,
+  });
+};
+
+const cacheReadDel = (key) => {
+  readCache.delete(key);
+};
+
 export const hashPassword = (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
   const derived = crypto.scryptSync(password, salt, 64).toString("hex");
@@ -51,13 +77,69 @@ export const getPasswordResetKey = (tokenId) => `pwdreset:${tokenId}`;
 export const getUserIndexKey = () => "admin:user:index";
 
 export const getJson = async (key) => {
+  const cached = cacheReadGet(key);
+  if (cached !== undefined) return cached;
   const data = await upstashRequest(`/get/${encodeURIComponent(key)}`);
-  if (!data?.result) return null;
-  try {
-    return typeof data.result === "string" ? JSON.parse(data.result) : data.result;
-  } catch {
+  if (!data?.result) {
+    cacheReadSet(key, null);
     return null;
   }
+  try {
+    const parsed = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
+    cacheReadSet(key, parsed);
+    return parsed;
+  } catch {
+    cacheReadSet(key, null);
+    return null;
+  }
+};
+
+export const mgetJson = async (keys = []) => {
+  const list = Array.isArray(keys)
+    ? keys.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+  if (!list.length) return [];
+
+  const results = new Array(list.length).fill(null);
+  const missing = [];
+
+  list.forEach((key, index) => {
+    const cached = cacheReadGet(key);
+    if (cached !== undefined) {
+      results[index] = cached;
+      return;
+    }
+    missing.push({ key, index });
+  });
+
+  if (!missing.length) return results;
+
+  const CHUNK_SIZE = 100;
+  for (let i = 0; i < missing.length; i += CHUNK_SIZE) {
+    const chunk = missing.slice(i, i + CHUNK_SIZE);
+    const path = `/mget/${chunk.map((entry) => encodeURIComponent(entry.key)).join("/")}`;
+    const data = await upstashRequest(path);
+    const rawResults = Array.isArray(data?.result) ? data.result : [];
+
+    chunk.forEach((entry, offset) => {
+      const raw = rawResults[offset];
+      if (!raw) {
+        results[entry.index] = null;
+        cacheReadSet(entry.key, null);
+        return;
+      }
+      try {
+        const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+        results[entry.index] = parsed;
+        cacheReadSet(entry.key, parsed);
+      } catch {
+        results[entry.index] = null;
+        cacheReadSet(entry.key, null);
+      }
+    });
+  }
+
+  return results;
 };
 
 export const setJson = async (key, value, ttlSeconds) => {
@@ -67,6 +149,7 @@ export const setJson = async (key, value, ttlSeconds) => {
   await upstashRequest(`/set/${encodeURIComponent(key)}/${encodeValue(payload)}${ttlParam}`, {
     method: "POST",
   });
+  cacheReadSet(key, value);
 };
 
 export const addUserToIndex = async (email) => {
@@ -99,6 +182,7 @@ export const deleteKey = async (key) => {
   await upstashRequest(`/del/${encodeURIComponent(key)}`, {
     method: "POST",
   });
+  cacheReadDel(key);
 };
 
 const hashResetSecret = (secret) =>

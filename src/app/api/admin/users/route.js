@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getJson, getSessionKey, getUserIndexKey, getUserKey } from "@/lib/authStore";
+import { getJson, getSessionKey, getUserIndexKey, getUserKey, mgetJson } from "@/lib/authStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,34 +60,35 @@ export async function GET(request) {
   );
   const now = Date.now();
 
-  const users = (
-    await Promise.all(
-      emails.map(async (email) => {
-        const activity = await getJson(`${ACTIVITY_KEY_PREFIX}${email.toLowerCase()}`);
-        const user = await getJson(getUserKey(email));
-        if (!user?.email && !activity?.email) return null;
-        const lastSeenAt = activity?.lastSeenAt || null;
-        const seenAtTs = lastSeenAt ? Date.parse(lastSeenAt) : NaN;
-        const isActive = Number.isFinite(seenAtTs) && now - seenAtTs <= ACTIVE_WINDOW_MS;
-        return {
-          email: user?.email || activity?.email || email,
-          firstName: user?.firstName || activity?.firstName || "",
-          lastName: user?.lastName || activity?.lastName || "",
-          isSubscriber: Boolean(user?.isSubscriber),
-          athEmailEnabled: Boolean(user?.notifications?.athEmail),
-          dailyAvgEmailEnabled: Boolean(user?.notifications?.dailyAvgEmail),
-          createdAt: user?.createdAt || null,
-          updatedAt: user?.updatedAt || null,
-          hasHoldings: hasHoldings(user),
-          lastSeenAt,
-          lastPath: activity?.lastPath || null,
-          lastPanel: activity?.lastPanel || null,
-          locale: activity?.locale || null,
-          isActive,
-        };
-      })
-    )
-  )
+  const activityKeys = emails.map((email) => `${ACTIVITY_KEY_PREFIX}${email}`);
+  const userKeys = emails.map((email) => getUserKey(email));
+  const [activities, usersRaw] = await Promise.all([mgetJson(activityKeys), mgetJson(userKeys)]);
+
+  const users = emails
+    .map((email, index) => {
+      const activity = activities[index] || null;
+      const user = usersRaw[index] || null;
+      if (!user?.email && !activity?.email) return null;
+      const lastSeenAt = activity?.lastSeenAt || null;
+      const seenAtTs = lastSeenAt ? Date.parse(lastSeenAt) : NaN;
+      const isActive = Number.isFinite(seenAtTs) && now - seenAtTs <= ACTIVE_WINDOW_MS;
+      return {
+        email: user?.email || activity?.email || email,
+        firstName: user?.firstName || activity?.firstName || "",
+        lastName: user?.lastName || activity?.lastName || "",
+        isSubscriber: Boolean(user?.isSubscriber),
+        athEmailEnabled: Boolean(user?.notifications?.athEmail),
+        dailyAvgEmailEnabled: Boolean(user?.notifications?.dailyAvgEmail),
+        createdAt: user?.createdAt || null,
+        updatedAt: user?.updatedAt || null,
+        hasHoldings: hasHoldings(user),
+        lastSeenAt,
+        lastPath: activity?.lastPath || null,
+        lastPanel: activity?.lastPanel || null,
+        locale: activity?.locale || null,
+        isActive,
+      };
+    })
     .filter(Boolean)
     .sort((a, b) => {
       const aSeen = a?.lastSeenAt ? Date.parse(a.lastSeenAt) : 0;
