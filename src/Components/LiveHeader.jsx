@@ -49,6 +49,12 @@ const DONATION_NUDGE_TTL_MS = 24 * 60 * 60 * 1000;
 const LIVE_CACHE_MS = 10 * 60 * 1000;
 const LOBBY_ATH_DAYS = 365; // hämta tillräckligt många dagar för att få ATH (använder snapshotens ATH oavsett)
 const SHOW_MY_PAGE_NEW_BADGE = true;
+const LIVE_TRACKER_OFFLINE = ["1", "true", "yes", "on"].includes(
+  String(process.env.NEXT_PUBLIC_LIVE_TRACKER_OFFLINE || "").trim().toLowerCase()
+);
+const LIVE_TRACKER_OFFLINE_NOTE =
+  process.env.NEXT_PUBLIC_LIVE_TRACKER_OFFLINE_NOTE ||
+  "Live tracker is temporarily offline. A fix is in progress.";
 
 const liveCaches = {
   short: { ts: 0, percent: null },
@@ -1560,8 +1566,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     background: "rgba(15,23,42,0.35)",
                     borderRadius: "18px",
                     p: { xs: 1.6, sm: 1.9 },
-                    border: "1px solid rgba(34,197,94,0.5)",
-                    boxShadow: "0 0 0 1px rgba(34,197,94,0.15)",
+                    border: "none",
+                    boxShadow: "none",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -1574,7 +1580,14 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.85)", letterSpacing: 1.4, fontWeight: 600 }}>
                     {translate("Live · spelare", "Live · players")}
                   </Typography>
-                  <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: "#22c55e" }} />
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: "50%",
+                      backgroundColor: LIVE_TRACKER_OFFLINE ? "#ef4444" : "#22c55e",
+                    }}
+                  />
                 </Stack>
                 <Typography
                   variant="h2"
@@ -1593,6 +1606,23 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     ? translate("Hämtar live-data…", "Fetching live data…")
                     : translate("Ingen uppdatering ännu", "No update yet")}
                 </Typography>
+                {LIVE_TRACKER_OFFLINE ? (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "#fecaca",
+                      border: "1px solid rgba(248,113,113,0.4)",
+                      backgroundColor: "rgba(127,29,29,0.28)",
+                      borderRadius: "8px",
+                      px: 1.1,
+                      py: 0.45,
+                      fontWeight: 600,
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    {translate("Live-tracker tillfälligt offline. Fix pågår.", LIVE_TRACKER_OFFLINE_NOTE)}
+                  </Typography>
+                ) : null}
                 <Button
                   size="small"
                   variant={simulateLobby ? "contained" : "outlined"}
@@ -1634,8 +1664,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     background: "rgba(15,23,42,0.35)",
                     borderRadius: "18px",
                     p: { xs: 1.6, sm: 1.9 },
-                    border: "1px solid rgba(56,189,248,0.6)",
-                    boxShadow: "0 0 0 1px rgba(56,189,248,0.15)",
+                    border: "none",
+                    boxShadow: "none",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
@@ -1688,8 +1718,8 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     background: "rgba(15,23,42,0.35)",
                     borderRadius: "18px",
                     p: { xs: 1.6, sm: 1.9 },
-                    border: "1px solid rgba(192,132,252,0.6)",
-                    boxShadow: "0 0 0 1px rgba(192,132,252,0.15)",
+                    border: "none",
+                    boxShadow: "none",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",

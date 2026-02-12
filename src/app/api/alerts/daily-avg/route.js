@@ -5,6 +5,11 @@ import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 import { buildDailyAvgPlayersEmail } from "@/lib/emailTemplates";
+import {
+  applyRecoveryForDate,
+  resolveRecoveryDate,
+  shouldUseLiveTrackerRecovery,
+} from "@/lib/liveTrackerRecovery";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -186,6 +191,11 @@ async function handler(req) {
   const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
 
   const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
+  let recoveryMeta = null;
+  if (shouldUseLiveTrackerRecovery(process.env)) {
+    const fixYmd = resolveRecoveryDate(todayYmd, process.env);
+    recoveryMeta = applyRecoveryForDate(dailyAgg, fixYmd);
+  }
   const anySlug = SERIES_SLUGS.find(Boolean);
   const dateKeys = anySlug && dailyAgg.get(anySlug) ? Array.from(dailyAgg.get(anySlug).keys()).sort() : [];
   if (dateKeys.length < 3) {
@@ -332,6 +342,7 @@ async function handler(req) {
     coverage: { slugsWithData: target.slugsWithData, totalSlugs: SERIES_SLUGS.length },
     trendSeries,
     topGames: topGames14d.slice(0, 5).map((g) => ({ id: g.id, name: g.name, avg: g.avg })),
+    recovery: recoveryMeta,
     errors,
   });
 }

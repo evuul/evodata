@@ -16,6 +16,11 @@ import {
   getDailyLobbyPeak,
 } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
+import {
+  applyRecoveryForDate,
+  resolveRecoveryDate,
+  shouldUseLiveTrackerRecovery,
+} from "@/lib/liveTrackerRecovery";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -325,10 +330,12 @@ export async function GET(req) {
     const daysParam = Number(searchParams.get("days"));
     const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 365)) : 45;
     const force = searchParams.get("force") === "1";
+    const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
+    const forceEffective = force || recoveryEnabled;
 
     // Överblicks-cache (hela svaret) per days
     const overviewKey = `overview:${targetDays}`;
-    const cachedEntry = force ? null : getOverviewCache(overviewKey);
+    const cachedEntry = forceEffective ? null : getOverviewCache(overviewKey);
     if (cachedEntry) {
       const inm = req.headers.get("if-none-match");
       if (inm && cachedEntry.etag && inm === cachedEntry.etag) {
@@ -371,7 +378,7 @@ export async function GET(req) {
       return resJSON(payload, 200, headers);
     }
 
-    const storedSnapshot = force ? null : await getOverviewSnapshot(targetDays);
+    const storedSnapshot = forceEffective ? null : await getOverviewSnapshot(targetDays);
     if (storedSnapshot && storedSnapshot.data) {
       const snapshotMeta =
         storedSnapshot.meta && typeof storedSnapshot.meta === "object"
@@ -424,7 +431,7 @@ export async function GET(req) {
 
     const aggregatesStart = Date.now();
     const snapshotDays = targetDays + 5;
-    const cachedDailySnapshot = force ? null : await getDailySnapshot(snapshotDays);
+    const cachedDailySnapshot = forceEffective ? null : await getDailySnapshot(snapshotDays);
     const dailyAggregates = cachedDailySnapshot
       ? deserializeDailyAggregates(cachedDailySnapshot)
       : await getDailyAggregates(SERIES_SLUGS, snapshotDays);
@@ -459,6 +466,11 @@ export async function GET(req) {
     let fetchMs = aggregatesFetchMs + recentFetchMs;
 
     const todayYmd = stockholmTodayYMD();
+    const recoveryMeta = (() => {
+      if (!recoveryEnabled) return null;
+      const fixYmd = resolveRecoveryDate(todayYmd, process.env);
+      return applyRecoveryForDate(dailyAggregates, fixYmd);
+    })();
     const dayTotalsMap = new Map(); // date -> total avg players
     let perSlugData = SERIES_SLUGS.map((slug) => {
       const perDayMap = dailyAggregates.get(slug) ?? new Map();
@@ -707,6 +719,7 @@ export async function GET(req) {
       slugDaily,
       trendDelta,
       generatedAt: new Date().toISOString(),
+      recovery: recoveryMeta,
     };
 
     const etag = makeEtag(basePayload);
