@@ -30,6 +30,8 @@ const SEND_HOUR_STOCKHOLM =
   Number.isFinite(SEND_HOUR_RAW) && SEND_HOUR_RAW >= 0 && SEND_HOUR_RAW <= 23
     ? Math.floor(SEND_HOUR_RAW)
     : 6; // default 06:00 Stockholm
+const RESEND_MIN_GAP_MS = 550; // keep below 2 req/s
+const RESEND_MAX_RETRIES = 4;
 
 const resolveTestOnlyAdmin = (raw) => {
   if (typeof raw?.testOnlyAdmin === "boolean") return raw.testOnlyAdmin;
@@ -156,6 +158,28 @@ function buildTopGamesWindow(dailyAggMap, dateKeys, targetYmd, days = 14) {
   }
 
   return rows.sort((a, b) => b.avg - a.avg);
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRateLimitError = (err) => {
+  const msg = String(err?.message || err || "").toLowerCase();
+  return msg.includes("429") || msg.includes("too many requests") || msg.includes("rate limit");
+};
+
+async function sendWithRetry(sendFn) {
+  let attempt = 0;
+  while (attempt < RESEND_MAX_RETRIES) {
+    try {
+      await sendFn();
+      return;
+    } catch (err) {
+      attempt += 1;
+      if (!isRateLimitError(err) || attempt >= RESEND_MAX_RETRIES) throw err;
+      // 429 backoff: 1.2s, 2.4s, 4.8s...
+      await sleep(1200 * 2 ** (attempt - 1));
+    }
+  }
 }
 
 async function handler(req) {
@@ -316,8 +340,13 @@ async function handler(req) {
   const errors = [];
 
   if (!dryRun) {
+    let lastSendAt = 0;
     for (const r of recipients) {
       try {
+        const now = Date.now();
+        const waitMs = Math.max(0, RESEND_MIN_GAP_MS - (now - lastSendAt));
+        if (waitMs > 0) await sleep(waitMs);
+
         const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
         const { subject, html } = buildDailyAvgPlayersEmail({
           email: r.email,
@@ -331,7 +360,8 @@ async function handler(req) {
           topGames: topGames14d.slice(0, 5),
           coffeeUrl,
         });
-        await sendEmail({ toEmail: r.email, subject, html });
+        await sendWithRetry(() => sendEmail({ toEmail: r.email, subject, html }));
+        lastSendAt = Date.now();
         sent += 1;
       } catch (err) {
         errors.push({
