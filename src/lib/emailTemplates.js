@@ -192,6 +192,27 @@ export const buildAthAlertEmail = ({
   const safeName = escapeHtml(firstName || "there");
   const safeAccount = escapeHtml(resolveAccountDisplay({ email, firstName }));
   const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
+  const formatAthAt = (value) => {
+    if (!value) return "";
+    try {
+      const date = new Date(value);
+      if (!Number.isFinite(date.getTime())) return String(value);
+      const ymd = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: "Europe/Stockholm",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(date);
+      const hm = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: "Europe/Stockholm",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+      return `${ymd.replace(/\//g, "-")} ${hm}`;
+    } catch {
+      return String(value);
+    }
+  };
 
   const eventRows = (Array.isArray(events) ? [...events] : [])
     .sort((a, b) => {
@@ -203,14 +224,18 @@ export const buildAthAlertEmail = ({
       const name = escapeHtml(e?.name || e?.id || "Unknown");
       const ath = Number(e?.athValue);
       const athLabel = Number.isFinite(ath) ? ath.toLocaleString("sv-SE") : "–";
-      const at = e?.athAt ? escapeHtml(e.athAt) : "";
-      const cur = Number(e?.currentValue);
-      const curLabel = Number.isFinite(cur) ? cur.toLocaleString("sv-SE") : "–";
+      const at = e?.athAt ? escapeHtml(formatAthAt(e.athAt)) : "";
+      const prev = Number(e?.previousAthValue);
+      const prevLabel = Number.isFinite(prev)
+        ? prev.toLocaleString("sv-SE")
+        : Number.isFinite(Number(e?.currentValue))
+        ? Number(e.currentValue).toLocaleString("sv-SE")
+        : "–";
       return `
         <tr>
           <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#f8fafc;font-weight:800;">${name}</td>
           <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#86efac;font-weight:800;">${athLabel}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#cbd5e1;">${curLabel}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#cbd5e1;">${prevLabel}</td>
           <td style="padding:10px 12px;border-bottom:1px solid rgba(148,163,184,.18);color:#94a3b8;font-size:12px;">${at}</td>
         </tr>
       `;
@@ -250,7 +275,7 @@ export const buildAthAlertEmail = ({
           <tr>
             <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Game</th>
             <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">ATH</th>
-            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Now</th>
+            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Prev ATH</th>
             <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">At</th>
           </tr>
         </thead>

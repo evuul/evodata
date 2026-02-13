@@ -191,13 +191,22 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       }
       const sent = Number(payload?.result?.sent || 0);
       const events = Array.isArray(payload?.result?.events) ? payload.result.events : [];
+      const attempted = Array.isArray(payload?.result?.recipients) ? payload.result.recipients.length : 0;
+      const errors = Array.isArray(payload?.result?.errors) ? payload.result.errors : [];
+      const failed = errors.length;
       if (sent > 0) {
         setMailTestMessage(
           translate(
-            `ATH utskickat till ${sent} mottagare (${events.length} event).`,
-            `ATH sent to ${sent} recipients (${events.length} events).`
+            `ATH skickat: ${sent}/${attempted || sent} mottagare • ${events.length} event • fel: ${failed}.`,
+            `ATH sent: ${sent}/${attempted || sent} recipients • ${events.length} events • failed: ${failed}.`
           )
         );
+        if (failed > 0) {
+          const firstError = String(errors[0]?.error || "").trim();
+          if (firstError) {
+            setMailTestMessage((prev) => `${prev} ${translate(`Första fel: ${firstError}`, `First error: ${firstError}`)}`);
+          }
+        }
       } else {
         const reason = payload?.result?.reason || "";
         setMailTestMessage(

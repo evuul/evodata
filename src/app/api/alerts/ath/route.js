@@ -56,18 +56,47 @@ const gameNameById = (() => {
 
 const computeAthFromDailyMap = (dateMap) => {
   if (!(dateMap instanceof Map) || dateMap.size === 0) return null;
-  let max = null;
-  let maxTs = null;
+  const points = [];
   for (const [, row] of dateMap) {
     const v = Number(row?.max);
     const ts = Number(row?.maxTs);
     if (!Number.isFinite(v)) continue;
-    if (max == null || v > max) {
-      max = v;
-      maxTs = Number.isFinite(ts) ? ts : null;
+    points.push({ value: v, ts: Number.isFinite(ts) ? ts : null });
+  }
+  if (!points.length) return null;
+
+  let athValue = null;
+  let athTs = null;
+  for (const p of points) {
+    if (athValue == null || p.value > athValue) {
+      athValue = p.value;
+      athTs = p.ts;
+    } else if (p.value === athValue && Number.isFinite(p.ts) && Number.isFinite(athTs) && p.ts > athTs) {
+      athTs = p.ts;
     }
   }
-  return max != null ? { value: Math.round(max), ts: maxTs } : null;
+  if (!Number.isFinite(athValue)) return null;
+
+  let previousValue = null;
+  let previousTs = null;
+  if (Number.isFinite(athTs)) {
+    for (const p of points) {
+      if (!Number.isFinite(p.ts) || p.ts >= athTs) continue;
+      if (previousValue == null || p.value > previousValue) {
+        previousValue = p.value;
+        previousTs = p.ts;
+      } else if (p.value === previousValue && Number.isFinite(previousTs) && p.ts > previousTs) {
+        previousTs = p.ts;
+      }
+    }
+  }
+
+  return {
+    value: Math.round(athValue),
+    ts: Number.isFinite(athTs) ? athTs : null,
+    previousValue: Number.isFinite(previousValue) ? Math.round(previousValue) : null,
+    previousTs: Number.isFinite(previousTs) ? previousTs : null,
+  };
 };
 
 const computeTopTrends = (dailyAggMap) => {
@@ -155,6 +184,8 @@ async function handler(req) {
       name: gameNameById.get(slug) || slug,
       athValue: ath.value,
       athAt: ath.ts ? new Date(ath.ts).toISOString() : null,
+      previousAthValue: Number.isFinite(ath.previousValue) ? ath.previousValue : null,
+      previousAthAt: ath.previousTs ? new Date(ath.previousTs).toISOString() : null,
       currentValue: latest.value,
     });
   }
