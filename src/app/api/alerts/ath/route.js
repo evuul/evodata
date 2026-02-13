@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJson, getUserIndexKey, getUserKey, setJson } from "@/lib/authStore";
-import { getAllSamples, getLatestSample } from "@/lib/csStore";
+import { getLatestSample } from "@/lib/csStore";
 import { getDailyAggregates } from "@/lib/csStore";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
@@ -26,6 +26,11 @@ const NEW_ATH_LOOKBACK_MS = (() => {
   const hours = Number.isFinite(raw) && raw > 0 ? raw : 36;
   return Math.max(1, Math.min(hours, 168)) * 60 * 60 * 1000;
 })();
+const ATH_BASELINE_DAYS = (() => {
+  const raw = Number(process.env.ATH_ALERTS_BASELINE_DAYS);
+  const days = Number.isFinite(raw) && raw > 0 ? raw : 365;
+  return Math.max(90, Math.min(days, 730));
+})();
 
 const json = (data, init = {}) =>
   NextResponse.json(data, {
@@ -49,17 +54,17 @@ const gameNameById = (() => {
   return map;
 })();
 
-const computeAthFromSamples = (samples) => {
-  if (!Array.isArray(samples) || !samples.length) return null;
+const computeAthFromDailyMap = (dateMap) => {
+  if (!(dateMap instanceof Map) || dateMap.size === 0) return null;
   let max = null;
   let maxTs = null;
-  for (const s of samples) {
-    const v = Number(s?.value);
-    const ts = Number(s?.ts);
-    if (!Number.isFinite(v) || !Number.isFinite(ts)) continue;
+  for (const [, row] of dateMap) {
+    const v = Number(row?.max);
+    const ts = Number(row?.maxTs);
+    if (!Number.isFinite(v)) continue;
     if (max == null || v > max) {
       max = v;
-      maxTs = ts;
+      maxTs = Number.isFinite(ts) ? ts : null;
     }
   }
   return max != null ? { value: Math.round(max), ts: maxTs } : null;
@@ -127,14 +132,15 @@ async function handler(req) {
   const prevMap = lastNotified?.slugs && typeof lastNotified.slugs === "object" ? lastNotified.slugs : {};
   const nextMap = { ...prevMap };
   const events = [];
+  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, ATH_BASELINE_DAYS).catch(() => new Map());
 
   // Detect new ATH per slug.
   const nowTs = Date.now();
   for (const slug of SERIES_SLUGS) {
     const latest = await getLatestSample(slug).catch(() => null);
     if (!latest || !Number.isFinite(latest.value)) continue;
-    const samples = await getAllSamples(slug).catch(() => []);
-    const ath = computeAthFromSamples(samples);
+    const dateMap = dailyAgg?.get?.(slug);
+    const ath = computeAthFromDailyMap(dateMap);
     if (!ath || !Number.isFinite(ath.value)) continue;
     const athTs = Number(ath.ts);
     if (!Number.isFinite(athTs)) continue;
@@ -197,7 +203,6 @@ async function handler(req) {
   }
 
   // Compute trends to add value.
-  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 60).catch(() => new Map());
   const topTrends = dailyAgg ? computeTopTrends(dailyAgg) : [];
 
   let sent = 0;
