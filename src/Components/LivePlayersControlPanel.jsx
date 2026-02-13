@@ -27,7 +27,7 @@ import {
 } from "recharts";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
-import { fetchOverviewShared } from "@/lib/csOverviewClient";
+import { fetchOverviewSharedWithOptions } from "@/lib/csOverviewClient";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
@@ -341,9 +341,10 @@ const LivePlayersControlPanel = () => {
   }, [lobbyBoostOn]);
 
   // -------- Overview (Trend + Ranking) med localStorage-cache --------
-  const fetchOverview = useCallback(async (range) => {
-    const cacheKey = `days_${range}`;
-    const cached = overviewCache.get(cacheKey);
+  const fetchOverview = useCallback(async (range, options = {}) => {
+    const force = Boolean(options?.force);
+    const cacheKey = `days_${range}${force ? "_force" : ""}`;
+    const cached = force ? null : overviewCache.get(cacheKey);
     if (cached) {
       setOverviewError("");
       setDailyTotals(cached.dailyTotals);
@@ -370,7 +371,7 @@ const LivePlayersControlPanel = () => {
     setOverviewLoading(true);
     setOverviewError("");
     try {
-      const json = await fetchOverviewShared(range);
+      const json = await fetchOverviewSharedWithOptions(range, { force });
 
       const totals = Array.isArray(json?.dailyTotals)
         ? json.dailyTotals
@@ -429,7 +430,9 @@ const LivePlayersControlPanel = () => {
         lobbyAth: overviewAth,
         generatedAt: json?.generatedAt || null,
       };
-      overviewCache.set(cacheKey, payload, OVERVIEW_TTL);
+      if (!force) {
+        overviewCache.set(cacheKey, payload, OVERVIEW_TTL);
+      }
 
       setDailyTotals(totals);
       setSlugAverages(averages);
@@ -467,6 +470,12 @@ const LivePlayersControlPanel = () => {
     const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
     fetchOverview(range);
   }, [trendDays, athDays, gameTrendDays, asiaTrackerDays, fetchOverview]);
+
+  useEffect(() => {
+    if (detailView !== "ath") return;
+    const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
+    fetchOverview(range, { force: true });
+  }, [detailView, trendDays, athDays, gameTrendDays, asiaTrackerDays, fetchOverview]);
 
   useEffect(() => {
     if (!slugDailyMap.size) {

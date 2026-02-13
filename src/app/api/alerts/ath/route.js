@@ -151,14 +151,6 @@ async function handler(req) {
     return (Number.isFinite(bv) ? bv : -Infinity) - (Number.isFinite(av) ? av : -Infinity);
   });
 
-  if (!events.length) {
-    return json({ ok: true, sent: 0, events: [], topTrends: [], dryRun });
-  }
-
-  // Compute trends to add value.
-  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 60).catch(() => new Map());
-  const topTrends = dailyAgg ? computeTopTrends(dailyAgg) : [];
-
   // Load opted-in users.
   const index = (await getJson(getUserIndexKey())) || {};
   const emails = Array.isArray(index?.emails) ? index.emails : [];
@@ -184,6 +176,21 @@ async function handler(req) {
       },
     ];
   })();
+
+  if (!events.length) {
+    return json({
+      ok: true,
+      sent: 0,
+      events: [],
+      topTrends: [],
+      recipients: effectiveRecipients.map((u) => u.email),
+      dryRun,
+    });
+  }
+
+  // Compute trends to add value.
+  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 60).catch(() => new Map());
+  const topTrends = dailyAgg ? computeTopTrends(dailyAgg) : [];
 
   let sent = 0;
   const errors = [];
