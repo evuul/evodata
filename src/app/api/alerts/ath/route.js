@@ -21,6 +21,11 @@ const TEST_ONLY_ADMIN = ["1", "true", "yes"].includes(
   String(process.env.ALERTS_TEST_ONLY_ADMIN || "").trim().toLowerCase()
 );
 const SETTINGS_KEY = "alerts:settings";
+const NEW_ATH_LOOKBACK_MS = (() => {
+  const raw = Number(process.env.ATH_ALERTS_LOOKBACK_HOURS);
+  const hours = Number.isFinite(raw) && raw > 0 ? raw : 36;
+  return Math.max(1, Math.min(hours, 168)) * 60 * 60 * 1000;
+})();
 
 const json = (data, init = {}) =>
   NextResponse.json(data, {
@@ -124,13 +129,16 @@ async function handler(req) {
   const events = [];
 
   // Detect new ATH per slug.
+  const nowTs = Date.now();
   for (const slug of SERIES_SLUGS) {
     const latest = await getLatestSample(slug).catch(() => null);
     if (!latest || !Number.isFinite(latest.value)) continue;
     const samples = await getAllSamples(slug).catch(() => []);
     const ath = computeAthFromSamples(samples);
     if (!ath || !Number.isFinite(ath.value)) continue;
-    if (latest.value !== ath.value) continue;
+    const athTs = Number(ath.ts);
+    if (!Number.isFinite(athTs)) continue;
+    if (nowTs - athTs > NEW_ATH_LOOKBACK_MS) continue;
 
     const previousNotified = Number(prevMap?.[slug]);
     if (Number.isFinite(previousNotified) && ath.value <= previousNotified) continue;
