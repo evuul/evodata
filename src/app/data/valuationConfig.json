@@ -1,0 +1,30 @@
+{
+  "capexHaircutPct": 0.12,
+  "scoreWeights": {
+    "pe": 0.34,
+    "fcfYield": 0.33,
+    "evEbitda": 0.33
+  },
+  "thresholds": {
+    "pe": {
+      "greenMax": 15,
+      "yellowMax": 20,
+      "redMin": 25
+    },
+    "fcfYieldPct": {
+      "greenMin": 5,
+      "yellowMin": 3,
+      "redMax": 2
+    },
+    "evEbitda": {
+      "greenMax": 10,
+      "yellowMax": 14,
+      "redMin": 18
+    }
+  },
+  "penalties": {
+    "marginTrendBreak": 10,
+    "lowRevenueGrowth": 10,
+    "asiaQoqNegative": 5
+  }
+}

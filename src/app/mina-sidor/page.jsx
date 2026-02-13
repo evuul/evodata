@@ -14,6 +14,7 @@ import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
 import HoldingsHistoryChart from "@/Components/MinaSidor/HoldingsHistoryChart";
+import ValuationSignalCard from "@/Components/MinaSidor/ValuationSignalCard";
 import SupportModal from "@/Components/MinaSidor/SupportModal";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 import { formatSek } from "@/Components/MinaSidor/utils";
@@ -43,6 +44,7 @@ export default function MinaSidorPage() {
     error, setError,
     profileIdentity, setProfileIdentity,
     effectiveIsAdmin,
+    isSubscriber,
     athEmailEnabled, setAthEmailEnabled,
     dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
     dividendsReceived, setDividendsReceived,
@@ -62,6 +64,7 @@ export default function MinaSidorPage() {
     todaysChangePercent,
     todaysHoldingChangeSek,
     estimatedDividendsFromDate,
+    estimatedDividendsFromTransactions,
     dividendsReceivedSafe,
     totalReturnWithDividends,
     totalReturnPctWithDividends,
@@ -163,6 +166,12 @@ export default function MinaSidorPage() {
         window.localStorage.setItem(`evodata.holdings.dividendMode:${user.email}`, nextMode);
       } catch { }
     }
+  };
+
+  const onImportTransactions = async (payload) => {
+    await handleImportTransactions(payload);
+    onDividendModeChange("acquisition");
+    setManageOpen(false);
   };
 
   const onTraderModeChange = (checked) => {
@@ -491,6 +500,22 @@ export default function MinaSidorPage() {
             />
           </Box>
 
+          <Box sx={contentWrapSx}>
+            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
+              <Box sx={sectionRule} />
+              {translate("Värderingssignal", "Valuation signal")}
+              <Box sx={sectionRule} />
+            </Box>
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <ValuationSignalCard
+              translate={translate}
+              currentPrice={currentPrice}
+              isUnlocked={Boolean(effectiveIsAdmin || isSubscriber)}
+            />
+          </Box>
+
           {effectiveIsAdmin ? (
             <>
               <Box sx={contentWrapSx}>
@@ -592,13 +617,19 @@ export default function MinaSidorPage() {
         onSetAvgCostChange={(event) => setSetAvgCost(event.target.value)}
         acquisitionDate={setAcquisitionDate}
         onAcquisitionDateChange={(event) => setSetAcquisitionDate(event.target.value)}
-        estimatedDividendsFromDate={estimatedDividendsFromDate}
+        estimatedDividendsFromDate={
+          Number.isFinite(dividendsReceivedSafe) && dividendInputMode === "acquisition"
+            ? dividendsReceivedSafe
+            : Number.isFinite(estimatedDividendsFromTransactions)
+            ? estimatedDividendsFromTransactions
+            : estimatedDividendsFromDate
+        }
         dividendInputMode={dividendInputMode}
         onDividendInputModeChange={onDividendModeChange}
         onBuy={() => handleBuy({ shares: Number(buyShares), price: Number(buyPrice), buyDate }).then(() => { setBuyShares(""); setBuyPrice(""); setBuyDate(""); })}
         onSell={() => handleSell({ shares: Number(sellShares), price: Number(sellPrice) }).then(() => { setSellShares(""); setSellPrice(""); })}
         onSet={() => handleSet({ shares: Number(setShares), avgCost: Number(setAvgCost), acquisitionDate: setAcquisitionDate }).then((success) => { if (success) setManageOpen(false); })}
-        onImportTransactions={(t) => handleImportTransactions(t).then(() => setManageOpen(false))}
+        onImportTransactions={onImportTransactions}
         loading={loading}
       />
 

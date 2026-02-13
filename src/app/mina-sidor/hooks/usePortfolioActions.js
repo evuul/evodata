@@ -145,11 +145,21 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
     };
 
-    const handleImportTransactions = async (transactions) => {
+    const handleImportTransactions = async (input) => {
+        const payload =
+            Array.isArray(input)
+                ? { transactions: input, dividendTotal: null }
+                : {
+                    transactions: Array.isArray(input?.transactions) ? input.transactions : [],
+                    dividendTotal: Number.isFinite(Number(input?.dividendTotal))
+                        ? Number(input.dividendTotal)
+                        : null,
+                };
+        const transactions = payload.transactions;
         if (!token) {
             throw new Error(translate("Inte inloggad.", "Not logged in."));
         }
-        if (!Array.isArray(transactions) || !transactions.length) {
+        if ((!Array.isArray(transactions) || !transactions.length) && !(payload.dividendTotal > 0)) {
             throw new Error(translate("Ingen transaktionsdata.", "No transaction data."));
         }
         try {
@@ -158,7 +168,7 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
             const res = await fetch("/api/user/profile", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ action: "importTransactions", transactions }),
+                body: JSON.stringify({ action: "importTransactions", transactions, dividendTotal: payload.dividendTotal }),
             });
             const payload = await res.json().catch(() => ({}));
             if (!res.ok) {

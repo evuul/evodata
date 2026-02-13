@@ -12,11 +12,13 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
     const [error, setError] = useState("");
     const [profileIdentity, setProfileIdentity] = useState({ firstName: "", lastName: "", email: "" });
     const [isAdminUser, setIsAdminUser] = useState(false);
+    const [isSubscriber, setIsSubscriber] = useState(false);
     const [athEmailEnabled, setAthEmailEnabled] = useState(false);
     const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
 
     const [dividendsReceived, setDividendsReceived] = useState("");
     const [dividendInputMode, setDividendInputMode] = useState("manual");
+    const [hasStoredDividendMode, setHasStoredDividendMode] = useState(false);
     const [isTraderMode, setIsTraderMode] = useState(false);
     const [buybackData, setBuybackData] = useState(
         Array.isArray(buybackDataStatic) ? buybackDataStatic : []
@@ -43,6 +45,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
                     email: data.email ?? "",
                 });
                 setIsAdminUser(Boolean(data.isAdmin));
+                setIsSubscriber(Boolean(data.isSubscriber));
                 setAthEmailEnabled(Boolean(data?.notifications?.athEmail));
                 setDailyAvgEmailEnabled(Boolean(data?.notifications?.dailyAvgEmail));
                 setProfile(data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
@@ -93,9 +96,27 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
             const stored = window.localStorage.getItem(`evodata.holdings.dividendMode:${user.email}`);
             if (stored === "manual" || stored === "acquisition") {
                 setDividendInputMode(stored);
+                setHasStoredDividendMode(true);
+            } else {
+                setHasStoredDividendMode(false);
             }
         } catch { }
     }, [user?.email]);
+
+    // Auto-pick date-based dividends for imported users unless they have an explicit manual setup.
+    useEffect(() => {
+        const txCount = Array.isArray(profile?.transactions) ? profile.transactions.length : 0;
+        if (txCount <= 0) return;
+        if (dividendInputMode === "acquisition") return;
+
+        const manualValue = Number(dividendsReceived);
+        const hasManualValue =
+            String(dividendsReceived ?? "").trim() !== "" && Number.isFinite(manualValue);
+
+        if (!hasStoredDividendMode || !hasManualValue) {
+            setDividendInputMode("acquisition");
+        }
+    }, [dividendInputMode, dividendsReceived, hasStoredDividendMode, profile?.transactions]);
 
     useEffect(() => {
         if (!user?.email) return;
@@ -181,6 +202,11 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
 
     const dividendsReceivedValue = Number(dividendsReceived);
     const hasManualDividends = dividendsReceived !== "" && Number.isFinite(dividendsReceivedValue);
+    const importedDividendTotal = Number(profile?.importedDividendTotal);
+    const importedDividendTotalSafe =
+        Number.isFinite(importedDividendTotal) && importedDividendTotal >= 0
+            ? importedDividendTotal
+            : null;
     const acquisitionDateValue =
         typeof profile?.acquisitionDate === "string" && profile.acquisitionDate.trim()
             ? profile.acquisitionDate.trim().slice(0, 10)
@@ -289,7 +315,9 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         : null;
 
     const autoEstimatedDividends =
-        Number.isFinite(estimatedDividendsFromTransactions)
+        Number.isFinite(importedDividendTotalSafe)
+            ? importedDividendTotalSafe
+            : Number.isFinite(estimatedDividendsFromTransactions)
             ? estimatedDividendsFromTransactions
             : Number.isFinite(estimatedDividendsFromDate)
                 ? estimatedDividendsFromDate
@@ -406,6 +434,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         error, setError,
         profileIdentity, setProfileIdentity,
         isAdminUser,
+        isSubscriber,
         effectiveIsAdmin,
         athEmailEnabled, setAthEmailEnabled,
         dailyAvgEmailEnabled, setDailyAvgEmailEnabled,

@@ -11,7 +11,9 @@ const normalizeTransactionType = (rawType) => {
   if (t === "köp" || t === "buy") return "buy";
   if (t === "sälj" || t === "sell") return "sell";
   // Treat transfer-in as buy so account moves don't break FIFO import.
-  if (t === "värdepappersinsättning" || t === "insättning") return "buy";
+  if (t === "värdepappersinsättning" || t === "insättning" || t === "transfer in") return "buy";
+  // Treat transfer-out as sell to avoid inflated holdings/dividends after account moves.
+  if (t === "värdepappersuttag" || t === "uttag" || t === "transfer out") return "sell";
   return null;
 };
 
@@ -24,6 +26,11 @@ const parseSvNumber = (value) => {
     .replace(",", ".");
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : null;
+};
+
+const isDividendRow = (rawType) => {
+  const t = String(rawType || "").trim().toLowerCase();
+  return t.includes("utdelning") || t.includes("dividend");
 };
 
 export default function ImportTransactionsTab({ translate, loading, onImportTransactions }) {
@@ -65,8 +72,9 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
     const iPrice = idx("Kurs");
     const iFee = idx("Courtage");
     const iIsin = idx("ISIN");
+    const iAmount = idx("Belopp");
 
-    if ([iDate, iType, iDesc, iQty, iPrice].some((i) => i === -1)) {
+    if ([iDate, iType, iDesc].some((i) => i === -1)) {
       setImportError(
         translate(
           "CSV-formatet känns inte igen (saknar kolumner).",
@@ -77,6 +85,9 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
     }
 
     const trades = [];
+    let dividendRows = 0;
+    let dividendTotal = 0;
+
     for (let i = 1; i < lines.length; i++) {
       const cols = lines[i].split(";");
       const rawType = String(cols[iType] || "").trim();
@@ -86,12 +97,22 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
       const rawQty = String(cols[iQty] || "").trim();
       const rawPrice = String(cols[iPrice] || "").trim();
       const rawFee = iFee >= 0 ? String(cols[iFee] || "").trim() : "";
+      const rawAmount = iAmount >= 0 ? String(cols[iAmount] || "").trim() : "";
 
       const isEvolution =
         rawIsin === EVOLUTION_ISIN ||
         rawDesc.toLowerCase() === "evolution" ||
         rawDesc.toLowerCase().startsWith("evolution ");
       if (!isEvolution) continue;
+
+      if (isDividendRow(rawType)) {
+        const amount = parseSvNumber(rawAmount);
+        if (Number.isFinite(amount) && amount > 0) {
+          dividendRows += 1;
+          dividendTotal += amount;
+        }
+        continue;
+      }
 
       const type = normalizeTransactionType(rawType);
       if (!type) continue;
@@ -113,11 +134,11 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
       });
     }
 
-    if (!trades.length) {
+    if (!trades.length && dividendRows === 0) {
       setImportError(
         translate(
-          "Hittade inga köp/sälj för Evolution i filen.",
-          "No Evolution buy/sell rows found in the file."
+          "Hittade inga köp/sälj/utdelningar för Evolution i filen.",
+          "No Evolution buy/sell/dividend rows found in the file."
         )
       );
       return;
@@ -145,6 +166,8 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
       buySharesTotal,
       sellSharesTotal,
       totalFees,
+      dividendRows,
+      dividendTotal,
       first,
       last,
     });
@@ -152,11 +175,14 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
 
   const handleImport = async () => {
     if (!onImportTransactions) return;
-    if (!importTrades.length) return;
+    if (!importTrades.length && !(importSummary?.dividendRows > 0)) return;
     try {
       setImporting(true);
       setImportError("");
-      await onImportTransactions(importTrades);
+      await onImportTransactions({
+        transactions: importTrades,
+        dividendTotal: importSummary?.dividendRows > 0 ? importSummary.dividendTotal : null,
+      });
       resetImport();
     } catch (err) {
       setImportError(err?.message || translate("Importen misslyckades.", "Import failed."));
@@ -170,8 +196,8 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
       <Stack spacing={2}>
         <Typography sx={{ color: text.subtle }}>
           {translate(
-            "Importera köp/sälj från Avanza-transaktionsfil. Endast Evolution (ISIN SE0012673267) används. Övriga rader ignoreras.",
-            "Import buy/sell from an Avanza transactions CSV. Only Evolution (ISIN SE0012673267) is used. Other rows are ignored."
+            "Importera köp/sälj/utdelningar från Avanza-transaktionsfil. Endast Evolution (ISIN SE0012673267) används. Övriga rader ignoreras.",
+            "Import buy/sell/dividends from an Avanza transactions CSV. Only Evolution (ISIN SE0012673267) is used. Other rows are ignored."
           )}
         </Typography>
 
@@ -239,6 +265,12 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
             </Typography>
             <Typography sx={{ color: text.body }}>
               {translate(
+                `Utdelningsrader: ${importSummary.dividendRows} • Summa: ${Number(importSummary.dividendTotal || 0).toLocaleString("sv-SE", { maximumFractionDigits: 2 })} SEK`,
+                `Dividend rows: ${importSummary.dividendRows} • Total: ${Number(importSummary.dividendTotal || 0).toLocaleString("sv-SE", { maximumFractionDigits: 2 })} SEK`
+              )}
+            </Typography>
+            <Typography sx={{ color: text.body }}>
+              {translate(
                 `Period: ${importSummary.first} → ${importSummary.last}`,
                 `Period: ${importSummary.first} → ${importSummary.last}`
               )}
@@ -250,7 +282,7 @@ export default function ImportTransactionsTab({ translate, loading, onImportTran
 
         <Button
           variant="contained"
-          disabled={loading || importing || !importTrades.length}
+          disabled={loading || importing || (!importTrades.length && !(importSummary?.dividendRows > 0))}
           onClick={handleImport}
           sx={{
             ...buttonStyles.primary,

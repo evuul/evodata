@@ -77,6 +77,11 @@ export async function PUT(request) {
       : null;
   const lots = Array.isArray(profile.lots) ? profile.lots.filter((lot) => Number(lot?.shares) > 0) : [];
   const transactions = Array.isArray(profile.transactions) ? profile.transactions : [];
+  const importedDividendTotalRaw = Number(payload?.dividendTotal);
+  const importedDividendTotal =
+    Number.isFinite(importedDividendTotalRaw) && importedDividendTotalRaw >= 0
+      ? importedDividendTotalRaw
+      : null;
 
   const now = new Date().toISOString();
 
@@ -182,11 +187,28 @@ export async function PUT(request) {
     profile.transactions = [];
   } else if (action === "importTransactions") {
     const incoming = Array.isArray(payload?.transactions) ? payload.transactions : [];
-    if (!incoming.length) {
+    if (!incoming.length && importedDividendTotal == null) {
       return json({ error: "Ingen transaktionsdata hittades." }, { status: 400 });
     }
     if (incoming.length > 5000) {
       return json({ error: "För många transaktioner i importen (max 5000)." }, { status: 400 });
+    }
+
+    if (!incoming.length && importedDividendTotal != null) {
+      profile.importedDividendTotal = importedDividendTotal;
+      profile.updatedAt = now;
+      user.profile = profile;
+      user.updatedAt = now;
+      await setJson(getUserKey(user.email), user);
+      return json({
+        email: user.email,
+        firstName: user.firstName ?? "",
+        lastName: user.lastName ?? "",
+        isSubscriber: Boolean(user.isSubscriber),
+        isAdmin: Boolean(user.isAdmin),
+        notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
+        profile,
+      });
     }
 
     const normalized = incoming
@@ -269,6 +291,9 @@ export async function PUT(request) {
     profile.lots = computedLots;
     profile.acquisitionDate = computedLots.length ? String(computedLots[0].date || "").slice(0, 10) : null;
     profile.transactions = normalized;
+    if (importedDividendTotal != null) {
+      profile.importedDividendTotal = importedDividendTotal;
+    }
   } else {
     return json({ error: "Okänd åtgärd." }, { status: 400 });
   }
