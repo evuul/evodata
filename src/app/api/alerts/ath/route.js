@@ -146,7 +146,7 @@ async function handler(req) {
   }
 
   if (!events.length) {
-    return json({ ok: true, sent: 0, events: [], dryRun });
+    return json({ ok: true, sent: 0, events: [], topTrends: [], dryRun });
   }
 
   // Compute trends to add value.
@@ -214,6 +214,7 @@ async function handler(req) {
     ok: errors.length === 0,
     dryRun,
     events,
+    topTrends,
     recipients: effectiveRecipients.map((u) => u.email),
     sent,
     errors,

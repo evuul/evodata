@@ -29,14 +29,6 @@ const resolveUserFromToken = async (token) => {
   return user ? { user, email: session.email } : null;
 };
 
-const sampleTopTrends = [
-  { id: "ice-fishing", name: "Ice Fishing", pctChange: 210.7 },
-  { id: "lightning-storm", name: "Lightning Storm", pctChange: 85.2 },
-  { id: "crazy-time", name: "Crazy Time", pctChange: 44.6 },
-  { id: "big-baller", name: "Big Baller", pctChange: 22.4 },
-  { id: "funky-time", name: "Funky Time", pctChange: 13.9 },
-];
-
 export async function GET(request) {
   const token = getToken(request);
   const resolved = await resolveUserFromToken(token);
@@ -62,25 +54,48 @@ export async function GET(request) {
     }
   }
 
-  const events =
-    Array.isArray(dryRunPayload?.events) && dryRunPayload.events.length
-      ? dryRunPayload.events
-      : [
-          {
-            id: "ice-fishing",
-            name: "Ice Fishing",
-            athValue: 9012,
-            athAt: new Date().toISOString(),
-            currentValue: 9012,
-          },
-        ];
+  const events = Array.isArray(dryRunPayload?.events) ? dryRunPayload.events : [];
+  const topTrends = Array.isArray(dryRunPayload?.topTrends) ? dryRunPayload.topTrends : [];
 
   const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+  const firstName = resolved.user?.firstName || "Alexander";
+
+  if (!events.length) {
+    const noEventsHtml = `<!doctype html>
+<html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:0;background:#0b1220;color:#e2e8f0;font-family:Inter,Arial,sans-serif;">
+  <div style="max-width:760px;margin:0 auto;padding:28px 18px;">
+    <div style="background:#111827;border:1px solid rgba(148,163,184,.26);border-radius:14px;padding:20px;">
+      <div style="font-size:12px;letter-spacing:1.1px;text-transform:uppercase;color:#94a3b8;font-weight:700;">EvoTracker</div>
+      <h1 style="margin:8px 0 0 0;font-size:26px;line-height:1.2;color:#f8fafc;">ATH preview (live)</h1>
+      <p style="margin:12px 0 0 0;color:#cbd5e1;font-size:16px;line-height:1.6;">
+        Hi ${firstName}, no new ATH events are currently pending for send.
+      </p>
+      <p style="margin:10px 0 0 0;color:#93c5fd;font-size:14px;line-height:1.5;">
+        Recipients if triggered now: ${Array.isArray(dryRunPayload?.recipients) ? dryRunPayload.recipients.length : 0}
+      </p>
+    </div>
+  </div>
+</body></html>`;
+
+    return json({
+      ok: true,
+      subject: "ATH preview (live): no events",
+      html: noEventsHtml,
+      events,
+      topTrends,
+      dryRun: dryRunPayload,
+      recipients: Array.isArray(dryRunPayload?.recipients) ? dryRunPayload.recipients : [],
+      live: true,
+      hasEvents: false,
+    });
+  }
+
   const { subject, html } = buildAthAlertEmail({
     email: actorEmail,
-    firstName: resolved.user?.firstName || "Alexander",
+    firstName,
     events,
-    topTrends: sampleTopTrends,
+    topTrends,
     coffeeUrl,
   });
 
@@ -89,7 +104,10 @@ export async function GET(request) {
     subject,
     html,
     events,
+    topTrends,
+    recipients: Array.isArray(dryRunPayload?.recipients) ? dryRunPayload.recipients : [],
     dryRun: dryRunPayload,
+    live: true,
+    hasEvents: events.length > 0,
   });
 }
-

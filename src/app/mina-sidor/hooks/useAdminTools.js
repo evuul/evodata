@@ -124,6 +124,14 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
         setMailTestMessage(payload?.error || translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
         return;
       }
+      const liveEvents = Array.isArray(payload?.events) ? payload.events : [];
+      const recipients = Array.isArray(payload?.recipients) ? payload.recipients : [];
+      setMailTestMessage(
+        translate(
+          `ATH preview (live): ${liveEvents.length} event • ${recipients.length} mottagare.`,
+          `ATH preview (live): ${liveEvents.length} event • ${recipients.length} recipients.`
+        )
+      );
       setPreviewTitle(payload?.subject || "ATH preview");
       setPreviewHtml(payload?.html || "");
       setPreviewOpen(true);
