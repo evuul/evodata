@@ -217,11 +217,13 @@ async function handler(req) {
     }
   }
 
-  // Persist last-notified snapshot (single Upstash write).
-  await setJson(LAST_NOTIFIED_KEY, {
-    slugs: nextMap,
-    updatedAt: new Date().toISOString(),
-  });
+  // Persist last-notified snapshot only for real sends (never for dry-run preview).
+  if (!dryRun) {
+    await setJson(LAST_NOTIFIED_KEY, {
+      slugs: nextMap,
+      updatedAt: new Date().toISOString(),
+    });
+  }
 
   return json({
     ok: errors.length === 0,

@@ -89,6 +89,8 @@ const OVERVIEW_TTL = 2 * 60 * 1000; // 2 min
 // ====== NEW: storage-nycklar för boost-knappar ======
 const TREND_BOOST_STORAGE_KEY = "trend_boost_10pct";
 const LOBBY_BOOST_STORAGE_KEY = "lobby_boost_10pct";
+const ATH_FORCE_REFRESH_STORAGE_KEY = "ath_force_refresh_last_at";
+const ATH_FORCE_REFRESH_MS = 3 * 60 * 60 * 1000; // 3h
 
 const TREND_DAY_OPTIONS = [30, 60, 90, 180];
 const TOP_GROWTH_DAYS = 90;
@@ -150,6 +152,26 @@ const formatDateOnly = (value) => {
     return dateFormatter.format(date);
   } catch {
     return null;
+  }
+};
+
+const shouldRunAthForceRefresh = () => {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = Number(window.localStorage.getItem(ATH_FORCE_REFRESH_STORAGE_KEY));
+    if (!Number.isFinite(raw) || raw <= 0) return true;
+    return Date.now() - raw >= ATH_FORCE_REFRESH_MS;
+  } catch {
+    return true;
+  }
+};
+
+const markAthForceRefreshNow = () => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(ATH_FORCE_REFRESH_STORAGE_KEY, String(Date.now()));
+  } catch {
+    // ignore quota/access issues
   }
 };
 
@@ -473,8 +495,11 @@ const LivePlayersControlPanel = () => {
 
   useEffect(() => {
     if (detailView !== "ath") return;
+    if (!shouldRunAthForceRefresh()) return;
     const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
-    fetchOverview(range, { force: true });
+    fetchOverview(range, { force: true }).then(() => {
+      markAthForceRefreshNow();
+    });
   }, [detailView, trendDays, athDays, gameTrendDays, asiaTrackerDays, fetchOverview]);
 
   useEffect(() => {
