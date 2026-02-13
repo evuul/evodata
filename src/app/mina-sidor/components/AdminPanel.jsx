@@ -16,6 +16,7 @@ export function AdminPanel({
     handleAdminMailTest,
     handleAdminMailPreview,
     handleAdminAthPreview,
+    handleAdminAthSendNow,
     handleAdminDailyAvgPreview,
     handleAdminDailyAvgSendNow,
     loadAdminActivity,
@@ -324,6 +325,24 @@ export function AdminPanel({
                             }}
                         >
                             {translate("Preview ATH", "Preview ATH")}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleAdminAthSendNow}
+                            disabled={mailTestLoading}
+                            sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(251,191,36,0.5)",
+                                color: "#fcd34d",
+                                "&:hover": {
+                                    borderColor: "rgba(251,191,36,0.8)",
+                                    backgroundColor: "rgba(251,191,36,0.08)",
+                                },
+                            }}
+                        >
+                            {mailTestLoading
+                                ? translate("Skickar ATH...", "Sending ATH...")
+                                : translate("Skicka ATH nu", "Send ATH now")}
                         </Button>
                         <Button
                             variant="outlined"

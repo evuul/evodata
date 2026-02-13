@@ -171,6 +171,49 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
+  const handleAdminAthSendNow = async () => {
+    if (!token) return;
+    try {
+      setMailTestLoading(true);
+      setMailTestMessage("");
+      const res = await fetch("/api/admin/ath-send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ dryRun: false }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMailTestMessage(payload?.error || translate("Kunde inte skicka ATH.", "Could not send ATH."));
+        return;
+      }
+      const sent = Number(payload?.result?.sent || 0);
+      const events = Array.isArray(payload?.result?.events) ? payload.result.events : [];
+      if (sent > 0) {
+        setMailTestMessage(
+          translate(
+            `ATH utskickat till ${sent} mottagare (${events.length} event).`,
+            `ATH sent to ${sent} recipients (${events.length} events).`
+          )
+        );
+      } else {
+        const reason = payload?.result?.reason || "";
+        setMailTestMessage(
+          translate(
+            `Inget skickades${reason ? `: ${reason}` : "."}`,
+            `Nothing was sent${reason ? `: ${reason}` : "."}`
+          )
+        );
+      }
+    } catch {
+      setMailTestMessage(translate("Kunde inte skicka ATH.", "Could not send ATH."));
+    } finally {
+      setMailTestLoading(false);
+    }
+  };
+
   const handleAdminDailyAvgSendNow = async () => {
     if (!token) return;
     try {
@@ -517,6 +560,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     handleAdminMailTest,
     handleAdminMailPreview,
     handleAdminAthPreview,
+    handleAdminAthSendNow,
     handleAdminDailyAvgPreview,
     handleAdminDailyAvgSendNow
   };
