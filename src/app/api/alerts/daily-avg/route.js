@@ -32,6 +32,9 @@ const SEND_HOUR_STOCKHOLM =
     : 6; // default 06:00 Stockholm
 const RESEND_MIN_GAP_MS = 550; // keep below 2 req/s
 const RESEND_MAX_RETRIES = 4;
+const MANUAL_DAILY_TOTAL_OVERRIDES = Object.freeze({
+  "2026-02-11": 61972,
+});
 
 const resolveTestOnlyAdmin = (raw) => {
   if (typeof raw?.testOnlyAdmin === "boolean") return raw.testOnlyAdmin;
@@ -105,7 +108,9 @@ function computeTotalAvg(dailyAggMap, ymd) {
   }
 
   perGame.sort((a, b) => b.avg - a.avg);
-  return { totalAvgPlayers: total, slugsWithData, perGame };
+  const override = Number(MANUAL_DAILY_TOTAL_OVERRIDES[ymd]);
+  const totalAvgPlayers = Number.isFinite(override) && override > 0 ? override : total;
+  return { totalAvgPlayers, slugsWithData, perGame };
 }
 
 function buildTrendSeries(dailyAggMap, dateKeys, targetYmd, days = 90) {

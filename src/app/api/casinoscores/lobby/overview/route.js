@@ -25,6 +25,9 @@ import {
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
 const RESPONSE_CACHE_CONTROL = "public, max-age=30, s-maxage=30, stale-while-revalidate=60";
+const MANUAL_DAILY_TOTAL_OVERRIDES = Object.freeze({
+  "2026-02-11": 61972,
+});
 
 // ---------- In-process cache (per Node-instans) ----------
 const g = globalThis;
@@ -280,6 +283,57 @@ function buildDailyTotals(perSlugSeries, today) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
+function applyDailyTotalOverrides(rows) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  return rows.map((row) => {
+    const date = String(row?.date || "");
+    const override = Number(MANUAL_DAILY_TOTAL_OVERRIDES[date]);
+    if (!Number.isFinite(override) || override <= 0) return row;
+    return {
+      ...row,
+      avgPlayers: override,
+    };
+  });
+}
+
+function recomputeTrendDelta(dailyTotals) {
+  if (!Array.isArray(dailyTotals) || dailyTotals.length < 2) return null;
+  const first = dailyTotals[0];
+  const last = dailyTotals[dailyTotals.length - 1];
+  if (!first || !last) return null;
+  const startValue = Number(first.avgPlayers);
+  const endValue = Number(last.avgPlayers);
+  if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return null;
+  const absolute = Math.round((endValue - startValue) * 100) / 100;
+  const percent =
+    startValue !== 0
+      ? Math.round(((endValue - startValue) / startValue) * 10000) / 100
+      : null;
+  return {
+    start: { date: first.date, value: startValue },
+    end: { date: last.date, value: endValue },
+    absolute,
+    percent,
+  };
+}
+
+function withManualDailyOverrides(basePayload) {
+  if (!basePayload || typeof basePayload !== "object") return basePayload;
+  const nextDailyTotals = applyDailyTotalOverrides(basePayload.dailyTotals);
+  const nextDays7 = nextDailyTotals.slice(-7);
+  const nextDays30 = nextDailyTotals.slice(-30);
+  return {
+    ...basePayload,
+    dailyTotals: nextDailyTotals,
+    averages: {
+      ...(basePayload.averages || {}),
+      days7: nextDays7,
+      days30: nextDays30,
+    },
+    trendDelta: recomputeTrendDelta(nextDailyTotals),
+  };
+}
+
 function computeTodayPeak(perSlugSeries, today) {
   const bucketMap = new Map(); // bucketTs -> sum av per-slug-peak
 
@@ -354,7 +408,12 @@ export async function GET(req) {
           : cachedEntry.exp - OVERVIEW_TTL_MS;
       const storedMeta =
         cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
-      const payload = attachMeta(cachedEntry.data, {
+      const adjustedData = withManualDailyOverrides(cachedEntry.data);
+      if (adjustedData !== cachedEntry.data) {
+        cachedEntry.data = adjustedData;
+        cachedEntry.etag = makeEtag(adjustedData);
+      }
+      const payload = attachMeta(adjustedData, {
         cached: true,
         totalMs: t,
         refreshIntervalMs: Number.isFinite(storedMeta.refreshIntervalMs)
@@ -407,7 +466,8 @@ export async function GET(req) {
         const staleAfterIso = Number.isFinite(staleAfterMs)
           ? new Date(staleAfterMs).toISOString()
           : new Date(Date.now() + refreshIntervalMs).toISOString();
-        const etag = storedSnapshot.etag ?? makeEtag(storedSnapshot.data);
+        const adjustedSnapshotData = withManualDailyOverrides(storedSnapshot.data);
+        const etag = makeEtag(adjustedSnapshotData);
         const baseMeta = {
           refreshIntervalMs,
           cachedAt: cachedAtIso,
@@ -418,9 +478,9 @@ export async function GET(req) {
               ? snapshotMeta.source
               : "snapshot",
         };
-        setOverviewCache(overviewKey, storedSnapshot.data, etag, baseMeta);
+        setOverviewCache(overviewKey, adjustedSnapshotData, etag, baseMeta);
         const totalMs = Date.now() - t0;
-        const payload = attachMeta(storedSnapshot.data, {
+        const payload = attachMeta(adjustedSnapshotData, {
           ...baseMeta,
           cached: true,
           totalMs,
@@ -542,6 +602,7 @@ export async function GET(req) {
         avgPlayers: Math.round(Number(total || 0) * 100) / 100,
       }))
       .slice(-targetDays);
+    dailyTotals = applyDailyTotalOverrides(dailyTotals);
     let ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
     let { peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd);
 
@@ -649,7 +710,7 @@ export async function GET(req) {
       });
 
       const fallbackAggStart = Date.now();
-      dailyTotals = buildDailyTotals(perSlugData, todayYmd);
+      dailyTotals = applyDailyTotalOverrides(buildDailyTotals(perSlugData, todayYmd));
       ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
       ({ peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd));
       days7 = dailyTotals.slice(-7);
@@ -686,26 +747,7 @@ export async function GET(req) {
       perSlugData.map(({ slug, daily }) => [slug, daily])
     );
 
-    const trendDelta = (() => {
-      if (dailyTotals.length < 2) return null;
-      const first = dailyTotals[0];
-      const last = dailyTotals[dailyTotals.length - 1];
-      if (!first || !last) return null;
-      const startValue = Number(first.avgPlayers);
-      const endValue = Number(last.avgPlayers);
-      if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return null;
-      const absolute = Math.round((endValue - startValue) * 100) / 100;
-      const percent =
-        startValue !== 0
-          ? Math.round(((endValue - startValue) / startValue) * 10000) / 100
-          : null;
-      return {
-        start: { date: first.date, value: startValue },
-        end: { date: last.date, value: endValue },
-        absolute,
-        percent,
-      };
-    })();
+    const trendDelta = recomputeTrendDelta(dailyTotals);
 
     const basePayload = {
       ok: true,
