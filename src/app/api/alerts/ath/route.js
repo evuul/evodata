@@ -145,6 +145,12 @@ async function handler(req) {
     });
   }
 
+  events.sort((a, b) => {
+    const av = Number(a?.athValue);
+    const bv = Number(b?.athValue);
+    return (Number.isFinite(bv) ? bv : -Infinity) - (Number.isFinite(av) ? av : -Infinity);
+  });
+
   if (!events.length) {
     return json({ ok: true, sent: 0, events: [], topTrends: [], dryRun });
   }

@@ -193,8 +193,12 @@ export const buildAthAlertEmail = ({
   const safeAccount = escapeHtml(resolveAccountDisplay({ email, firstName }));
   const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
 
-  const eventRows = (Array.isArray(events) ? events : [])
-    .slice(0, 8)
+  const eventRows = (Array.isArray(events) ? [...events] : [])
+    .sort((a, b) => {
+      const av = Number(a?.athValue);
+      const bv = Number(b?.athValue);
+      return (Number.isFinite(bv) ? bv : -Infinity) - (Number.isFinite(av) ? av : -Infinity);
+    })
     .map((e) => {
       const name = escapeHtml(e?.name || e?.id || "Unknown");
       const ath = Number(e?.athValue);
