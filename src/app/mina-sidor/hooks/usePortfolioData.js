@@ -142,19 +142,35 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         if (!planned.length) return null;
 
         const today = new Date();
-        const futurePlanned = planned
-            .filter((item) => {
-                if (!item?.date) return true;
-                const date = new Date(item.date);
-                return !Number.isNaN(date.getTime()) && date >= today;
-            })
-            .sort((a, b) => {
-                const da = new Date(a?.date || 0).getTime();
-                const db = new Date(b?.date || 0).getTime();
-                return da - db;
-            });
+        const todayMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59, 999);
 
-        return futurePlanned[0] ?? null;
+        const toDayEndMs = (value) => {
+            if (!value) return null;
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return null;
+            return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999);
+        };
+
+        const activeDeclared = planned
+            .map((item) => {
+                const dps = Number(item?.dividendPerShare);
+                if (!(Number.isFinite(dps) && dps > 0)) return null;
+                const exMs = toDayEndMs(item?.exDate || item?.date);
+                const payMs = toDayEndMs(item?.paymentDate || item?.payDate || item?.payoutDate);
+                const anchorMs = exMs ?? payMs ?? Number.MAX_SAFE_INTEGER;
+                const isActiveUntilPayment =
+                    Number.isFinite(payMs) ? payMs >= todayMs : Number.isFinite(exMs) ? exMs >= todayMs : false;
+                return {
+                    ...item,
+                    dividendPerShare: dps,
+                    __anchorMs: anchorMs,
+                    __isActiveUntilPayment: isActiveUntilPayment,
+                };
+            })
+            .filter((item) => item && item.__isActiveUntilPayment)
+            .sort((a, b) => (a.__anchorMs || 0) - (b.__anchorMs || 0));
+
+        return activeDeclared[0] ?? null;
     }, []);
 
     const lastDividend = useMemo(() => {

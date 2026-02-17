@@ -10,6 +10,7 @@ import { usePlayersLive } from "@/context/PlayersLiveContext";
 import MinaSidorHeader from "@/Components/MinaSidor/MinaSidorHeader";
 import HoldingsChips from "@/Components/MinaSidor/HoldingsChips";
 import HoldingsKpiRow from "@/Components/MinaSidor/HoldingsKpiRow";
+import BuyImpactSimulatorCard from "@/Components/MinaSidor/BuyImpactSimulatorCard";
 import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
@@ -454,6 +455,16 @@ export default function MinaSidorPage() {
               gain={gain}
               gainPercent={gainPercent}
               expectedDividendCash={expectedDividendCash}
+              upcomingDividend={upcomingDividend}
+              lastDividend={lastDividend}
+            />
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <BuyImpactSimulatorCard
+              translate={translate}
+              profile={profile}
+              currentPrice={currentPrice}
               upcomingDividend={upcomingDividend}
               lastDividend={lastDividend}
             />
