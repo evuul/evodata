@@ -150,9 +150,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     loading: loadingPlayers,
     GAMES: playerGames,
     lastUpdated: playersLastUpdated,
+    lobbyStats,
   } = usePlayersLive();
 
   const { isAuthenticated, user, token, logout } = useAuth();
+  const isAdminView = Boolean(user?.isAdmin);
   const router = useRouter();
   const { locale, setLocale } = useLocale();
   const translate = useTranslate();
@@ -511,6 +513,33 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   );
 
   const playersUpdatedLabel = playersLastUpdated ? formatTime(playersLastUpdated) : null;
+  const hourlyComparisonMeta = useMemo(() => {
+    if (!isAdminView) return null;
+    const cmp = lobbyStats?.hourlyComparison;
+    if (!cmp) return null;
+    const delta = cmp?.deltaPct;
+    const baseline = cmp?.baselineAvg;
+    const samples = cmp?.samples;
+    const hour = String(cmp?.hour || "").trim();
+    if (
+      !Number.isFinite(delta) ||
+      !Number.isFinite(baseline) ||
+      baseline <= 0 ||
+      !Number.isFinite(samples) ||
+      samples <= 0 ||
+      !hour
+    ) {
+      return null;
+    }
+    const sign = delta > 0 ? "+" : "";
+    const text = translate(
+      `${hour}:00 vs 60d snitt: ${sign}${delta.toFixed(1)}% (bas ${Math.round(baseline).toLocaleString("sv-SE")})`,
+      `${hour}:00 vs 60d avg: ${sign}${delta.toFixed(1)}% (base ${Math.round(baseline).toLocaleString("sv-SE")})`
+    );
+    const color =
+      delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.72)";
+    return { text, color };
+  }, [isAdminView, lobbyStats?.hourlyComparison, translate]);
   const stockUpdatedLabel = stockLastUpdated ? formatTime(stockLastUpdated) : null;
 
   const blankningChipLabel = loadingShort
@@ -1605,6 +1634,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                     ? translate("Hämtar live-data…", "Fetching live data…")
                     : translate("Ingen uppdatering ännu", "No update yet")}
                 </Typography>
+                {hourlyComparisonMeta ? (
+                  <Typography variant="caption" sx={{ color: hourlyComparisonMeta.color }}>
+                    {hourlyComparisonMeta.text}
+                  </Typography>
+                ) : null}
                 {LIVE_TRACKER_OFFLINE ? (
                   <Typography
                     variant="caption"

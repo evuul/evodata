@@ -80,7 +80,7 @@ const DAILY_SNAPSHOT_TTL_MS = (() => {
 })();
 const dailySnapshotMem = new Map(); // key -> { data, exp }
 const BASELINE_PREFIX = "cs:lobby:baseline:";
-const BASELINE_VERSION = "v1";
+const BASELINE_VERSION = "v2";
 const BASELINE_TTL_MS = (() => {
   const raw = Number(process.env.CS_BASELINE_TTL_MS);
   if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000); // cap 48h
@@ -815,10 +815,17 @@ export function computeBaselineFromSeries(seriesMap, days, bucketMs = DEFAULT_BA
   const tsTotals = new Map(); // ts -> total players (sum over slugs)
   let samples = 0;
   seriesMap.forEach((points) => {
+    // Deduplicate per-series timestamps. The same lobby snapshot can be persisted
+    // via different endpoints, which otherwise inflates totals for that timestamp.
+    const perSeriesByTs = new Map();
     for (const p of points || []) {
       const ts = Number(p?.ts);
       const value = Number(p?.value);
       if (!Number.isFinite(ts) || !Number.isFinite(value)) continue;
+      perSeriesByTs.set(ts, value);
+    }
+
+    for (const [ts, value] of perSeriesByTs.entries()) {
       tsTotals.set(ts, (tsTotals.get(ts) ?? 0) + value);
       samples += 1;
     }

@@ -36,7 +36,7 @@ export default function MinaSidorPage() {
   const router = useRouter();
   const { token, isAuthenticated, initialized, user, changePassword, logout } = useAuth();
   const { stockPrice } = useStockPriceContext();
-  const { data: playersLive } = usePlayersLive();
+  const { data: playersLive, lobbyStats } = usePlayersLive();
 
   // --- Portfolio Data Hook ---
   const {
@@ -379,6 +379,7 @@ export default function MinaSidorPage() {
               todaysChangePercent={todaysChangePercent}
               isTraderMode={isTraderMode}
               onToggleTraderMode={onTraderModeChange}
+              hourlyComparison={lobbyStats?.hourlyComparison ?? null}
             />
 
             {/* Merged "Today Holding" Stat to reduce gap */}

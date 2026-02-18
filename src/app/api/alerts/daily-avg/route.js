@@ -30,6 +30,11 @@ const SEND_HOUR_STOCKHOLM =
   Number.isFinite(SEND_HOUR_RAW) && SEND_HOUR_RAW >= 0 && SEND_HOUR_RAW <= 23
     ? Math.floor(SEND_HOUR_RAW)
     : 6; // default 06:00 Stockholm
+const SEND_MINUTE_RAW = Number(process.env.DAILY_AVG_SEND_MINUTE_STOCKHOLM);
+const SEND_MINUTE_STOCKHOLM =
+  Number.isFinite(SEND_MINUTE_RAW) && SEND_MINUTE_RAW >= 0 && SEND_MINUTE_RAW <= 59
+    ? Math.floor(SEND_MINUTE_RAW)
+    : 30; // default 06:30 Stockholm
 const RESEND_MIN_GAP_MS = 550; // keep below 2 req/s
 const RESEND_MAX_RETRIES = 4;
 const MANUAL_DAILY_TOTAL_OVERRIDES = Object.freeze({
@@ -80,8 +85,13 @@ function getStockholmNow() {
   const month = get("month");
   const day = get("day");
   const hour = Number(get("hour"));
+  const minute = Number(get("minute"));
   const ymd = year && month && day ? `${year}-${month}-${day}` : null;
-  return { ymd, hour: Number.isFinite(hour) ? hour : null };
+  return {
+    ymd,
+    hour: Number.isFinite(hour) ? hour : null,
+    minute: Number.isFinite(minute) ? minute : null,
+  };
 }
 
 function computeTotalAvg(dailyAggMap, ymd) {
@@ -209,14 +219,15 @@ async function handler(req) {
     return json({ ok: false, error: "Mailer not configured" }, { status: 503 });
   }
 
-  const { ymd: todayYmd, hour: stockholmHour } = getStockholmNow();
-  if (!todayYmd || stockholmHour == null) {
+  const { ymd: todayYmd, hour: stockholmHour, minute: stockholmMinute } = getStockholmNow();
+  if (!todayYmd || stockholmHour == null || stockholmMinute == null) {
     return json({ ok: false, error: "Could not resolve Stockholm time" }, { status: 500 });
   }
 
   // Run hourly (UTC) but send at one fixed local Stockholm hour.
   // This ensures predictable timing and that "yesterday" is typically complete.
-  const atScheduledHour = stockholmHour === SEND_HOUR_STOCKHOLM;
+  const atScheduledTime =
+    stockholmHour === SEND_HOUR_STOCKHOLM && stockholmMinute === SEND_MINUTE_STOCKHOLM;
   const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
 
   const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
@@ -273,15 +284,17 @@ async function handler(req) {
     });
   }
 
-  if (!atScheduledHour && !dryRun && !forceSend) {
+  if (!atScheduledTime && !dryRun && !forceSend) {
     return json({
       ok: true,
       dryRun,
       sent: 0,
       skipped: true,
-      reason: "Outside Stockholm scheduled send hour",
+      reason: "Outside Stockholm scheduled send time",
       stockholmHour,
+      stockholmMinute,
       scheduledHour: SEND_HOUR_STOCKHOLM,
+      scheduledMinute: SEND_MINUTE_STOCKHOLM,
       targetYmd,
       prevYmd,
     });
@@ -388,7 +401,9 @@ async function handler(req) {
     recipients: recipients.map((r) => r.email),
     testOnlyAdmin: effectiveTestOnlyAdmin,
     stockholmHour,
+    stockholmMinute,
     scheduledHour: SEND_HOUR_STOCKHOLM,
+    scheduledMinute: SEND_MINUTE_STOCKHOLM,
     forceSend,
     targetYmd,
     prevYmd,

@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { GAMES as GAME_CONFIG } from "@/config/games";
+import { useAuth } from "@/context/AuthContext";
 
 export const GAMES = GAME_CONFIG;
 
@@ -12,11 +13,19 @@ const PlayersLiveContext = createContext(undefined);
 const INITIAL_FETCH_DELAY_MS = 4000;
 
 export function PlayersLiveProvider({ children, enabled = true }) {
+  const { user } = useAuth();
+  const isAdmin = Boolean(user?.isAdmin);
   const [data, setData] = useState({}); // { [id]: { players, updated, error? } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [lobbyStats, setLobbyStats] = useState({ todayPeak: null, yesterdayPeak: null, lobbyAth: null, updatedAt: null });
+  const [lobbyStats, setLobbyStats] = useState({
+    todayPeak: null,
+    yesterdayPeak: null,
+    lobbyAth: null,
+    hourlyComparison: null,
+    updatedAt: null,
+  });
   const lastFetchRef = useRef(0);
   const lastLobbyStatsFetchRef = useRef(0);
 
@@ -29,7 +38,8 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       }
       lastLobbyStatsFetchRef.current = now;
       try {
-        const res = await fetch("/api/casinoscores/lobby/stats");
+        const qp = isAdmin ? "?includeHourly=1" : "";
+        const res = await fetch(`/api/casinoscores/lobby/stats${qp}`);
         if (!res.ok) return;
         const json = await res.json();
         if (!json?.ok) return;
@@ -37,13 +47,14 @@ export function PlayersLiveProvider({ children, enabled = true }) {
           todayPeak: json.todayPeak ?? null,
           yesterdayPeak: json.yesterdayPeak ?? null,
           lobbyAth: json.lobbyAth ?? null,
+          hourlyComparison: isAdmin ? json.hourlyComparison ?? null : null,
           updatedAt: json.updatedAt ?? null,
         });
       } catch {
         // ignorerar statsfel
       }
     },
-    [enabled]
+    [enabled, isAdmin]
   );
 
   const fetchAll = useCallback(async (force = false) => {

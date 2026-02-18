@@ -26,6 +26,7 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import { usePlayersLive } from "../context/PlayersLiveContext";
+import { useAuth } from "@/context/AuthContext";
 import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewSharedWithOptions } from "@/lib/csOverviewClient";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
@@ -284,6 +285,8 @@ const LivePlayersControlPanel = () => {
     lobbyStats,
   } = usePlayersLive();
   const { locale } = useLocale();
+  const { user } = useAuth();
+  const isAdminView = Boolean(user?.isAdmin);
   const translate = useTranslate();
   const numberFormatter = useMemo(
     () =>
@@ -604,6 +607,35 @@ const LivePlayersControlPanel = () => {
     if (!Number.isFinite(totalLivePlayers)) return null;
     return Math.round(totalLivePlayers * lobbyBoostMultiplier);
   }, [totalLivePlayers, lobbyBoostMultiplier]);
+
+  const hourlyComparisonMeta = useMemo(() => {
+    if (!isAdminView) return null;
+    const cmp = lobbyStats?.hourlyComparison;
+    if (!cmp) return null;
+    const delta = cmp?.deltaPct;
+    const baseline = cmp?.baselineAvg;
+    const samples = cmp?.samples;
+    const hour = String(cmp?.hour || "").trim();
+    if (
+      !Number.isFinite(delta) ||
+      !Number.isFinite(baseline) ||
+      baseline <= 0 ||
+      !Number.isFinite(samples) ||
+      samples <= 0 ||
+      !hour
+    ) {
+      return null;
+    }
+    const sign = delta > 0 ? "+" : "";
+    const baselineLabel = numberFormatter.format(Math.round(baseline));
+    const text = translate(
+      `${hour}:00 vs 60d-snitt: ${sign}${percentFormatter.format(delta)}% (bas ${baselineLabel})`,
+      `${hour}:00 vs 60d avg: ${sign}${percentFormatter.format(delta)}% (base ${baselineLabel})`
+    );
+    const color =
+      delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.75)";
+    return { text, color };
+  }, [isAdminView, lobbyStats?.hourlyComparison, numberFormatter, percentFormatter, translate]);
 
   const todayPeakDisplayValue = useMemo(() => {
     const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;
@@ -1054,6 +1086,11 @@ const LivePlayersControlPanel = () => {
                       <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
                         {playersUpdatedText}
                       </Typography>
+                      {hourlyComparisonMeta ? (
+                        <Typography variant="caption" sx={{ color: hourlyComparisonMeta.color }}>
+                          {hourlyComparisonMeta.text}
+                        </Typography>
+                      ) : null}
                       {lobbyBoostOn && (
                         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
                           {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}

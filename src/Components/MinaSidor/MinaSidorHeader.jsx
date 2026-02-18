@@ -30,6 +30,7 @@ export default function MinaSidorHeader({
   todaysChangePercent,
   isTraderMode,
   onToggleTraderMode,
+  hourlyComparison,
 }) {
   const { locale, setLocale } = useLocale();
   const todayColor = // eslint-disable-line no-unused-vars
@@ -40,6 +41,47 @@ export default function MinaSidorHeader({
   const openNotif = Boolean(notifAnchorEl);
   const handleNotifClick = (event) => setNotifAnchorEl(event.currentTarget);
   const handleNotifClose = () => setNotifAnchorEl(null);
+  const hourlyChip = (() => {
+    if (!isAdminView) return null;
+    const delta = hourlyComparison?.deltaPct;
+    const baseline = hourlyComparison?.baselineAvg;
+    const samples = hourlyComparison?.samples;
+    const hour = String(hourlyComparison?.hour || "").trim();
+    if (
+      !Number.isFinite(delta) ||
+      !Number.isFinite(baseline) ||
+      baseline <= 0 ||
+      !Number.isFinite(samples) ||
+      samples <= 0 ||
+      !hour
+    ) {
+      return null;
+    }
+    const sign = delta > 0 ? "+" : "";
+    return {
+      label: translate(
+        `${hour}:00 vs 60d snitt ${sign}${delta.toFixed(1)}%`,
+        `${hour}:00 vs 60d avg ${sign}${delta.toFixed(1)}%`
+      ),
+      color: delta > 0 ? "#86efac" : delta < 0 ? "#fecaca" : "rgba(226,232,240,0.85)",
+      bg:
+        delta > 0
+          ? "rgba(34,197,94,0.16)"
+          : delta < 0
+          ? "rgba(248,113,113,0.16)"
+          : "rgba(148,163,184,0.14)",
+      border:
+        delta > 0
+          ? "1px solid rgba(34,197,94,0.4)"
+          : delta < 0
+          ? "1px solid rgba(248,113,113,0.4)"
+          : "1px solid rgba(148,163,184,0.35)",
+      title: translate(
+        `Bas ${Math.round(baseline).toLocaleString("sv-SE")} spelare`,
+        `Base ${Math.round(baseline).toLocaleString("sv-SE")} players`
+      ),
+    };
+  })();
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -428,6 +470,25 @@ export default function MinaSidorHeader({
               {totalLivePlayers != null ? totalLivePlayers.toLocaleString("sv-SE") : "–"}
             </Typography>
           </Stack>
+          {hourlyChip ? (
+            <Box
+              title={hourlyChip.title}
+              sx={{
+                px: 1.2,
+                py: 0.45,
+                borderRadius: "999px",
+                fontSize: { xs: "0.8rem", md: "0.74rem" },
+                fontWeight: 700,
+                color: hourlyChip.color,
+                background: hourlyChip.bg,
+                border: hourlyChip.border,
+                alignSelf: { xs: "center", md: "flex-end" },
+                mb: 0.6,
+              }}
+            >
+              {hourlyChip.label}
+            </Box>
+          ) : null}
 
           {/* Live Price & Today's Change - Increased Sizes */}
           <Stack
