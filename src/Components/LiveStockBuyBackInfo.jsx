@@ -263,6 +263,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     );
     return Number.isFinite(sum) ? sum : null;
   }, [financialReports]);
+  const hasFullYear2025Reported = useMemo(() => {
+    const reports = financialReports?.financialReports || [];
+    const rows = reports.filter((r) => Number(r?.year) === 2025);
+    if (!rows.length) return false;
+    const quarters = new Set(rows.map((r) => String(r?.quarter || "")));
+    return quarters.has("Q1") && quarters.has("Q2") && quarters.has("Q3") && quarters.has("Q4");
+  }, [financialReports]);
   const eps2025 = useMemo(() => {
     const reports = financialReports?.financialReports || [];
     const rows = reports.filter((r) => Number(r?.year) === 2025);
@@ -912,7 +919,9 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate('Antagen vinst 2025', 'Assumed profit 2025')}
+                  {hasFullYear2025Reported
+                    ? translate('Rapporterad helårsvinst 2025', 'Reported full-year profit 2025')
+                    : translate('Antagen vinst 2025', 'Assumed profit 2025')}
                 </Typography>
                 <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                   {Number.isFinite(profit2025EurM)
