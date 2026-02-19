@@ -61,21 +61,14 @@ function stockholmCurrentHourLabel() {
   }
 }
 
-function buildHourlyComparison({ baseline, totalPlayers }) {
-  const hour = stockholmCurrentHourLabel();
+function computeHourBaseline({ baseline, hour }) {
   const buckets = Array.isArray(baseline?.buckets) ? baseline.buckets : [];
   const sameHour = buckets.filter((row) => String(row?.bucket || "").startsWith(`${hour}:`));
-  if (!sameHour.length || !Number.isFinite(totalPlayers) || totalPlayers <= 0) {
+  if (!sameHour.length) {
     return {
       hour,
       baselineAvg: null,
-      currentTotal: Number.isFinite(totalPlayers) ? totalPlayers : null,
-      deltaPct: null,
       samples: 0,
-      days: HOURLY_BASELINE_DAYS,
-      bucketMs: HOURLY_BASELINE_BUCKET_MS,
-      source: baseline?.source || null,
-      computedAt: baseline?.computedAt || null,
     };
   }
 
@@ -95,13 +88,7 @@ function buildHourlyComparison({ baseline, totalPlayers }) {
     return {
       hour,
       baselineAvg: null,
-      currentTotal: Number.isFinite(totalPlayers) ? totalPlayers : null,
-      deltaPct: null,
       samples: 0,
-      days: HOURLY_BASELINE_DAYS,
-      bucketMs: HOURLY_BASELINE_BUCKET_MS,
-      source: baseline?.source || null,
-      computedAt: baseline?.computedAt || null,
     };
   }
 
@@ -114,22 +101,61 @@ function buildHourlyComparison({ baseline, totalPlayers }) {
     Number.isFinite(mean) && Number.isFinite(median) && median > 0 ? mean / median : 1;
   const baselineAvg =
     Number.isFinite(meanToMedianRatio) && meanToMedianRatio > 1.35 ? median : mean;
+  return {
+    hour,
+    baselineAvg: Number.isFinite(baselineAvg) ? Math.round(baselineAvg) : null,
+    samples: weightedCount,
+  };
+}
+
+function buildHourlyComparison({ baseline, totalPlayers }) {
+  const hour = stockholmCurrentHourLabel();
+  const baselineRow = computeHourBaseline({ baseline, hour });
+  const baselineAvg = Number(baselineRow?.baselineAvg);
+  const hasLive = Number.isFinite(totalPlayers) && totalPlayers > 0;
   const deltaPct =
-    Number.isFinite(baselineAvg) && baselineAvg > 0
+    hasLive && Number.isFinite(baselineAvg) && baselineAvg > 0
       ? ((totalPlayers - baselineAvg) / baselineAvg) * 100
       : null;
 
   return {
     hour,
     baselineAvg: Number.isFinite(baselineAvg) ? Math.round(baselineAvg) : null,
-    currentTotal: Math.round(totalPlayers),
+    currentTotal: hasLive ? Math.round(totalPlayers) : null,
     deltaPct: Number.isFinite(deltaPct) ? Math.round(deltaPct * 10) / 10 : null,
-    samples: weightedCount,
+    samples: Number.isFinite(baselineRow?.samples) ? Math.round(baselineRow.samples) : 0,
     days: HOURLY_BASELINE_DAYS,
     bucketMs: HOURLY_BASELINE_BUCKET_MS,
     source: baseline?.source || null,
     computedAt: baseline?.computedAt || null,
   };
+}
+
+function buildHourlyByHourComparison({ baseline, totalPlayers }) {
+  const currentHour = stockholmCurrentHourLabel();
+  const hasLive = Number.isFinite(totalPlayers) && totalPlayers > 0;
+  const rows = [];
+
+  for (let h = 0; h < 24; h += 1) {
+    const hour = String(h).padStart(2, "0");
+    const baselineRow = computeHourBaseline({ baseline, hour });
+    const baselineAvg = Number(baselineRow?.baselineAvg);
+    const deltaPct =
+      hasLive && Number.isFinite(baselineAvg) && baselineAvg > 0
+        ? ((totalPlayers - baselineAvg) / baselineAvg) * 100
+        : null;
+
+    rows.push({
+      hour,
+      baselineAvg: Number.isFinite(baselineAvg) ? Math.round(baselineAvg) : null,
+      currentTotal: hasLive ? Math.round(totalPlayers) : null,
+      deltaPct: Number.isFinite(deltaPct) ? Math.round(deltaPct * 10) / 10 : null,
+      samples: Number.isFinite(baselineRow?.samples) ? Math.round(baselineRow.samples) : 0,
+      isCurrentHour: hour === currentHour,
+    });
+  }
+
+  return rows;
 }
 
 function sanitizeHourlyComparison(input) {
@@ -149,6 +175,29 @@ function sanitizeHourlyComparison(input) {
     samples: Math.round(samples),
     hour,
   };
+}
+
+function sanitizeHourlyByHour(input) {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((row) => {
+      const hour = String(row?.hour || "").trim();
+      const baselineAvg = Number(row?.baselineAvg);
+      const currentTotal = Number(row?.currentTotal);
+      const deltaPct = Number(row?.deltaPct);
+      const samples = Number(row?.samples);
+      const isCurrentHour = Boolean(row?.isCurrentHour);
+      if (!hour) return null;
+      return {
+        hour,
+        baselineAvg: Number.isFinite(baselineAvg) && baselineAvg > 0 ? Math.round(baselineAvg) : null,
+        currentTotal: Number.isFinite(currentTotal) && currentTotal > 0 ? Math.round(currentTotal) : null,
+        deltaPct: Number.isFinite(deltaPct) ? Math.round(deltaPct * 10) / 10 : null,
+        samples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
+        isCurrentHour,
+      };
+    })
+    .filter(Boolean);
 }
 
 export async function GET(req) {
@@ -180,7 +229,11 @@ export async function GET(req) {
     const hourlyComparisonRaw = includeHourly
       ? buildHourlyComparison({ baseline, totalPlayers: latestTotalPlayers })
       : null;
+    const hourlyByHourRaw = includeHourly
+      ? buildHourlyByHourComparison({ baseline, totalPlayers: latestTotalPlayers })
+      : [];
     const hourlyComparison = sanitizeHourlyComparison(hourlyComparisonRaw);
+    const hourlyByHour = sanitizeHourlyByHour(hourlyByHourRaw);
 
     return new Response(
       JSON.stringify({
@@ -189,6 +242,7 @@ export async function GET(req) {
         yesterdayPeak: yesterdayPeakRaw ?? null,
         lobbyAth: lobbyAth ?? null,
         hourlyComparison: hourlyComparison ?? null,
+        hourlyByHour,
         updatedAt: new Date().toISOString(),
       }),
       {

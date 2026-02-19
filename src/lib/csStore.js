@@ -26,9 +26,93 @@ const DEFAULT_LOBBY_ATH = (() => {
 
 let kvClient = null;
 
+function createLocalRedisAdapter(client) {
+  return {
+    async get(key) {
+      return client.get(key);
+    },
+    async set(key, value, options = {}) {
+      if (options && typeof options === "object" && Number.isFinite(Number(options.ex))) {
+        return client.set(key, value, { EX: Math.max(1, Math.round(Number(options.ex))) });
+      }
+      return client.set(key, value);
+    },
+    async del(key) {
+      return client.del(key);
+    },
+    async lpush(key, value) {
+      return client.lPush(key, value);
+    },
+    async ltrim(key, start, stop) {
+      return client.lTrim(key, start, stop);
+    },
+    async lrange(key, start, stop) {
+      return client.lRange(key, start, stop);
+    },
+    async lindex(key, index) {
+      return client.lIndex(key, index);
+    },
+    async hgetall(key) {
+      return client.hGetAll(key);
+    },
+    async hset(key, value) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        return client.hSet(key, value);
+      }
+      return 0;
+    },
+    async hincrby(key, field, increment) {
+      return client.hIncrBy(key, field, increment);
+    },
+    pipeline() {
+      const multi = client.multi();
+      return {
+        lrange(key, start, stop) {
+          multi.lRange(key, start, stop);
+          return this;
+        },
+        hgetall(key) {
+          multi.hGetAll(key);
+          return this;
+        },
+        hincrby(key, field, increment) {
+          multi.hIncrBy(key, field, increment);
+          return this;
+        },
+        hset(key, value) {
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            multi.hSet(key, value);
+          }
+          return this;
+        },
+        del(key) {
+          multi.del(key);
+          return this;
+        },
+        async exec() {
+          return multi.exec();
+        },
+      };
+    },
+  };
+}
+
 // Prova använda @vercel/kv om env finns – dynamisk import så build inte bryr sig lokalt
 async function getKv() {
   if (kvClient !== null) return kvClient; // cache
+  const localRedisUrl = String(process.env.LOCAL_REDIS_URL || "").trim();
+  if (localRedisUrl) {
+    try {
+      const redisMod = await import("redis");
+      const client = redisMod.createClient({ url: localRedisUrl });
+      await client.connect();
+      kvClient = createLocalRedisAdapter(client);
+      if (DEBUG) console.log("[csStore] Using LOCAL_REDIS_URL adapter");
+      return kvClient;
+    } catch (err) {
+      if (DEBUG) console.warn("[csStore] LOCAL_REDIS_URL connect failed, fallback to KV_REST:", err);
+    }
+  }
   if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
     const mod = await import("@vercel/kv");
     kvClient = mod.kv;
@@ -66,7 +150,11 @@ const mem = {
 };
 
 const KEY = (slug) => `cs:${slug}:samples`;
-const MAX_SAMPLES = 5000;
+const MAX_SAMPLES = (() => {
+  const raw = Number(process.env.CS_MAX_SAMPLES);
+  if (Number.isFinite(raw) && raw >= 1000) return Math.min(Math.round(raw), 500000);
+  return 5000;
+})();
 
 const overviewMem = new Map(); // key -> { snapshot, exp }
 const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback

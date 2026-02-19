@@ -11,6 +11,8 @@ const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
 const PlayersLiveContext = createContext(undefined);
 const INITIAL_FETCH_DELAY_MS = 4000;
+const INCLUDE_HOURLY_LOCAL =
+  process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
 export function PlayersLiveProvider({ children, enabled = true }) {
   const { user } = useAuth();
@@ -24,6 +26,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     yesterdayPeak: null,
     lobbyAth: null,
     hourlyComparison: null,
+    hourlyByHour: [],
     updatedAt: null,
   });
   const lastFetchRef = useRef(0);
@@ -38,7 +41,8 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       }
       lastLobbyStatsFetchRef.current = now;
       try {
-        const qp = isAdmin ? "?includeHourly=1" : "";
+        const includeHourly = isAdmin || INCLUDE_HOURLY_LOCAL;
+        const qp = includeHourly ? "?includeHourly=1" : "";
         const res = await fetch(`/api/casinoscores/lobby/stats${qp}`);
         if (!res.ok) return;
         const json = await res.json();
@@ -47,7 +51,8 @@ export function PlayersLiveProvider({ children, enabled = true }) {
           todayPeak: json.todayPeak ?? null,
           yesterdayPeak: json.yesterdayPeak ?? null,
           lobbyAth: json.lobbyAth ?? null,
-          hourlyComparison: isAdmin ? json.hourlyComparison ?? null : null,
+          hourlyComparison: includeHourly ? json.hourlyComparison ?? null : null,
+          hourlyByHour: includeHourly && Array.isArray(json.hourlyByHour) ? json.hourlyByHour : [],
           updatedAt: json.updatedAt ?? null,
         });
       } catch {

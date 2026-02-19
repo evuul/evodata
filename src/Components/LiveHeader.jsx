@@ -56,6 +56,7 @@ const LIVE_TRACKER_OFFLINE = ["1", "true", "yes", "on"].includes(
 const LIVE_TRACKER_OFFLINE_NOTE =
   process.env.NEXT_PUBLIC_LIVE_TRACKER_OFFLINE_NOTE ||
   "Live tracker is temporarily offline. A fix is in progress.";
+const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
 const liveCaches = {
   short: { ts: 0, percent: null },
@@ -456,6 +457,21 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     return hasData ? sum : null;
   }, [playerGames, liveGames]);
 
+  const zeroPlayerGames = useMemo(() => {
+    const games = Array.isArray(playerGames) ? playerGames : [];
+    return games
+      .map((game) => {
+        const entry = liveGames?.[game.id] || {};
+        return {
+          id: game.id,
+          label: game.label || game.id,
+          players: entry.players,
+          stale: Boolean(entry.stale),
+        };
+      })
+      .filter((game) => Number(game.players) === 0 && !game.stale);
+  }, [playerGames, liveGames]);
+
   const [simulateLobby, setSimulateLobby] = useState(false);
   const simulatedTotalPlayers = useMemo(() => {
     if (!Number.isFinite(totalPlayers)) return null;
@@ -514,7 +530,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
 
   const playersUpdatedLabel = playersLastUpdated ? formatTime(playersLastUpdated) : null;
   const hourlyComparisonMeta = useMemo(() => {
-    if (!isAdminView) return null;
+    if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
     const cmp = lobbyStats?.hourlyComparison;
     if (!cmp) return null;
     const delta = cmp?.deltaPct;
@@ -573,6 +589,18 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
   const simulateButtonLabel = simulateLobby
     ? translate("Stäng av simulering", "Disable simulation")
     : translate("Simulera lobby (+10%)", "Simulate lobby (+10%)");
+
+  const maintenanceWarningLabel = useMemo(() => {
+    if (!zeroPlayerGames.length) return null;
+    const labels = zeroPlayerGames.map((game) => String(game.label || game.id));
+    const shown = labels.slice(0, 4).join(", ");
+    const moreCount = labels.length > 4 ? labels.length - 4 : 0;
+    const suffix = moreCount > 0 ? ` +${moreCount}` : "";
+    return translate(
+      `Möjlig maintenance (0 spelare): ${shown}${suffix}`,
+      `Possible maintenance (0 players): ${shown}${suffix}`
+    );
+  }, [zeroPlayerGames, translate]);
 
   const [activePanel, setActivePanel] = useState("live");
   const PANEL_VALUES = useMemo(
@@ -1637,6 +1665,24 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                 {hourlyComparisonMeta ? (
                   <Typography variant="caption" sx={{ color: hourlyComparisonMeta.color }}>
                     {hourlyComparisonMeta.text}
+                  </Typography>
+                ) : null}
+                {maintenanceWarningLabel ? (
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "#fecaca",
+                      border: "1px solid rgba(248,113,113,0.4)",
+                      backgroundColor: "rgba(127,29,29,0.28)",
+                      borderRadius: "8px",
+                      px: 1.1,
+                      py: 0.45,
+                      textAlign: "center",
+                      fontWeight: 600,
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    {maintenanceWarningLabel}
                   </Typography>
                 ) : null}
                 {LIVE_TRACKER_OFFLINE ? (

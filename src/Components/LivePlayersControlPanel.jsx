@@ -113,6 +113,7 @@ const ASIA_GAME_KEYS = [
 const ASIA_GAME_KEY_SET = new Set(ASIA_GAME_KEYS);
 const ASIA_AGG_COLOR = "#fde047";
 const SHOW_YESTERDAY_PEAK_CARD = false;
+const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
 const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: TZ,
@@ -609,7 +610,7 @@ const LivePlayersControlPanel = () => {
   }, [totalLivePlayers, lobbyBoostMultiplier]);
 
   const hourlyComparisonMeta = useMemo(() => {
-    if (!isAdminView) return null;
+    if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
     const cmp = lobbyStats?.hourlyComparison;
     if (!cmp) return null;
     const delta = cmp?.deltaPct;
@@ -636,6 +637,30 @@ const LivePlayersControlPanel = () => {
       delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.75)";
     return { text, color };
   }, [isAdminView, lobbyStats?.hourlyComparison, numberFormatter, percentFormatter, translate]);
+
+  const hourlyByHourRows = useMemo(() => {
+    if (!LOCAL_HOURLY_COMPARE_ENABLED) return [];
+    const rows = Array.isArray(lobbyStats?.hourlyByHour) ? lobbyStats.hourlyByHour : [];
+    return rows
+      .map((row) => {
+        const hour = String(row?.hour || "").trim();
+        const baseline = Number(row?.baselineAvg);
+        const currentTotal = Number(row?.currentTotal);
+        const delta = Number(row?.deltaPct);
+        const samples = Number(row?.samples);
+        if (!hour || !Number.isFinite(baseline) || baseline <= 0) return null;
+        return {
+          hour,
+          baseline: Math.round(baseline),
+          currentTotal: Number.isFinite(currentTotal) && currentTotal > 0 ? Math.round(currentTotal) : null,
+          delta: Number.isFinite(delta) ? delta : null,
+          samples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
+          isCurrentHour: Boolean(row?.isCurrentHour),
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.hour.localeCompare(b.hour));
+  }, [lobbyStats?.hourlyByHour]);
 
   const todayPeakDisplayValue = useMemo(() => {
     const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;
@@ -1414,6 +1439,76 @@ const LivePlayersControlPanel = () => {
               </Box>
             </Box>
           </Box>
+
+          {hourlyByHourRows.length ? (
+            <Box
+              sx={{
+                width: "100%",
+                background: "rgba(15,23,42,0.45)",
+                borderRadius: "16px",
+                border: "1px solid rgba(148,163,184,0.18)",
+                p: { xs: 2, md: 2.5 },
+                display: "flex",
+                flexDirection: "column",
+                gap: 1.5,
+              }}
+            >
+              <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between">
+                <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.9)", letterSpacing: 1.2, fontWeight: 600 }}>
+                  {translate("Timsnitt (lokal) vs live nu", "Hourly baseline (local) vs live now")}
+                </Typography>
+                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.68)" }}>
+                  {translate("Visar 00–23 mot nuvarande live-total", "Shows 00–23 versus current live total")}
+                </Typography>
+              </Stack>
+              <Grid container spacing={1.2}>
+                {hourlyByHourRows.map((row) => {
+                  const deltaText =
+                    Number.isFinite(row.delta) ? `${row.delta > 0 ? "+" : ""}${percentFormatter.format(row.delta)}%` : "—";
+                  const deltaColor =
+                    Number.isFinite(row.delta) && row.delta > 0
+                      ? "#86efac"
+                      : Number.isFinite(row.delta) && row.delta < 0
+                      ? "#fca5a5"
+                      : "rgba(226,232,240,0.8)";
+                  return (
+                    <Grid key={`hourly-${row.hour}`} item xs={12} sm={6} md={4} lg={3}>
+                      <Box
+                        sx={{
+                          borderRadius: "12px",
+                          border: row.isCurrentHour
+                            ? "1px solid rgba(56,189,248,0.55)"
+                            : "1px solid rgba(148,163,184,0.25)",
+                          background: row.isCurrentHour ? "rgba(56,189,248,0.08)" : "rgba(2,6,23,0.34)",
+                          p: 1.2,
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 0.4,
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: "rgba(191,219,254,0.95)", fontWeight: 700 }}>
+                          {row.hour}:00
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)" }}>
+                          {translate("Snitt", "Avg")}: {numberFormatter.format(row.baseline)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.82)" }}>
+                          {translate("Live", "Live")}:{" "}
+                          {row.currentTotal != null ? numberFormatter.format(row.currentTotal) : "—"}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: deltaColor, fontWeight: 600 }}>
+                          {translate("Diff", "Delta")}: {deltaText}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)" }}>
+                          {translate("Samples", "Samples")}: {numberFormatter.format(row.samples)}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
+          ) : null}
 
           <Box sx={{ width: "100%" }}>
             <Box
