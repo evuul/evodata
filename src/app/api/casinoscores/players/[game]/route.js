@@ -4,6 +4,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { saveSample, getLatestSample, normalizePlayers } from "@/lib/csStore";
+import { recordCostEvent } from "@/lib/csCostTracker";
 import {
   ALLOWED_SLUGS,
   CRAZY_TIME_A_RESET_MS,
@@ -38,6 +39,7 @@ const LOBBY_AUTH =
   // "https://api.casinoscores.com/cg-neptune-notification-center/api/evolobby/playercount/latest";
 const LOBBY_TTL_MS = 30 * 1000;
 const SOURCE_STALE_AFTER_MS = 20 * 60 * 1000;
+const CRON_SECRET = process.env.CASINOSCORES_CRON_SECRET || process.env.CRON_SECRET || "";
 
 const g = globalThis;
 g.__CS_CACHE__ ??= new Map(); // key: `${slug}:${variant}` -> { ts, data, etag }
@@ -175,7 +177,15 @@ export async function GET(req, ctx) {
         ? "a"
         : "default";
     const force = searchParams.get("force") === "1";
+    const cronRequested = searchParams.get("cron") === "1";
+    const cronHeader = req.headers.get("x-cs-cron-secret") || "";
+    const cronAuthorized = Boolean(CRON_SECRET) && cronRequested && cronHeader === CRON_SECRET;
     const debug = searchParams.get("debug") === "1";
+
+    recordCostEvent({
+      endpoint: "/api/casinoscores/players/[game]",
+      isCron: cronAuthorized,
+    });
 
     // const url = `${BASE}/${slug}/`; // ⬅️ ej använd utan scraping
     const cacheKey = `${slug}:${variant}`;
@@ -281,10 +291,22 @@ export async function GET(req, ctx) {
       lobbyError,
     };
 
-    try {
-      await saveSample(seriesKey, data.fetchedAt, players);
-    } catch {
-      // swallow
+    if (cronAuthorized) {
+      try {
+        await saveSample(seriesKey, data.fetchedAt, players);
+        recordCostEvent({
+          endpoint: "/api/casinoscores/players/[game]",
+          isCron: true,
+          sampleWrites: 1,
+        });
+      } catch {
+        // swallow
+      }
+    } else {
+      recordCostEvent({
+        endpoint: "/api/casinoscores/players/[game]",
+        sampleWriteAvoided: 1,
+      });
     }
 
     const etag = makeEtag(data);

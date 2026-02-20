@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 export const GAMES = GAME_CONFIG;
 
 // 🔁 Gemensam cooldown / intervall
-export const PLAYERS_POLL_INTERVAL_MS = 10 * 60 * 1000; // 10 minuter
+export const PLAYERS_POLL_INTERVAL_MS = 20 * 60 * 1000; // 20 minuter
 const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
 const PlayersLiveContext = createContext(undefined);

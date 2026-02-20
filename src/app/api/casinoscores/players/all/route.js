@@ -4,7 +4,6 @@ export const maxDuration = 30;
 
 import {
   normalizePlayers,
-  saveSample,
   getLatestSample,
   maybeUpdateDailyLobbyPeak,
   getGlobalLobbyAth,
@@ -14,6 +13,7 @@ import {
   setLatestPlayersSnapshot,
   bucketLabelFromTs,
 } from "@/lib/csStore";
+import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
 
@@ -127,6 +127,10 @@ function normalizeLobbyValue(raw) {
 }
 
 export async function GET(req) {
+  recordCostEvent({
+    endpoint: "/api/casinoscores/players/all",
+  });
+
   const { searchParams } = new URL(req.url);
   const force = searchParams.get("force") === "1";
 
@@ -170,9 +174,6 @@ export async function GET(req) {
       const ts = Date.parse(entry.fetchedAt);
       if (Number.isFinite(ts)) {
         newestTs = Math.max(newestTs, ts);
-        if (shouldPersistSamples) {
-          saveSample(id, entry.fetchedAt, normalized).catch(() => undefined);
-        }
       }
     }
 

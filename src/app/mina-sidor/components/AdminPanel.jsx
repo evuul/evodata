@@ -25,6 +25,7 @@ export function AdminPanel({
     createDemoSupportTicket,
     openAdminSupportTicket,
     saveAlertsSettings,
+    loadAdminCost,
     // State
     mailTestLoading,
     mailTestMessage,
@@ -40,6 +41,9 @@ export function AdminPanel({
     adminSupportLoading,
     adminSupportError,
     adminSupportRows,
+    adminCostLoading,
+    adminCostError,
+    adminCostData,
     alertsSettingsLoading,
     alertsSettingsError,
     alertsTestOnlyAdmin,
@@ -104,6 +108,19 @@ export function AdminPanel({
                     }}
                 >
                     {translate("Användare", "Users")}
+                </ToggleButton>
+                <ToggleButton
+                    value="cost"
+                    sx={{
+                        textTransform: "none",
+                        border: 0,
+                        borderRadius: "999px!important",
+                        px: 1.4,
+                        color: "rgba(226,232,240,0.8)",
+                        "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(14,165,233,0.28)" },
+                    }}
+                >
+                    {translate("Kostnad", "Cost")}
                 </ToggleButton>
                 <ToggleButton
                     value="support"
@@ -803,6 +820,96 @@ export function AdminPanel({
                         <Typography sx={{ color: "rgba(226,232,240,0.7)", textAlign: "center" }}>
                             {translate("Inga support tickets ännu.", "No support tickets yet.")}
                         </Typography>
+                    ) : null}
+                </Stack>
+            ) : null}
+
+            {adminPanel === "cost" ? (
+                <Stack spacing={1} sx={{ width: "100%", maxWidth: 980, pt: 1 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={loadAdminCost}
+                        disabled={adminCostLoading}
+                        sx={{
+                            alignSelf: "center",
+                            textTransform: "none",
+                            borderColor: "rgba(14,165,233,0.45)",
+                            color: "#bae6fd",
+                            "&:hover": {
+                                borderColor: "rgba(14,165,233,0.75)",
+                                backgroundColor: "rgba(14,165,233,0.08)",
+                            },
+                        }}
+                    >
+                        {adminCostLoading
+                            ? translate("Laddar kostnadsdata...", "Loading cost data...")
+                            : translate("Ladda om kostnadsdata", "Refresh cost data")}
+                    </Button>
+
+                    {adminCostError ? (
+                        <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
+                            {adminCostError}
+                        </Typography>
+                    ) : null}
+
+                    {adminCostData?.totals ? (
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="center">
+                            <Typography sx={{ color: "#f8fafc", fontWeight: 800 }}>
+                                {translate("Request 72h", "Requests 72h")}: {Number(adminCostData?.totals?.totalRequests || 0)}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700 }}>
+                                {translate("Cron request", "Cron requests")}: {Number(adminCostData?.totals?.cronRequests || 0)}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(187,247,208,0.95)", fontWeight: 700 }}>
+                                {translate("Sparade samples", "Saved samples")}: {Number(adminCostData?.totals?.sampleWrites || 0)}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(191,219,254,0.95)", fontWeight: 700 }}>
+                                {translate("Undvikna sample-writes", "Avoided sample writes")}: {Number(adminCostData?.totals?.sampleWriteAvoided || 0)}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(226,232,240,0.75)", fontWeight: 700 }}>
+                                {translate("Hourly-jämförelse anrop", "Hourly comparison calls")}: {Number(adminCostData?.totals?.includeHourlyRequests || 0)}
+                            </Typography>
+                        </Stack>
+                    ) : null}
+
+                    {Array.isArray(adminCostData?.endpoints) && adminCostData.endpoints.length ? (
+                        <Stack spacing={0.8}>
+                            <Typography sx={{ color: "rgba(226,232,240,0.82)", textAlign: "center", fontWeight: 800 }}>
+                                {translate("Top endpoints (72h)", "Top endpoints (72h)")}
+                            </Typography>
+                            {adminCostData.endpoints.slice(0, 6).map((row) => (
+                                <Box
+                                    key={row.endpoint}
+                                    sx={{
+                                        border: "1px solid rgba(148,163,184,0.22)",
+                                        borderRadius: "12px",
+                                        background: "rgba(15,23,42,0.45)",
+                                        px: 1.4,
+                                        py: 1.05,
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        gap: 1,
+                                    }}
+                                >
+                                    <Typography sx={{ color: "#e2e8f0", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                                        {row.endpoint}
+                                    </Typography>
+                                    <Typography sx={{ color: "#f8fafc", fontWeight: 800 }}>
+                                        {Number(row.requests || 0)}
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Stack>
+                    ) : null}
+
+                    {Array.isArray(adminCostData?.notes) && adminCostData.notes.length ? (
+                        <Stack spacing={0.4}>
+                            {adminCostData.notes.map((note, idx) => (
+                                <Typography key={`${idx}-${note}`} sx={{ color: "rgba(226,232,240,0.6)", textAlign: "center", fontSize: "0.82rem" }}>
+                                    {note}
+                                </Typography>
+                            ))}
+                        </Stack>
                     ) : null}
                 </Stack>
             ) : null}

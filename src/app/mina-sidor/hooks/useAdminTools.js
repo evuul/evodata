@@ -1,9 +1,10 @@
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 
 const ADMIN_ACTIVITY_REFRESH_MS = 5 * 60 * 1000;
 const ADMIN_USERS_REFRESH_MS = 5 * 60 * 1000;
 const ADMIN_SUPPORT_REFRESH_MS = 60 * 60 * 1000;
+const ADMIN_COST_REFRESH_MS = 5 * 60 * 1000;
 
 export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
   const [adminMode, setAdminMode] = useState(false);
@@ -37,6 +38,11 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
   const [adminSupportReply, setAdminSupportReply] = useState("");
   const [adminSupportDialogOpen, setAdminSupportDialogOpen] = useState(false);
   const [adminSupportReplyLoading, setAdminSupportReplyLoading] = useState(false);
+
+  // Cost / Usage
+  const [adminCostLoading, setAdminCostLoading] = useState(false);
+  const [adminCostError, setAdminCostError] = useState("");
+  const [adminCostData, setAdminCostData] = useState(null);
 
   // Alerts Settings
   const [alertsSettingsLoading, setAlertsSettingsLoading] = useState(false);
@@ -474,6 +480,33 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
+  const loadAdminCost = useCallback(async () => {
+    if (!token) return;
+    try {
+      setAdminCostLoading(true);
+      setAdminCostError("");
+      const res = await fetch("/api/admin/cost?hours=72", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        cache: "no-store",
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAdminCostData(null);
+        setAdminCostError(payload?.error || translate("Kunde inte läsa kostnadsdata.", "Could not load cost data."));
+        return;
+      }
+      setAdminCostData(payload || null);
+    } catch {
+      setAdminCostData(null);
+      setAdminCostError(translate("Kunde inte läsa kostnadsdata.", "Could not load cost data."));
+    } finally {
+      setAdminCostLoading(false);
+    }
+  }, [token, translate]);
+
   const saveAlertsSettings = async (next) => {
     if (!token) return;
     try {
@@ -551,6 +584,21 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     loadAlertsSettings();
   }, [adminMode, adminPanel, effectiveIsAdmin, token]);
 
+  useEffect(() => {
+    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "cost") return;
+    let cancelled = false;
+    const load = async () => {
+      if (cancelled) return;
+      await loadAdminCost();
+    };
+    load();
+    const id = setInterval(load, ADMIN_COST_REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [adminMode, adminPanel, effectiveIsAdmin, token, loadAdminCost]);
+
   return {
     adminMode, setAdminMode,
     adminPanel, setAdminPanel,
@@ -562,6 +610,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     adminSupportReply, setAdminSupportReply, adminSupportDialogOpen, setAdminSupportDialogOpen, 
     adminSupportReplyLoading, loadAdminSupport, createDemoSupportTicket, openAdminSupportTicket, 
     saveAdminSupportReply, closeAdminSupportTicket,
+    adminCostLoading, adminCostError, adminCostData, loadAdminCost,
     alertsSettingsLoading, alertsSettingsError, alertsTestOnlyAdmin, 
     alertsAthEnabled, alertsDailyAvgEnabled, saveAlertsSettings,
     

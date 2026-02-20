@@ -6,7 +6,7 @@
  * apiSlug = slug för /api/casinoscores/players/[slug]
  * apiVariant = "a" endast för Crazy Time A (övriga saknar variant)
  */
-export const GAMES = [
+const ALL_GAMES = [
   { id: "crazy-time", label: "Crazy Time", apiSlug: "crazy-time" },
   { id: "crazy-time:a", label: "Crazy Time A", apiSlug: "crazy-time", apiVariant: "a" },
   { id: "monopoly-live", label: "Monopoly Live", apiSlug: "monopoly-live" },
@@ -16,7 +16,8 @@ export const GAMES = [
   { id: "lightning-baccarat", label: "Lightning Baccarat", apiSlug: "lightning-baccarat" },
   { id: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette", apiSlug: "xxxtreme-lightning-roulette" },
   { id: "immersive-roulette", label: "Immersive Roulette", apiSlug: "immersive-roulette" },
-  { id: "cash-or-crash-live", label: "Cash or Crash", apiSlug: "cash-or-crash-live" },
+  // Tillfälligt inaktiverad: har visat 0 länge och ska inte trackas just nu.
+  { id: "cash-or-crash-live", label: "Cash or Crash", apiSlug: "cash-or-crash-live", enabled: false },
   { id: "lightning-storm", label: "Lightning Storm", apiSlug: "lightning-storm" },
   { id: "red-door-roulette", label: "Red Door Roulette", apiSlug: "red-door-roulette" },
   { id: "crazy-balls", label: "Crazy Balls", apiSlug: "crazy-balls" },
@@ -35,6 +36,8 @@ export const GAMES = [
   { id: "fortune-roulette", label: "Fortune Roulette", apiSlug: "fortune-roulette" },
   { id: "ice-fishing", label: "Ice Fishing", apiSlug: "ice-fishing" },
 ];
+
+export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);
 
 /**
  * Delad färgpalett (används i header, listor, grafer)

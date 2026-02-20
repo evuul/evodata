@@ -7,6 +7,7 @@ import {
   getLatestPlayersSnapshot,
   getOrBuildBaseline,
 } from "@/lib/csStore";
+import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
@@ -204,6 +205,10 @@ export async function GET(req) {
   try {
     const url = new URL(req.url);
     const includeHourly = url.searchParams.get("includeHourly") === "1";
+    recordCostEvent({
+      endpoint: "/api/casinoscores/lobby/stats",
+      includeHourly,
+    });
     const todayYmd = stockholmTodayYMD();
     const yesterdayYmd = shiftStockholmYmd(todayYmd, -1);
 

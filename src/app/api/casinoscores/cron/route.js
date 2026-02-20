@@ -38,7 +38,12 @@ export async function POST(req) {
       const params = new URLSearchParams({ force: "1", cron: "1" });
       if (variant && variant !== "default") params.set("variant", variant);
       const url = `${origin}/api/casinoscores/players/${slug}?${params.toString()}`;
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, {
+        cache: "no-store",
+        headers: {
+          "x-cs-cron-secret": SECRET,
+        },
+      });
       let payload = null;
       const contentType = res.headers.get("content-type") || "";
       if (contentType.includes("application/json")) {
