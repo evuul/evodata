@@ -613,10 +613,14 @@ const LivePlayersControlPanel = () => {
     if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
     const cmp = lobbyStats?.hourlyComparison;
     if (!cmp) return null;
-    const delta = cmp?.deltaPct;
     const baseline = cmp?.baselineAvg;
     const samples = cmp?.samples;
     const hour = String(cmp?.hour || "").trim();
+    const currentLive = Number.isFinite(totalLiveDisplayValue) ? Number(totalLiveDisplayValue) : Number(cmp?.currentTotal);
+    const delta =
+      Number.isFinite(currentLive) && Number.isFinite(baseline) && baseline > 0
+        ? ((currentLive - baseline) / baseline) * 100
+        : Number(cmp?.deltaPct);
     if (
       !Number.isFinite(delta) ||
       !Number.isFinite(baseline) ||
@@ -636,7 +640,7 @@ const LivePlayersControlPanel = () => {
     const color =
       delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.75)";
     return { text, color };
-  }, [isAdminView, lobbyStats?.hourlyComparison, numberFormatter, percentFormatter, translate]);
+  }, [isAdminView, lobbyStats?.hourlyComparison, numberFormatter, percentFormatter, totalLiveDisplayValue, translate]);
 
   const hourlyByHourRows = useMemo(() => {
     if (!LOCAL_HOURLY_COMPARE_ENABLED) return [];
@@ -645,22 +649,32 @@ const LivePlayersControlPanel = () => {
       .map((row) => {
         const hour = String(row?.hour || "").trim();
         const baseline = Number(row?.baselineAvg);
-        const currentTotal = Number(row?.currentTotal);
+        const currentTotalFromRow = Number(row?.currentTotal);
+        const currentTotal =
+          Boolean(row?.isCurrentHour) && Number.isFinite(totalLiveDisplayValue)
+            ? Number(totalLiveDisplayValue)
+            : currentTotalFromRow;
         const delta = Number(row?.deltaPct);
         const samples = Number(row?.samples);
         if (!hour || !Number.isFinite(baseline) || baseline <= 0) return null;
+        const resolvedDelta =
+          Number.isFinite(currentTotal) && baseline > 0
+            ? ((currentTotal - baseline) / baseline) * 100
+            : Number.isFinite(delta)
+            ? delta
+            : null;
         return {
           hour,
           baseline: Math.round(baseline),
           currentTotal: Number.isFinite(currentTotal) && currentTotal > 0 ? Math.round(currentTotal) : null,
-          delta: Number.isFinite(delta) ? delta : null,
+          delta: Number.isFinite(resolvedDelta) ? resolvedDelta : null,
           samples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
           isCurrentHour: Boolean(row?.isCurrentHour),
         };
       })
       .filter(Boolean)
       .sort((a, b) => a.hour.localeCompare(b.hour));
-  }, [lobbyStats?.hourlyByHour]);
+  }, [lobbyStats?.hourlyByHour, totalLiveDisplayValue]);
 
   const todayPeakDisplayValue = useMemo(() => {
     const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;

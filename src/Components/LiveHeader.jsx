@@ -533,10 +533,14 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
     const cmp = lobbyStats?.hourlyComparison;
     if (!cmp) return null;
-    const delta = cmp?.deltaPct;
     const baseline = cmp?.baselineAvg;
     const samples = cmp?.samples;
     const hour = String(cmp?.hour || "").trim();
+    const currentLive = Number.isFinite(playersValue) ? Number(playersValue) : Number(cmp?.currentTotal);
+    const delta =
+      Number.isFinite(currentLive) && Number.isFinite(baseline) && baseline > 0
+        ? ((currentLive - baseline) / baseline) * 100
+        : Number(cmp?.deltaPct);
     if (
       !Number.isFinite(delta) ||
       !Number.isFinite(baseline) ||
@@ -555,7 +559,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     const color =
       delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.72)";
     return { text, color };
-  }, [isAdminView, lobbyStats?.hourlyComparison, translate]);
+  }, [isAdminView, lobbyStats?.hourlyComparison, playersValue, translate]);
   const stockUpdatedLabel = stockLastUpdated ? formatTime(stockLastUpdated) : null;
 
   const blankningChipLabel = loadingShort
