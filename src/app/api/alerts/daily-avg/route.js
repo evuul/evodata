@@ -53,6 +53,7 @@ const STOCKHOLM_PARTS = new Intl.DateTimeFormat("sv-SE", {
   month: "2-digit",
   day: "2-digit",
   hour: "2-digit",
+  minute: "2-digit",
   hour12: false,
 });
 
@@ -79,18 +80,32 @@ const gameNameById = (() => {
 })();
 
 function getStockholmNow() {
-  const parts = STOCKHOLM_PARTS.formatToParts(new Date());
-  const get = (type) => parts.find((p) => p.type === type)?.value;
-  const year = get("year");
-  const month = get("month");
-  const day = get("day");
-  const hour = Number(get("hour"));
-  const minute = Number(get("minute"));
-  const ymd = year && month && day ? `${year}-${month}-${day}` : null;
+  try {
+    const parts = STOCKHOLM_PARTS.formatToParts(new Date());
+    const get = (type) => parts.find((p) => p.type === type)?.value;
+    const year = get("year");
+    const month = get("month");
+    const day = get("day");
+    const hour = Number(get("hour"));
+    const minute = Number(get("minute"));
+    const ymd = year && month && day ? `${year}-${month}-${day}` : null;
+    if (ymd && Number.isFinite(hour) && Number.isFinite(minute)) {
+      return {
+        ymd,
+        hour,
+        minute,
+      };
+    }
+  } catch {
+    // fall through to graceful fallback
+  }
+
+  // Fallback: använd UTC i stället för att krascha hela daily-send.
+  const now = new Date();
   return {
-    ymd,
-    hour: Number.isFinite(hour) ? hour : null,
-    minute: Number.isFinite(minute) ? minute : null,
+    ymd: now.toISOString().slice(0, 10),
+    hour: now.getUTCHours(),
+    minute: now.getUTCMinutes(),
   };
 }
 
