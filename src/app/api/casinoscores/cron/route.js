@@ -16,7 +16,7 @@ function json(data, status = 200, extraHeaders = {}) {
   });
 }
 
-export async function POST(req) {
+async function runCron(req) {
   if (!SECRET) {
     return json({ ok: false, error: "CASINOSCORES_CRON_SECRET is not configured" }, 500);
   }
@@ -89,8 +89,10 @@ export async function POST(req) {
   });
 }
 
-export function GET() {
-  return json({ ok: false, error: "Use POST with Authorization" }, 405, {
-    Allow: "POST",
-  });
+export async function POST(req) {
+  return runCron(req);
+}
+
+export async function GET(req) {
+  return runCron(req);
 }
