@@ -355,6 +355,10 @@ function dateHash01(ymd) {
   return (h % 10000) / 10000; // [0..1)
 }
 
+function dateHashWithSalt01(salt, ymd) {
+  return dateHash01(`${String(salt || "")}:${String(ymd || "")}`);
+}
+
 function applyRecentDailyBackfill(rows, todayYmd, maxMissingDays = RECENT_DAILY_BACKFILL_MAX_DAYS) {
   if (!Array.isArray(rows) || !rows.length) return [];
   if (!todayYmd) return rows;
@@ -415,7 +419,7 @@ function applyRecentDailyBackfill(rows, todayYmd, maxMissingDays = RECENT_DAILY_
   return backfilled.length ? [...sorted, ...backfilled] : sorted;
 }
 
-function applyTargetedGapBackfill(rows, todayYmd) {
+function applyTargetedGapBackfill(rows, todayYmd, salt = "") {
   if (!Array.isArray(rows) || !rows.length) return [];
   const start = TARGETED_GAP_BACKFILL.start;
   const end = TARGETED_GAP_BACKFILL.end;
@@ -428,12 +432,15 @@ function applyTargetedGapBackfill(rows, todayYmd) {
   const byDate = new Map(sorted.map((row) => [String(row?.date || ""), row]));
   const baseRows = sorted.filter((row) => {
     const date = String(row?.date || "");
-    return date && date < start && Number.isFinite(Number(row?.avgPlayers));
+    const value = Number(row?.avg ?? row?.avgPlayers);
+    return date && date < start && Number.isFinite(value);
   });
   if (!baseRows.length) return sorted;
 
   const recent = baseRows.slice(-Math.max(1, TARGETED_GAP_BACKFILL.lookbackDays));
-  const recentValues = recent.map((row) => Number(row?.avgPlayers)).filter((v) => Number.isFinite(v) && v > 0);
+  const recentValues = recent
+    .map((row) => Number(row?.avg ?? row?.avgPlayers))
+    .filter((v) => Number.isFinite(v) && v > 0);
   if (!recentValues.length) return sorted;
 
   const avg20 = mean(recentValues);
@@ -447,7 +454,7 @@ function applyTargetedGapBackfill(rows, todayYmd) {
   const rangeMax = avg20 * 1.06;
 
   let cursor = shiftYmd(start, -1);
-  let prevValue = Number(baseRows[baseRows.length - 1]?.avgPlayers);
+  let prevValue = Number(baseRows[baseRows.length - 1]?.avg ?? baseRows[baseRows.length - 1]?.avgPlayers);
   if (!Number.isFinite(prevValue) || prevValue <= 0) prevValue = avg20;
   const injected = [];
   while (cursor && cursor < end) {
@@ -455,28 +462,63 @@ function applyTargetedGapBackfill(rows, todayYmd) {
     if (!next || next > end) break;
 
     const existing = byDate.get(next);
-    if (existing && Number.isFinite(Number(existing.avgPlayers))) {
-      prevValue = Number(existing.avgPlayers);
+    const existingValue = Number(existing?.avg ?? existing?.avgPlayers);
+    if (existing && Number.isFinite(existingValue)) {
+      prevValue = existingValue;
       cursor = next;
       continue;
     }
 
     const progress = Math.max(0, Math.min(1, (Date.parse(`${next}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / (3 * 24 * 60 * 60 * 1000)));
-    const noise = (dateHash01(next) - 0.5) * 2 * volPct;
+    const noise = (dateHashWithSalt01(salt, next) - 0.5) * 2 * volPct;
     const drift = trendBiasPct * progress;
     const target = avg20 * (1 + noise + drift);
     const blended = prevValue * 0.4 + target * 0.6;
     const bounded = clamp(blended, rangeMin, rangeMax);
-    const row = { date: next, avgPlayers: Math.round(bounded * 100) / 100 };
+    const row = { date: next, avg: Math.round(bounded * 100) / 100 };
     injected.push(row);
     byDate.set(next, row);
-    prevValue = row.avgPlayers;
+    prevValue = row.avg;
     cursor = next;
   }
 
   return injected.length
     ? [...sorted, ...injected].sort((a, b) => String(a?.date || "").localeCompare(String(b?.date || "")))
     : sorted;
+}
+
+function applyTargetedGapBackfillToSlugDaily(slugDaily, todayYmd) {
+  if (!slugDaily || typeof slugDaily !== "object") return slugDaily;
+  const entries = Object.entries(slugDaily);
+  if (!entries.length) return slugDaily;
+
+  const next = {};
+  for (const [slug, rows] of entries) {
+    const source = Array.isArray(rows) ? rows : [];
+    next[slug] = applyTargetedGapBackfill(source, todayYmd, slug);
+  }
+  return next;
+}
+
+function rebuildDailyTotalsFromSlugDaily(slugDaily, todayYmd) {
+  if (!slugDaily || typeof slugDaily !== "object") return [];
+  const totals = new Map();
+  for (const rows of Object.values(slugDaily)) {
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      const date = String(row?.date || "");
+      const avg = Number(row?.avg ?? row?.avgPlayers);
+      if (!date || !Number.isFinite(avg)) continue;
+      if (todayYmd && date >= todayYmd) continue;
+      totals.set(date, (totals.get(date) ?? 0) + avg);
+    }
+  }
+  return Array.from(totals.entries())
+    .map(([date, sum]) => ({
+      date,
+      avgPlayers: Math.round(sum * 100) / 100,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 function recomputeTrendDelta(dailyTotals) {
@@ -503,14 +545,27 @@ function recomputeTrendDelta(dailyTotals) {
 function withManualDailyOverrides(basePayload) {
   if (!basePayload || typeof basePayload !== "object") return basePayload;
   const todayYmd = stockholmTodayYMD();
-  const overriddenDailyTotals = applyDailyTotalOverrides(basePayload.dailyTotals);
-  const targetedGapFilledTotals = applyTargetedGapBackfill(overriddenDailyTotals, todayYmd);
-  const nextDailyTotals = applyRecentDailyBackfill(targetedGapFilledTotals, todayYmd);
+  const baseSlugDaily =
+    basePayload.slugDaily && typeof basePayload.slugDaily === "object"
+      ? basePayload.slugDaily
+      : {};
+  const nextSlugDaily = applyTargetedGapBackfillToSlugDaily(baseSlugDaily, todayYmd);
+
+  const fromSlugDaily = rebuildDailyTotalsFromSlugDaily(nextSlugDaily, todayYmd);
+  const startingDailyTotals = fromSlugDaily.length
+    ? fromSlugDaily
+    : Array.isArray(basePayload.dailyTotals)
+      ? basePayload.dailyTotals
+      : [];
+
+  const overriddenDailyTotals = applyDailyTotalOverrides(startingDailyTotals);
+  const nextDailyTotals = applyRecentDailyBackfill(overriddenDailyTotals, todayYmd);
   const nextDays7 = nextDailyTotals.slice(-7);
   const nextDays30 = nextDailyTotals.slice(-30);
   return {
     ...basePayload,
     dailyTotals: nextDailyTotals,
+    slugDaily: nextSlugDaily,
     averages: {
       ...(basePayload.averages || {}),
       days7: nextDays7,
