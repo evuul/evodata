@@ -5,6 +5,7 @@ export const maxDuration = 30;
 import {
   normalizePlayers,
   getLatestSample,
+  saveSample,
   maybeUpdateDailyLobbyPeak,
   getGlobalLobbyAth,
   setGlobalLobbyAth,
@@ -229,6 +230,19 @@ export async function GET(req) {
   }
 
   if (shouldPersistSamples) {
+    // Persistera en sample per spel för varje ny lobby-snapshot.
+    // Detta gör att dagliga trenddata fortsätter fyllas även om cron missar.
+    const persistTasks = [];
+    for (const entry of items) {
+      if (!entry || entry.stale || !Number.isFinite(entry.players) || !entry.fetchedAt) continue;
+      persistTasks.push(
+        saveSample(entry.id, entry.fetchedAt, entry.players).catch(() => undefined)
+      );
+    }
+    if (persistTasks.length) {
+      await Promise.all(persistTasks);
+    }
+
     setLatestPlayersSnapshot({
       items: items.map((entry) => ({
         id: entry.id,
