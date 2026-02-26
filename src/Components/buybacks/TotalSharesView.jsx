@@ -43,6 +43,7 @@ const TotalSharesView = ({
   totalSharesData,
   latestTotalShares,
   latestEvolutionShares = 0,
+  buybackSinceStartSummary = null,
   chartTypeTotalShares,
   onChangeChartTypeTotalShares,
   yDomain,
@@ -57,6 +58,11 @@ const TotalSharesView = ({
   const xHeight = isMobile ? 40 : 40;
   const evolutionShares = Number.isFinite(latestEvolutionShares) ? latestEvolutionShares : 0;
   const adjustedShareCount = Math.max(latestTotalShares - evolutionShares, 0);
+  const totalRepurchased = Number(buybackSinceStartSummary?.totalSharesRepurchased);
+  const repurchasedPct = Number(buybackSinceStartSummary?.repurchasedPct);
+  const startDateLabel = buybackSinceStartSummary?.startDate
+    ? new Date(buybackSinceStartSummary.startDate).toLocaleDateString("sv-SE")
+    : null;
   const formatCompactMobileTick = (value) => {
     if (!Number.isFinite(value)) return "–";
     const abs = Math.abs(value);
@@ -340,6 +346,39 @@ const TotalSharesView = ({
         )}
       </ResponsiveContainer>
       </Box>
+      {Number.isFinite(totalRepurchased) && totalRepurchased > 0 ? (
+        <Typography
+          variant="body2"
+          sx={{
+            mt: -0.8,
+            color: COLORS.textSecondary,
+            textAlign: "center",
+          }}
+        >
+          {translate(
+            `Sedan återköpsstart${startDateLabel ? ` (${startDateLabel})` : ""}: ${Math.round(
+              totalRepurchased
+            ).toLocaleString("sv-SE")} återköpta aktier${
+              Number.isFinite(repurchasedPct)
+                ? ` (${repurchasedPct.toLocaleString("sv-SE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}%)`
+                : ""
+            }.`,
+            `Since buyback start${startDateLabel ? ` (${startDateLabel})` : ""}: ${Math.round(
+              totalRepurchased
+            ).toLocaleString("sv-SE")} shares repurchased${
+              Number.isFinite(repurchasedPct)
+                ? ` (${repurchasedPct.toLocaleString("sv-SE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}%)`
+                : ""
+            }.`
+          )}
+        </Typography>
+      ) : null}
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         {translate("Historisk data", "Historical data")}

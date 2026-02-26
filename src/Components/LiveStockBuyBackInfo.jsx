@@ -352,6 +352,34 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       averagePrice: value / shares,
     };
   }, [combinedBuybacks]);
+  const buybackSinceStartSummary = useMemo(() => {
+    const positive = combinedBuybacks.filter((row) => Number(row?.Antal_aktier) > 0);
+    if (!positive.length) return null;
+
+    const totalSharesRepurchased = positive.reduce(
+      (sum, row) => sum + (Number(row?.Antal_aktier) || 0),
+      0
+    );
+    if (!Number.isFinite(totalSharesRepurchased) || totalSharesRepurchased <= 0) return null;
+
+    const startDateRaw = positive[0]?.Datum;
+    const startDate = startDateRaw ? new Date(startDateRaw) : null;
+    const startYear = Number.isFinite(startDate?.getTime?.()) ? String(startDate.getFullYear()) : null;
+    const startBase =
+      totalSharesData.find((entry) => String(entry?.date) === startYear)?.totalShares ??
+      totalSharesData[0]?.totalShares ??
+      null;
+    const repurchasedPct =
+      Number.isFinite(startBase) && startBase > 0
+        ? (totalSharesRepurchased / startBase) * 100
+        : null;
+
+    return {
+      startDate: startDateRaw || null,
+      totalSharesRepurchased,
+      repurchasedPct,
+    };
+  }, [combinedBuybacks]);
 
   const historicalPnL = useMemo(() => {
     if (!historicalTotals) return null;
@@ -1259,6 +1287,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             totalSharesData={totalSharesData}
             latestTotalShares={totalSharesData.slice(-1)[0]?.totalShares || 0}
             latestEvolutionShares={latestEvolutionShares}
+            buybackSinceStartSummary={buybackSinceStartSummary}
             chartTypeTotalShares={chartTypeTotalShares}
             onChangeChartTypeTotalShares={(_e, v) => v && setChartTypeTotalShares(v)}
             yDomain={getYDomain(totalSharesData, 'totalShares')}

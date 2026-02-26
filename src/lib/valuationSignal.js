@@ -112,6 +112,12 @@ function resolveAsiaPenalty(sorted, penalties) {
   return null;
 }
 
+function sumLtm(sorted, field) {
+  const ltm = resolveLtmReports(sorted);
+  if (ltm.length < 4) return null;
+  return ltm.reduce((acc, row) => acc + (toNumber(row?.[field]) || 0), 0);
+}
+
 export function computeValuationSignal({
   reports = [],
   currentPriceSEK,
@@ -155,6 +161,52 @@ export function computeValuationSignal({
   const pe =
     Number.isFinite(priceSEK) && priceSEK > 0 && Number.isFinite(epsLtmSek) && epsLtmSek > 0
       ? priceSEK / epsLtmSek
+      : null;
+  const revLtmEurM = sumLtm(sorted, "operatingRevenues");
+  const latestEquityPerShareEur = toNumber(latest?.equityPerShare);
+  const latestRevEurM = toNumber(latest?.operatingRevenues);
+  const prevRevEurM = toNumber(sameQuarterPrevYear?.operatingRevenues);
+  const revenueGrowthPct =
+    Number.isFinite(latestRevEurM) && Number.isFinite(prevRevEurM) && prevRevEurM > 0
+      ? ((latestRevEurM - prevRevEurM) / prevRevEurM) * 100
+      : null;
+  const clampedGrowthPct =
+    Number.isFinite(revenueGrowthPct)
+      ? clamp(revenueGrowthPct, -10, 30)
+      : null;
+  const forwardEpsLtmSek =
+    Number.isFinite(epsLtmSek) &&
+    Number.isFinite(clampedGrowthPct)
+      ? epsLtmSek * (1 + clampedGrowthPct / 100)
+      : null;
+  const forwardPe =
+    Number.isFinite(priceSEK) &&
+    priceSEK > 0 &&
+    Number.isFinite(forwardEpsLtmSek) &&
+    forwardEpsLtmSek > 0
+      ? priceSEK / forwardEpsLtmSek
+      : null;
+  const peg =
+    Number.isFinite(pe) &&
+    Number.isFinite(clampedGrowthPct) &&
+    clampedGrowthPct !== 0
+      ? pe / clampedGrowthPct
+      : null;
+  const pBook =
+    Number.isFinite(priceSEK) &&
+    priceSEK > 0 &&
+    Number.isFinite(latestEquityPerShareEur) &&
+    latestEquityPerShareEur > 0 &&
+    Number.isFinite(fx) &&
+    fx > 0
+      ? priceSEK / (latestEquityPerShareEur * fx)
+      : null;
+  const pSales =
+    Number.isFinite(marketCapEurM) &&
+    marketCapEurM > 0 &&
+    Number.isFinite(revLtmEurM) &&
+    revLtmEurM > 0
+      ? marketCapEurM / revLtmEurM
       : null;
   const fcfYieldPct =
     Number.isFinite(priceSEK) && priceSEK > 0 && Number.isFinite(fcfPsLtmSek)
@@ -229,14 +281,21 @@ export function computeValuationSignal({
     positives,
     metrics: {
       pe,
+      forwardPe,
+      peg,
+      pBook,
+      pSales,
       fcfYieldPct,
       evEbitda,
       epsLtmSek,
+      forwardEpsLtmSek,
       fcfPsLtmSek,
       enterpriseValueEurM,
       ebitdaLtmEurM,
       marketCapEurM,
       netCashEurM,
+      revenueGrowthPct: clampedGrowthPct,
+      revLtmEurM,
     },
     meta: {
       latestQuarter: latest ? `${latest.year} ${latest.quarter}` : null,
@@ -244,4 +303,3 @@ export function computeValuationSignal({
     },
   };
 }
-

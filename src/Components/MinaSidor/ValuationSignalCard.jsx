@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, Chip, Grid, LinearProgress, Stack, Typography } from "@mui/material";
+import { Box, Chip, Grid, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import financialReportsData from "@/app/data/financialReports.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeValuationSignal } from "@/lib/valuationSignal";
@@ -87,6 +88,31 @@ const metricMood = (kind, value) => {
     if (value >= r) return { sv: "Svagt", en: "Weak", color: "#facc15", ratio };
     return { sv: "Mycket svagt", en: "Very weak", color: "#f87171", ratio };
   }
+  if (kind === "forwardPe") {
+    if (value <= 12) return { sv: "Billigt", en: "Cheap", color: "#34d399", ratio: 25 };
+    if (value <= 18) return { sv: "Rimligt", en: "Fair", color: "#7dd3fc", ratio: 50 };
+    if (value <= 24) return { sv: "Högt", en: "High", color: "#facc15", ratio: 75 };
+    return { sv: "Dyrt", en: "Expensive", color: "#f87171", ratio: 92 };
+  }
+  if (kind === "peg") {
+    if (value < 0) return { sv: "Neg tillväxt", en: "Negative growth", color: "#f87171", ratio: 92 };
+    if (value <= 1) return { sv: "Bra", en: "Good", color: "#34d399", ratio: 30 };
+    if (value <= 1.5) return { sv: "Rimlig", en: "Fair", color: "#7dd3fc", ratio: 55 };
+    if (value <= 2.2) return { sv: "Hög", en: "High", color: "#facc15", ratio: 78 };
+    return { sv: "Ansträngd", en: "Stretched", color: "#f87171", ratio: 92 };
+  }
+  if (kind === "pb") {
+    if (value <= 3) return { sv: "Låg", en: "Low", color: "#34d399", ratio: 30 };
+    if (value <= 5) return { sv: "Rimlig", en: "Fair", color: "#7dd3fc", ratio: 52 };
+    if (value <= 7) return { sv: "Hög", en: "High", color: "#facc15", ratio: 76 };
+    return { sv: "Dyr", en: "Expensive", color: "#f87171", ratio: 90 };
+  }
+  if (kind === "ps") {
+    if (value <= 5) return { sv: "Låg", en: "Low", color: "#34d399", ratio: 30 };
+    if (value <= 8) return { sv: "Rimlig", en: "Fair", color: "#7dd3fc", ratio: 52 };
+    if (value <= 12) return { sv: "Hög", en: "High", color: "#facc15", ratio: 76 };
+    return { sv: "Dyr", en: "Expensive", color: "#f87171", ratio: 90 };
+  }
   const g = Number(t?.evEbitda?.greenMax ?? 10);
   const y = Number(t?.evEbitda?.yellowMax ?? 14);
   const r = Number(t?.evEbitda?.redMin ?? 18);
@@ -97,7 +123,7 @@ const metricMood = (kind, value) => {
   return { sv: "Ansträngd", en: "Stretched", color: "#f87171", ratio };
 };
 
-function MetricBox({ label, value, moodLabel, moodColor, ratio }) {
+function MetricBox({ label, value, moodLabel, moodColor, ratio, tooltip }) {
   return (
     <Box
       sx={{
@@ -106,17 +132,35 @@ function MetricBox({ label, value, moodLabel, moodColor, ratio }) {
         background: "rgba(30,41,59,0.6)",
         border: "1px solid rgba(148,163,184,0.2)",
         height: "100%",
+        minHeight: 128,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.4 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.7 }}>
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.8)" }}>
           {label}
+        </Typography>
+        {tooltip ? (
+          <Tooltip title={tooltip} arrow placement="top">
+            <InfoOutlinedIcon
+              sx={{
+                fontSize: 14,
+                color: "rgba(148,163,184,0.85)",
+                cursor: "help",
+              }}
+            />
+          </Tooltip>
+        ) : null}
+      </Stack>
+      <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.8 }}>
+        <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800, lineHeight: 1.1 }}>
+          {value}
         </Typography>
         <Typography variant="caption" sx={{ color: moodColor, fontWeight: 700 }}>
           {moodLabel}
         </Typography>
       </Stack>
-      <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 800, lineHeight: 1.1 }}>{value}</Typography>
       <LinearProgress
         variant="determinate"
         value={Math.max(0, Math.min(100, ratio))}
@@ -184,16 +228,48 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
   const scorePct = Number.isFinite(signal?.score) ? Math.max(0, Math.min(100, signal.score)) : 0;
 
   const peMetricLabel = Number.isFinite(signal?.metrics?.pe) ? `${num1.format(signal.metrics.pe)}x` : "–";
-  const fcfYieldMetricLabel = Number.isFinite(signal?.metrics?.fcfYieldPct)
-    ? `${signal.metrics.fcfYieldPct >= 0 ? "+" : ""}${num1.format(signal.metrics.fcfYieldPct)}%`
+  const fwdPeMetricLabel = Number.isFinite(signal?.metrics?.forwardPe)
+    ? `${num1.format(signal.metrics.forwardPe)}x`
     : "–";
+  const pegMetricLabel = Number.isFinite(signal?.metrics?.peg) ? `${num1.format(signal.metrics.peg)}x` : "–";
+  const pbMetricLabel = Number.isFinite(signal?.metrics?.pBook) ? `${num1.format(signal.metrics.pBook)}x` : "–";
+  const psMetricLabel = Number.isFinite(signal?.metrics?.pSales) ? `${num1.format(signal.metrics.pSales)}x` : "–";
   const evEbitdaMetricLabel = Number.isFinite(signal?.metrics?.evEbitda)
     ? `${num1.format(signal.metrics.evEbitda)}x`
     : "–";
   const peMood = metricMood("pe", signal?.metrics?.pe);
-  const fcfMood = metricMood("fcf", signal?.metrics?.fcfYieldPct);
+  const fwdPeMood = metricMood("forwardPe", signal?.metrics?.forwardPe);
+  const pegMood = metricMood("peg", signal?.metrics?.peg);
+  const pbMood = metricMood("pb", signal?.metrics?.pBook);
+  const psMood = metricMood("ps", signal?.metrics?.pSales);
   const evMood = metricMood("ev", signal?.metrics?.evEbitda);
   const hasPenalties = Array.isArray(signal?.penalties) && signal.penalties.length > 0;
+  const metricTooltips = {
+    pe: translate(
+      "P/E visar priset i relation till vinst per aktie (LTM). Lägre kan betyda billigare värdering.",
+      "P/E shows price relative to earnings per share (LTM). Lower can indicate a cheaper valuation."
+    ),
+    forwardPe: translate(
+      "Forward P/E använder framåtblickande vinstestimat (NTM) istället för historisk vinst.",
+      "Forward P/E uses forward-looking earnings (NTM) instead of trailing earnings."
+    ),
+    peg: translate(
+      "PEG = P/E delat med tillväxttakt. Runt 1 brukar tolkas som mer balanserad värdering.",
+      "PEG = P/E divided by growth rate. Around 1 is often seen as a more balanced valuation."
+    ),
+    pb: translate(
+      "P/B jämför priset mot bokfört eget kapital per aktie.",
+      "P/B compares share price to book value per share."
+    ),
+    ps: translate(
+      "P/S jämför bolagets börsvärde mot omsättning (LTM).",
+      "P/S compares market capitalization to revenue (LTM)."
+    ),
+    evEbitda: translate(
+      "EV/EBITDA jämför enterprise value med EBITDA och används för att jämföra värdering mellan bolag.",
+      "EV/EBITDA compares enterprise value to EBITDA and is used to compare valuation across companies."
+    ),
+  };
 
   return (
     <Box
@@ -331,35 +407,67 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
           </Grid>
         </Grid>
 
-        <Grid container spacing={1.4}>
-          <Grid item xs={12} sm={4}>
-            <MetricBox
-              label={translate("P/E (LTM)", "P/E (LTM)")}
-              value={peMetricLabel}
-              moodLabel={translate(peMood.sv, peMood.en)}
-              moodColor={peMood.color}
-              ratio={peMood.ratio}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <MetricBox
-              label={translate("FCF Yield (LTM)", "FCF Yield (LTM)")}
-              value={fcfYieldMetricLabel}
-              moodLabel={translate(fcfMood.sv, fcfMood.en)}
-              moodColor={fcfMood.color}
-              ratio={fcfMood.ratio}
-            />
-          </Grid>
-          <Grid item xs={12} sm={4}>
-            <MetricBox
-              label={translate("EV/EBITDA (LTM)", "EV/EBITDA (LTM)")}
-              value={evEbitdaMetricLabel}
-              moodLabel={translate(evMood.sv, evMood.en)}
-              moodColor={evMood.color}
-              ratio={evMood.ratio}
-            />
-          </Grid>
-        </Grid>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 1.4,
+            gridTemplateColumns: {
+              xs: "1fr",
+              sm: "repeat(2, minmax(0, 1fr))",
+              md: "repeat(3, minmax(0, 1fr))",
+              lg: "repeat(6, minmax(0, 1fr))",
+            },
+          }}
+        >
+          <MetricBox
+            label={translate("P/E (LTM)", "P/E (LTM)")}
+            value={peMetricLabel}
+            moodLabel={translate(peMood.sv, peMood.en)}
+            moodColor={peMood.color}
+            ratio={peMood.ratio}
+            tooltip={metricTooltips.pe}
+          />
+          <MetricBox
+            label={translate("Forward P/E (NTM)", "Forward P/E (NTM)")}
+            value={fwdPeMetricLabel}
+            moodLabel={translate(fwdPeMood.sv, fwdPeMood.en)}
+            moodColor={fwdPeMood.color}
+            ratio={fwdPeMood.ratio}
+            tooltip={metricTooltips.forwardPe}
+          />
+          <MetricBox
+            label={translate("PEG", "PEG")}
+            value={pegMetricLabel}
+            moodLabel={translate(pegMood.sv, pegMood.en)}
+            moodColor={pegMood.color}
+            ratio={pegMood.ratio}
+            tooltip={metricTooltips.peg}
+          />
+          <MetricBox
+            label={translate("P/B", "P/B")}
+            value={pbMetricLabel}
+            moodLabel={translate(pbMood.sv, pbMood.en)}
+            moodColor={pbMood.color}
+            ratio={pbMood.ratio}
+            tooltip={metricTooltips.pb}
+          />
+          <MetricBox
+            label={translate("P/S", "P/S")}
+            value={psMetricLabel}
+            moodLabel={translate(psMood.sv, psMood.en)}
+            moodColor={psMood.color}
+            ratio={psMood.ratio}
+            tooltip={metricTooltips.ps}
+          />
+          <MetricBox
+            label={translate("EV/EBITDA (LTM)", "EV/EBITDA (LTM)")}
+            value={evEbitdaMetricLabel}
+            moodLabel={translate(evMood.sv, evMood.en)}
+            moodColor={evMood.color}
+            ratio={evMood.ratio}
+            tooltip={metricTooltips.evEbitda}
+          />
+        </Box>
       </Stack>
     </Box>
   );
