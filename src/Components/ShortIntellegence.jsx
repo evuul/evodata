@@ -704,9 +704,20 @@ const ShortIntellegence = () => {
                       fontSize: "0.85rem",
                     }}
                   >
-                    {blankingSummary.latestDate
-                      ? fullLabel(blankingSummary.latestDate)
+                    {blankingSummary.totalShares != null
+                      ? translate(
+                          `${formatNumber(blankingSummary.totalShares)} aktier`,
+                          `${formatNumber(blankingSummary.totalShares)} shares`
+                        )
                       : "–"}
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: "rgba(148,163,184,0.7)",
+                      fontSize: "0.8rem",
+                    }}
+                  >
+                    {blankingSummary.latestDate ? fullLabel(blankingSummary.latestDate) : "–"}
                   </Typography>
                 </Box>
               </Box>

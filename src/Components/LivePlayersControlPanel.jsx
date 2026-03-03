@@ -94,6 +94,7 @@ const ATH_FORCE_REFRESH_STORAGE_KEY = "ath_force_refresh_last_at";
 const ATH_FORCE_REFRESH_MS = 3 * 60 * 60 * 1000; // 3h
 
 const TREND_DAY_OPTIONS = [30, 60, 90, 180];
+const MA_WINDOW_OPTIONS = [7, 14, 30];
 const TOP_GROWTH_DAYS = 90;
 const ATH_DAY_OPTIONS = [90, 180, 365];
 const INITIAL_VISIBLE_LIVE = 10;
@@ -337,6 +338,9 @@ const LivePlayersControlPanel = () => {
   const [lobbyBoostOn, setLobbyBoostOn] = useState(false);
   const [trendMaOn, setTrendMaOn] = useState(false);
   const [gameTrendMaOn, setGameTrendMaOn] = useState(true);
+  const [trendMaWindowDays, setTrendMaWindowDays] = useState(30);
+  const [gameTrendMaWindowDays, setGameTrendMaWindowDays] = useState(30);
+  const [asiaTrendMaWindowDays, setAsiaTrendMaWindowDays] = useState(30);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -760,8 +764,8 @@ const LivePlayersControlPanel = () => {
   }, [dailyTotals, trendDays]);
 
   const trendSeriesForView = useMemo(
-    () => (trendMaOn ? applyMovingAverage(trendChartData, trendDays) : trendChartData),
-    [trendChartData, trendMaOn, trendDays]
+    () => (trendMaOn ? applyMovingAverage(trendChartData, trendMaWindowDays) : trendChartData),
+    [trendChartData, trendMaOn, trendMaWindowDays]
   );
 
   // ===== NEW: applicera +10% boost på serie & summering
@@ -916,8 +920,8 @@ const LivePlayersControlPanel = () => {
   }, [asiaCombinedSeries, asiaTrackerDays]);
 
   const asiaTrendChartDataForView = useMemo(
-    () => (asiaTrendMaOn ? applyMovingAverage(asiaTrendChartData, asiaTrackerDays) : asiaTrendChartData),
-    [asiaTrendChartData, asiaTrackerDays, asiaTrendMaOn]
+    () => (asiaTrendMaOn ? applyMovingAverage(asiaTrendChartData, asiaTrendMaWindowDays) : asiaTrendChartData),
+    [asiaTrendChartData, asiaTrendMaWindowDays, asiaTrendMaOn]
   );
 
   const asiaTrendSummary = useMemo(
@@ -950,8 +954,8 @@ const LivePlayersControlPanel = () => {
   }, [slugDailyMap, gameTrendSlug, gameTrendDays]);
 
   const gameTrendChartData = useMemo(
-    () => (gameTrendMaOn ? applyMovingAverage(gameTrendSeries, gameTrendDays) : gameTrendSeries),
-    [gameTrendSeries, gameTrendMaOn, gameTrendDays]
+    () => (gameTrendMaOn ? applyMovingAverage(gameTrendSeries, gameTrendMaWindowDays) : gameTrendSeries),
+    [gameTrendSeries, gameTrendMaOn, gameTrendMaWindowDays]
   );
 
   const gameTrendSummary = useMemo(() => {
@@ -975,8 +979,8 @@ const LivePlayersControlPanel = () => {
   }, [slugDailyMap, asiaTrackerSlug, asiaTrackerDays]);
 
   const asiaTrackerChartData = useMemo(
-    () => (asiaTrendMaOn ? applyMovingAverage(asiaTrackerSeries, asiaTrackerDays) : asiaTrackerSeries),
-    [asiaTrackerSeries, asiaTrackerDays, asiaTrendMaOn]
+    () => (asiaTrendMaOn ? applyMovingAverage(asiaTrackerSeries, asiaTrendMaWindowDays) : asiaTrackerSeries),
+    [asiaTrackerSeries, asiaTrendMaWindowDays, asiaTrendMaOn]
   );
 
   const asiaTrackerSummary = useMemo(() => {
@@ -984,9 +988,9 @@ const LivePlayersControlPanel = () => {
     if (primary) return primary;
     if (!asiaTrackerSlug) return null;
     const fullSeries = slugDailyMap.get(asiaTrackerSlug) ?? [];
-    const baseSeries = asiaTrendMaOn ? applyMovingAverage(fullSeries, asiaTrackerDays) : fullSeries;
+    const baseSeries = asiaTrendMaOn ? applyMovingAverage(fullSeries, asiaTrendMaWindowDays) : fullSeries;
     return computeTrendDiff(baseSeries);
-  }, [asiaTrackerChartData, asiaTrackerSlug, slugDailyMap, asiaTrackerDays, asiaTrendMaOn]);
+  }, [asiaTrackerChartData, asiaTrackerSlug, slugDailyMap, asiaTrendMaWindowDays, asiaTrendMaOn]);
 
   const asiaLiveRows = useMemo(
     () => liveGamesList.filter((row) => ASIA_GAME_KEY_SET.has(row.id)),
@@ -1683,7 +1687,9 @@ const LivePlayersControlPanel = () => {
             onToggleBoost={() => setTrendBoostOn((v) => !v)}
             movingAverageOn={trendMaOn}
             onToggleMovingAverage={() => setTrendMaOn((v) => !v)}
-            movingAverageDays={trendDays}
+            movingAverageDays={trendMaWindowDays}
+            movingAverageOptions={MA_WINDOW_OPTIONS}
+            onChangeMovingAverageDays={setTrendMaWindowDays}
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
@@ -1706,7 +1712,9 @@ const LivePlayersControlPanel = () => {
             onChangeDays={setGameTrendDays}
             movingAverageOn={gameTrendMaOn}
             onToggleMovingAverage={() => setGameTrendMaOn((v) => !v)}
-            movingAverageDays={gameTrendDays}
+            movingAverageDays={gameTrendMaWindowDays}
+            movingAverageOptions={MA_WINDOW_OPTIONS}
+            onChangeMovingAverageDays={setGameTrendMaWindowDays}
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
@@ -1736,7 +1744,9 @@ const LivePlayersControlPanel = () => {
             onChangeDays={setAsiaTrackerDays}
             movingAverageOn={asiaTrendMaOn}
             onToggleMovingAverage={() => setAsiaTrendMaOn((v) => !v)}
-            movingAverageDays={asiaTrackerDays}
+            movingAverageDays={asiaTrendMaWindowDays}
+            movingAverageOptions={MA_WINDOW_OPTIONS}
+            onChangeMovingAverageDays={setAsiaTrendMaWindowDays}
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
@@ -1785,6 +1795,8 @@ const TrendSection = ({
   movingAverageOn,
   onToggleMovingAverage,
   movingAverageDays,
+  movingAverageOptions,
+  onChangeMovingAverageDays,
   numberFormatter,
   translate,
   percentFormatter,
@@ -1911,6 +1923,39 @@ const TrendSection = ({
             fontWeight: movingAverageOn ? 700 : 500,
           }}
         />
+        {movingAverageOn && (
+          <ToggleButtonGroup
+            value={movingAverageDays}
+            exclusive
+            size="small"
+            onChange={(_, value) => value && onChangeMovingAverageDays?.(value)}
+            sx={{
+              backgroundColor: "rgba(56,189,248,0.12)",
+              borderRadius: "999px",
+              p: 0.5,
+            }}
+          >
+            {(movingAverageOptions || MA_WINDOW_OPTIONS).map((option) => (
+              <ToggleButton
+                key={option}
+                value={option}
+                sx={{
+                  textTransform: "none",
+                  color: "rgba(226,232,240,0.75)",
+                  border: 0,
+                  borderRadius: "999px!important",
+                  px: { xs: 1.25, md: 1.75 },
+                  "&.Mui-selected": {
+                    color: "#f8fafc",
+                    backgroundColor: "rgba(56,189,248,0.35)",
+                  },
+                }}
+              >
+                MA {option}d
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        )}
 
         {/* Dagar */}
         <ToggleButtonGroup
@@ -2083,6 +2128,8 @@ const GameTrendSection = ({
   movingAverageOn,
   onToggleMovingAverage,
   movingAverageDays,
+  movingAverageOptions,
+  onChangeMovingAverageDays,
   numberFormatter,
   translate,
   percentFormatter,
@@ -2255,6 +2302,39 @@ const GameTrendSection = ({
               fontWeight: movingAverageOn ? 700 : 500,
             }}
           />
+          {movingAverageOn && (
+            <ToggleButtonGroup
+              value={movingAverageDays}
+              exclusive
+              size="small"
+              onChange={(_, value) => value && onChangeMovingAverageDays?.(value)}
+              sx={{
+                backgroundColor: "rgba(56,189,248,0.12)",
+                borderRadius: "999px",
+                p: 0.5,
+              }}
+            >
+              {(movingAverageOptions || MA_WINDOW_OPTIONS).map((option) => (
+                <ToggleButton
+                  key={option}
+                  value={option}
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.75)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.25, md: 1.75 },
+                    "&.Mui-selected": {
+                      color: "#f8fafc",
+                      backgroundColor: "rgba(56,189,248,0.35)",
+                    },
+                  }}
+                >
+                  MA {option}d
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          )}
           <ToggleButtonGroup
             value={days}
             exclusive
@@ -2400,6 +2480,8 @@ const AsiaTrackerSection = ({
   movingAverageOn,
   onToggleMovingAverage,
   movingAverageDays,
+  movingAverageOptions,
+  onChangeMovingAverageDays,
   numberFormatter,
   translate,
   percentFormatter,
@@ -2686,6 +2768,39 @@ const AsiaTrackerSection = ({
               fontWeight: movingAverageOn ? 700 : 500,
             }}
           />
+          {movingAverageOn && (
+            <ToggleButtonGroup
+              value={movingAverageDays}
+              exclusive
+              size="small"
+              onChange={(_, value) => value && onChangeMovingAverageDays?.(value)}
+              sx={{
+                backgroundColor: "rgba(56,189,248,0.12)",
+                borderRadius: "999px",
+                p: 0.5,
+              }}
+            >
+              {(movingAverageOptions || MA_WINDOW_OPTIONS).map((option) => (
+                <ToggleButton
+                  key={option}
+                  value={option}
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.75)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.25, md: 1.75 },
+                    "&.Mui-selected": {
+                      color: "#f8fafc",
+                      backgroundColor: "rgba(56,189,248,0.35)",
+                    },
+                  }}
+                >
+                  MA {option}d
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          )}
           <ToggleButtonGroup
             value={days}
             exclusive
