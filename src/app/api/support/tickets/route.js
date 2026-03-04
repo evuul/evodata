@@ -29,6 +29,7 @@ const resolveUserFromToken = async (token) => {
 const toSummary = (t) => ({
   id: t.id,
   subject: t.subject,
+  createdBy: t.createdBy || "user",
   status: t.status,
   createdAt: t.createdAt,
   updatedAt: t.updatedAt,

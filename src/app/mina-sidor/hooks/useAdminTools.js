@@ -29,6 +29,13 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
   const [adminUsersError, setAdminUsersError] = useState("");
   const [adminUsersRows, setAdminUsersRows] = useState([]);
   const [adminUsersTotal, setAdminUsersTotal] = useState(0);
+  const [adminPmDialogOpen, setAdminPmDialogOpen] = useState(false);
+  const [adminPmRecipient, setAdminPmRecipient] = useState(null);
+  const [adminPmToEmail, setAdminPmToEmail] = useState("");
+  const [adminPmSubject, setAdminPmSubject] = useState("");
+  const [adminPmMessage, setAdminPmMessage] = useState("");
+  const [adminPmSending, setAdminPmSending] = useState(false);
+  const [adminPmStatus, setAdminPmStatus] = useState("");
 
   // Support
   const [adminSupportLoading, setAdminSupportLoading] = useState(false);
@@ -332,6 +339,73 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
+  const applyAdminDonationTemplate = useCallback(() => {
+    setAdminPmSubject(translate("Tack för din donation till EvoTracker", "Thank you for your donation to EvoTracker"));
+    setAdminPmMessage(
+      translate(
+        "Hej!\n\nStort tack för din donation via Buy Me a Coffee. Ditt stöd hjälper mig att fortsätta förbättra EvoTracker med bättre data, nya funktioner och stabilare drift.\n\nOm du har idéer eller feedback får du gärna svara på detta meddelande.\n\nTack igen!\n\n/Alex",
+        "Hi,\n\nThank you for your donation via Buy Me a Coffee. Your support helps me keep improving EvoTracker with better data, new features, and more reliable uptime.\n\nIf you have ideas or feedback, feel free to reply to this message.\n\nThanks again!\n\n/Alex"
+      )
+    );
+  }, [translate]);
+
+  const openAdminPmDialog = (row) => {
+    const nextRecipient = row || null;
+    const nextEmail = String(nextRecipient?.email || "").trim().toLowerCase();
+    setAdminPmRecipient(nextRecipient);
+    setAdminPmToEmail(nextEmail);
+    applyAdminDonationTemplate();
+    setAdminPmStatus("");
+    setAdminPmDialogOpen(true);
+  };
+
+  const sendAdminPm = async () => {
+    if (!token) return;
+    const toEmail = String(adminPmToEmail || adminPmRecipient?.email || "").trim().toLowerCase();
+    const subject = String(adminPmSubject || "").trim();
+    const message = String(adminPmMessage || "").trim();
+    if (!toEmail || !toEmail.includes("@")) {
+      setAdminPmStatus(translate("Ange en giltig e-post.", "Enter a valid email."));
+      return;
+    }
+    if (subject.length < 2 || message.length < 3) {
+      setAdminPmStatus(translate("Skriv ämne och meddelande.", "Add subject and message."));
+      return;
+    }
+    try {
+      setAdminPmSending(true);
+      setAdminPmStatus("");
+      const res = await fetch("/api/admin/users/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          toEmail,
+          subject,
+          message,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setAdminPmStatus(payload?.error || translate("Kunde inte skicka meddelande.", "Could not send message."));
+        return;
+      }
+      setAdminPmStatus(
+        translate(
+          "Meddelande skickat.",
+          "Message sent."
+        )
+      );
+      await loadAdminUsers();
+    } catch {
+      setAdminPmStatus(translate("Kunde inte skicka meddelande.", "Could not send message."));
+    } finally {
+      setAdminPmSending(false);
+    }
+  };
+
   const loadAdminSupport = async () => {
     if (!token) return;
     try {
@@ -606,6 +680,14 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     previewLoading, previewOpen, setPreviewOpen, previewTitle, previewHtml,
     adminActivityLoading, adminActivityError, adminActivityRows, adminActivityGeoSummary, loadAdminActivity,
     adminUsersLoading, adminUsersError, adminUsersRows, adminUsersTotal, loadAdminUsers,
+    adminPmDialogOpen, setAdminPmDialogOpen,
+    adminPmRecipient,
+    adminPmToEmail, setAdminPmToEmail,
+    adminPmSubject, setAdminPmSubject,
+    adminPmMessage, setAdminPmMessage,
+    adminPmSending,
+    adminPmStatus,
+    openAdminPmDialog, sendAdminPm, applyAdminDonationTemplate,
     adminSupportLoading, adminSupportError, adminSupportRows, adminSupportSelected, 
     adminSupportReply, setAdminSupportReply, adminSupportDialogOpen, setAdminSupportDialogOpen, 
     adminSupportReplyLoading, loadAdminSupport, createDemoSupportTicket, openAdminSupportTicket, 

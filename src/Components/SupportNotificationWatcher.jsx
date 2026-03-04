@@ -34,6 +34,28 @@ const setNumberInStorage = (key, value) => {
   }
 };
 
+const getStringFromStorage = (key) => {
+  if (typeof window === "undefined") return "";
+  try {
+    return String(window.localStorage.getItem(key) || "");
+  } catch {
+    return "";
+  }
+};
+
+const setStringInStorage = (key, value) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (!value) {
+      window.localStorage.removeItem(key);
+      return;
+    }
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // ignore
+  }
+};
+
 export default function SupportNotificationWatcher() {
   const translate = useTranslate();
   const router = useRouter();
@@ -49,6 +71,10 @@ export default function SupportNotificationWatcher() {
   );
   const adminTicketStorageKey = useMemo(
     () => (email ? `evodata.support.lastSeenAdminTicketCreatedAt:${email}` : ""),
+    [email]
+  );
+  const adminMessageStorageKey = useMemo(
+    () => (email ? `evodata.support.lastNotifiedAdminMessageId:${email}` : ""),
     [email]
   );
 
@@ -115,6 +141,45 @@ export default function SupportNotificationWatcher() {
       });
     };
 
+    const checkUserAdminMessages = async () => {
+      if (isAdmin) return;
+      const res = await fetch("/api/user/messages", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const payload = await res.json().catch(() => ({}));
+      const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+      const unread = messages.filter((m) => !m?.readAt);
+      if (!unread.length) {
+        setStringInStorage(adminMessageStorageKey, "");
+        return;
+      }
+      const latestUnread = unread
+        .slice()
+        .sort((a, b) => toMs(b?.createdAt) - toMs(a?.createdAt))[0];
+      const latestUnreadId = String(
+        latestUnread?.id || latestUnread?.createdAt || ""
+      ).trim();
+      if (!latestUnreadId) return;
+
+      const lastNotifiedId = getStringFromStorage(adminMessageStorageKey);
+      if (lastNotifiedId === latestUnreadId) return;
+
+      setStringInStorage(adminMessageStorageKey, latestUnreadId);
+      const newCount = unread.length;
+      notify({
+        severity: "info",
+        message:
+          newCount > 1
+            ? translate(
+                `Du har ${newCount} nya meddelanden från admin.`,
+                `You have ${newCount} new messages from admin.`
+              )
+            : translate("Du har fått ett nytt meddelande från admin.", "You received a new message from admin."),
+      });
+    };
+
     const checkAdminNewTickets = async () => {
       if (!isAdmin) return;
       const res = await fetch("/api/admin/support/tickets", {
@@ -161,7 +226,7 @@ export default function SupportNotificationWatcher() {
 
     const run = async () => {
       try {
-        await Promise.all([checkUserReplies(), checkAdminNewTickets()]);
+        await Promise.all([checkUserReplies(), checkUserAdminMessages(), checkAdminNewTickets()]);
       } catch {
         // silent background notifier
       }
@@ -178,6 +243,7 @@ export default function SupportNotificationWatcher() {
     };
   }, [
     adminTicketStorageKey,
+    adminMessageStorageKey,
     email,
     initialized,
     isAdmin,

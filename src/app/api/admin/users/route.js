@@ -72,6 +72,8 @@ export async function GET(request) {
       const lastSeenAt = activity?.lastSeenAt || null;
       const seenAtTs = lastSeenAt ? Date.parse(lastSeenAt) : NaN;
       const isActive = Number.isFinite(seenAtTs) && now - seenAtTs <= ACTIVE_WINDOW_MS;
+      const privateMessages = Array.isArray(user?.privateMessages) ? user.privateMessages : [];
+      const pmUnreadCount = privateMessages.filter((item) => item && typeof item === "object" && !item.readAt).length;
       return {
         email: user?.email || activity?.email || email,
         firstName: user?.firstName || activity?.firstName || "",
@@ -87,6 +89,8 @@ export async function GET(request) {
         lastPanel: activity?.lastPanel || null,
         locale: activity?.locale || null,
         isActive,
+        pmUnreadCount,
+        pmTotal: privateMessages.length,
       };
     })
     .filter(Boolean)

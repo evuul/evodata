@@ -8,9 +8,19 @@ export const getSupportUserTicketsKey = (email) => `support:user:${normEmail(ema
 
 const capList = (arr, max) => (Array.isArray(arr) ? arr.slice(0, max) : []);
 
-export const createSupportTicket = async ({ email, firstName = "", lastName = "", subject, message }) => {
+export const createSupportTicket = async ({
+  email,
+  firstName = "",
+  lastName = "",
+  subject,
+  message,
+  createdBy = "user",
+  createdByEmail = "",
+  createdByName = "",
+}) => {
   const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const now = new Date().toISOString();
+  const safeCreatedBy = String(createdBy || "").toLowerCase() === "admin" ? "admin" : "user";
   const ticket = {
     id,
     email: normEmail(email),
@@ -18,6 +28,9 @@ export const createSupportTicket = async ({ email, firstName = "", lastName = ""
     lastName: String(lastName || "").trim(),
     subject: String(subject || "").trim(),
     message: String(message || "").trim(),
+    createdBy: safeCreatedBy,
+    createdByEmail: normEmail(createdByEmail),
+    createdByName: String(createdByName || "").trim(),
     status: "open", // open | answered | closed
     adminReply: null, // { message, repliedAt, repliedBy }
     createdAt: now,
@@ -54,4 +67,3 @@ export const listSupportTicketsByIds = async (ids, limit = 50) => {
   const tickets = await Promise.all(list.map((id) => getSupportTicket(id)));
   return tickets.filter(Boolean);
 };
-

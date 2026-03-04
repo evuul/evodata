@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -112,6 +112,10 @@ export default function MinaSidorPage() {
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
 
   const [notificationsSaving, setNotificationsSaving] = useState(false);
+  const [privateMessages, setPrivateMessages] = useState([]);
+  const [privateMessagesLoading, setPrivateMessagesLoading] = useState(false);
+  const [privateMessagesError, setPrivateMessagesError] = useState("");
+  const [privateMessagesUnread, setPrivateMessagesUnread] = useState(0);
 
   const triggerSupportPreview = (type) => {
     if (typeof window === "undefined") return;
@@ -134,6 +138,39 @@ export default function MinaSidorPage() {
     }
     setSupportOpen(true);
   };
+
+  const showPrivateMessagesBox = Boolean(privateMessages.length);
+
+  const handleDismissPrivateMessages = async () => {
+    if (!token || !isAuthenticated) return;
+    try {
+      const res = await fetch("/api/user/messages", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ action: "delete" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPrivateMessagesError(data?.error || translate("Kunde inte ta bort meddelanden.", "Could not delete messages."));
+        return;
+      }
+      setPrivateMessages(Array.isArray(data?.messages) ? data.messages : []);
+      setPrivateMessagesUnread(Number(data?.unreadCount) || 0);
+    } catch {
+      setPrivateMessagesError(translate("Kunde inte ta bort meddelanden.", "Could not delete messages."));
+    }
+  };
+
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === "undefined") return;
+    const shouldOpenSupport = new URLSearchParams(window.location.search).get("support") === "1";
+    if (!shouldOpenSupport) return;
+    handleOpenSupport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, effectiveIsAdmin]);
 
   // --- Handlers ---
 
@@ -278,6 +315,55 @@ export default function MinaSidorPage() {
     router.push("/");
   };
 
+  const loadPrivateMessages = async () => {
+    if (!token || !isAuthenticated) {
+      setPrivateMessages([]);
+      setPrivateMessagesUnread(0);
+      return;
+    }
+    try {
+      setPrivateMessagesLoading(true);
+      setPrivateMessagesError("");
+      const res = await fetch("/api/user/messages", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPrivateMessages([]);
+        setPrivateMessagesUnread(0);
+        setPrivateMessagesError(data?.error || translate("Kunde inte ladda PM.", "Could not load PM."));
+        return;
+      }
+      const rows = Array.isArray(data?.messages) ? data.messages : [];
+      const unreadCount = Number(data?.unreadCount) || 0;
+      setPrivateMessages(rows);
+      setPrivateMessagesUnread(unreadCount);
+
+      if (unreadCount > 0) {
+        const markRes = await fetch("/api/user/messages", {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ action: "markRead" }),
+        });
+        const markData = await markRes.json().catch(() => ({}));
+        if (markRes.ok) {
+          setPrivateMessages(Array.isArray(markData?.messages) ? markData.messages : rows);
+          setPrivateMessagesUnread(Number(markData?.unreadCount) || 0);
+        }
+      }
+    } catch {
+      setPrivateMessages([]);
+      setPrivateMessagesUnread(0);
+      setPrivateMessagesError(translate("Kunde inte ladda PM.", "Could not load PM."));
+    } finally {
+      setPrivateMessagesLoading(false);
+    }
+  };
+
   // Support Indicator Logic (move to page effect)
   const loadSupportIndicator = async () => {
     if (!token) return;
@@ -328,6 +414,22 @@ export default function MinaSidorPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, isAuthenticated, effectiveIsAdmin]);
+
+  useEffect(() => {
+    if (!token || !isAuthenticated) return;
+    let cancelled = false;
+    const run = async () => {
+      if (cancelled) return;
+      await loadPrivateMessages();
+    };
+    run();
+    const id = setInterval(run, 30 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, isAuthenticated]);
 
   // --- UI Constants ---
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
@@ -381,6 +483,80 @@ export default function MinaSidorPage() {
               onToggleTraderMode={onTraderModeChange}
               hourlyComparison={lobbyStats?.hourlyComparison ?? null}
             />
+
+            {privateMessagesLoading ? (
+              <Typography sx={{ color: "rgba(226,232,240,0.7)", mt: 1 }}>
+                {translate("Laddar privata meddelanden...", "Loading private messages...")}
+              </Typography>
+            ) : showPrivateMessagesBox ? (
+              <Box
+                sx={{
+                  mt: 1.2,
+                  borderRadius: "14px",
+                  border: "1px solid rgba(59,130,246,0.28)",
+                  background: "rgba(30,58,138,0.14)",
+                  p: { xs: 1.2, md: 1.4 },
+                }}
+              >
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.9, gap: 1 }}>
+                  <Typography sx={{ color: "#bfdbfe", fontWeight: 800 }}>
+                    {translate("Personliga meddelanden från admin", "Personal messages from admin")}
+                    {privateMessagesUnread > 0 ? ` (${privateMessagesUnread} nya)` : ""}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleDismissPrivateMessages}
+                    sx={{
+                      textTransform: "none",
+                      borderColor: "rgba(255,255,255,0.45)",
+                      color: "rgba(255,255,255,0.92)",
+                      minWidth: "auto",
+                      px: 1.2,
+                      py: 0.35,
+                      "&:hover": {
+                        borderColor: "rgba(255,255,255,0.8)",
+                        backgroundColor: "rgba(255,255,255,0.08)",
+                      },
+                    }}
+                  >
+                    {translate("Stäng meddelanden", "Close messages")}
+                  </Button>
+                </Stack>
+                <Stack spacing={0.9}>
+                  {privateMessages.slice(0, 3).map((item) => (
+                    <Box
+                      key={item?.id || item?.createdAt}
+                      sx={{
+                        borderRadius: "10px",
+                        border: "1px solid rgba(148,163,184,0.2)",
+                        background: "rgba(15,23,42,0.45)",
+                        p: 1,
+                      }}
+                    >
+                      <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "0.92rem" }}>
+                        {item?.subject || "—"}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(226,232,240,0.88)", whiteSpace: "pre-wrap", mt: 0.35 }}>
+                        {item?.message || "—"}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(148,163,184,0.72)", fontSize: "0.78rem", mt: 0.45 }}>
+                        {(item?.fromName || item?.fromEmail || "Admin")}
+                        {" • "}
+                        {item?.createdAt
+                          ? new Date(item.createdAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
+                          : "—"}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              </Box>
+            ) : null}
+            {privateMessagesError ? (
+              <Typography sx={{ color: statusColors.warning, mt: 1 }}>
+                {privateMessagesError}
+              </Typography>
+            ) : null}
 
             {/* Merged "Today Holding" Stat to reduce gap */}
             <Box

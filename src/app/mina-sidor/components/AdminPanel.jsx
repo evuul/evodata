@@ -1,7 +1,13 @@
+import { useMemo, useState } from "react";
 import {
     Box,
     Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     Stack,
+    TextField,
     Typography,
     ToggleButton,
     ToggleButtonGroup
@@ -38,6 +44,20 @@ export function AdminPanel({
     adminUsersError,
     adminUsersRows,
     adminUsersTotal,
+    adminPmDialogOpen,
+    setAdminPmDialogOpen,
+    adminPmRecipient,
+    adminPmToEmail,
+    setAdminPmToEmail,
+    adminPmSubject,
+    setAdminPmSubject,
+    adminPmMessage,
+    setAdminPmMessage,
+    adminPmSending,
+    adminPmStatus,
+    openAdminPmDialog,
+    sendAdminPm,
+    applyAdminDonationTemplate,
     adminSupportLoading,
     adminSupportError,
     adminSupportRows,
@@ -52,6 +72,21 @@ export function AdminPanel({
     profileIdentity,
     user
 }) {
+    const [adminUserEmailFilter, setAdminUserEmailFilter] = useState("");
+    const normalizedUserEmailFilter = String(adminUserEmailFilter || "").trim().toLowerCase();
+    const filteredAdminUsers = useMemo(() => {
+        if (!normalizedUserEmailFilter) return adminUsersRows;
+        return adminUsersRows.filter((row) =>
+            String(row?.email || "").toLowerCase().includes(normalizedUserEmailFilter)
+        );
+    }, [adminUsersRows, normalizedUserEmailFilter]);
+    const exactEmailMatch = useMemo(
+        () =>
+            adminUsersRows.find(
+                (row) => String(row?.email || "").toLowerCase() === normalizedUserEmailFilter
+            ) || null,
+        [adminUsersRows, normalizedUserEmailFilter]
+    );
     const athOnCount = adminUsersRows.filter((row) => Boolean(row?.athEmailEnabled)).length;
     const athOffCount = adminUsersRows.length - athOnCount;
     const dailyAvgOnCount = adminUsersRows.filter((row) => Boolean(row?.dailyAvgEmailEnabled)).length;
@@ -283,11 +318,17 @@ export function AdminPanel({
                             disabled={mailTestLoading}
                             sx={{
                                 textTransform: "none",
-                                borderColor: "rgba(56,189,248,0.45)",
-                                color: "#bae6fd",
+                                borderColor: "rgba(255,255,255,0.75)",
+                                color: "#ffffff",
                                 "&:hover": {
-                                    borderColor: "rgba(56,189,248,0.7)",
-                                    backgroundColor: "rgba(56,189,248,0.1)",
+                                    borderColor: "#ffffff",
+                                    backgroundColor: "rgba(255,255,255,0.08)",
+                                },
+                                "&.Mui-disabled": {
+                                    opacity: 1,
+                                    borderColor: "rgba(255,255,255,0.42)",
+                                    color: "rgba(255,255,255,0.72)",
+                                    backgroundColor: "rgba(255,255,255,0.06)",
                                 },
                             }}
                         >
@@ -601,6 +642,60 @@ export function AdminPanel({
                             )}
                         </Typography>
                     </Stack>
+                    <Stack
+                        direction={{ xs: "column", md: "row" }}
+                        spacing={1}
+                        justifyContent="center"
+                        alignItems={{ xs: "stretch", md: "center" }}
+                    >
+                        <TextField
+                            placeholder={translate("Sök e-post...", "Search email...")}
+                            value={adminUserEmailFilter}
+                            onChange={(event) => setAdminUserEmailFilter(event.target.value)}
+                            size="small"
+                            sx={{
+                                minWidth: { xs: "100%", md: 320 },
+                                "& .MuiOutlinedInput-root": {
+                                    backgroundColor: "rgba(2,6,23,0.2)",
+                                    color: "#f8fafc",
+                                    borderRadius: "10px",
+                                    "& fieldset": { borderColor: "rgba(148,163,184,0.25)" },
+                                    "&:hover fieldset": { borderColor: "rgba(148,163,184,0.4)" },
+                                    "&.Mui-focused fieldset": { borderColor: "rgba(56,189,248,0.55)" },
+                                },
+                            }}
+                        />
+                        <Button
+                            variant="outlined"
+                            onClick={() =>
+                                openAdminPmDialog?.(
+                                    exactEmailMatch || {
+                                        email: normalizedUserEmailFilter,
+                                        firstName: "",
+                                        lastName: "",
+                                    }
+                                )
+                            }
+                            disabled={!normalizedUserEmailFilter || !normalizedUserEmailFilter.includes("@")}
+                            sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(255,255,255,0.75)",
+                                color: "#ffffff",
+                                "&:hover": {
+                                    borderColor: "#ffffff",
+                                    backgroundColor: "rgba(255,255,255,0.08)",
+                                },
+                                "&.Mui-disabled": {
+                                    opacity: 1,
+                                    borderColor: "rgba(255,255,255,0.42)",
+                                    color: "rgba(255,255,255,0.72)",
+                                    backgroundColor: "rgba(255,255,255,0.06)",
+                                },
+                            }}
+                        >
+                            {translate("Skicka meddelande till sökt adress", "Send message to searched address")}
+                        </Button>
+                    </Stack>
 
                     {adminUsersError ? (
                         <Typography sx={{ color: statusColors.warning, textAlign: "center" }}>
@@ -608,9 +703,9 @@ export function AdminPanel({
                         </Typography>
                     ) : null}
 
-                    {adminUsersRows.length ? (
+                    {filteredAdminUsers.length ? (
                         <Stack spacing={1}>
-                            {adminUsersRows.map((row) => {
+                            {filteredAdminUsers.map((row) => {
                                 const name = [row?.firstName, row?.lastName].filter(Boolean).join(" ").trim();
                                 const email = String(row?.email || "").trim();
                                 const identity = name || email || "unknown";
@@ -690,6 +785,29 @@ export function AdminPanel({
                                                 {" • "}
                                                 {dailyAvgLabel}
                                             </Typography>
+                                            <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.82rem" }}>
+                                                {translate("PM olästa", "Unread PM")}: {Number(row?.pmUnreadCount || 0)}
+                                            </Typography>
+                                            {email ? (
+                                                <Button
+                                                    size="small"
+                                                    variant="outlined"
+                                                    onClick={() => openAdminPmDialog?.(row)}
+                                                    sx={{
+                                                        mt: 0.4,
+                                                        alignSelf: "flex-start",
+                                                        textTransform: "none",
+                                                        borderColor: "rgba(56,189,248,0.45)",
+                                                        color: "#bae6fd",
+                                                        "&:hover": {
+                                                            borderColor: "rgba(56,189,248,0.7)",
+                                                            backgroundColor: "rgba(56,189,248,0.1)",
+                                                        },
+                                                    }}
+                                                >
+                                                    {translate("Skicka meddelande", "Send message")}
+                                                </Button>
+                                            ) : null}
                                         </Stack>
                                     </Box>
                                 );
@@ -697,11 +815,142 @@ export function AdminPanel({
                         </Stack>
                     ) : !adminUsersLoading ? (
                         <Typography sx={{ color: "rgba(226,232,240,0.7)", textAlign: "center" }}>
-                            {translate("Inga användare ännu.", "No users yet.")}
+                            {normalizedUserEmailFilter
+                                ? translate("Ingen användare matchar e-postsökningen.", "No users match the email search.")
+                                : translate("Inga användare ännu.", "No users yet.")}
                         </Typography>
                     ) : null}
                 </Stack>
             ) : null}
+
+            <Dialog
+                open={Boolean(adminPmDialogOpen)}
+                onClose={() => setAdminPmDialogOpen?.(false)}
+                fullWidth
+                maxWidth="sm"
+                PaperProps={{
+                    sx: {
+                        background: "rgba(15,23,42,0.96)",
+                        border: "1px solid rgba(148,163,184,0.2)",
+                    },
+                }}
+            >
+                <DialogTitle sx={{ color: "#f8fafc", fontWeight: 900 }}>
+                    {translate("Skicka personligt meddelande", "Send personal message")}
+                </DialogTitle>
+                <DialogContent sx={{ pt: 1 }}>
+                    <Stack spacing={1.2}>
+                        <Typography sx={{ color: "rgba(226,232,240,0.78)", fontSize: "0.88rem" }}>
+                            {translate("Mottagare (måste vara registrerad användare)", "Recipient (must be a registered user)")}: {adminPmRecipient?.email || "—"}
+                        </Typography>
+                        <TextField
+                            label={translate("E-post att skicka till", "Email to send to")}
+                            value={adminPmToEmail || ""}
+                            onChange={(e) => setAdminPmToEmail?.(e.target.value)}
+                            fullWidth
+                            InputLabelProps={{ sx: { color: "rgba(226,232,240,0.75)" } }}
+                            InputProps={{ sx: { color: "#f8fafc" } }}
+                            sx={{
+                                "& .MuiOutlinedInput-root": {
+                                    backgroundColor: "rgba(2,6,23,0.15)",
+                                    borderRadius: "12px",
+                                    "& fieldset": { borderColor: "rgba(148,163,184,0.25)" },
+                                    "&:hover fieldset": { borderColor: "rgba(148,163,184,0.4)" },
+                                    "&.Mui-focused fieldset": { borderColor: "rgba(56,189,248,0.55)" },
+                                },
+                            }}
+                        />
+                        <TextField
+                            label={translate("Ämne", "Subject")}
+                            value={adminPmSubject}
+                            onChange={(e) => setAdminPmSubject?.(e.target.value)}
+                            fullWidth
+                            InputLabelProps={{ sx: { color: "rgba(226,232,240,0.75)" } }}
+                            InputProps={{ sx: { color: "#f8fafc" } }}
+                            sx={{
+                                "& .MuiOutlinedInput-root": {
+                                    backgroundColor: "rgba(2,6,23,0.15)",
+                                    borderRadius: "12px",
+                                    "& fieldset": { borderColor: "rgba(148,163,184,0.25)" },
+                                    "&:hover fieldset": { borderColor: "rgba(148,163,184,0.4)" },
+                                    "&.Mui-focused fieldset": { borderColor: "rgba(56,189,248,0.55)" },
+                                },
+                            }}
+                        />
+                        <TextField
+                            label={translate("Meddelande", "Message")}
+                            value={adminPmMessage}
+                            onChange={(e) => setAdminPmMessage?.(e.target.value)}
+                            fullWidth
+                            multiline
+                            minRows={5}
+                            InputLabelProps={{ sx: { color: "rgba(226,232,240,0.75)" } }}
+                            InputProps={{ sx: { color: "#f8fafc" } }}
+                            sx={{
+                                "& .MuiOutlinedInput-root": {
+                                    backgroundColor: "rgba(2,6,23,0.15)",
+                                    borderRadius: "12px",
+                                    "& fieldset": { borderColor: "rgba(148,163,184,0.25)" },
+                                    "&:hover fieldset": { borderColor: "rgba(148,163,184,0.4)" },
+                                    "&.Mui-focused fieldset": { borderColor: "rgba(56,189,248,0.55)" },
+                                },
+                            }}
+                        />
+                        {adminPmStatus ? (
+                            <Typography
+                                sx={{
+                                    color: adminPmStatus.toLowerCase().includes("skickat") ? "#86efac" : statusColors.warning,
+                                    fontSize: "0.85rem",
+                                }}
+                            >
+                                {adminPmStatus}
+                            </Typography>
+                        ) : null}
+                    </Stack>
+                </DialogContent>
+                <DialogActions sx={{ px: 2.4, pb: 2 }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => setAdminPmDialogOpen?.(false)}
+                        sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(148,163,184,0.35)",
+                            color: "#e2e8f0",
+                        }}
+                    >
+                        {translate("Stäng", "Close")}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        onClick={() => applyAdminDonationTemplate?.()}
+                        sx={{
+                            textTransform: "none",
+                            borderColor: "rgba(34,197,94,0.45)",
+                            color: "#bbf7d0",
+                            "&:hover": {
+                                borderColor: "rgba(34,197,94,0.7)",
+                                backgroundColor: "rgba(34,197,94,0.08)",
+                            },
+                        }}
+                    >
+                        {translate("Ladda tackmall", "Load thank-you template")}
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => sendAdminPm?.()}
+                        disabled={Boolean(adminPmSending)}
+                        sx={{
+                            textTransform: "none",
+                            background: "linear-gradient(135deg, rgba(56,189,248,0.55), rgba(59,130,246,0.55))",
+                            border: "1px solid rgba(191,219,254,0.28)",
+                        }}
+                    >
+                        {adminPmSending
+                            ? translate("Skickar...", "Sending...")
+                            : translate("Skicka meddelande", "Send message")}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {adminPanel === "support" ? (
                 <Stack spacing={1} sx={{ width: "100%", maxWidth: 980, pt: 1 }}>
