@@ -6,6 +6,13 @@ import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
 
+const NO_DIVIDEND_PROPOSAL = {
+    date: "2026-03-18",
+    announcementDate: "2026-03-18",
+    dividendPerShare: 0,
+    status: "no_dividend_proposed",
+};
+
 export function usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive }) {
     const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
     const [loading, setLoading] = useState(true);
@@ -135,7 +142,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         return 0;
     }, [stockPrice]);
 
-    const upcomingDividend = useMemo(() => {
+    const declaredUpcomingDividend = useMemo(() => {
         const planned = Array.isArray(dividendData?.plannedDividends)
             ? dividendData.plannedDividends
             : [];
@@ -172,6 +179,10 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
 
         return activeDeclared[0] ?? null;
     }, []);
+    const upcomingDividend = useMemo(
+        () => declaredUpcomingDividend ?? NO_DIVIDEND_PROPOSAL,
+        [declaredUpcomingDividend]
+    );
 
     const lastDividend = useMemo(() => {
         const historical = Array.isArray(dividendData?.historicalDividends)

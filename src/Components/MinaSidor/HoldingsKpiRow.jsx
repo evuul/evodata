@@ -14,6 +14,7 @@ export default function HoldingsKpiRow({
   upcomingDividend,
   lastDividend,
 }) {
+  const hasNoDividendProposal = upcomingDividend?.status === "no_dividend_proposed";
   const cardSx = {
     p: { xs: 2, md: 2.2 },
     ...cardBase,
@@ -81,7 +82,12 @@ export default function HoldingsKpiRow({
             </Typography>
           )}
           <Typography sx={{ color: text.faint }}>
-            {upcomingDividend
+            {hasNoDividendProposal
+              ? translate(
+                  `0 SEK/aktie • Ingen utdelning föreslagen (${upcomingDividend.announcementDate})`,
+                  `0 SEK/share • No dividend proposed (${upcomingDividend.announcementDate})`
+                )
+              : upcomingDividend
               ? translate(
                   `${upcomingDividend.dividendPerShare} SEK/aktie`,
                   `${upcomingDividend.dividendPerShare} SEK/share`

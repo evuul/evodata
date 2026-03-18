@@ -2,6 +2,10 @@ import financialReportsData from "@/app/data/financialReports.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+const NO_DIVIDEND_PROPOSAL = {
+  announcementDate: "2026-03-18",
+  active: true,
+};
 
 export const buildDividendEstimate = ({ profileShares, fxRate, payoutRatio = 0.5 }) => {
   const rows = Array.isArray(financialReportsData?.financialReports)
@@ -41,6 +45,18 @@ export const buildDividendEstimate = ({ profileShares, fxRate, payoutRatio = 0.5
   );
   if (!(latestSharesOutstandingMillions > 0)) return null;
 
+  if (NO_DIVIDEND_PROPOSAL.active) {
+    return {
+      yearLabel: `${latestFullYear + 1} EST`,
+      estimatedCashSek: 0,
+      estimatedDpsSek: 0,
+      sourceYear: latestFullYear,
+      payoutRatio: 0,
+      status: "no_dividend_proposed",
+      announcementDate: NO_DIVIDEND_PROPOSAL.announcementDate,
+    };
+  }
+
   const fx = Number.isFinite(Number(fxRate)) && Number(fxRate) > 0 ? Number(fxRate) : 11.02;
   const estimatedDpsSek = (annualProfitEur * payoutRatio * fx) / latestSharesOutstandingMillions;
   if (!(estimatedDpsSek > 0)) return null;
@@ -57,6 +73,8 @@ export const buildDividendEstimate = ({ profileShares, fxRate, payoutRatio = 0.5
 };
 
 export const buildDividendEstimateRange = ({ profileShares, fxRate }) => {
+  if (NO_DIVIDEND_PROPOSAL.active) return null;
+
   const bear = buildDividendEstimate({ profileShares, fxRate, payoutRatio: 0.4 });
   const base = buildDividendEstimate({ profileShares, fxRate, payoutRatio: 0.5 });
   const bull = buildDividendEstimate({ profileShares, fxRate, payoutRatio: 0.6 });

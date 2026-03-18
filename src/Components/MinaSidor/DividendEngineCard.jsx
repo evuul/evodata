@@ -13,6 +13,7 @@ export default function DividendEngineCard({
   breakEvenDisplay,
   breakEvenPaidBack,
 }) {
+  const hasNoDividendProposal = upcomingDividend?.status === "no_dividend_proposed";
   return (
     <Paper sx={{ p: 2.5, ...cardBase }}>
       <Typography sx={{ color: text.subtle, textTransform: "uppercase", letterSpacing: 1.1, fontSize: "0.75rem" }}>
@@ -31,7 +32,12 @@ export default function DividendEngineCard({
             {expectedDividendCash != null ? formatSek(expectedDividendCash) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
-            {upcomingDividend
+            {hasNoDividendProposal
+              ? translate(
+                  `0 SEK/aktie • Ingen utdelning föreslagen (${upcomingDividend.announcementDate})`,
+                  `0 SEK/share • No dividend proposed (${upcomingDividend.announcementDate})`
+                )
+              : upcomingDividend
               ? translate(
                   `${upcomingDividend.dividendPerShare} SEK/aktie • ${upcomingDividend.date}`,
                   `${upcomingDividend.dividendPerShare} SEK/share • ${upcomingDividend.date}`

@@ -319,8 +319,8 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
         <Typography sx={{ color: text.muted, fontSize: "0.9rem" }}>
           {mode === "dividends"
             ? translate(
-                "Beräknas från dina köp/sälj-datum och historiska utdelningar. Mönstrad 2026 EST bygger på 50% payout av senaste helårsvinst.",
-                "Calculated from your buy/sell dates and historical dividends. Patterned 2026 EST is based on 50% payout of the latest full-year profit."
+                "Beräknas från dina köp/sälj-datum och historiska utdelningar. 2026 EST är satt till 0 efter styrelsens besked 2026-03-18 om att ingen utdelning föreslås för 2025.",
+                "Calculated from your buy/sell dates and historical dividends. 2026 EST is set to 0 after the Board's 2026-03-18 announcement that no dividend is proposed for 2025."
               )
             : translate(
                 "Bygger på dina köp/sälj och visar hur antalet aktier förändrats.",
@@ -383,7 +383,16 @@ export default function HoldingsHistoryChart({ translate, profile, historicalDiv
                       const v = Number(value);
                       const label = Number.isFinite(v) ? `${Math.round(v).toLocaleString("sv-SE")} SEK` : "–";
                       if (item?.payload?.isEstimate) {
-                        return [label, translate("Estimat (50% payout)", "Estimate (50% payout)")];
+                        if (item?.payload?.estimateMeta?.status === "no_dividend_proposed") {
+                          return [
+                            label,
+                            translate(
+                              `Ingen utdelning föreslagen (${item.payload.estimateMeta.announcementDate})`,
+                              `No dividend proposed (${item.payload.estimateMeta.announcementDate})`
+                            ),
+                          ];
+                        }
+                        return [label, translate("Estimat", "Estimate")];
                       }
                       const sourceLabel =
                         item?.payload?.source === "lots"

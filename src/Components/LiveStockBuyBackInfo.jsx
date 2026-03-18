@@ -85,6 +85,13 @@ const fmtEuroMillions = (value) =>
   Number.isFinite(value) ? `${(value / 1_000_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} M€` : '–';
 
 const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === '1';
+const FORECAST_BUYBACK_SHARE = 0.8;
+const FORECAST_DIVIDEND_SHARE = 0;
+const FORECAST_RETAINED_SHARE = Math.max(0, 1 - FORECAST_BUYBACK_SHARE - FORECAST_DIVIDEND_SHARE);
+const FORECAST_BUYBACK_LABEL = `${Math.round(FORECAST_BUYBACK_SHARE * 100)}%`;
+const FORECAST_DIVIDEND_LABEL = `${Math.round(FORECAST_DIVIDEND_SHARE * 100)}%`;
+const FORECAST_RETAINED_LABEL = `${Math.round(FORECAST_RETAINED_SHARE * 100)}%`;
+const FORECAST_CAPITAL_UPDATE_DATE = '2026-03-18';
 
 const toLabel = (datum) => {
   if (!datum) return '';
@@ -280,10 +287,12 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     );
     return Number.isFinite(sum) ? sum : null;
   }, [financialReports]);
-  const estimateBuybackEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * 0.6 : null;
-  const estimateDividendEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * 0.4 : null;
+  const estimateBuybackEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * FORECAST_BUYBACK_SHARE : null;
+  const estimateDividendEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * FORECAST_DIVIDEND_SHARE : null;
+  const estimateRetainedEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * FORECAST_RETAINED_SHARE : null;
   const estimateBuybackSek = Number.isFinite(estimateBuybackEur) ? estimateBuybackEur * fxRateValue : null;
   const estimateDividendSek = Number.isFinite(estimateDividendEur) ? estimateDividendEur * fxRateValue : null;
+  const estimateRetainedSek = Number.isFinite(estimateRetainedEur) ? estimateRetainedEur * fxRateValue : null;
   const estimateSharesAffordable = useMemo(() => {
     if (!Number.isFinite(estimateBuybackSek) || !Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
     return Math.floor(estimateBuybackSek / currentSharePrice);
@@ -930,6 +939,22 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.8)', letterSpacing: 1.2 }}>
               {translate('EST / Prognos 2026 (baserat på 2025)', 'EST / Forecast 2026 (based on 2025)')}
             </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'rgba(191,219,254,0.88)',
+                background: 'rgba(30,41,59,0.45)',
+                border: '1px solid rgba(96,165,250,0.25)',
+                borderRadius: '12px',
+                px: 1.5,
+                py: 1.1,
+              }}
+            >
+              {translate(
+                `Uppdaterat efter styrelsens besked ${FORECAST_CAPITAL_UPDATE_DATE}: ingen utdelning föreslås för 2025. Forecasten antar ${FORECAST_BUYBACK_LABEL} återköp, ${FORECAST_DIVIDEND_LABEL} utdelning och ${FORECAST_RETAINED_LABEL} kvar i kassan tills nytt mandat kommuniceras.`,
+                `Updated after the Board's ${FORECAST_CAPITAL_UPDATE_DATE} announcement: no dividend is proposed for 2025. The forecast assumes ${FORECAST_BUYBACK_LABEL} buybacks, ${FORECAST_DIVIDEND_LABEL} dividends, and ${FORECAST_RETAINED_LABEL} retained cash until a new mandate is communicated.`
+              )}
+            </Typography>
 
             <Stack
               direction={{ xs: 'column', md: 'row' }}
@@ -957,7 +982,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                     : translate('Saknar 2025‑data', 'Missing 2025 data')}
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                  {translate('Fördelning: 60% återköp / 40% utdelning', 'Split: 60% buybacks / 40% dividends')}
+                  {translate(
+                    `Antagande: ${FORECAST_BUYBACK_LABEL} återköp / ${FORECAST_DIVIDEND_LABEL} utdelning / ${FORECAST_RETAINED_LABEL} kvar`,
+                    `Assumption: ${FORECAST_BUYBACK_LABEL} buybacks / ${FORECAST_DIVIDEND_LABEL} dividends / ${FORECAST_RETAINED_LABEL} retained`
+                  )}
                 </Typography>
               </Box>
 
@@ -971,7 +999,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate('Återköpsbudget (60%)', 'Buyback budget (60%)')}
+                  {translate(`Återköpsbudget (${FORECAST_BUYBACK_LABEL})`, `Buyback budget (${FORECAST_BUYBACK_LABEL})`)}
                 </Typography>
                 <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                   {Number.isFinite(estimateBuybackEur)
@@ -993,7 +1021,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                 }}
               >
                 <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate('Utdelningspott (40%)', 'Dividend pool (40%)')}
+                  {translate(`Utdelningspott (${FORECAST_DIVIDEND_LABEL})`, `Dividend pool (${FORECAST_DIVIDEND_LABEL})`)}
                 </Typography>
                 <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
                   {Number.isFinite(estimateDividendEur)
@@ -1002,6 +1030,14 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                 </Typography>
                 <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
                   {Number.isFinite(estimateDividendSek) ? `${fmtCurrency(estimateDividendSek)}` : '–'}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
+                  {Number.isFinite(estimateRetainedSek)
+                    ? translate(
+                        `${fmtCurrency(estimateRetainedSek)} stannar i balansräkningen`,
+                        `${fmtCurrency(estimateRetainedSek)} stays on the balance sheet`
+                      )
+                    : translate('Behöver vinst och FX.', 'Needs profit and FX.')}
                 </Typography>
               </Box>
             </Stack>
@@ -1102,7 +1138,9 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                   {Number.isFinite(dividendPerShareSek) ? `${dividendPerShareSek.toFixed(2)} SEK` : '–'}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
-                  {Number.isFinite(sharesAfterBuyback)
+                  {FORECAST_DIVIDEND_SHARE === 0
+                    ? translate('Ingen utdelning i detta forecastscenario.', 'No dividend in this forecast scenario.')
+                    : Number.isFinite(sharesAfterBuyback)
                     ? translate(
                         `Kvarvarande aktier: ${fmtNum(sharesAfterBuyback)}`,
                         `Shares after buyback: ${fmtNum(sharesAfterBuyback)}`

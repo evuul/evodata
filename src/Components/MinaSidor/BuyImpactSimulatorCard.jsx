@@ -22,6 +22,7 @@ export default function BuyImpactSimulatorCard({
   const [buySharesInput, setBuySharesInput] = useState("");
   const [buyPriceInput, setBuyPriceInput] = useState("");
   const { rate: fxRate } = useFxRateContext();
+  const hasNoDividendProposal = upcomingDividend?.status === "no_dividend_proposed";
 
   const currentShares = Number(profile?.shares) || 0;
   const currentAvgCost = Number(profile?.avgCost) || 0;
@@ -41,6 +42,7 @@ export default function BuyImpactSimulatorCard({
   );
 
   const dividendPerShare = useMemo(() => {
+    if (hasNoDividendProposal) return 0;
     const upcoming = Number(upcomingDividend?.dividendPerShare);
     if (Number.isFinite(upcoming) && upcoming > 0) return upcoming;
     const est = Number(dividendEstimateRange?.base?.estimatedDpsSek);
@@ -49,23 +51,28 @@ export default function BuyImpactSimulatorCard({
     if (Number.isFinite(last) && last > 0) return last;
     return null;
   }, [
+    hasNoDividendProposal,
     dividendEstimateRange?.base?.estimatedDpsSek,
     lastDividend?.dividendPerShare,
     upcomingDividend?.dividendPerShare,
   ]);
 
   const dividendSourceLabel = useMemo(() => {
+    if (hasNoDividendProposal) {
+      return translate("ingen utdelning föreslagen", "no dividend proposed");
+    }
     if (Number.isFinite(Number(upcomingDividend?.dividendPerShare))) {
       return translate("deklarerad (aktiv till utbetalningsdag)", "declared (active until payment date)");
     }
     if (Number.isFinite(Number(dividendEstimateRange?.base?.estimatedDpsSek))) {
-      return `${dividendEstimateRange?.yearLabel || "EST"} (${translate("50% payout", "50% payout")})`;
+      return `${dividendEstimateRange?.yearLabel || "EST"} (${translate("basscenario", "base scenario")})`;
     }
     if (Number.isFinite(Number(lastDividend?.dividendPerShare))) {
       return translate("senast utbetald", "last paid");
     }
     return "";
   }, [
+    hasNoDividendProposal,
     dividendEstimateRange?.base?.estimatedDpsSek,
     dividendEstimateRange?.yearLabel,
     lastDividend?.dividendPerShare,
@@ -74,6 +81,7 @@ export default function BuyImpactSimulatorCard({
   ]);
 
   const rangeLabel = useMemo(() => {
+    if (hasNoDividendProposal) return null;
     const bear = Number(dividendEstimateRange?.bear?.estimatedDpsSek);
     const base = Number(dividendEstimateRange?.base?.estimatedDpsSek);
     const bull = Number(dividendEstimateRange?.bull?.estimatedDpsSek);
@@ -84,7 +92,7 @@ export default function BuyImpactSimulatorCard({
       bull,
       yearLabel: dividendEstimateRange?.yearLabel || "EST",
     };
-  }, [dividendEstimateRange]);
+  }, [dividendEstimateRange, hasNoDividendProposal]);
 
   const simulation = useMemo(() => {
     if (!(buyShares > 0) || !(buyPrice > 0)) {
@@ -175,7 +183,7 @@ export default function BuyImpactSimulatorCard({
           <Typography sx={{ color: text.muted, fontSize: "0.86rem" }}>
             {translate("Intervall", "Range")} {rangeLabel.yearLabel}:{" "}
             {`${rangeLabel.bear.toLocaleString("sv-SE", { maximumFractionDigits: 4 })} / ${rangeLabel.base.toLocaleString("sv-SE", { maximumFractionDigits: 4 })} / ${rangeLabel.bull.toLocaleString("sv-SE", { maximumFractionDigits: 4 })} SEK/aktie`}
-            {` (${translate("40/50/60% payout", "40/50/60% payout")})`}
+            {` (${translate("bear / base / bull", "bear / base / bull")})`}
           </Typography>
         ) : null}
       </Stack>
