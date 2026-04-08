@@ -761,17 +761,17 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const combinedQ4Estimate = useMemo(() => {
     if (!rngForecast) return null;
     const targetPlayers =
-      quarterlyPlayers[forecastTargetPeriod]?.adjustedAvgPlayers ??
-      quarterlyPlayers[forecastTargetPeriod]?.avgPlayers ??
+      quarterlyPlayers[currentPeriod]?.adjustedAvgPlayers ??
+      quarterlyPlayers[currentPeriod]?.avgPlayers ??
       adjustedAveragePlayers;
-    const targetBaseline = baselineForPeriod(forecastTargetPeriod);
+    const targetBaseline = baselineForPeriod(currentPeriod);
     const liveValue =
       Number.isFinite(targetPlayers) && Number.isFinite(targetBaseline)
         ? Math.round(targetPlayers * targetBaseline * 10) / 10
         : null;
     const rngValue = Number.isFinite(rngForecast.projectedRng) ? rngForecast.projectedRng : null;
     if (liveValue == null || rngValue == null) return null;
-    const targetParts = periodKeyToParts(forecastTargetPeriod);
+    const targetParts = periodKeyToParts(currentPeriod);
     const priorPeriod =
       targetParts != null
         ? formatPeriodKey(quarterToIndex(targetParts.year - 1, targetParts.quarter))
@@ -781,7 +781,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     const delta = Number.isFinite(priorTotal) ? total - priorTotal : null;
     const deltaPct = Number.isFinite(priorTotal) && priorTotal !== 0 ? (delta / priorTotal) * 100 : null;
     return {
-      period: labelFromPeriod(rngForecast.nextPeriod || forecastTargetPeriod),
+      period: labelFromPeriod(currentPeriod),
       total,
       live: liveValue,
       rng: rngValue,
@@ -794,7 +794,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   }, [
     adjustedAveragePlayers,
     baselineForPeriod,
-    forecastTargetPeriod,
+    currentPeriod,
     quarterlyPlayers,
     rngForecast,
     totalRevenueData,
