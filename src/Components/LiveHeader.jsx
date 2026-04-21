@@ -1,5 +1,7 @@
 "use client";
 
+// Top-level live dashboard header and navigation for the casino score views.
+
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
@@ -30,6 +32,7 @@ import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import PersonRounded from "@mui/icons-material/PersonRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import LogoutRounded from "@mui/icons-material/LogoutRounded";
+import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import NextLink from "next/link";
 import FinancialOverviewPanel from "./FinancialOverviewCard";
 import { useStockPriceContext } from "../context/StockPriceContext";
@@ -605,6 +608,13 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
       `Possible maintenance (0 players): ${shown}${suffix}`
     );
   }, [zeroPlayerGames, translate]);
+
+  const playerDataAttentionLabel = useMemo(() => {
+    return translate(
+      "Attention: några spelardata ligger efter EVOs lobby och kan visa lägre siffror än verkligheten just nu. Vi jobbar på en fix.",
+      "Attention: some player data is lagging EVO's lobby and may show lower numbers than reality right now. We're working on a fix."
+    );
+  }, [translate]);
 
   const [activePanel, setActivePanel] = useState("live");
   const PANEL_VALUES = useMemo(
@@ -1589,6 +1599,54 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               </>
             )}
           </Stack>
+
+          {playerDataAttentionLabel ? (
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "center",
+                width: "100%",
+              }}
+            >
+              <Box
+                role="status"
+                aria-live="polite"
+                sx={{
+                  display: "flex",
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  gap: 1,
+                  maxWidth: 920,
+                  width: "100%",
+                  px: { xs: 1.4, sm: 1.8 },
+                  py: { xs: 1.1, sm: 1.2 },
+                  borderRadius: "16px",
+                  border: "1px solid rgba(245,158,11,0.42)",
+                  background: "linear-gradient(135deg, rgba(120,53,15,0.52), rgba(15,23,42,0.64))",
+                  boxShadow: "0 14px 35px rgba(15,23,42,0.25)",
+                }}
+              >
+                <WarningAmberRounded
+                  sx={{
+                    color: "#fbbf24",
+                    fontSize: 22,
+                    flexShrink: 0,
+                    mt: { xs: 0.1, sm: 0 },
+                  }}
+                />
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#fef3c7",
+                    fontWeight: 700,
+                    lineHeight: 1.55,
+                    textAlign: "left",
+                  }}
+                >
+                  {playerDataAttentionLabel}
+                </Typography>
+              </Box>
+            </Box>
+          ) : null}
 
           <Box sx={{ position: "relative" }}>
             <Box

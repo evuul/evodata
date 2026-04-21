@@ -1,5 +1,7 @@
 'use client';
 
+// Renders the live AI fair value panel with scenario-driven valuation cards.
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
@@ -49,6 +51,18 @@ const SCENARIO_PALETTE_BASE = {
 };
 
 const DEFAULT_SCENARIO_BASE = { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' };
+const METRIC_CARD_BASE_SX = {
+  borderRadius: '18px',
+  p: 2.8,
+  minHeight: { xs: 216, sm: 228, md: 242 },
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 1.4,
+  textAlign: 'center',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flex: 1,
+};
 
 const toPriceNumber = (value) => {
   const raw = Number(value?.raw ?? value);
@@ -518,20 +532,13 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
           </Box>
         ) : (
           <Stack spacing={{ xs: 2.4, sm: 3 }}>
-            <Grid container spacing={2.4} justifyContent="center">
-              <Grid item xs={12} md={4}>
+            <Grid container spacing={2.4} justifyContent="center" alignItems="stretch">
+              <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
                 <Box
                   sx={{
+                    ...METRIC_CARD_BASE_SX,
                     background: 'rgba(15,23,42,0.7)',
-                    borderRadius: '18px',
                     border: '1px solid rgba(148,163,184,0.25)',
-                    p: 2.8,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1.6,
-                    textAlign: 'center',
-                    alignItems: 'center',
                   }}
                 >
                   <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
@@ -562,21 +569,14 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
                 </Box>
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
                 <Box
                   sx={{
+                    ...METRIC_CARD_BASE_SX,
                     background: `${scenarioInfo.color}12`,
-                    borderRadius: '18px',
                     border: `1px solid ${scenarioInfo.color}40`,
-                    p: 2.8,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1.4,
                     position: 'relative',
                     overflow: 'hidden',
-                    textAlign: 'center',
-                    alignItems: 'center',
                   }}
                 >
                   <Box
@@ -626,19 +626,12 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
                 </Box>
               </Grid>
 
-              <Grid item xs={12} md={4}>
+              <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
                 <Box
                   sx={{
+                    ...METRIC_CARD_BASE_SX,
                     background: 'rgba(15,23,42,0.7)',
-                    borderRadius: '18px',
                     border: '1px solid rgba(148,163,184,0.25)',
-                    p: 2.8,
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 1.1,
-                    textAlign: 'center',
-                    alignItems: 'center',
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
