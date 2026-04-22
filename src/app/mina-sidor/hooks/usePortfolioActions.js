@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { fetchAuthJson } from "@/lib/clientApi";
 
 export function usePortfolioActions({ token, user, profile, setProfile, setLoading, setError, translate }) {
     const [activity, setActivity] = useState([]);
@@ -33,13 +34,11 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
         try {
             setLoading(true);
-            const res = await fetch("/api/user/profile", {
+            const data = await fetchAuthJson(token, "/api/user/profile", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "buy", shares, price, buyDate }),
             });
-            if (!res.ok) throw new Error("Kunde inte uppdatera innehav.");
-            const data = await res.json();
             setProfile(data.profile ?? profile);
             pushActivity({
                 type: "buy",
@@ -63,13 +62,11 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
         try {
             setLoading(true);
-            const res = await fetch("/api/user/profile", {
+            const data = await fetchAuthJson(token, "/api/user/profile", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "sell", shares, price }),
             });
-            if (!res.ok) throw new Error("Kunde inte uppdatera innehav.");
-            const data = await res.json();
             setProfile(data.profile ?? profile);
             pushActivity({
                 type: "sell",
@@ -91,13 +88,11 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
         try {
             setLoading(true);
-            const res = await fetch("/api/user/profile", {
+            const data = await fetchAuthJson(token, "/api/user/profile", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "reset" }),
             });
-            if (!res.ok) throw new Error("Kunde inte nollställa innehavet.");
-            const data = await res.json();
             setProfile(data.profile ?? profile);
             pushActivity({
                 type: "reset",
@@ -118,9 +113,9 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
         try {
             setLoading(true);
-            const res = await fetch("/api/user/profile", {
+            const data = await fetchAuthJson(token, "/api/user/profile", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     action: "set",
                     shares,
@@ -128,8 +123,6 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
                     acquisitionDate: acquisitionDate || null,
                 }),
             });
-            if (!res.ok) throw new Error("Kunde inte spara ändringar.");
-            const data = await res.json();
             setProfile(data.profile ?? profile);
             pushActivity({
                 type: "set",
@@ -165,16 +158,12 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         try {
             setLoading(true);
             setError("");
-            const res = await fetch("/api/user/profile", {
+            const data = await fetchAuthJson(token, "/api/user/profile", {
                 method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "importTransactions", transactions, dividendTotal: payload.dividendTotal }),
             });
-            const payload = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(payload?.error || translate("Importen misslyckades.", "Import failed."));
-            }
-            setProfile(payload.profile ?? profile);
+            setProfile(data.profile ?? profile);
             pushActivity({
                 type: "import",
                 timestamp: new Date().toISOString(),

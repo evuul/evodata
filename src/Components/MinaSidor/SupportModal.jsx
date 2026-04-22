@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Button, Chip, Dialog, Divider, Stack, TextField, Typography } from "@mui/material";
 import { actionCard, buttonStyles, statusColors, text } from "./styles";
+import { fetchAuthJson } from "@/lib/clientApi";
+import { readStoredJson, writeStoredJson } from "@/lib/clientStorage";
 
 export default function SupportModal({ open, onClose, translate, token }) {
   const [loading, setLoading] = useState(false);
@@ -29,12 +31,9 @@ export default function SupportModal({ open, onClose, translate, token }) {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/support/tickets", {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await fetchAuthJson(token, "/api/support/tickets", {
         cache: "no-store",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed");
       setTickets(Array.isArray(data?.tickets) ? data.tickets : []);
       setViewerEmail(String(data?.viewerEmail || "").trim().toLowerCase());
     } catch (e) {
@@ -49,12 +48,9 @@ export default function SupportModal({ open, onClose, translate, token }) {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`/api/support/tickets/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await fetchAuthJson(token, `/api/support/tickets/${id}`, {
         cache: "no-store",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed");
       const nextTicket = data?.ticket || null;
       setSelected(nextTicket);
       const repliedAt = String(nextTicket?.adminReply?.repliedAt || "").trim();
@@ -78,13 +74,11 @@ export default function SupportModal({ open, onClose, translate, token }) {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(`/api/support/tickets/${id}`, {
+      const data = await fetchAuthJson(token, `/api/support/tickets/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reopen", message: msg }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed");
       setSelected(data?.ticket || null);
       setReopenMessage("");
       await loadTickets();
@@ -105,30 +99,13 @@ export default function SupportModal({ open, onClose, translate, token }) {
 
   useEffect(() => {
     if (!seenStorageKey) return;
-    try {
-      const raw = window.localStorage.getItem(seenStorageKey);
-      if (!raw) {
-        setReplySeenByTicket({});
-        return;
-      }
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") {
-        setReplySeenByTicket(parsed);
-      } else {
-        setReplySeenByTicket({});
-      }
-    } catch {
-      setReplySeenByTicket({});
-    }
+    const parsed = readStoredJson(seenStorageKey, null);
+    setReplySeenByTicket(parsed && typeof parsed === "object" ? parsed : {});
   }, [seenStorageKey]);
 
   useEffect(() => {
     if (!seenStorageKey) return;
-    try {
-      window.localStorage.setItem(seenStorageKey, JSON.stringify(replySeenByTicket || {}));
-    } catch {
-      // ignore storage errors
-    }
+    writeStoredJson(seenStorageKey, replySeenByTicket || {});
   }, [replySeenByTicket, seenStorageKey]);
 
   const createTicket = async () => {
@@ -142,13 +119,11 @@ export default function SupportModal({ open, onClose, translate, token }) {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch("/api/support/tickets", {
+      const data = await fetchAuthJson(token, "/api/support/tickets", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subject: s, message: m }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed");
       setSubject("");
       setMessage("");
       await loadTickets();

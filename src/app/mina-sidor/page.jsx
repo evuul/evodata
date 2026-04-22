@@ -29,6 +29,7 @@ import { AdminPanel } from "@/app/mina-sidor/components/AdminPanel";
 import { AdminDialogs } from "@/app/mina-sidor/components/AdminDialogs";
 import { AccountSettingsDialog } from "@/app/mina-sidor/components/AccountSettingsDialog";
 import { AdminSupportInboxDialog } from "@/app/mina-sidor/components/AdminSupportInboxDialog";
+import { fetchAuthJson } from "@/lib/clientApi";
 
 export default function MinaSidorPage() {
   const translate = useTranslate();
@@ -144,19 +145,11 @@ export default function MinaSidorPage() {
   const handleDismissPrivateMessages = async () => {
     if (!token || !isAuthenticated) return;
     try {
-      const res = await fetch("/api/user/messages", {
+      const data = await fetchAuthJson(token, "/api/user/messages", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete" }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setPrivateMessagesError(data?.error || translate("Kunde inte ta bort meddelanden.", "Could not delete messages."));
-        return;
-      }
       setPrivateMessages(Array.isArray(data?.messages) ? data.messages : []);
       setPrivateMessagesUnread(Number(data?.unreadCount) || 0);
     } catch {
@@ -225,18 +218,11 @@ export default function MinaSidorPage() {
     if (!token) return;
     try {
       setNotificationsSaving(true);
-      const res = await fetch("/api/user/notifications", {
+      const payload = await fetchAuthJson(token, "/api/user/notifications", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ athEmail: Boolean(nextValue) }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(payload?.error || "Could not save notifications.");
-      }
       setAthEmailEnabled(Boolean(payload?.notifications?.athEmail));
     } catch (err) {
       setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
@@ -250,18 +236,11 @@ export default function MinaSidorPage() {
     if (!token) return;
     try {
       setNotificationsSaving(true);
-      const res = await fetch("/api/user/notifications", {
+      const payload = await fetchAuthJson(token, "/api/user/notifications", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dailyAvgEmail: Boolean(nextValue) }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(payload?.error || "Could not save notifications.");
-      }
       setDailyAvgEmailEnabled(Boolean(payload?.notifications?.dailyAvgEmail));
     } catch (err) {
       setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
@@ -273,18 +252,11 @@ export default function MinaSidorPage() {
 
   const handleSaveProfileSettings = async ({ firstName, lastName }) => {
     if (!token) throw new Error(translate("Inte inloggad.", "Not logged in."));
-    const res = await fetch("/api/user/account", {
+    const payload = await fetchAuthJson(token, "/api/user/account", {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ firstName, lastName }),
     });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(payload?.error || translate("Kunde inte uppdatera profil.", "Could not update profile."));
-    }
     setProfileIdentity((prev) => ({
       ...prev,
       firstName: payload?.user?.firstName ?? firstName,
@@ -299,18 +271,11 @@ export default function MinaSidorPage() {
 
   const handleDeleteAccount = async ({ currentPassword, confirmation }) => {
     if (!token) throw new Error(translate("Inte inloggad.", "Not logged in."));
-    const res = await fetch("/api/user/account", {
+    await fetchAuthJson(token, "/api/user/account", {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword, confirmation }),
     });
-    const payload = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(payload?.error || translate("Kunde inte radera kontot.", "Could not delete account."));
-    }
     logout();
     router.push("/");
   };
@@ -324,36 +289,22 @@ export default function MinaSidorPage() {
     try {
       setPrivateMessagesLoading(true);
       setPrivateMessagesError("");
-      const res = await fetch("/api/user/messages", {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await fetchAuthJson(token, "/api/user/messages", {
         cache: "no-store",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setPrivateMessages([]);
-        setPrivateMessagesUnread(0);
-        setPrivateMessagesError(data?.error || translate("Kunde inte ladda PM.", "Could not load PM."));
-        return;
-      }
       const rows = Array.isArray(data?.messages) ? data.messages : [];
       const unreadCount = Number(data?.unreadCount) || 0;
       setPrivateMessages(rows);
       setPrivateMessagesUnread(unreadCount);
 
       if (unreadCount > 0) {
-        const markRes = await fetch("/api/user/messages", {
+        const markData = await fetchAuthJson(token, "/api/user/messages", {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "markRead" }),
         });
-        const markData = await markRes.json().catch(() => ({}));
-        if (markRes.ok) {
-          setPrivateMessages(Array.isArray(markData?.messages) ? markData.messages : rows);
-          setPrivateMessagesUnread(Number(markData?.unreadCount) || 0);
-        }
+        setPrivateMessages(Array.isArray(markData?.messages) ? markData.messages : rows);
+        setPrivateMessagesUnread(Number(markData?.unreadCount) || 0);
       }
     } catch {
       setPrivateMessages([]);
@@ -369,12 +320,9 @@ export default function MinaSidorPage() {
     if (!token) return;
     try {
       if (effectiveIsAdmin) {
-        const res = await fetch("/api/admin/support/tickets", {
-          headers: { Authorization: `Bearer ${token}` },
+        const data = await fetchAuthJson(token, "/api/admin/support/tickets", {
           cache: "no-store",
         });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) return;
         const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
         const hasOpenUnanswered = tickets.some(
           (t) => String(t?.status || "").toLowerCase() === "open" && !Boolean(t?.hasReply)
@@ -383,12 +331,9 @@ export default function MinaSidorPage() {
         return;
       }
 
-      const res = await fetch("/api/support/tickets", {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await fetchAuthJson(token, "/api/support/tickets", {
         cache: "no-store",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) return;
       const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
       const hasReply = tickets.some((t) => t?.hasReply && t?.status === "answered");
       const hasOpen = tickets.some((t) => t?.status === "open");

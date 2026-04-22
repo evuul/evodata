@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Alert, Button, Snackbar } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
+import { fetchAuthJson } from "@/lib/clientApi";
+import { readStoredString, writeStoredString } from "@/lib/clientStorage";
 
 const POLL_MS = 60 * 60 * 1000;
 const PREVIEW_EVENT = "evodata.support.notify.preview";
@@ -12,48 +14,6 @@ const PREVIEW_EVENT = "evodata.support.notify.preview";
 const toMs = (value) => {
   const ts = Date.parse(String(value || ""));
   return Number.isFinite(ts) ? ts : 0;
-};
-
-const getNumberFromStorage = (key) => {
-  if (typeof window === "undefined") return 0;
-  try {
-    const raw = window.localStorage.getItem(key);
-    const num = Number(raw);
-    return Number.isFinite(num) ? num : 0;
-  } catch {
-    return 0;
-  }
-};
-
-const setNumberInStorage = (key, value) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    // ignore
-  }
-};
-
-const getStringFromStorage = (key) => {
-  if (typeof window === "undefined") return "";
-  try {
-    return String(window.localStorage.getItem(key) || "");
-  } catch {
-    return "";
-  }
-};
-
-const setStringInStorage = (key, value) => {
-  if (typeof window === "undefined") return;
-  try {
-    if (!value) {
-      window.localStorage.removeItem(key);
-      return;
-    }
-    window.localStorage.setItem(key, String(value));
-  } catch {
-    // ignore
-  }
 };
 
 export default function SupportNotificationWatcher() {
@@ -101,23 +61,20 @@ export default function SupportNotificationWatcher() {
     };
 
     const checkUserReplies = async () => {
-      const res = await fetch("/api/support/tickets", {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await fetchAuthJson(token, "/api/support/tickets", {
         cache: "no-store",
       });
-      if (!res.ok) return;
-      const payload = await res.json().catch(() => ({}));
       const tickets = Array.isArray(payload?.tickets) ? payload.tickets : [];
       const replied = tickets.filter((t) => Boolean(t?.hasReply) && String(t?.status || "").toLowerCase() === "answered");
       const latestReplyAt = replied.reduce((max, t) => Math.max(max, toMs(t?.updatedAt)), 0);
 
-      let seenAt = getNumberFromStorage(userReplyStorageKey);
+      let seenAt = Number(readStoredString(userReplyStorageKey, "0")) || 0;
       const isFirstPoll = !userBootstrappedRef.current;
       if (isFirstPoll) {
         userBootstrappedRef.current = true;
         // Avoid firing old replies on first mount.
         if (!seenAt && latestReplyAt > 0) {
-          setNumberInStorage(userReplyStorageKey, latestReplyAt);
+          writeStoredString(userReplyStorageKey, latestReplyAt);
           return;
         }
       }
@@ -128,7 +85,7 @@ export default function SupportNotificationWatcher() {
 
       const newCount = replied.filter((t) => toMs(t?.updatedAt) > seenAt).length || 1;
       seenAt = latestReplyAt;
-      setNumberInStorage(userReplyStorageKey, seenAt);
+      writeStoredString(userReplyStorageKey, seenAt);
       notify({
         severity: "success",
         message:
@@ -143,16 +100,13 @@ export default function SupportNotificationWatcher() {
 
     const checkUserAdminMessages = async () => {
       if (isAdmin) return;
-      const res = await fetch("/api/user/messages", {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await fetchAuthJson(token, "/api/user/messages", {
         cache: "no-store",
       });
-      if (!res.ok) return;
-      const payload = await res.json().catch(() => ({}));
       const messages = Array.isArray(payload?.messages) ? payload.messages : [];
       const unread = messages.filter((m) => !m?.readAt);
       if (!unread.length) {
-        setStringInStorage(adminMessageStorageKey, "");
+        writeStoredString(adminMessageStorageKey, "");
         return;
       }
       const latestUnread = unread
@@ -163,10 +117,10 @@ export default function SupportNotificationWatcher() {
       ).trim();
       if (!latestUnreadId) return;
 
-      const lastNotifiedId = getStringFromStorage(adminMessageStorageKey);
+      const lastNotifiedId = readStoredString(adminMessageStorageKey, "");
       if (lastNotifiedId === latestUnreadId) return;
 
-      setStringInStorage(adminMessageStorageKey, latestUnreadId);
+      writeStoredString(adminMessageStorageKey, latestUnreadId);
       const newCount = unread.length;
       notify({
         severity: "info",
@@ -182,25 +136,22 @@ export default function SupportNotificationWatcher() {
 
     const checkAdminNewTickets = async () => {
       if (!isAdmin) return;
-      const res = await fetch("/api/admin/support/tickets", {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await fetchAuthJson(token, "/api/admin/support/tickets", {
         cache: "no-store",
       });
-      if (!res.ok) return;
-      const payload = await res.json().catch(() => ({}));
       const tickets = Array.isArray(payload?.tickets) ? payload.tickets : [];
       const openUnanswered = tickets.filter(
         (t) => String(t?.status || "").toLowerCase() === "open" && !Boolean(t?.hasReply)
       );
       const latestCreatedAt = openUnanswered.reduce((max, t) => Math.max(max, toMs(t?.createdAt)), 0);
 
-      let seenCreatedAt = getNumberFromStorage(adminTicketStorageKey);
+      let seenCreatedAt = Number(readStoredString(adminTicketStorageKey, "0")) || 0;
       const isFirstPoll = !adminBootstrappedRef.current;
       if (isFirstPoll) {
         adminBootstrappedRef.current = true;
         // Avoid firing historical open tickets on first mount.
         if (!seenCreatedAt && latestCreatedAt > 0) {
-          setNumberInStorage(adminTicketStorageKey, latestCreatedAt);
+          writeStoredString(adminTicketStorageKey, latestCreatedAt);
           return;
         }
       }
@@ -211,7 +162,7 @@ export default function SupportNotificationWatcher() {
 
       const newCount = openUnanswered.filter((t) => toMs(t?.createdAt) > seenCreatedAt).length || 1;
       seenCreatedAt = latestCreatedAt;
-      setNumberInStorage(adminTicketStorageKey, seenCreatedAt);
+      writeStoredString(adminTicketStorageKey, seenCreatedAt);
       notify({
         severity: "info",
         message:

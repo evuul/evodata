@@ -5,6 +5,7 @@ import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
+import { fetchAuthJson } from "@/lib/clientApi";
 
 const NO_DIVIDEND_PROPOSAL = {
     date: "2026-03-18",
@@ -40,12 +41,9 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         const loadProfile = async () => {
             try {
                 setLoading(true);
-                const res = await fetch("/api/user/profile", {
-                    headers: { Authorization: `Bearer ${token}` },
+                const data = await fetchAuthJson(token, "/api/user/profile", {
                     cache: "no-store",
                 });
-                if (!res.ok) throw new Error("Kunde inte läsa profil.");
-                const data = await res.json();
                 setProfileIdentity({
                     firstName: data.firstName ?? "",
                     lastName: data.lastName ?? "",

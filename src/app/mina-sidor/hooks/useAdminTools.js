@@ -1,5 +1,6 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { fetchAuthJson } from "@/lib/clientApi";
 
 const ADMIN_ACTIVITY_REFRESH_MS = 5 * 60 * 1000;
 const ADMIN_USERS_REFRESH_MS = 5 * 60 * 1000;
@@ -57,6 +58,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
   const [alertsTestOnlyAdmin, setAlertsTestOnlyAdmin] = useState(false);
   const [alertsAthEnabled, setAlertsAthEnabled] = useState(true);
   const [alertsDailyAvgEnabled, setAlertsDailyAvgEnabled] = useState(true);
+  const authFetchJson = useCallback((input, init = {}) => fetchAuthJson(token, input, init), [token]);
 
   // --- Methods ---
 
@@ -65,22 +67,14 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setMailTestLoading(true);
       setMailTestMessage("");
-      const res = await fetch("/api/admin/mail-test", {
+      const payload = await authFetchJson("/api/admin/mail-test", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toEmail: profileIdentity?.email || email || "alexander.ek@live.se",
           subject: "EvoTracker admin mail test",
         }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Mailtest misslyckades.", "Mail test failed."));
-        return;
-      }
       setMailTestMessage(
         translate(
           `Testmail skickat till ${payload?.toEmail || "din adress"}.`,
@@ -99,17 +93,9 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setPreviewLoading(true);
       setMailTestMessage("");
-      const res = await fetch(`/api/admin/mail-preview?type=${encodeURIComponent(type)}`, {
+      const payload = await authFetchJson(`/api/admin/mail-preview?type=${encodeURIComponent(type)}`, {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Kunde inte hämta preview.", "Could not load preview."));
-        return;
-      }
       setPreviewTitle(payload?.subject || (type === "reset" ? "Reset preview" : "Welcome preview"));
       setPreviewHtml(payload?.html || "");
       setPreviewOpen(true);
@@ -125,18 +111,10 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setPreviewLoading(true);
       setMailTestMessage("");
-      const res = await fetch("/api/admin/ath-preview", {
+      const payload = await authFetchJson("/api/admin/ath-preview", {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         cache: "no-store",
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
-        return;
-      }
       const liveEvents = Array.isArray(payload?.events) ? payload.events : [];
       const recipients = Array.isArray(payload?.recipients) ? payload.recipients : [];
       setMailTestMessage(
@@ -160,20 +138,10 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setPreviewLoading(true);
       setMailTestMessage("");
-      const res = await fetch("/api/admin/daily-avg-preview", {
+      const payload = await authFetchJson("/api/admin/daily-avg-preview", {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         cache: "no-store",
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(
-          payload?.error || translate("Kunde inte hämta daily avg-preview.", "Could not load daily avg preview.")
-        );
-        return;
-      }
       setPreviewTitle(payload?.subject || "Daily AVG preview");
       setPreviewHtml(payload?.html || "");
       setPreviewOpen(true);
@@ -189,19 +157,11 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setMailTestLoading(true);
       setMailTestMessage("");
-      const res = await fetch("/api/admin/ath-send", {
+      const payload = await authFetchJson("/api/admin/ath-send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dryRun: false }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Kunde inte skicka ATH.", "Could not send ATH."));
-        return;
-      }
       const sent = Number(payload?.result?.sent || 0);
       const events = Array.isArray(payload?.result?.events) ? payload.result.events : [];
       const attempted = Array.isArray(payload?.result?.recipients) ? payload.result.recipients.length : 0;
@@ -241,19 +201,11 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setMailTestLoading(true);
       setMailTestMessage("");
-      const res = await fetch("/api/admin/daily-avg-send", {
+      const payload = await authFetchJson("/api/admin/daily-avg-send", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ force: true }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMailTestMessage(payload?.error || translate("Kunde inte skicka daily AVG.", "Could not send daily AVG."));
-        return;
-      }
       const sent = Number(payload?.result?.sent || 0);
       const targetYmd = payload?.result?.targetYmd || "";
       if (sent > 0) {
@@ -279,25 +231,15 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
-  const loadAdminActivity = async () => {
+  const loadAdminActivity = useCallback(async () => {
     if (!token) return;
     try {
       setAdminActivityLoading(true);
       setAdminActivityError("");
-      const res = await fetch("/api/admin/activity", {
+      const payload = await authFetchJson("/api/admin/activity", {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         cache: "no-store",
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminActivityRows([]);
-        setAdminActivityGeoSummary(null);
-        setAdminActivityError(payload?.error || translate("Kunde inte läsa aktivitet.", "Could not load activity."));
-        return;
-      }
       setAdminActivityRows(Array.isArray(payload?.users) ? payload.users : []);
       setAdminActivityGeoSummary(payload?.geoSummary || null);
     } catch {
@@ -307,27 +249,17 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     } finally {
       setAdminActivityLoading(false);
     }
-  };
+  }, [authFetchJson, token, translate]);
 
-  const loadAdminUsers = async () => {
+  const loadAdminUsers = useCallback(async () => {
     if (!token) return;
     try {
       setAdminUsersLoading(true);
       setAdminUsersError("");
-      const res = await fetch("/api/admin/users", {
+      const payload = await authFetchJson("/api/admin/users", {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         cache: "no-store",
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminUsersRows([]);
-        setAdminUsersTotal(0);
-        setAdminUsersError(payload?.error || translate("Kunde inte läsa användare.", "Could not load users."));
-        return;
-      }
       setAdminUsersRows(Array.isArray(payload?.users) ? payload.users : []);
       setAdminUsersTotal(Number(payload?.totalUsers) || 0);
     } catch {
@@ -337,7 +269,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     } finally {
       setAdminUsersLoading(false);
     }
-  };
+  }, [authFetchJson, token, translate]);
 
   const applyAdminDonationTemplate = useCallback(() => {
     setAdminPmSubject(translate("Tack för din donation till EvoTracker", "Thank you for your donation to EvoTracker"));
@@ -375,23 +307,15 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setAdminPmSending(true);
       setAdminPmStatus("");
-      const res = await fetch("/api/admin/users/message", {
+      const payload = await authFetchJson("/api/admin/users/message", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           toEmail,
           subject,
           message,
         }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminPmStatus(payload?.error || translate("Kunde inte skicka meddelande.", "Could not send message."));
-        return;
-      }
       setAdminPmStatus(
         translate(
           "Meddelande skickat.",
@@ -406,43 +330,32 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
-  const loadAdminSupport = async () => {
+  const loadAdminSupport = useCallback(async () => {
     if (!token) return;
     try {
       setAdminSupportLoading(true);
       setAdminSupportError("");
-      const res = await fetch("/api/admin/support/tickets", {
-        headers: { Authorization: `Bearer ${token}` },
+      const payload = await authFetchJson("/api/admin/support/tickets", {
         cache: "no-store",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminSupportError(data?.error || translate("Kunde inte ladda support.", "Could not load support."));
-        return;
-      }
-      setAdminSupportRows(Array.isArray(data?.tickets) ? data.tickets : []);
+      setAdminSupportRows(Array.isArray(payload?.tickets) ? payload.tickets : []);
     } catch {
       setAdminSupportError(translate("Kunde inte ladda support.", "Could not load support."));
     } finally {
       setAdminSupportLoading(false);
     }
-  };
+  }, [authFetchJson, token, translate]);
 
   const createDemoSupportTicket = async (mode) => {
     if (!token) return;
     try {
       setAdminSupportLoading(true);
       setAdminSupportError("");
-      const res = await fetch("/api/admin/support/seed", {
+      await authFetchJson("/api/admin/support/seed", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminSupportError(data?.error || translate("Kunde inte skapa demo-ticket.", "Could not create demo ticket."));
-        return;
-      }
       await loadAdminSupport();
     } catch {
       setAdminSupportError(translate("Kunde inte skapa demo-ticket.", "Could not create demo ticket."));
@@ -458,15 +371,9 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       setAdminSupportSelected(null);
       setAdminSupportDialogOpen(true);
       setAdminSupportReplyLoading(true);
-      const res = await fetch(`/api/admin/support/tickets/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const data = await authFetchJson(`/api/admin/support/tickets/${id}`, {
         cache: "no-store",
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminSupportError(data?.error || translate("Kunde inte ladda ticket.", "Could not load ticket."));
-        return;
-      }
       setAdminSupportSelected(data?.ticket || null);
       setAdminSupportReply(String(data?.ticket?.adminReply?.message || ""));
     } catch {
@@ -486,16 +393,11 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setAdminSupportReplyLoading(true);
       setAdminSupportError("");
-      const res = await fetch(`/api/admin/support/tickets/${adminSupportSelected.id}`, {
+      const data = await authFetchJson(`/api/admin/support/tickets/${adminSupportSelected.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reply", message: msg }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminSupportError(data?.error || translate("Kunde inte spara svar.", "Could not save reply."));
-        return;
-      }
       setAdminSupportSelected(data?.ticket || null);
       await loadAdminSupport();
     } catch {
@@ -510,16 +412,11 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     try {
       setAdminSupportReplyLoading(true);
       setAdminSupportError("");
-      const res = await fetch(`/api/admin/support/tickets/${adminSupportSelected.id}`, {
+      const data = await authFetchJson(`/api/admin/support/tickets/${adminSupportSelected.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "close" }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminSupportError(data?.error || translate("Kunde inte stänga ticket.", "Could not close ticket."));
-        return;
-      }
       setAdminSupportSelected(data?.ticket || null);
       await loadAdminSupport();
     } catch {
@@ -529,21 +426,15 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
-  const loadAlertsSettings = async () => {
+  const loadAlertsSettings = useCallback(async () => {
     if (!token) return;
     try {
       setAlertsSettingsLoading(true);
       setAlertsSettingsError("");
-      const res = await fetch("/api/admin/alerts-settings", {
+      const payload = await authFetchJson("/api/admin/alerts-settings", {
         method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
         cache: "no-store",
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAlertsSettingsError(payload?.error || translate("Kunde inte läsa settings.", "Could not load settings."));
-        return;
-      }
       setAlertsTestOnlyAdmin(Boolean(payload?.settings?.testOnlyAdmin));
       setAlertsAthEnabled(Boolean(payload?.settings?.athEnabled));
       setAlertsDailyAvgEnabled(Boolean(payload?.settings?.dailyAvgEnabled));
@@ -552,26 +443,17 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     } finally {
       setAlertsSettingsLoading(false);
     }
-  };
+  }, [authFetchJson, token, translate]);
 
   const loadAdminCost = useCallback(async () => {
     if (!token) return;
     try {
       setAdminCostLoading(true);
       setAdminCostError("");
-      const res = await fetch("/api/admin/cost?hours=72", {
+      const payload = await authFetchJson("/api/admin/cost?hours=72", {
         method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         cache: "no-store",
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAdminCostData(null);
-        setAdminCostError(payload?.error || translate("Kunde inte läsa kostnadsdata.", "Could not load cost data."));
-        return;
-      }
       setAdminCostData(payload || null);
     } catch {
       setAdminCostData(null);
@@ -579,23 +461,18 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     } finally {
       setAdminCostLoading(false);
     }
-  }, [token, translate]);
+  }, [authFetchJson, token, translate]);
 
   const saveAlertsSettings = async (next) => {
     if (!token) return;
     try {
       setAlertsSettingsLoading(true);
       setAlertsSettingsError("");
-      const res = await fetch("/api/admin/alerts-settings", {
+      const payload = await authFetchJson("/api/admin/alerts-settings", {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(next),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setAlertsSettingsError(payload?.error || translate("Kunde inte spara settings.", "Could not save settings."));
-        return;
-      }
       setAlertsTestOnlyAdmin(Boolean(payload?.settings?.testOnlyAdmin));
       setAlertsAthEnabled(Boolean(payload?.settings?.athEnabled));
       setAlertsDailyAvgEnabled(Boolean(payload?.settings?.dailyAvgEnabled));
@@ -621,7 +498,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+  }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminActivity, token]);
 
   useEffect(() => {
     if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "users") return;
@@ -636,7 +513,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+  }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminUsers, token]);
 
   useEffect(() => {
     if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "support") return;
@@ -651,12 +528,12 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
       cancelled = true;
       clearInterval(id);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+  }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminSupport, token]);
 
   useEffect(() => {
     if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "tools") return;
     loadAlertsSettings();
-  }, [adminMode, adminPanel, effectiveIsAdmin, token]);
+  }, [adminMode, adminPanel, effectiveIsAdmin, loadAlertsSettings, token]);
 
   useEffect(() => {
     if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "cost") return;

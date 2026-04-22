@@ -1,5 +1,6 @@
 "use client";
 
+// Report view for quarterly commentary and yearly summaries.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Stack, Chip, Grid, Divider } from "@mui/material";
 import { useTranslate } from "@/context/LocaleContext";
@@ -51,6 +52,28 @@ const toSortedReports = (reports) =>
     .filter(Boolean)
     .sort((a, b) => a.index - b.index);
 
+const toSortedQuarterEntries = (records) =>
+  Object.entries(records ?? {})
+    .map(([key, value]) => {
+      const [quarter, yearText] = key.split("-");
+      const year = Number(yearText);
+      const index = quarterToIndex(year, quarter);
+      if (index == null) return null;
+      return { key, quarter, year, index, ...value };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
+
+const toSortedYearEntries = (records) =>
+  Object.entries(records ?? {})
+    .map(([key, value]) => {
+      const year = Number(key);
+      if (!Number.isFinite(year)) return null;
+      return { key, year, ...value };
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.year - b.year);
+
 export default function ReportView({ financialReports }) {
   const translate = useTranslate();
   const reports = useMemo(
@@ -60,6 +83,10 @@ export default function ReportView({ financialReports }) {
   const latest = reports.at(-1) ?? null;
   const prev = latest ? reports.find((r) => r.index === latest.index - 1) ?? null : null;
   const yoy = latest ? reports.find((r) => r.index === latest.index - 4) ?? null : null;
+  const commentaryEntries = useMemo(() => toSortedQuarterEntries(reportCommentary), []);
+  const yearSummaryEntries = useMemo(() => toSortedYearEntries(yearSummaries), []);
+  const commentary = commentaryEntries.at(-1) ?? null;
+  const yearSummary = yearSummaryEntries.at(-1) ?? null;
   const [votes, setVotes] = useState({});
   const topEntryRef = useRef(null);
 
@@ -130,13 +157,12 @@ export default function ReportView({ financialReports }) {
     ];
   }, [latest, prev, yoy, translate]);
 
-  const commentaryKey = latest ? `${latest.quarter}-${latest.year}` : null;
-  const commentary = commentaryKey ? reportCommentary?.[commentaryKey] : null;
-  const summaryYear = latest?.year != null ? String(latest.year) : null;
-  const yearSummary = summaryYear ? yearSummaries?.[summaryYear] : null;
+  const commentaryKey = commentary ? `${commentary.quarter}-${commentary.year}` : null;
+  const summaryYear = yearSummary?.year != null ? String(yearSummary.year) : null;
   const commentaryDate = formatPublishDate(commentary?.publishedAt);
   const yearSummaryDate = formatPublishDate(yearSummary?.publishedAt);
   const yearKpis = yearSummary?.kpis ?? [];
+  const previousCommentaryEntries = commentaryEntries.filter((entry) => entry.key !== commentaryKey);
   const annualAggregates = useMemo(() => {
     const map = new Map();
     reports.forEach((report) => {
@@ -220,7 +246,7 @@ export default function ReportView({ financialReports }) {
   };
 
   const yearVoteId = summaryYear ? `year-${summaryYear}` : null;
-  const quarterVoteId = latest ? `q-${latest.quarter}-${latest.year}` : null;
+  const quarterVoteId = commentaryKey;
 
   const loadVotes = async (id) => {
     if (!id) return;
@@ -518,8 +544,8 @@ export default function ReportView({ financialReports }) {
               <Typography variant="h4" sx={{ fontWeight: 800 }}>
                 {latest
                   ? translate(
-                      `Kommentar för ${latest.quarter} ${latest.year}`,
-                      `Commentary for ${latest.quarter} ${latest.year}`
+                      `Senaste rapportdata för ${latest.quarter} ${latest.year}`,
+                      `Latest report data for ${latest.quarter} ${latest.year}`
                     )
                   : translate("Kommentar", "Commentary")}
               </Typography>
@@ -558,8 +584,8 @@ export default function ReportView({ financialReports }) {
                 </Stack>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
                   <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                    {latest
-                      ? translate(`Kommentar för ${latest.quarter} ${latest.year}`, `Commentary for ${latest.quarter} ${latest.year}`)
+                    {commentary
+                      ? translate(`Kommentar för ${commentary.quarter} ${commentary.year}`, `Commentary for ${commentary.quarter} ${commentary.year}`)
                       : translate("Kommentar", "Commentary")}
                   </Typography>
                 </Stack>
@@ -692,6 +718,155 @@ export default function ReportView({ financialReports }) {
               </Box>
 
               {quarterVoteId ? <VoteBar id={quarterVoteId} /> : null}
+
+              {previousCommentaryEntries.length ? (
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
+                    {translate("Tidigare rapportkommentarer", "Previous report commentary")}
+                  </Typography>
+                  <Stack spacing={2}>
+                    {previousCommentaryEntries.map((entry) => {
+                      const entryDate = formatPublishDate(entry.publishedAt);
+                      const entryPositives = translate(
+                        entry.positives ?? [],
+                        entry.positivesEn ?? entry.positives ?? []
+                      );
+                      const entryNegatives = translate(
+                        entry.negatives ?? [],
+                        entry.negativesEn ?? entry.negatives ?? []
+                      );
+                      const entryOutlook = translate(
+                        entry.outlook ?? "Skriv dina tankar framåt här (t.ex. tillväxt, marginal, guidance).",
+                        entry.outlookEn ?? "Write your forward-looking view here (growth, margins, guidance)."
+                      );
+                      const entryBuybacks = translate(
+                        entry.buybacks ?? "Skriv dina tankar om återköp framåt här.",
+                        entry.buybacksEn ?? "Write your buyback outlook here."
+                      );
+
+                      return (
+                        <Box
+                          key={entry.key}
+                          sx={{
+                            background: "rgba(15,23,42,0.5)",
+                            borderRadius: "20px",
+                            border: "1px solid rgba(148,163,184,0.2)",
+                            p: { xs: 2, md: 3 },
+                            textAlign: "left",
+                          }}
+                        >
+                          <Stack spacing={0.6}>
+                            <Stack
+                              direction="row"
+                              spacing={1}
+                              alignItems="center"
+                              justifyContent="space-between"
+                            >
+                              <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.7)", letterSpacing: 1.1 }}>
+                                {translate("Kommentar", "Commentary")}
+                              </Typography>
+                              {entryDate ? (
+                                <Chip
+                                  size="small"
+                                  label={translate(`Publicerad ${entryDate}`, `Published ${entryDate}`)}
+                                  sx={{
+                                    backgroundColor: "rgba(59,130,246,0.18)",
+                                    color: "#bfdbfe",
+                                    fontWeight: 600,
+                                  }}
+                                />
+                              ) : null}
+                            </Stack>
+                            <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                              {translate(
+                                `Kommentar för ${entry.quarter} ${entry.year}`,
+                                `Commentary for ${entry.quarter} ${entry.year}`
+                              )}
+                            </Typography>
+                          </Stack>
+
+                          <Box
+                            sx={{
+                              background: "rgba(15,23,42,0.45)",
+                              borderRadius: "18px",
+                              border: "1px solid rgba(148,163,184,0.2)",
+                              p: { xs: 2, md: 2.8 },
+                              textAlign: "left",
+                              mt: 1.5,
+                            }}
+                          >
+                            <Stack spacing={2}>
+                              <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#bbf7d0" }}>
+                                  {translate("Positivt", "Positives")}
+                                </Typography>
+                                {entryPositives.length ? (
+                                  <Stack component="ul" spacing={0.8} sx={{ mt: 1, pl: 2, m: 0 }}>
+                                    {entryPositives.map((item, idx) => (
+                                      <Typography
+                                        component="li"
+                                        key={`entry-${entry.key}-pos-${idx}`}
+                                        sx={{ color: "rgba(226,232,240,0.86)", lineHeight: 1.6 }}
+                                      >
+                                        {item}
+                                      </Typography>
+                                    ))}
+                                  </Stack>
+                                ) : (
+                                  <Typography sx={{ color: "rgba(226,232,240,0.65)", mt: 1 }}>
+                                    {translate("Ingen text angiven.", "No text provided.")}
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: "#fecaca" }}>
+                                  {translate("Negativt", "Negatives")}
+                                </Typography>
+                                {entryNegatives.length ? (
+                                  <Stack component="ul" spacing={0.8} sx={{ mt: 1, pl: 2, m: 0 }}>
+                                    {entryNegatives.map((item, idx) => (
+                                      <Typography
+                                        component="li"
+                                        key={`entry-${entry.key}-neg-${idx}`}
+                                        sx={{ color: "rgba(226,232,240,0.86)", lineHeight: 1.6 }}
+                                      >
+                                        {item}
+                                      </Typography>
+                                    ))}
+                                  </Stack>
+                                ) : (
+                                  <Typography sx={{ color: "rgba(226,232,240,0.65)", mt: 1 }}>
+                                    {translate("Ingen text angiven.", "No text provided.")}
+                                  </Typography>
+                                )}
+                              </Box>
+
+                              <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                  {translate("Tankar framåt", "Outlook")}
+                                </Typography>
+                                <Typography sx={{ color: "rgba(226,232,240,0.8)", mt: 0.8, lineHeight: 1.7 }}>
+                                  {entryOutlook}
+                                </Typography>
+                              </Box>
+
+                              <Box>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                                  {translate("Aktieåterköp framåt", "Buybacks outlook")}
+                                </Typography>
+                                <Typography sx={{ color: "rgba(226,232,240,0.8)", mt: 0.8, lineHeight: 1.7 }}>
+                                  {entryBuybacks}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Box>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              ) : null}
 
               <Box
                 sx={{
