@@ -3,7 +3,7 @@
 // Report view for quarterly commentary and yearly summaries.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Typography, Stack, Chip, Grid, Divider } from "@mui/material";
-import { useTranslate } from "@/context/LocaleContext";
+import { useLocale, useTranslate } from "@/context/LocaleContext";
 import reportCommentary from "@/app/data/reportCommentary.json";
 import yearSummaries from "@/app/data/yearSummaries.json";
 
@@ -75,6 +75,7 @@ const toSortedYearEntries = (records) =>
     .sort((a, b) => a.year - b.year);
 
 export default function ReportView({ financialReports }) {
+  const { locale } = useLocale();
   const translate = useTranslate();
   const reports = useMemo(
     () => toSortedReports(financialReports?.financialReports),
@@ -162,6 +163,11 @@ export default function ReportView({ financialReports }) {
   const commentaryDate = formatPublishDate(commentary?.publishedAt);
   const yearSummaryDate = formatPublishDate(yearSummary?.publishedAt);
   const yearKpis = yearSummary?.kpis ?? [];
+  const selectLocalizedValue = (svValue, enValue) => (locale === "en" ? enValue ?? svValue : svValue);
+  const selectLocalizedList = (svValue, enValue) => {
+    if (locale !== "en") return safeList(svValue);
+    return safeList(enValue).length ? safeList(enValue) : safeList(svValue);
+  };
   const previousCommentaryEntries = useMemo(
     () =>
       commentaryEntries
@@ -223,19 +229,13 @@ export default function ReportView({ financialReports }) {
     });
   }, [annualAggregates, summaryYear, yearKpis, translate]);
   const opinion = {
-    positives: translate(
-      commentary?.positives ?? [],
-      commentary?.positivesEn ?? commentary?.positives ?? []
-    ),
-    negatives: translate(
-      commentary?.negatives ?? [],
-      commentary?.negativesEn ?? commentary?.negatives ?? []
-    ),
-    outlook: translate(
+    positives: selectLocalizedList(commentary?.positives ?? [], commentary?.positivesEn ?? []),
+    negatives: selectLocalizedList(commentary?.negatives ?? [], commentary?.negativesEn ?? []),
+    outlook: selectLocalizedValue(
       commentary?.outlook ?? "Skriv dina tankar framåt här (t.ex. tillväxt, marginal, guidance).",
       commentary?.outlookEn ?? "Write your forward-looking view here (growth, margins, guidance)."
     ),
-    buybacks: translate(
+    buybacks: selectLocalizedValue(
       commentary?.buybacks ?? "Skriv dina tankar om återköp framåt här.",
       commentary?.buybacksEn ?? "Write your buyback outlook here."
     ),
@@ -399,154 +399,7 @@ export default function ReportView({ financialReports }) {
 
         <Box sx={{ width: "100%", maxWidth: 1120 }}>
           <Stack spacing={3}>
-            {yearSummary ? (
-              <>
-                <Box sx={{ textAlign: "center" }} ref={topEntryRef}>
-                  <Typography variant="h4" sx={{ fontWeight: 800 }}>
-                    {summaryYear
-                      ? translate(
-                          `Summering av helåret ${summaryYear}`,
-                          `Full-year ${summaryYear} summary`
-                        )
-                      : translate("Kommentar", "Commentary")}
-                  </Typography>
-                </Box>
-                <Box
-                  sx={{
-                    background: "rgba(15,23,42,0.55)",
-                    borderRadius: "20px",
-                    border: "1px solid rgba(148,163,184,0.2)",
-                    p: { xs: 2, md: 3 },
-                    textAlign: "left",
-                  }}
-                >
-                  <Stack spacing={0.6}>
-                    <Stack
-                      direction="row"
-                      spacing={1}
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.7)", letterSpacing: 1.1 }}>
-                        {translate("Helårssummering", "Full-year summary")}
-                      </Typography>
-                      {yearSummaryDate ? (
-                        <Chip
-                          size="small"
-                          label={translate(`Publicerad ${yearSummaryDate}`, `Published ${yearSummaryDate}`)}
-                          sx={{
-                            backgroundColor: "rgba(99,102,241,0.18)",
-                            color: "#c7d2fe",
-                            fontWeight: 600,
-                          }}
-                        />
-                      ) : null}
-                    </Stack>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
-                      <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                        {translate(
-                          `Summering av helåret ${summaryYear}: ${yearSummary.title}`,
-                          yearSummary.titleEn
-                            ? yearSummary.titleEn
-                            : `Full-year ${summaryYear} summary: ${yearSummary.title}`
-                        )}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-
-                  {yearKpisWithYoY.length ? (
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                      {yearKpisWithYoY.map((kpi, idx) => (
-                        <Grid item xs={12} sm={6} md={4} key={`year-kpi-${idx}`}>
-                          <Box
-                            sx={{
-                              background: "rgba(15,23,42,0.45)",
-                              borderRadius: "16px",
-                              border: "1px solid rgba(148,163,184,0.2)",
-                              p: 2,
-                              height: "100%",
-                              textAlign: "center",
-                            }}
-                          >
-                            <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                              {kpi.displayLabel ?? kpi.label}
-                            </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                              {formatUnitValue(kpi.value, kpi.unit)}
-                            </Typography>
-                            {kpi?.yoy != null ? (
-                              <Stack direction="row" spacing={1} sx={{ mt: 0.8, justifyContent: "center" }}>
-                                <Chip
-                                  size="small"
-                                  label={
-                                    kpi.points
-                                      ? `${kpi.yoy.toFixed(1)} pp YoY`
-                                      : `${formatPercent(kpi.yoy, 1)} YoY`
-                                  }
-                                  sx={{
-                                    backgroundColor: kpi.yoy >= 0 ? "rgba(34,197,94,0.2)" : "rgba(248,113,113,0.2)",
-                                    color: kpi.yoy >= 0 ? "#bbf7d0" : "#fecaca",
-                                  }}
-                                />
-                              </Stack>
-                            ) : null}
-                          </Box>
-                        </Grid>
-                      ))}
-                    </Grid>
-                  ) : null}
-
-                  <Stack spacing={1.6} sx={{ mt: 2 }}>
-                    {(yearSummary.sections ?? []).map((section, idx) => (
-                      <Box key={`year-${idx}`}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          {translate(section.heading, section.headingEn || section.heading)}
-                        </Typography>
-                        <Typography sx={{ color: "rgba(226,232,240,0.82)", mt: 0.6, lineHeight: 1.7 }}>
-                          {translate(section.body, section.bodyEn || section.body)}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Stack>
-                  {yearVoteId ? <VoteBar id={yearVoteId} /> : null}
-                </Box>
-                <Box
-                  sx={{
-                    mt: 2.5,
-                    p: { xs: 2, md: 2.5 },
-                    borderRadius: "16px",
-                    border: "1px dashed rgba(148,163,184,0.25)",
-                    background: "rgba(15,23,42,0.35)",
-                    textAlign: "left",
-                  }}
-                >
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    {supportMessage.title}
-                  </Typography>
-                  <Typography sx={{ color: "rgba(226,232,240,0.8)", mt: 0.6, lineHeight: 1.6 }}>
-                    {supportMessage.body}
-                  </Typography>
-                  <Box sx={{ mt: 1 }}>
-                    <Typography
-                      component="a"
-                      href={supportMessage.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      sx={{
-                        color: "#7dd3fc",
-                        fontWeight: 700,
-                        textDecoration: "none",
-                        "&:hover": { textDecoration: "underline" },
-                      }}
-                    >
-                      {supportMessage.cta}
-                    </Typography>
-                  </Box>
-                </Box>
-              </>
-            ) : null}
-
-            <Box sx={{ textAlign: "center" }}>
+            <Box sx={{ textAlign: "center" }} ref={topEntryRef}>
               <Typography variant="h4" sx={{ fontWeight: 800 }}>
                 {latest
                   ? translate(
@@ -725,6 +578,121 @@ export default function ReportView({ financialReports }) {
 
               {quarterVoteId ? <VoteBar id={quarterVoteId} /> : null}
 
+              {yearSummary ? (
+                <Box sx={{ mt: 3 }}>
+                  <Box sx={{ textAlign: "center" }}>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }}>
+                      {summaryYear
+                        ? translate(
+                            `Summering av helåret ${summaryYear}`,
+                            `Full-year ${summaryYear} summary`
+                          )
+                        : translate("Kommentar", "Commentary")}
+                    </Typography>
+                  </Box>
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      background: "rgba(15,23,42,0.55)",
+                      borderRadius: "20px",
+                      border: "1px solid rgba(148,163,184,0.2)",
+                      p: { xs: 2, md: 3 },
+                      textAlign: "left",
+                    }}
+                  >
+                    <Stack spacing={0.6}>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        alignItems="center"
+                        justifyContent="space-between"
+                      >
+                        <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.7)", letterSpacing: 1.1 }}>
+                          {translate("Helårssummering", "Full-year summary")}
+                        </Typography>
+                        {yearSummaryDate ? (
+                          <Chip
+                            size="small"
+                            label={translate(`Publicerad ${yearSummaryDate}`, `Published ${yearSummaryDate}`)}
+                            sx={{
+                              backgroundColor: "rgba(99,102,241,0.18)",
+                              color: "#c7d2fe",
+                              fontWeight: 600,
+                            }}
+                          />
+                        ) : null}
+                      </Stack>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ xs: "flex-start", sm: "center" }}>
+                        <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                          {translate(
+                            `Summering av helåret ${summaryYear}: ${yearSummary.title}`,
+                            yearSummary.titleEn
+                              ? yearSummary.titleEn
+                              : `Full-year ${summaryYear} summary: ${yearSummary.title}`
+                          )}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+
+                    {yearKpisWithYoY.length ? (
+                      <Grid container spacing={2} sx={{ mt: 1 }}>
+                        {yearKpisWithYoY.map((kpi, idx) => (
+                          <Grid item xs={12} sm={6} md={4} key={`year-kpi-${idx}`}>
+                            <Box
+                              sx={{
+                                background: "rgba(15,23,42,0.45)",
+                                borderRadius: "16px",
+                                border: "1px solid rgba(148,163,184,0.2)",
+                                p: 2,
+                                height: "100%",
+                                textAlign: "center",
+                              }}
+                            >
+                              <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
+                                {kpi.displayLabel ?? kpi.label}
+                              </Typography>
+                              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                {formatUnitValue(kpi.value, kpi.unit)}
+                              </Typography>
+                              {kpi?.yoy != null ? (
+                                <Stack direction="row" spacing={1} sx={{ mt: 0.8, justifyContent: "center" }}>
+                                  <Chip
+                                    size="small"
+                                    label={
+                                      kpi.points
+                                        ? `${kpi.yoy.toFixed(1)} pp YoY`
+                                        : `${formatPercent(kpi.yoy, 1)} YoY`
+                                    }
+                                    sx={{
+                                      backgroundColor: kpi.yoy >= 0 ? "rgba(34,197,94,0.2)" : "rgba(248,113,113,0.2)",
+                                      color: kpi.yoy >= 0 ? "#bbf7d0" : "#fecaca",
+                                    }}
+                                  />
+                                </Stack>
+                              ) : null}
+                            </Box>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    ) : null}
+
+                    <Stack spacing={1.6} sx={{ mt: 2 }}>
+                      {(yearSummary.sections ?? []).map((section, idx) => (
+                        <Box key={`year-${idx}`}>
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            {translate(section.heading, section.headingEn || section.heading)}
+                          </Typography>
+                          <Typography sx={{ color: "rgba(226,232,240,0.82)", mt: 0.6, lineHeight: 1.7 }}>
+                            {translate(section.body, section.bodyEn || section.body)}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                    {yearVoteId ? <VoteBar id={yearVoteId} /> : null}
+                  </Box>
+                </Box>
+              ) : null}
+
               {previousCommentaryEntries.length ? (
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>
@@ -733,19 +701,13 @@ export default function ReportView({ financialReports }) {
                   <Stack spacing={2}>
                     {previousCommentaryEntries.map((entry) => {
                       const entryDate = formatPublishDate(entry.publishedAt);
-                      const entryPositives = translate(
-                        entry.positives ?? [],
-                        entry.positivesEn ?? entry.positives ?? []
-                      );
-                      const entryNegatives = translate(
-                        entry.negatives ?? [],
-                        entry.negativesEn ?? entry.negatives ?? []
-                      );
-                      const entryOutlook = translate(
+                      const entryPositives = selectLocalizedList(entry.positives ?? [], entry.positivesEn ?? []);
+                      const entryNegatives = selectLocalizedList(entry.negatives ?? [], entry.negativesEn ?? []);
+                      const entryOutlook = selectLocalizedValue(
                         entry.outlook ?? "Skriv dina tankar framåt här (t.ex. tillväxt, marginal, guidance).",
                         entry.outlookEn ?? "Write your forward-looking view here (growth, margins, guidance)."
                       );
-                      const entryBuybacks = translate(
+                      const entryBuybacks = selectLocalizedValue(
                         entry.buybacks ?? "Skriv dina tankar om återköp framåt här.",
                         entry.buybacksEn ?? "Write your buyback outlook here."
                       );
@@ -907,6 +869,7 @@ export default function ReportView({ financialReports }) {
                   </Typography>
                 </Box>
               </Box>
+
             </Box>
           </Stack>
         </Box>
