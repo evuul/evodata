@@ -162,7 +162,13 @@ export default function ReportView({ financialReports }) {
   const commentaryDate = formatPublishDate(commentary?.publishedAt);
   const yearSummaryDate = formatPublishDate(yearSummary?.publishedAt);
   const yearKpis = yearSummary?.kpis ?? [];
-  const previousCommentaryEntries = commentaryEntries.filter((entry) => entry.key !== commentaryKey);
+  const previousCommentaryEntries = useMemo(
+    () =>
+      commentaryEntries
+        .filter((entry) => entry.key !== commentaryKey)
+        .sort((a, b) => b.index - a.index),
+    [commentaryEntries, commentaryKey]
+  );
   const annualAggregates = useMemo(() => {
     const map = new Map();
     reports.forEach((report) => {
