@@ -21,7 +21,7 @@ export default function LiveHeaderPanelSwitcher({
           <FormControl fullWidth size="small" sx={{ maxWidth: 260 }}>
             <Select
               value={activePanel}
-              onChange={handlePanelChange}
+              onChange={(event) => handlePanelChange(event, event.target.value)}
               sx={{
                 borderRadius: "999px",
                 color: "#f8fafc",

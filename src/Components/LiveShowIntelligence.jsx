@@ -429,21 +429,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   );
 
   const baselineComputed = useMemo(() => {
-    const hasCurrentReport = Number.isFinite(revenueData[currentPeriod]);
-    const allowManual =
-      MANUAL_BASELINE.enabled &&
-      currentPeriod === MANUAL_BASELINE.period &&
-      !hasCurrentReport;
-    if (allowManual) {
-      return {
-        period: MANUAL_BASELINE.period,
-        revenuePerPlayer: MANUAL_BASELINE.revenuePerPlayer,
-        isManual: true,
-      };
-    }
     const chosen = pickBaseline(currentPeriod);
     return { ...chosen, isManual: false };
-  }, [currentPeriod, pickBaseline, revenueData]);
+  }, [currentPeriod, pickBaseline]);
 
   const baselineRef = useRef({
     period: null,
