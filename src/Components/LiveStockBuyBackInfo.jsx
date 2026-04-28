@@ -34,6 +34,8 @@ import OwnershipView from './buybacks/OwnershipView';
 import TotalSharesView from './buybacks/TotalSharesView';
 import HistoryView from './buybacks/HistoryView';
 import ReturnsView from './buybacks/ReturnsView';
+import LiveStockBuyBackEstimateSection from './LiveStockBuyBackEstimateSection';
+import LiveStockBuyBackOverviewSection from './LiveStockBuyBackOverviewSection';
 import {
   buybackDataForGraphDaily as buildDaily,
   buybackDataForGraphWeekly as buildWeekly,
@@ -661,496 +663,85 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         )}
       </Box>
 
-      {subView === 'overview' && Number.isFinite(buybackBudgetSek) && (
-        <Box
-          sx={{
-            mt: 2,
-            background: 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(17,24,39,0.7))',
-            border: '1px solid rgba(148,163,184,0.22)',
-            borderRadius: { xs: '14px', md: '16px' },
-            mx: { xs: -2, sm: -3, md: -4 },
-            px: { xs: 2, sm: 3, md: 4 },
-            py: { xs: 2, md: 2.5 },
-          }}
-        >
-          <Stack
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            justifyContent="space-between"
-            sx={{ mb: { xs: 1.5, md: 2 } }}
-          >
-            <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.85)', letterSpacing: 1.2 }}>
-              {translate('Översikt • Aktivt program', 'Overview • Active program')}
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              {Number.isFinite(cashUsagePercent) && (
-                <Chip
-                  size="small"
-                  label={translate(
-                    `Användt: ${cashUsagePercent.toFixed(1)}%`,
-                    `Used: ${cashUsagePercent.toFixed(1)}%`
-                  )}
-                  sx={{
-                    backgroundColor: 'rgba(16,185,129,0.16)',
-                    color: '#a7f3d0',
-                    border: '1px solid rgba(16,185,129,0.35)',
-                  }}
-                />
-              )}
-              {Number.isFinite(remainingCashSharePercent) && (
-                <Chip
-                  size="small"
-                  label={translate(
-                    `${fmtPercent(remainingCashSharePercent)} av aktiestock`,
-                    `${fmtPercent(remainingCashSharePercent)} of share base`
-                  )}
-                  sx={{
-                    backgroundColor: 'rgba(59,130,246,0.16)',
-                    color: '#bfdbfe',
-                    border: '1px solid rgba(59,130,246,0.35)',
-                  }}
-                />
-              )}
-            </Stack>
-          </Stack>
-
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(4, minmax(0, 1fr))' },
-              gap: { xs: 1.2, md: 2.2 },
-              alignItems: 'start',
-            }}
-          >
-            <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                {translate('Kassaläge', 'Cash position')}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.1rem', md: '1.25rem' }, color: '#f8fafc' }}>
-                {fmtCurrency(totalSpent)}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#e2e8f0',
-                  fontWeight: 600,
-                  letterSpacing: 0.2,
-                }}
-              >
-                {translate('Budget:', 'Budget:')} {fmtEuroMillions(buybackCash)} (≈ {fmtCurrency(buybackBudgetSek)})
-              </Typography>
-            </Stack>
-
-            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                {translate('Återstående kassa', 'Remaining cash')}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.15rem', md: '1.3rem' }, color: '#f8fafc' }}>{fmtCurrency(remainingCash)}</Typography>
-              {Number.isFinite(cashUsagePercent) ? (
-                <>
-                  <Typography variant="caption" sx={{ color: '#cbd5f5', fontWeight: 600, letterSpacing: 0.3 }}>
-                    {translate(
-                      `${cashUsagePercent.toFixed(1)}% utnyttjat`,
-                      `${cashUsagePercent.toFixed(1)}% used`
-                    )}
-                  </Typography>
-                  <LinearProgress
-                    variant="determinate"
-                    value={cashUsagePercent}
-                    sx={{
-                      height: 6,
-                      width: { xs: '100%', md: '80%' },
-                      borderRadius: 999,
-                      backgroundColor: 'rgba(148,163,184,0.18)',
-                      '& .MuiLinearProgress-bar': { borderRadius: 999, background: 'linear-gradient(90deg, #38bdf8, #34d399)' },
-                    }}
-                  />
-
-                </>
-              ) : (
-                <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                  {translate('Lägg till budget för att följa kassaanvändning.', 'Add a budget to track cash usage.')}
-                </Typography>
-              )}
-            </Stack>
-
-            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                {translate('Kapacitet vid kurs', 'Capacity at price')}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
-                  ? translate(
-                      `≈ ${fmtNum(sharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`,
-                      `≈ ${fmtNum(sharesAffordable)} shares at ${fmtCurrency(currentSharePrice)}`
-                    )
-                  : translate('Ingen livekurs tillgänglig.', 'No live price available.')}
-              </Typography>
-              <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: { xs: '1.05rem', md: '1.18rem' } }}>
-                {Number.isFinite(remainingCashSharePercent)
-                  ? translate(
-                      `${fmtPercent(remainingCashSharePercent)} av aktiestocken`,
-                      `${fmtPercent(remainingCashSharePercent)} of share base`
-                    )
-                  : translate('Beräknas när kurs och budget finns.', 'Calculated when price and budget exist.')}
-              </Typography>
-            </Stack>
-
-            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                {translate('Framåtblick', 'Forward look')}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                {est && Number.isFinite(est.daysToCompletion)
-                  ? translate(
-                      `${fmtNum(est.daysToCompletion)} handelsdagar kvar`,
-                      `${fmtNum(est.daysToCompletion)} trading days left`
-                    )
-                  : Number.isFinite(remainingCash) && remainingCash <= 0
-                  ? translate('Budget förbrukad', 'Budget spent')
-                  : translate('Lägg till budget', 'Add budget')}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#cbd5f5',
-                  fontWeight: 600,
-                }}
-              >
-                {est?.estimatedCompletionDate
-                  ? translate(`Klar: ${est.estimatedCompletionDate}`, `Complete: ${est.estimatedCompletionDate}`)
-                  : Number.isFinite(remainingCash) && remainingCash <= 0
-                  ? translate('Återköpsbudgeten är förbrukad.', 'The buyback budget is spent.')
-                  : translate('Behöver kassainformation för prognos.', 'Need cash information for forecast.')}
-              </Typography>
-            </Stack>
-          </Box>
-        </Box>
-      )}
-
-      {/* ===== Overview chart (FULLBREDD) ===== */}
       {subView === 'overview' && (
-        <Box
-          sx={{
-            mt: 2,
-            background: 'linear-gradient(135deg, rgba(15,23,42,0.7), rgba(17,24,39,0.7))',
-            border: '1px solid rgba(148,163,184,0.22)',
-            borderRadius: { xs: '14px', md: '16px' },
-
-            // Fullbleed-trick för att matcha dina andra komponenter
-            mx: { xs: -3, sm: -3, md: -4 },
-            px: { xs: 1, sm: 3, md: 4 },
-            py: { xs: 2, md: 2.5 },
-
-            height: isMobile ? 240 : 280,
-            overflow: 'visible',
-          }}
-        >
-          {loading ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1 }}>
-              <CircularProgress size={20} sx={{ color: '#38bdf8' }} />
-              <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                {translate('Laddar tidslinje…', 'Loading timeline…')}
-              </Typography>
-            </Box>
-          ) : error ? (
-            <Typography sx={{ color: '#fecaca' }}>
-              {translate('Fel', 'Error')}: {error}
-            </Typography>
-          ) : chartData.length ? (
-            <Box
-              sx={{
-                width: { xs: 'calc(100% + 16px)', sm: '100%' },
-                mx: { xs: -1, sm: 0, md: 0 },
-              }}
-            >
-            <ResponsiveContainer width="100%" height={isMobile ? 220 : 250}>
-              <AreaChart
-                data={chartData}
-                margin={{ top: 8, right: isMobile ? 0 : 8, left: isMobile ? 0 : 8, bottom: 8 }}
-              >
-                <defs>
-                  <linearGradient id="bbGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.6} />
-                    <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
-                <XAxis
-                  dataKey="x"
-                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'rgba(148,163,184,0.75)' }}
-                  tickLine={false}
-                  axisLine={{ stroke: 'rgba(148,163,184,0.25)' }}
-                  height={isMobile ? 36 : viewMode === 'daily' ? 42 : 30}
-                  interval={overviewXAxisInterval}
-                  minTickGap={isMobile ? 18 : viewMode === 'daily' ? 14 : 8}
-                  angle={isMobile ? 0 : viewMode === 'daily' ? -30 : 0}
-                  textAnchor={isMobile ? 'middle' : viewMode === 'daily' ? 'end' : 'middle'}
-                  tickFormatter={overviewXAxisTickFormatter}
-                />
-                <YAxis
-                  tick={{ fontSize: isMobile ? 10 : 11, fill: 'rgba(148,163,184,0.75)' }}
-                  tickLine={false}
-                  axisLine={{ stroke: 'rgba(148,163,184,0.25)' }}
-                  width={isMobile ? 40 : 60}
-                  tickFormatter={(v) => {
-                    if (!Number.isFinite(v)) return '–';
-                    if (isMobile) {
-                      if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })}M`;
-                      if (Math.abs(v) >= 1_000) return `${(v / 1_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })}k`;
-                      return Number(v).toLocaleString('sv-SE');
-                    }
-                    return `${fmtThousands(v, 1)} k`;
-                  }}
-                />
-                <RechartsTooltip
-                  contentStyle={{ background: 'rgba(15,23,42,0.92)', border: '1px solid rgba(96,165,250,0.25)', borderRadius: 12, color: '#f8fafc' }}
-                  formatter={(v) => [
-                    translate(`${fmtThousands(v, 1)} k aktier`, `${fmtThousands(v, 1)} k shares`),
-                    translate('Återköp', 'Buybacks'),
-                  ]}
-                />
-                <Area type="monotone" dataKey="sharesK" stroke="#38bdf8" strokeWidth={2.5} fill="url(#bbGradient)" fillOpacity={1} dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-            </Box>
-          ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'rgba(148,163,184,0.75)' }}>
-              {translate('Ingen återköpsdata tillgänglig.', 'No buyback data available.')}
-            </Box>
-          )}
-        </Box>
+        <LiveStockBuyBackOverviewSection
+          isMobile={isMobile}
+          translate={translate}
+          fxRate={fxRate}
+          fxUpdatedLabel={fxUpdatedLabel}
+          fxPairLabel={fxPairLabel}
+          fxRateDisplay={fxRateDisplay}
+          buybackBudgetSek={buybackBudgetSek}
+          cashUsagePercent={cashUsagePercent}
+          remainingCashSharePercent={remainingCashSharePercent}
+          buybackCash={buybackCash}
+          totalSpent={totalSpent}
+          remainingCash={remainingCash}
+          sharesAffordable={sharesAffordable}
+          currentSharePrice={currentSharePrice}
+          est={est}
+          estimateBuybackEur={estimateBuybackEur}
+          estimateBuybackSek={estimateBuybackSek}
+          estimateDividendEur={estimateDividendEur}
+          estimateDividendSek={estimateDividendSek}
+          estimateRetainedSek={estimateRetainedSek}
+          estimateSharesAffordable={estimateSharesAffordable}
+          estimateSharePercent={estimateSharePercent}
+          sharesAfterBuyback={sharesAfterBuyback}
+          dividendPerShareEur={dividendPerShareEur}
+          dividendPerShareSek={dividendPerShareSek}
+          estimateProFormaEps={estimateProFormaEps}
+          estimateEpsLift={estimateEpsLift}
+          eps2025={eps2025}
+          hasFullYear2025Reported={hasFullYear2025Reported}
+          yearEndLabel={yearEndLabel}
+          FORECAST_BUYBACK_LABEL={FORECAST_BUYBACK_LABEL}
+          FORECAST_DIVIDEND_LABEL={FORECAST_DIVIDEND_LABEL}
+          FORECAST_RETAINED_LABEL={FORECAST_RETAINED_LABEL}
+          FORECAST_CAPITAL_UPDATE_DATE={FORECAST_CAPITAL_UPDATE_DATE}
+          fmtNum={fmtNum}
+          fmtPercent={fmtPercent}
+          fmtCurrency={fmtCurrency}
+          fmtEuroMillions={fmtEuroMillions}
+          loading={loading}
+          error={error}
+          chartData={chartData}
+          overviewXAxisInterval={overviewXAxisInterval}
+          overviewXAxisTickFormatter={overviewXAxisTickFormatter}
+          viewMode={viewMode}
+          fmtThousands={fmtThousands}
+        />
       )}
 
       {subView === 'estimate' && (
-        <Box
-          sx={{
-            mt: 2,
-            background: 'rgba(15,23,42,0.55)',
-            border: '1px solid rgba(148,163,184,0.18)',
-            borderRadius: { xs: '14px', md: '16px' },
-            mx: { xs: -3, sm: -3, md: -4 },
-            px: { xs: 2, sm: 3, md: 4 },
-            py: { xs: 2, md: 2.5 },
-          }}
-        >
-          <Stack spacing={{ xs: 1.4, md: 2 }} alignItems="stretch">
-            <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.8)', letterSpacing: 1.2 }}>
-              {translate('EST / Prognos 2026 (baserat på 2025)', 'EST / Forecast 2026 (based on 2025)')}
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{
-                color: 'rgba(191,219,254,0.88)',
-                background: 'rgba(30,41,59,0.45)',
-                border: '1px solid rgba(96,165,250,0.25)',
-                borderRadius: '12px',
-                px: 1.5,
-                py: 1.1,
-              }}
-            >
-              {translate(
-                `Uppdaterat efter styrelsens besked ${FORECAST_CAPITAL_UPDATE_DATE}: ingen utdelning föreslås för 2025. Forecasten antar ${FORECAST_BUYBACK_LABEL} återköp, ${FORECAST_DIVIDEND_LABEL} utdelning och ${FORECAST_RETAINED_LABEL} kvar i kassan tills nytt mandat kommuniceras.`,
-                `Updated after the Board's ${FORECAST_CAPITAL_UPDATE_DATE} announcement: no dividend is proposed for 2025. The forecast assumes ${FORECAST_BUYBACK_LABEL} buybacks, ${FORECAST_DIVIDEND_LABEL} dividends, and ${FORECAST_RETAINED_LABEL} retained cash until a new mandate is communicated.`
-              )}
-            </Typography>
-
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={{ xs: 1.6, md: 2.2 }}
-              alignItems="stretch"
-              flexWrap="wrap"
-            >
-              <Box
-                sx={{
-                  flex: { xs: '0 0 auto', md: '1 1 260px' },
-                  background: 'linear-gradient(135deg, rgba(56,189,248,0.18), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(56,189,248,0.35)',
-                  borderRadius: '14px',
-                  p: { xs: 1.6, md: 2 },
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {hasFullYear2025Reported
-                    ? translate('Rapporterad helårsvinst 2025', 'Reported full-year profit 2025')
-                    : translate('Antagen vinst 2025', 'Assumed profit 2025')}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                  {Number.isFinite(profit2025EurM)
-                    ? translate(`${profit2025EurM.toFixed(1)} M€`, `${profit2025EurM.toFixed(1)} M€`)
-                    : translate('Saknar 2025‑data', 'Missing 2025 data')}
-                </Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                  {translate(
-                    `Antagande: ${FORECAST_BUYBACK_LABEL} återköp / ${FORECAST_DIVIDEND_LABEL} utdelning / ${FORECAST_RETAINED_LABEL} kvar`,
-                    `Assumption: ${FORECAST_BUYBACK_LABEL} buybacks / ${FORECAST_DIVIDEND_LABEL} dividends / ${FORECAST_RETAINED_LABEL} retained`
-                  )}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  flex: { xs: '0 0 auto', md: '1 1 260px' },
-                  background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(16,185,129,0.35)',
-                  borderRadius: '14px',
-                  p: { xs: 1.6, md: 2 },
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate(`Återköpsbudget (${FORECAST_BUYBACK_LABEL})`, `Buyback budget (${FORECAST_BUYBACK_LABEL})`)}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                  {Number.isFinite(estimateBuybackEur)
-                    ? `${fmtEuroMillions(estimateBuybackEur)}`
-                    : '–'}
-                </Typography>
-                <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                  {Number.isFinite(estimateBuybackSek) ? `${fmtCurrency(estimateBuybackSek)}` : '–'}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  flex: { xs: '0 0 auto', md: '1 1 260px' },
-                  background: 'linear-gradient(135deg, rgba(168,85,247,0.18), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(168,85,247,0.35)',
-                  borderRadius: '14px',
-                  p: { xs: 1.6, md: 2 },
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate(`Utdelningspott (${FORECAST_DIVIDEND_LABEL})`, `Dividend pool (${FORECAST_DIVIDEND_LABEL})`)}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                  {Number.isFinite(estimateDividendEur)
-                    ? `${fmtEuroMillions(estimateDividendEur)}`
-                    : '–'}
-                </Typography>
-                <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                  {Number.isFinite(estimateDividendSek) ? `${fmtCurrency(estimateDividendSek)}` : '–'}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
-                  {Number.isFinite(estimateRetainedSek)
-                    ? translate(
-                        `${fmtCurrency(estimateRetainedSek)} stannar i balansräkningen`,
-                        `${fmtCurrency(estimateRetainedSek)} stays on the balance sheet`
-                      )
-                    : translate('Behöver vinst och FX.', 'Needs profit and FX.')}
-                </Typography>
-              </Box>
-            </Stack>
-
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={{ xs: 1.6, md: 2.2 }}
-              alignItems="stretch"
-              flexWrap="wrap"
-            >
-              <Box
-                sx={{
-                  flex: { xs: '0 0 auto', md: '1 1 260px' },
-                  background: 'linear-gradient(135deg, rgba(56,189,248,0.14), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(56,189,248,0.35)',
-                  borderRadius: '14px',
-                  p: { xs: 1.6, md: 2 },
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate('Kapacitet vid kurs', 'Capacity at price')}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                  {Number.isFinite(estimateSharesAffordable) && Number.isFinite(currentSharePrice)
-                    ? translate(
-                        `≈ ${fmtNum(estimateSharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`,
-                        `≈ ${fmtNum(estimateSharesAffordable)} shares at ${fmtCurrency(currentSharePrice)}`
-                      )
-                    : translate('Ingen livekurs tillgänglig.', 'No live price available.')}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: { xs: '1.05rem', md: '1.18rem' } }}>
-                  {Number.isFinite(estimateSharePercent)
-                    ? translate(
-                        `${fmtPercent(estimateSharePercent)} av aktiestocken`,
-                        `${fmtPercent(estimateSharePercent)} of share base`
-                      )
-                    : translate('Beräknas när kurs finns.', 'Calculated when price is available.')}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  flex: { xs: '0 0 auto', md: '1 1 260px' },
-                  background: 'linear-gradient(135deg, rgba(245,158,11,0.18), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(245,158,11,0.35)',
-                  borderRadius: '14px',
-                  p: { xs: 1.6, md: 2 },
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate('EPS‑effekt (estimat)', 'EPS impact (estimate)')}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                  {Number.isFinite(eps2025) && Number.isFinite(estimateProFormaEps)
-                    ? translate(
-                        `${eps2025.toFixed(2)} € → ${estimateProFormaEps.toFixed(2)} €`,
-                        `${eps2025.toFixed(2)} € → ${estimateProFormaEps.toFixed(2)} €`
-                      )
-                    : translate('Behöver 2025‑EPS.', 'Needs 2025 EPS.')}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, color: '#f8fafc', fontSize: { xs: '1.05rem', md: '1.18rem' } }}>
-                  {Number.isFinite(estimateEpsLift)
-                    ? translate(
-                        `≈ ${estimateEpsLift >= 0 ? '+' : ''}${estimateEpsLift.toFixed(1)}% EPS`,
-                        `≈ ${estimateEpsLift >= 0 ? '+' : ''}${estimateEpsLift.toFixed(1)}% EPS`
-                      )
-                    : translate('Beräknas när data finns.', 'Calculated when data is available.')}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
-                  {translate(
-                    `Antag avslut till årsskiftet (${yearEndLabel.year}) • ${fmtNum(yearEndLabel.daysLeft)} dagar kvar`,
-                    `Assumes completion by year‑end (${yearEndLabel.year}) • ${fmtNum(yearEndLabel.daysLeft)} days left`
-                  )}
-                </Typography>
-              </Box>
-
-              <Box
-                sx={{
-                  flex: { xs: '0 0 auto', md: '1 1 260px' },
-                  background: 'linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(59,130,246,0.35)',
-                  borderRadius: '14px',
-                  p: { xs: 1.6, md: 2 },
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ color: 'rgba(226,232,240,0.85)', fontWeight: 700 }}>
-                  {translate('Utdelning per aktie (est)', 'Dividend per share (est)')}
-                </Typography>
-                <Typography sx={{ fontWeight: 700, fontSize: { xs: '1.05rem', md: '1.18rem' }, color: '#f8fafc' }}>
-                  {Number.isFinite(dividendPerShareEur)
-                    ? translate(
-                        `${dividendPerShareEur.toFixed(2)} €`,
-                        `${dividendPerShareEur.toFixed(2)} €`
-                      )
-                    : translate('Saknar data', 'Missing data')}
-                </Typography>
-                <Typography sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                  {Number.isFinite(dividendPerShareSek) ? `${dividendPerShareSek.toFixed(2)} SEK` : '–'}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
-                  {FORECAST_DIVIDEND_SHARE === 0
-                    ? translate('Ingen utdelning i detta forecastscenario.', 'No dividend in this forecast scenario.')
-                    : Number.isFinite(sharesAfterBuyback)
-                    ? translate(
-                        `Kvarvarande aktier: ${fmtNum(sharesAfterBuyback)}`,
-                        `Shares after buyback: ${fmtNum(sharesAfterBuyback)}`
-                      )
-                    : translate('Beräknas när kurs finns.', 'Calculated when price is available.')}
-                </Typography>
-              </Box>
-            </Stack>
-          </Stack>
-        </Box>
+        <LiveStockBuyBackEstimateSection
+          translate={translate}
+          FORECAST_BUYBACK_LABEL={FORECAST_BUYBACK_LABEL}
+          FORECAST_DIVIDEND_LABEL={FORECAST_DIVIDEND_LABEL}
+          FORECAST_RETAINED_LABEL={FORECAST_RETAINED_LABEL}
+          FORECAST_CAPITAL_UPDATE_DATE={FORECAST_CAPITAL_UPDATE_DATE}
+          hasFullYear2025Reported={hasFullYear2025Reported}
+          profit2025EurM={profit2025EurM}
+          estimateBuybackEur={estimateBuybackEur}
+          estimateBuybackSek={estimateBuybackSek}
+          estimateDividendEur={estimateDividendEur}
+          estimateDividendSek={estimateDividendSek}
+          estimateRetainedSek={estimateRetainedSek}
+          estimateSharesAffordable={estimateSharesAffordable}
+          currentSharePrice={currentSharePrice}
+          estimateSharePercent={estimateSharePercent}
+          eps2025={eps2025}
+          estimateProFormaEps={estimateProFormaEps}
+          estimateEpsLift={estimateEpsLift}
+          yearEndLabel={yearEndLabel}
+          dividendPerShareEur={dividendPerShareEur}
+          dividendPerShareSek={dividendPerShareSek}
+          sharesAfterBuyback={sharesAfterBuyback}
+          fmtNum={fmtNum}
+          fmtPercent={fmtPercent}
+          fmtCurrency={fmtCurrency}
+          fmtEuroMillions={fmtEuroMillions}
+        />
       )}
 
       {subView === 'overview' && (

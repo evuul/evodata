@@ -15,6 +15,7 @@ import {
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
+import { computeTrendDiff } from "@/lib/livePlayersControlPanel";
 
 const formatDateOnly = (value) => {
   if (!value) return null;
@@ -62,27 +63,39 @@ export default function LivePlayersControlPanelTrendSection({
     return abs;
   };
 
-  const changeColor =
-    trendSummary && Number.isFinite(trendSummary.absolute)
-      ? trendSummary.absolute >= 0
-        ? "#34d399"
-        : "#f87171"
-      : "rgba(148,163,184,0.75)";
-  const percentText =
-    trendSummary && Number.isFinite(trendSummary.percent)
-      ? `${trendSummary.percent > 0 ? "+" : ""}${percentFormatter.format(trendSummary.percent)}%`
-      : "—";
-  const absoluteText =
-    trendSummary && Number.isFinite(trendSummary.absolute) ? formatSigned(trendSummary.absolute) : "—";
-  const startText =
-    trendSummary?.start?.value != null ? numberFormatter.format(trendSummary.start.value) : "—";
-  const endText =
-    trendSummary?.end?.value != null ? numberFormatter.format(trendSummary.end.value) : "—";
-  const startDateText = formatDateOnly(trendSummary?.start?.date) ?? "—";
-  const endDateText = formatDateOnly(trendSummary?.end?.date) ?? "—";
   const movingAverageLabel = translate(`Glidande snitt ${movingAverageDays}d`, `Moving avg ${movingAverageDays}d`);
   const tooltipLabel = movingAverageOn ? movingAverageLabel : translate("Genomsnitt", "Average");
   const maxXTicks = isMobile ? 4 : 6;
+  const fallbackSummary = useMemo(() => computeTrendDiff(trendChartData), [trendChartData]);
+  const resolvedSummary = useMemo(() => {
+    if (
+      trendSummary &&
+      trendSummary.start?.value != null &&
+      trendSummary.end?.value != null
+    ) {
+      return trendSummary;
+    }
+    return fallbackSummary;
+  }, [fallbackSummary, trendSummary]);
+
+  const resolvedChangeColor =
+    resolvedSummary && Number.isFinite(resolvedSummary.absolute)
+      ? resolvedSummary.absolute >= 0
+        ? "#34d399"
+        : "#f87171"
+      : "rgba(148,163,184,0.75)";
+  const resolvedPercentText =
+    resolvedSummary && Number.isFinite(resolvedSummary.percent)
+      ? `${resolvedSummary.percent > 0 ? "+" : ""}${percentFormatter.format(resolvedSummary.percent)}%`
+      : "—";
+  const resolvedAbsoluteText =
+    resolvedSummary && Number.isFinite(resolvedSummary.absolute) ? formatSigned(resolvedSummary.absolute) : "—";
+  const resolvedStartText =
+    resolvedSummary?.start?.value != null ? numberFormatter.format(resolvedSummary.start.value) : "—";
+  const resolvedEndText =
+    resolvedSummary?.end?.value != null ? numberFormatter.format(resolvedSummary.end.value) : "—";
+  const resolvedStartDateText = formatDateOnly(resolvedSummary?.start?.date) ?? "—";
+  const resolvedEndDateText = formatDateOnly(resolvedSummary?.end?.date) ?? "—";
 
   const xAxisTicks = useMemo(() => {
     if (!Array.isArray(trendChartData) || !trendChartData.length) return undefined;
@@ -270,13 +283,13 @@ export default function LivePlayersControlPanelTrendSection({
         sx={{ color: "rgba(148,163,184,0.75)" }}
       >
         <Typography variant="caption">
-          {translate("Start", "Start")}: <strong>{startText}</strong> ({startDateText})
+          {translate("Start", "Start")}: <strong>{resolvedStartText}</strong> ({resolvedStartDateText})
         </Typography>
         <Typography variant="caption">
-          {translate("Slut", "End")}: <strong>{endText}</strong> ({endDateText})
+          {translate("Slut", "End")}: <strong>{resolvedEndText}</strong> ({resolvedEndDateText})
         </Typography>
-        <Typography variant="caption" sx={{ color: changeColor, fontWeight: 600 }}>
-          {translate("Förändring", "Change")}: {absoluteText} ({percentText}) {boostOn ? translate("• (boost +10%)", "• (boost +10%)") : ""}
+        <Typography variant="caption" sx={{ color: resolvedChangeColor, fontWeight: 600 }}>
+          {translate("Förändring", "Change")}: {resolvedAbsoluteText} ({resolvedPercentText}) {boostOn ? translate("• (boost +10%)", "• (boost +10%)") : ""}
           {movingAverageOn ? ` ${translate(`• glidande snitt ${movingAverageDays}d`, `• moving avg ${movingAverageDays}d`)}` : ""}
         </Typography>
       </Stack>

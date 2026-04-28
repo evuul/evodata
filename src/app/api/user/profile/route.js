@@ -36,6 +36,7 @@ export async function GET(request) {
   const { user } = resolved;
   const isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL;
   return json({
+    ok: true,
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
@@ -201,6 +202,7 @@ export async function PUT(request) {
       user.updatedAt = now;
       await setJson(getUserKey(user.email), user);
       return json({
+        ok: true,
         email: user.email,
         firstName: user.firstName ?? "",
         lastName: user.lastName ?? "",
@@ -312,6 +314,7 @@ export async function PUT(request) {
   await setJson(getUserKey(user.email), user);
 
   return json({
+    ok: true,
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",

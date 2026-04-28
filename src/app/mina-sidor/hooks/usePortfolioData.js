@@ -140,6 +140,12 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         return 0;
     }, [stockPrice]);
 
+    const previousClose = useMemo(() => {
+        const raw = stockPrice?.price?.regularMarketPreviousClose ?? stockPrice?.price?.previousClose;
+        const value = Number(raw?.raw ?? raw);
+        return Number.isFinite(value) && value > 0 ? value : null;
+    }, [stockPrice]);
+
     const declaredUpcomingDividend = useMemo(() => {
         const planned = Array.isArray(dividendData?.plannedDividends)
             ? dividendData.plannedDividends
@@ -207,7 +213,19 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
             ? (referenceDividendPerShare / currentPrice) * 100
             : null;
 
-    const todaysChangePercent = Number(stockPrice?.price?.regularMarketChangePercent?.raw ?? null);
+    const todaysChangePercent = useMemo(() => {
+        const direct = Number(
+            stockPrice?.price?.regularMarketChangePercent?.raw ??
+                stockPrice?.price?.regularMarketChangePercent ??
+                stockPrice?.regularMarketChangePercent ??
+                null
+        );
+        if (Number.isFinite(direct)) return direct;
+        if (Number.isFinite(currentPrice) && currentPrice > 0 && Number.isFinite(previousClose) && previousClose > 0) {
+            return ((currentPrice - previousClose) / previousClose) * 100;
+        }
+        return null;
+    }, [currentPrice, previousClose, stockPrice]);
 
     const todaysChangePerShare = useMemo(() => {
         if (!Number.isFinite(currentPrice) || currentPrice <= 0) return null;
