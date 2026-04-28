@@ -53,6 +53,242 @@ const toSortedDividends = (items) =>
     })
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
+const buildQuarterlyFinancialSeries = (reportsAscending, formatQuarterAxisLabel) =>
+  safeList(reportsAscending).map((report) => ({
+    period: `${report.quarter} ${report.year}`,
+    xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+    year: report.year,
+    quarter: report.quarter,
+    revenue: Number.isFinite(report.operatingRevenues) ? report.operatingRevenues : null,
+    margin: Number.isFinite(report.adjustedOperatingMargin) ? report.adjustedOperatingMargin : null,
+    eps: Number.isFinite(report.adjustedEarningsPerShare) ? report.adjustedEarningsPerShare : null,
+  }));
+
+const buildAnnualFinancialSeries = (quarterlySeries) => {
+  const map = new Map();
+  safeList(quarterlySeries).forEach((item) => {
+    if (!Number.isFinite(item?.year)) return;
+    if (!map.has(item.year)) {
+      map.set(item.year, {
+        year: item.year,
+        revenue: 0,
+        marginSum: 0,
+        marginCount: 0,
+        eps: 0,
+        epsCount: 0,
+      });
+    }
+    const entry = map.get(item.year);
+    if (Number.isFinite(item.revenue)) entry.revenue += item.revenue;
+    if (Number.isFinite(item.margin)) {
+      entry.marginSum += item.margin;
+      entry.marginCount += 1;
+    }
+    if (Number.isFinite(item.eps)) {
+      entry.eps += item.eps;
+      entry.epsCount += 1;
+    }
+  });
+
+  return Array.from(map.values())
+    .map((entry) => ({
+      period: `${entry.year}`,
+      xLabel: `${entry.year}`,
+      year: entry.year,
+      revenue: entry.revenue || null,
+      margin: entry.marginCount > 0 ? entry.marginSum / entry.marginCount : null,
+      eps: entry.epsCount > 0 ? entry.eps : null,
+    }))
+    .sort((a, b) => a.year - b.year);
+};
+
+const buildRegulatedQuarterlySeries = (reportsAscending, formatQuarterAxisLabel) =>
+  safeList(reportsAscending)
+    .map((report) => ({
+      period: `${report.quarter} ${report.year}`,
+      xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+      year: report.year,
+      quarter: report.quarter,
+      totalRevenue: Number.isFinite(report.operatingRevenues) ? report.operatingRevenues : null,
+      regulatedShare: Number.isFinite(report.regulatedMarket) ? report.regulatedMarket : null,
+    }))
+    .filter((row) => Number.isFinite(row.totalRevenue) || Number.isFinite(row.regulatedShare));
+
+const buildRegulatedAnnualSeries = (reportsAscending) => {
+  const map = new Map();
+  safeList(reportsAscending).forEach((report) => {
+    const year = Number(report?.year);
+    if (!Number.isFinite(year)) return;
+    if (!map.has(year)) {
+      map.set(year, { year, totalRevenue: 0, regulatedRevenue: 0 });
+    }
+    const entry = map.get(year);
+    const total = Number(report.operatingRevenues);
+    const regulatedPct = Number(report.regulatedMarket);
+    if (Number.isFinite(total)) entry.totalRevenue += total;
+    if (Number.isFinite(total) && Number.isFinite(regulatedPct)) {
+      entry.regulatedRevenue += (total * regulatedPct) / 100;
+    }
+  });
+
+  return Array.from(map.values())
+    .map((entry) => ({
+      year: entry.year,
+      totalRevenue: entry.totalRevenue,
+      regulatedRevenue: entry.regulatedRevenue,
+      regulatedShare:
+        Number.isFinite(entry.totalRevenue) && entry.totalRevenue > 0
+          ? (entry.regulatedRevenue / entry.totalRevenue) * 100
+          : null,
+    }))
+    .sort((a, b) => a.year - b.year);
+};
+
+const buildDividendSeries = (dividendData, fxRate) => {
+  const items = toSortedDividends([
+    ...(dividendData?.historicalDividends || []),
+    ...(dividendData?.plannedDividends || []),
+  ]);
+
+  return items.map((item) => {
+    const date = new Date(item.date);
+    const validDate = Number.isFinite(date.getTime());
+    const label = validDate
+      ? date.toLocaleDateString("sv-SE", { year: "numeric", month: "short" })
+      : item.date;
+    const year = validDate ? date.getFullYear() : null;
+    const isFuture = validDate ? date > new Date() : false;
+    const dividendSek = Number.isFinite(item.dividendPerShare) ? item.dividendPerShare : null;
+    const dividendValue =
+      Number.isFinite(fxRate) && fxRate > 0 && dividendSek != null ? dividendSek / fxRate : dividendSek;
+    const yieldValue = Number.isFinite(item.sharePriceAtDividend)
+      ? (item.dividendPerShare / item.sharePriceAtDividend) * 100
+      : Number.isFinite(item.dividendYield)
+      ? item.dividendYield
+      : null;
+    return {
+      period: label,
+      xLabel: label,
+      year,
+      dividend: dividendValue,
+      yield: yieldValue,
+      rawDate: item.date,
+      isFuture,
+    };
+  });
+};
+
+const buildGeoQuarterlySeries = (reportsAscending, regionOptions, formatQuarterAxisLabel) =>
+  safeList(reportsAscending)
+    .map((report) => {
+      const entry = {
+        period: `${report.quarter} ${report.year}`,
+        xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+        year: report.year,
+        quarter: report.quarter,
+      };
+      let total = 0;
+      safeList(regionOptions).forEach(({ key }) => {
+        const raw = Number(report?.[key]);
+        const value = Number.isFinite(raw) && raw > 0 ? raw : 0;
+        entry[key] = value;
+        total += value;
+      });
+      entry.total = total;
+      return entry;
+    })
+    .filter((entry) => entry.total > 0);
+
+const buildGeoAnnualSeries = (geoQuarterlySeries, regionOptions) => {
+  const map = new Map();
+  safeList(geoQuarterlySeries).forEach((entry) => {
+    if (!Number.isFinite(entry?.year)) return;
+    if (!map.has(entry.year)) {
+      map.set(entry.year, {
+        year: entry.year,
+        xLabel: `${entry.year}`,
+        period: `${entry.year}`,
+        europe: 0,
+        asia: 0,
+        northAmerica: 0,
+        latAm: 0,
+        other: 0,
+        total: 0,
+      });
+    }
+    const target = map.get(entry.year);
+    safeList(regionOptions).forEach(({ key }) => {
+      const value = Number(entry[key]);
+      if (Number.isFinite(value)) {
+        target[key] += value;
+        target.total += value;
+      }
+    });
+  });
+  return Array.from(map.values())
+    .filter((entry) => entry.total > 0)
+    .sort((a, b) => a.year - b.year);
+};
+
+const buildProductMixQuarterlySeries = (reportsAscending, formatQuarterAxisLabel) =>
+  safeList(reportsAscending)
+    .map((report) => {
+      const live = Number.isFinite(report?.liveCasino) ? Math.max(report.liveCasino, 0) : 0;
+      const rng = Number.isFinite(report?.rng) ? Math.max(report.rng, 0) : 0;
+      const total = live + rng;
+      return {
+        period: `${report.quarter} ${report.year}`,
+        xLabel: formatQuarterAxisLabel(report.year, report.quarter),
+        year: report.year,
+        quarter: report.quarter,
+        liveCasino: live,
+        rng,
+        total,
+      };
+    })
+    .filter((entry) => entry.total > 0);
+
+const buildProductMixAnnualSeries = (productMixQuarterlySeries) => {
+  const map = new Map();
+  safeList(productMixQuarterlySeries).forEach((entry) => {
+    if (!Number.isFinite(entry?.year)) return;
+    if (!map.has(entry.year)) {
+      map.set(entry.year, {
+        year: entry.year,
+        xLabel: `${entry.year}`,
+        period: `${entry.year}`,
+        liveCasino: 0,
+        rng: 0,
+        total: 0,
+      });
+    }
+    const target = map.get(entry.year);
+    const live = Number(entry.liveCasino);
+    const rng = Number(entry.rng);
+    if (Number.isFinite(live)) {
+      target.liveCasino += live;
+      target.total += live;
+    }
+    if (Number.isFinite(rng)) {
+      target.rng += rng;
+      target.total += rng;
+    }
+  });
+  return Array.from(map.values())
+    .filter((entry) => entry.total > 0)
+    .sort((a, b) => a.year - b.year);
+};
+
+const computeCurrentYearProfit = (reports, year) =>
+  safeList(reports).reduce(
+    (sum, report) =>
+      report.year === year &&
+      Number.isFinite(report?.adjustedProfitForPeriod)
+        ? sum + report.adjustedProfitForPeriod
+        : sum,
+    0
+  );
+
 const BASE_METRIC_CONFIGS = {
   revenue: {
     labelSv: "Nettoomsättning",
@@ -203,6 +439,16 @@ export {
   formatQuarterAxisLabel,
   toSortedReports,
   toSortedDividends,
+  buildQuarterlyFinancialSeries,
+  buildAnnualFinancialSeries,
+  buildRegulatedQuarterlySeries,
+  buildRegulatedAnnualSeries,
+  buildDividendSeries,
+  buildGeoQuarterlySeries,
+  buildGeoAnnualSeries,
+  buildProductMixQuarterlySeries,
+  buildProductMixAnnualSeries,
+  computeCurrentYearProfit,
   BASE_METRIC_CONFIGS,
   formatMetricValue,
   computeChangeValue,
