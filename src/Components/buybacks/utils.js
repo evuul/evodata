@@ -9,6 +9,7 @@ export const totalSharesData = [
   { date: "2023", totalShares: 213566498 },
   { date: "2024", totalShares: 209562751 },
   { date: "2025", totalShares: 204462162 },
+  { date: "2026", totalShares: 199226613 },
 ];
 
 export const calculateEvolutionOwnershipPerYear = (data) => {
