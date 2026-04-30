@@ -2271,5 +2271,13 @@
     "Snittkurs": 622.66,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-04-30",
+    "Antal_aktier": -5235549,
+    "Transaktionsvärde": 0,
+    "Snittkurs": 0,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   }
 ]
