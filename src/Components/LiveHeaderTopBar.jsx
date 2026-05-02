@@ -36,6 +36,7 @@ export default function LiveHeaderTopBar({
   blankningChipLabel,
   blankningChipLabelMobile,
   lobbyAthLabel,
+  handlePanelChange,
   showDonationNudge,
   donationNudgeText,
   donationNudgeClickLabel,
@@ -125,11 +126,10 @@ export default function LiveHeaderTopBar({
 
             {isMobileMenu ? (
               <Chip
-                component={NextLink}
-                href="/?panel=short"
                 clickable
                 size="small"
                 label={blankningChipLabelMobile}
+                onClick={() => handlePanelChange(null, "short")}
                 sx={{
                   flex: "0 0 auto",
                   width: "fit-content",
@@ -152,11 +152,10 @@ export default function LiveHeaderTopBar({
             {!isMobileMenu && (
               <>
                 <Chip
-                  component={NextLink}
-                  href="/?panel=short"
                   clickable
                   size="small"
                   label={blankningChipLabel}
+                  onClick={() => handlePanelChange(null, "short")}
                   sx={{
                     backgroundColor: "rgba(250,204,21,0.18)",
                     color: "#facc15",

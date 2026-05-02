@@ -146,6 +146,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           blankningChipLabel={blankningChipLabel}
           blankningChipLabelMobile={blankningChipLabelMobile}
           lobbyAthLabel={lobbyAthLabel}
+          handlePanelChange={handlePanelChange}
           showDonationNudge={showDonationNudge}
           donationNudgeText={donationNudgeText}
           donationNudgeClickLabel={donationNudgeClickLabel}
