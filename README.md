@@ -53,3 +53,32 @@ Det här projektet är både ett sätt för mig att lära mig mer om finansdata,
 
 ---
 
+## Local Backup (Upstash -> Local)
+
+Projektet använder Upstash/Redis för dynamisk data. För lokal backup och restore:
+
+1. Starta lokal Redis:
+```bash
+npm run redis:local:up
+```
+
+2. Ta backup från Upstash till lokal fil:
+```bash
+npm run backup:upstash
+```
+Filen sparas i `backups/upstash/`.
+
+3. Återställ backup till lokal Redis-container:
+```bash
+npm run restore:local-redis -- backups/upstash/<din-backupfil>.json
+```
+
+4. Stäng lokal Redis när du är klar:
+```bash
+npm run redis:local:down
+```
+
+Tips för lokal analys:
+- Sätt `LOCAL_REDIS_URL=redis://127.0.0.1:6379` i `.env.local` för att köra lobbydata helt lokalt (utan Upstash-läsning för csStore).
+- Sätt `NEXT_PUBLIC_LOCAL_HOURLY_COMPARE=1` i `.env.local` för att visa timjämförelsen (00–23) lokalt. Default är av, så den följer inte med i pushad version.
+- Sätt `CS_MAX_SAMPLES` i `.env`/`.env.local` (t.ex. `50000`) för att behålla fler mätpunkter per spel lokalt.

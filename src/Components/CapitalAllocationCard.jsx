@@ -11,18 +11,12 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { useFxRateContext } from "@/context/FxRateContext";
 import { useTranslate } from "@/context/LocaleContext";
+import { findLatestReport, sortReports } from "@/lib/reportUtils";
 import { calculateEvolutionOwnershipPerYear, totalSharesData } from "./buybacks/utils";
 
 const DEFAULT_MANDATE_SEK = Number(process.env.NEXT_PUBLIC_BUYBACK_MANDATE_SEK) || null;
 const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === "1";
 const DAY_MS = 24 * 60 * 60 * 1000;
-const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
-
-const sortReports = (reports = []) =>
-  [...reports].sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year;
-    return (QUARTER_ORDER[a.quarter] || 0) - (QUARTER_ORDER[b.quarter] || 0);
-  });
 
 const formatPct = (value) =>
   Number.isFinite(value) ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—";
@@ -39,7 +33,7 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   const translate = useTranslate();
   const [ownershipFromApi, setOwnershipFromApi] = useState(null);
 
-  const { latestDividend, lastFourReports, ttmEps, ttmOcf, latestReport } = useMemo(() => {
+  const { latestDividend, ttmEps, ttmOcf, latestReport } = useMemo(() => {
     const reports = sortReports(financialReports?.financialReports || []);
     const lastFour = reports.slice(-4);
     const epsSum = lastFour.reduce((acc, r) => (Number.isFinite(r?.adjustedEarningsPerShare) ? acc + r.adjustedEarningsPerShare : acc), 0);
@@ -49,7 +43,7 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     dividends.sort((a, b) => new Date(a.date) - new Date(b.date));
     const latest = dividends.length ? dividends[dividends.length - 1] : null;
 
-    return { latestDividend: latest, lastFourReports: lastFour, ttmEps: epsSum || null, ttmOcf: ocfSum || null, latestReport: reports[reports.length - 1] || null };
+    return { latestDividend: latest, ttmEps: epsSum || null, ttmOcf: ocfSum || null, latestReport: findLatestReport(reports) };
   }, [dividendData, financialReports]);
 
   const latestPrice = useMemo(() => {

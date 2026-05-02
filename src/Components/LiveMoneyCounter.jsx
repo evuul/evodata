@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Typography,
@@ -15,6 +15,7 @@ import financialReports from '@/app/data/financialReports.json';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
+import { findLatestReport } from '@/lib/reportUtils';
 
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 
@@ -27,20 +28,6 @@ const formatSEK = (value, fractionDigits = 0) =>
     : '–';
 
 const formatCurrency = (value) => `${formatSEK(value, 0)} SEK`;
-
-const findLatestReport = (reports) => {
-  if (!Array.isArray(reports)) return null;
-  return reports.reduce((latest, current) => {
-    const latestYear = Number(latest?.year) || 0;
-    const currentYear = Number(current?.year) || 0;
-    if (currentYear !== latestYear) {
-      return currentYear > latestYear ? current : latest;
-    }
-    const latestQ = QUARTER_ORDER[latest?.quarter] || 0;
-    const currentQ = QUARTER_ORDER[current?.quarter] || 0;
-    return currentQ > latestQ ? current : latest;
-  }, reports[0]);
-};
 
 const quarterDayCount = (year, quarter) => {
   const q = QUARTER_ORDER[quarter] || 0;
@@ -96,26 +83,40 @@ const LiveMoneyCounter = () => {
     : null;
 
   const [counterValue, setCounterValue] = useState(0);
+  const animationFrameRef = useRef(null);
 
   useEffect(() => {
+    if (animationFrameRef.current != null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
     if (!(perSecond > 0)) {
       setCounterValue(totalProfitSEK);
       return () => {};
     }
+
     const start = Date.now();
     const durationMs = 10_000; // animate for 10 seconds up to total
     const tick = () => {
       const elapsed = Date.now() - start;
       if (elapsed >= durationMs) {
         setCounterValue(totalProfitSEK);
+        animationFrameRef.current = null;
         return;
       }
       const progress = elapsed / durationMs;
       setCounterValue(totalProfitSEK * progress);
-      requestAnimationFrame(tick);
+      animationFrameRef.current = requestAnimationFrame(tick);
     };
-    requestAnimationFrame(tick);
-    return () => {};
+
+    animationFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animationFrameRef.current != null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
   }, [perSecond, totalProfitSEK]);
 
   const chips = [

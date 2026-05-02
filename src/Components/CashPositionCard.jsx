@@ -16,14 +16,7 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 import { useTranslate } from "@/context/LocaleContext";
-
-const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
-
-const sortReports = (reports = []) =>
-  [...reports].sort((a, b) => {
-    if (a.year !== b.year) return a.year - b.year;
-    return (QUARTER_ORDER[a.quarter] || 0) - (QUARTER_ORDER[b.quarter] || 0);
-  });
+import { sortReports } from "@/lib/reportUtils";
 
 const fmtCash = (value) =>
   Number.isFinite(value)

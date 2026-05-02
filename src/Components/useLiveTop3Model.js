@@ -180,6 +180,14 @@ export const formatAmount = (value, locale) => {
   })} €`;
 };
 
+export const normalizeGameSlug = (value) =>
+  typeof value === "string"
+    ? value
+        .trim()
+        .toLowerCase()
+        .replace(/[_\s]+/g, "-")
+    : null;
+
 export const formatGameName = (slug) =>
   slug
     ?.toLowerCase()
@@ -187,6 +195,16 @@ export const formatGameName = (slug) =>
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ") ?? "—";
+
+export const formatGameTitle = (value) =>
+  typeof value === "string"
+    ? value
+        .toLowerCase()
+        .split(/[_\s]+/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ")
+    : "—";
 
 export const formatSettledLabel = (value, locale) => {
   if (!value) return null;
@@ -202,6 +220,37 @@ export const getColorForGameSlug = (slug) => {
   if (!slug || typeof slug !== "string") return "#94a3b8";
   const normalized = slug.toLowerCase().replace(/_/g, "-");
   return getGameColor(normalized);
+};
+
+export const buildChartData = (entries = []) => {
+  const map = new Map();
+  entries.forEach((entry) => {
+    if (!entry?.gameShow) return;
+    const amount = Number(entry.totalAmount);
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    const multiplier = Number(entry.multiplier);
+    const gameKey = entry.gameShow;
+    const slug = normalizeGameSlug(entry.gameShow);
+    const color = (slug && getGameColor(slug)) || "#38bdf8";
+    if (!map.has(gameKey)) {
+      map.set(gameKey, {
+        gameShow: gameKey,
+        displayName: formatGameTitle(entry.gameShow),
+        slug,
+        color,
+        totalAmount: 0,
+        hits: 0,
+        maxMultiplier: Number.isFinite(multiplier) ? multiplier : null,
+      });
+    }
+    const current = map.get(gameKey);
+    current.totalAmount += amount;
+    current.hits += 1;
+    if (Number.isFinite(multiplier)) {
+      current.maxMultiplier = Math.max(current.maxMultiplier ?? multiplier, multiplier);
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
 };
 
 const buildEntryKey = (entry = {}) =>

@@ -33,8 +33,7 @@ export default function MinaSidorHeader({
   hourlyComparison,
 }) {
   const { locale, setLocale } = useLocale();
-  const todayColor = // eslint-disable-line no-unused-vars
-    Number.isFinite(todaysChangePercent) && todaysChangePercent < 0 ? "#fecaca" : "#bbf7d0";
+  const todayColor = Number.isFinite(todaysChangePercent) && todaysChangePercent < 0 ? "#fecaca" : "#bbf7d0";
 
   // Notification Menu State
   const [notifAnchorEl, setNotifAnchorEl] = useState(null);

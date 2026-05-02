@@ -82,30 +82,6 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
     };
 
-    const handleReset = async () => {
-        if (!window.confirm(translate("Vill du verkligen nollställa ditt innehav?", "Reset your holdings?"))) {
-            return;
-        }
-        try {
-            setLoading(true);
-            const data = await fetchAuthJson(token, "/api/user/profile", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "reset" }),
-            });
-            setProfile(data.profile ?? profile);
-            pushActivity({
-                type: "reset",
-                timestamp: new Date().toISOString(),
-            });
-            setError("");
-        } catch (err) {
-            setError(err?.message || "Något gick fel.");
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleSet = async ({ shares, avgCost, acquisitionDate }) => {
         if (!(shares >= 0) || !(avgCost >= 0)) {
             setError(translate("Ange giltiga värden.", "Enter valid values."));
@@ -178,7 +154,6 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         activity,
         handleBuy,
         handleSell,
-        handleReset,
         handleSet,
         handleImportTransactions
     };

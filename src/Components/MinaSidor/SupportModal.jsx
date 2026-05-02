@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, Chip, Dialog, Divider, Stack, TextField, Typography } from "@mui/material";
 import { actionCard, buttonStyles, statusColors, text } from "./styles";
 import { fetchAuthJson } from "@/lib/clientApi";
@@ -26,7 +26,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
     [viewerEmail]
   );
 
-  const loadTickets = async () => {
+  const loadTickets = useCallback(async () => {
     if (!token) return;
     try {
       setLoading(true);
@@ -41,7 +41,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, translate]);
 
   const loadTicketDetail = async (id) => {
     if (!token || !id) return;
@@ -94,8 +94,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
     setSelected(null);
     setReopenMessage("");
     loadTickets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [loadTickets, open]);
 
   useEffect(() => {
     if (!seenStorageKey) return;

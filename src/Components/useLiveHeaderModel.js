@@ -121,10 +121,6 @@ export function useLiveHeaderModel() {
   }, []);
 
   const lobbyAthLabel = useMemo(() => formatLobbyAthLabel(lobbyAth, translate), [lobbyAth, translate]);
-  const lobbyAthLabelMobile = useMemo(
-    () => formatLobbyAthLabel(lobbyAth, translate, true),
-    [lobbyAth, translate]
-  );
 
   const fetchShortFromHistory = useCallback(async () => {
     const now = Date.now();

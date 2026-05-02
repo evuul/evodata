@@ -76,7 +76,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     blankningChipLabel,
     blankningChipLabelMobile,
     lobbyAthLabel,
-    lobbyAthLabelMobile,
     userMenuAnchor,
     setUserMenuAnchor,
     handleLogout,
@@ -147,7 +146,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           blankningChipLabel={blankningChipLabel}
           blankningChipLabelMobile={blankningChipLabelMobile}
           lobbyAthLabel={lobbyAthLabel}
-          lobbyAthLabelMobile={lobbyAthLabelMobile}
           showDonationNudge={showDonationNudge}
           donationNudgeText={donationNudgeText}
           donationNudgeClickLabel={donationNudgeClickLabel}

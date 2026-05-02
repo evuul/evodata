@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Box, Button, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -25,6 +25,7 @@ import dividendData from "@/app/data/dividendData.json";
 import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
 import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions";
 import { useAdminTools } from "@/app/mina-sidor/hooks/useAdminTools";
+import { useMinaSidorInbox } from "@/app/mina-sidor/hooks/useMinaSidorInbox";
 import { AdminPanel } from "@/app/mina-sidor/components/AdminPanel";
 import { AdminDialogs } from "@/app/mina-sidor/components/AdminDialogs";
 import { AccountSettingsDialog } from "@/app/mina-sidor/components/AccountSettingsDialog";
@@ -52,7 +53,6 @@ export default function MinaSidorPage() {
     dividendsReceived, setDividendsReceived,
     dividendInputMode, setDividendInputMode,
     isTraderMode, setIsTraderMode,
-    buybackData,
 
     currentPrice,
     upcomingDividend,
@@ -82,7 +82,6 @@ export default function MinaSidorPage() {
   const {
     handleBuy,
     handleSell,
-    handleReset,
     handleSet,
     handleImportTransactions
   } = usePortfolioActions({ token, user, profile, setProfile, setLoading, setError, translate });
@@ -99,7 +98,6 @@ export default function MinaSidorPage() {
   const [manageOpen, setManageOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
-  const [supportIndicator, setSupportIndicator] = useState(null); // null | "open" | "reply"
   const [adminSupportInboxOpen, setAdminSupportInboxOpen] = useState(false);
 
   // Manage Modal State (local to page or extract? keeping local as it's UI state)
@@ -113,21 +111,27 @@ export default function MinaSidorPage() {
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
 
   const [notificationsSaving, setNotificationsSaving] = useState(false);
-  const [privateMessages, setPrivateMessages] = useState([]);
-  const [privateMessagesLoading, setPrivateMessagesLoading] = useState(false);
-  const [privateMessagesError, setPrivateMessagesError] = useState("");
-  const [privateMessagesUnread, setPrivateMessagesUnread] = useState(0);
 
-  const triggerSupportPreview = (type) => {
+  const {
+    supportIndicator,
+    privateMessages,
+    privateMessagesLoading,
+    privateMessagesError,
+    privateMessagesUnread,
+    loadSupportIndicator,
+    dismissPrivateMessages,
+  } = useMinaSidorInbox({ token, isAuthenticated, effectiveIsAdmin, translate });
+
+  const triggerSupportPreview = useCallback((type) => {
     if (typeof window === "undefined") return;
     window.dispatchEvent(
       new CustomEvent("evodata.support.notify.preview", {
         detail: { type },
       })
     );
-  };
+  }, []);
 
-  const handleOpenSupport = async () => {
+  const handleOpenSupport = useCallback(async () => {
     if (effectiveIsAdmin) {
       setAdminSupportInboxOpen(true);
       try {
@@ -138,32 +142,16 @@ export default function MinaSidorPage() {
       return;
     }
     setSupportOpen(true);
-  };
+  }, [adminTools, effectiveIsAdmin]);
 
   const showPrivateMessagesBox = Boolean(privateMessages.length);
-
-  const handleDismissPrivateMessages = async () => {
-    if (!token || !isAuthenticated) return;
-    try {
-      const data = await fetchAuthJson(token, "/api/user/messages", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "delete" }),
-      });
-      setPrivateMessages(Array.isArray(data?.messages) ? data.messages : []);
-      setPrivateMessagesUnread(Number(data?.unreadCount) || 0);
-    } catch {
-      setPrivateMessagesError(translate("Kunde inte ta bort meddelanden.", "Could not delete messages."));
-    }
-  };
 
   useEffect(() => {
     if (!isAuthenticated || typeof window === "undefined") return;
     const shouldOpenSupport = new URLSearchParams(window.location.search).get("support") === "1";
     if (!shouldOpenSupport) return;
     handleOpenSupport();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, effectiveIsAdmin]);
+  }, [handleOpenSupport, isAuthenticated]);
 
   // --- Handlers ---
 
@@ -226,7 +214,6 @@ export default function MinaSidorPage() {
       setAthEmailEnabled(Boolean(payload?.notifications?.athEmail));
     } catch (err) {
       setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
-      setAthEmailEnabled((prev) => prev); // no-op
     } finally {
       setNotificationsSaving(false);
     }
@@ -244,7 +231,6 @@ export default function MinaSidorPage() {
       setDailyAvgEmailEnabled(Boolean(payload?.notifications?.dailyAvgEmail));
     } catch (err) {
       setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
-      setDailyAvgEmailEnabled((prev) => prev); // no-op
     } finally {
       setNotificationsSaving(false);
     }
@@ -279,102 +265,6 @@ export default function MinaSidorPage() {
     logout();
     router.push("/");
   };
-
-  const loadPrivateMessages = async () => {
-    if (!token || !isAuthenticated) {
-      setPrivateMessages([]);
-      setPrivateMessagesUnread(0);
-      return;
-    }
-    try {
-      setPrivateMessagesLoading(true);
-      setPrivateMessagesError("");
-      const data = await fetchAuthJson(token, "/api/user/messages", {
-        cache: "no-store",
-      });
-      const rows = Array.isArray(data?.messages) ? data.messages : [];
-      const unreadCount = Number(data?.unreadCount) || 0;
-      setPrivateMessages(rows);
-      setPrivateMessagesUnread(unreadCount);
-
-      if (unreadCount > 0) {
-        const markData = await fetchAuthJson(token, "/api/user/messages", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "markRead" }),
-        });
-        setPrivateMessages(Array.isArray(markData?.messages) ? markData.messages : rows);
-        setPrivateMessagesUnread(Number(markData?.unreadCount) || 0);
-      }
-    } catch {
-      setPrivateMessages([]);
-      setPrivateMessagesUnread(0);
-      setPrivateMessagesError(translate("Kunde inte ladda PM.", "Could not load PM."));
-    } finally {
-      setPrivateMessagesLoading(false);
-    }
-  };
-
-  // Support Indicator Logic (move to page effect)
-  const loadSupportIndicator = async () => {
-    if (!token) return;
-    try {
-      if (effectiveIsAdmin) {
-        const data = await fetchAuthJson(token, "/api/admin/support/tickets", {
-          cache: "no-store",
-        });
-        const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
-        const hasOpenUnanswered = tickets.some(
-          (t) => String(t?.status || "").toLowerCase() === "open" && !Boolean(t?.hasReply)
-        );
-        setSupportIndicator(hasOpenUnanswered ? "open" : null);
-        return;
-      }
-
-      const data = await fetchAuthJson(token, "/api/support/tickets", {
-        cache: "no-store",
-      });
-      const tickets = Array.isArray(data?.tickets) ? data.tickets : [];
-      const hasReply = tickets.some((t) => t?.hasReply && t?.status === "answered");
-      const hasOpen = tickets.some((t) => t?.status === "open");
-      setSupportIndicator(hasReply ? "reply" : hasOpen ? "open" : null);
-    } catch { }
-  };
-
-  useEffect(() => {
-    if (!token || !isAuthenticated) {
-      setSupportIndicator(null);
-      return;
-    }
-    let cancelled = false;
-    const run = async () => {
-      if (cancelled) return;
-      await loadSupportIndicator();
-    };
-    run();
-    const id = setInterval(run, 60 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, isAuthenticated, effectiveIsAdmin]);
-
-  useEffect(() => {
-    if (!token || !isAuthenticated) return;
-    let cancelled = false;
-    const run = async () => {
-      if (cancelled) return;
-      await loadPrivateMessages();
-    };
-    run();
-    const id = setInterval(run, 30 * 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, isAuthenticated]);
 
   // --- UI Constants ---
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
@@ -451,7 +341,7 @@ export default function MinaSidorPage() {
                   <Button
                     size="small"
                     variant="outlined"
-                    onClick={handleDismissPrivateMessages}
+                    onClick={dismissPrivateMessages}
                     sx={{
                       textTransform: "none",
                       borderColor: "rgba(255,255,255,0.45)",
