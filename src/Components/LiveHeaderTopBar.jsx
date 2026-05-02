@@ -36,7 +36,6 @@ export default function LiveHeaderTopBar({
   blankningChipLabel,
   blankningChipLabelMobile,
   lobbyAthLabel,
-  lobbyAthLabelMobile,
   showDonationNudge,
   donationNudgeText,
   donationNudgeClickLabel,
@@ -52,6 +51,10 @@ export default function LiveHeaderTopBar({
   setLocale,
   showMyPageNewBadge,
 }) {
+  const supportChipLabel = isMobileMenu
+    ? translate("Stötta", "Support")
+    : translate("Stötta sidan", "Support the site");
+
   return (
     <Box
       sx={{
@@ -60,7 +63,7 @@ export default function LiveHeaderTopBar({
         alignItems: "center",
         flexDirection: { xs: "row", md: "row" },
         gap: { xs: 1.5, md: 2.5 },
-        flexWrap: { xs: "wrap", lg: "nowrap" },
+        flexWrap: "nowrap",
       }}
     >
       <Box
@@ -90,7 +93,7 @@ export default function LiveHeaderTopBar({
               gap: { xs: 0.6, sm: 1 },
               minWidth: 0,
               flex: "1 1 auto",
-              flexWrap: { xs: "wrap", lg: "nowrap" },
+              flexWrap: "nowrap",
               "& .MuiChip-root": { flexShrink: 0 },
             }}
           >
@@ -120,9 +123,40 @@ export default function LiveHeaderTopBar({
               }}
             />
 
+            {isMobileMenu ? (
+              <Chip
+                component={NextLink}
+                href="/?panel=short"
+                clickable
+                size="small"
+                label={blankningChipLabelMobile}
+                sx={{
+                  flex: "1 1 0",
+                  minWidth: 0,
+                  backgroundColor: "rgba(250,204,21,0.14)",
+                  color: "#facc15",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(250,204,21,0.28)",
+                  height: 22,
+                  maxWidth: "32%",
+                  "& .MuiChip-label": {
+                    px: 0.55,
+                    fontSize: "0.56rem",
+                    fontWeight: 800,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  },
+                }}
+              />
+            ) : null}
+
             {!isMobileMenu && (
               <>
                 <Chip
+                  component={NextLink}
+                  href="/?panel=short"
+                  clickable
                   size="small"
                   label={blankningChipLabel}
                   sx={{
@@ -445,235 +479,70 @@ export default function LiveHeaderTopBar({
           </Stack>
         </Box>
 
-        <Box
-          sx={{
-            display: { xs: "flex", lg: "none" },
-            flexWrap: "nowrap",
-            gap: 0.5,
-            width: "100%",
-            overflow: "hidden",
-            alignItems: "center",
-          }}
-        >
-          <Chip
-            size="small"
-            label={blankningChipLabelMobile}
-            sx={{
-              backgroundColor: "rgba(250,204,21,0.14)",
-              color: "#facc15",
-              borderRadius: "999px",
-              border: "1px solid rgba(250,204,21,0.28)",
-              height: 20,
-              flex: "1 1 0",
-              minWidth: 0,
-              "& .MuiChip-label": {
-                px: 0.55,
-                fontSize: "0.56rem",
-                fontWeight: 800,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              },
-            }}
-          />
-          {lobbyAthLabelMobile ? (
-            <Chip
-              size="small"
-              label={lobbyAthLabelMobile}
-              sx={{
-                backgroundColor: "rgba(52,211,153,0.14)",
-                color: "#34d399",
-                borderRadius: "999px",
-                border: "1px solid rgba(52,211,153,0.26)",
-                height: 20,
-                flex: "1 1 0",
-                minWidth: 0,
-                "& .MuiChip-label": {
-                  px: 0.55,
-                  fontSize: "0.56rem",
-                  fontWeight: 800,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                },
-              }}
-            />
-          ) : null}
-          <Chip
-            component={NextLink}
-            href="/disclaimer"
-            clickable
-            size="small"
-            label={translate("Disclaimer", "Disclaimer")}
-            sx={{
-              backgroundColor: "rgba(56,189,248,0.12)",
-              color: "#7dd3fc",
-              borderRadius: "999px",
-              border: "1px solid rgba(56,189,248,0.22)",
-              height: 20,
-              flex: "0 0 auto",
-              "& .MuiChip-label": { px: 0.55, fontSize: "0.56rem", fontWeight: 900 },
-            }}
-          />
-        </Box>
-      </Box>
-
-      {isMobileMenu ? (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            mt: 0.6,
-          }}
-        >
+        {isMobileMenu ? (
           <Box
             sx={{
-              position: "relative",
-              width: "100%",
-              maxWidth: 360,
-              borderRadius: "999px",
-              p: 0.25,
-              background: "linear-gradient(135deg, rgba(236,72,153,0.7), rgba(14,165,233,0.65))",
-              boxShadow: "0 18px 45px rgba(14,165,233,0.25)",
-              overflow: "visible",
               display: "flex",
+              flexDirection: "row",
+              gap: 0.5,
+              width: "100%",
+              mt: 0.6,
               alignItems: "center",
-              justifyContent: "center",
-              "&::after": {
-                content: '""',
-                position: "absolute",
-                inset: "-24% -10%",
-                background: "radial-gradient(circle, rgba(236,72,153,0.28), transparent 45%)",
-                filter: "blur(28px)",
-                zIndex: 0,
-              },
+              flexWrap: "nowrap",
             }}
           >
-            {showDonationNudge ? (
-              <Box
-                component="a"
-                href={supportUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{
-                  position: "absolute",
-                  top: "calc(100% + 10px)",
-                  left: 12,
-                  right: "auto",
-                  display: "flex",
-                  background: "rgba(8,15,30,0.95)",
-                  border: "1px solid rgba(56,189,248,0.32)",
-                  borderRadius: "14px",
-                  boxShadow: "0 20px 55px rgba(8,47,73,0.45)",
-                  px: 1.3,
-                  py: 1.15,
-                  maxWidth: 260,
-                  minWidth: 210,
-                  zIndex: 5,
-                  flexDirection: "column",
-                  gap: 0.6,
-                  backdropFilter: "blur(12px)",
-                  transform: "translateX(-2px)",
-                  cursor: "pointer",
-                  textDecoration: "none",
-                  "@keyframes nudgeFloat": {
-                    "0%": { transform: "translateY(0px)" },
-                    "50%": { transform: "translateY(-3px)" },
-                    "100%": { transform: "translateY(0px)" },
-                  },
-                  "@keyframes arrowBounce": {
-                    "0%": { transform: "translate(0, 0)" },
-                    "50%": { transform: "translate(2px, -2px)" },
-                    "100%": { transform: "translate(0, 0)" },
-                  },
-                  animation: "nudgeFloat 6s ease-in-out infinite",
-                }}
-              >
-                <Typography variant="caption" sx={{ color: "#e2e8f0", lineHeight: 1.6, fontWeight: 500 }}>
-                  {donationNudgeText}
-                </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
-                  <Stack direction="row" spacing={0.6} alignItems="center">
-                    <Box
-                      component="span"
-                      sx={{
-                        fontSize: "1rem",
-                        color: "#f9a8d4",
-                        animation: "arrowBounce 1.8s ease-in-out infinite",
-                      }}
-                    >
-                      ↗
-                    </Box>
-                    <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>
-                      {donationNudgeClickLabel}
-                    </Typography>
-                  </Stack>
-                  <IconButton
-                    size="small"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      handleDismissDonationNudge();
-                    }}
-                    sx={{
-                      color: "rgba(226,232,240,0.7)",
-                      "&:hover": { color: "#f8fafc" },
-                    }}
-                  >
-                    <CloseRounded fontSize="small" />
-                  </IconButton>
-                </Stack>
-                <Box
-                  sx={{
-                    position: "absolute",
-                    top: -7,
-                    left: 32,
-                    width: 16,
-                    height: 16,
-                    transform: "rotate(45deg)",
-                    background: "rgba(8,15,30,0.95)",
-                    border: "1px solid rgba(56,189,248,0.32)",
-                  }}
-                />
-              </Box>
-            ) : null}
-
             <Chip
               component="a"
               href={supportUrl}
               target="_blank"
               rel="noopener noreferrer"
               clickable
-              size="medium"
-              icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
-              label={translate("Stötta sidan", "Support the site")}
+              size="small"
+              icon={null}
+              label={supportChipLabel}
               sx={{
-                position: "relative",
-                zIndex: 1,
-                width: "100%",
-                justifyContent: "center",
+                flex: "1 1 0",
+                minWidth: 0,
                 background: "rgba(8,15,30,0.9)",
                 color: "#f8fafc",
                 borderRadius: "999px",
-                border: "none",
-                boxShadow: "0 12px 28px rgba(0,0,0,0.42)",
-                height: 44,
+                border: "1px solid rgba(236,72,153,0.28)",
+                boxShadow: "0 12px 28px rgba(0,0,0,0.26)",
+                height: 22,
                 "& .MuiChip-label": {
-                  px: 1.8,
-                  fontSize: "0.94rem",
+                  px: 0.55,
+                  fontSize: "0.56rem",
                   fontWeight: 800,
-                  letterSpacing: 0.35,
+                  letterSpacing: 0.15,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
                 },
-                "& .MuiChip-icon": { fontSize: "1.2rem" },
                 "&:hover": {
-                  boxShadow: "0 14px 32px rgba(0,0,0,0.55)",
+                  boxShadow: "0 14px 32px rgba(0,0,0,0.42)",
                   background: "rgba(8,15,30,0.96)",
                 },
               }}
             />
+            <Chip
+              component={NextLink}
+              href="/disclaimer"
+              clickable
+              size="small"
+              label={translate("Disclaimer", "Disclaimer")}
+              sx={{
+                flex: "0 0 auto",
+                backgroundColor: "rgba(56,189,248,0.12)",
+                color: "#7dd3fc",
+                borderRadius: "999px",
+                border: "1px solid rgba(56,189,248,0.22)",
+                height: 22,
+                "& .MuiChip-label": { px: 0.55, fontSize: "0.56rem", fontWeight: 900 },
+              }}
+            />
           </Box>
-        </Box>
-      ) : null}
+        ) : null}
+      </Box>
     </Box>
   );
 }
