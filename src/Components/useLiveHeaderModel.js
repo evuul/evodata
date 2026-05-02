@@ -447,8 +447,8 @@ export function useLiveHeaderModel() {
   const blankningChipLabelMobile = loadingShort
     ? translate("Blankning…", "Short…")
     : Number.isFinite(shortPercent)
-    ? translate(`Blankning ${shortPercent.toFixed(2)}%`, `Short ${shortPercent.toFixed(2)}%`)
-    : translate("Blankning –", "Short –");
+    ? translate(`Short ${shortPercent.toFixed(2)}%`, `Short ${shortPercent.toFixed(2)}%`)
+    : translate("Short –", "Short –");
   const marketStatusChip = isMarketOpen()
     ? {
         label: translate("Marknaden öppen", "Market open"),
