@@ -131,20 +131,18 @@ export default function LiveHeaderTopBar({
                 size="small"
                 label={blankningChipLabelMobile}
                 sx={{
-                  flex: "1 1 0",
-                  minWidth: 0,
+                  flex: "0 0 auto",
+                  width: "fit-content",
+                  flexShrink: 0,
                   backgroundColor: "rgba(250,204,21,0.14)",
                   color: "#facc15",
                   borderRadius: "999px",
                   border: "1px solid rgba(250,204,21,0.28)",
                   height: 22,
-                  maxWidth: "32%",
                   "& .MuiChip-label": {
                     px: 0.55,
-                    fontSize: "0.56rem",
+                    fontSize: "0.58rem",
                     fontWeight: 800,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
                     whiteSpace: "nowrap",
                   },
                 }}
