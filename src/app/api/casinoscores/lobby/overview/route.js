@@ -21,6 +21,7 @@ import {
   resolveRecoveryDate,
   shouldUseLiveTrackerRecovery,
 } from "@/lib/liveTrackerRecovery";
+import { buildStuckAdjustedDailyTotals, computeTrailingStuckMeta } from "@/lib/stuckGames";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -968,6 +969,56 @@ export async function GET(req) {
       aggMs = Date.now() - fallbackAggStart;
     }
 
+    const rawPerSlugData = perSlugData.map((item) => ({
+      ...item,
+      daily: Array.isArray(item.daily) ? item.daily.map((row) => ({ ...row })) : [],
+    }));
+    const stuckSeriesMap = await getSeriesBulk(SERIES_SLUGS, Math.max(targetDays, 30)).catch(() => new Map());
+    const stuckBySlug = new Map();
+    for (const slug of SERIES_SLUGS) {
+      stuckBySlug.set(slug, computeTrailingStuckMeta(stuckSeriesMap.get(slug) ?? [], { minRun: 8 }));
+    }
+    const stuckAdjusted = buildStuckAdjustedDailyTotals(perSlugData, stuckBySlug, {
+      lookbackDays: 14,
+    });
+
+    perSlugData = perSlugData.map((item) => {
+      const adjustedItem = stuckAdjusted.adjustedPerSlugData.find((entry) => entry.slug === item.slug) ?? item;
+      const adjustedAverage =
+        Array.isArray(adjustedItem.daily) && adjustedItem.daily.length
+          ? Math.round(
+              (adjustedItem.daily.reduce((sum, row) => sum + (Number(row?.avg) || 0), 0) /
+                adjustedItem.daily.length) *
+                100
+            ) / 100
+          : item.summary?.average ?? null;
+      return {
+        ...item,
+        daily: adjustedItem.daily,
+        summary: {
+          ...(item.summary || {}),
+          average: adjustedAverage,
+        },
+      };
+    });
+
+    dailyTotals = applyDailyTotalOverrides(
+      stuckAdjusted.adjustedDailyTotals.length ? stuckAdjusted.adjustedDailyTotals : dailyTotals
+    );
+    ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
+    ({ peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd));
+    days7 = dailyTotals.slice(-7);
+    days30 = dailyTotals.slice(-30);
+    slugAverages = perSlugData.map(({ slug, summary }) => ({
+      slug,
+      avgPlayers: summary.average,
+    }));
+    slugDetails = perSlugData.map(({ slug, summary }) => ({
+      slug,
+      latest: summary.latest,
+      ath: summary.ath,
+    }));
+
     const storedTodayPeak = await getDailyLobbyPeak(todayYmd);
     todayPeak = pickDailyPeakPreference(storedTodayPeak, todayPeak, todayYmd);
 
@@ -984,15 +1035,18 @@ export async function GET(req) {
     }
     ath = finalAth ?? athWithToday ?? storedAth ?? ath;
 
-    const slugDaily = Object.fromEntries(
-      perSlugData.map(({ slug, daily }) => [slug, daily])
-    );
+    const slugDaily = Object.fromEntries(perSlugData.map(({ slug, daily }) => [slug, daily]));
+    const rawSlugDaily = Object.fromEntries(rawPerSlugData.map(({ slug, daily }) => [slug, daily]));
+    const rawDailyTotals = stuckAdjusted.rawDailyTotals?.length ? stuckAdjusted.rawDailyTotals : dailyTotals;
 
     const trendDelta = recomputeTrendDelta(dailyTotals);
+    const rawTrendDelta = recomputeTrendDelta(rawDailyTotals);
 
     const basePayload = {
       ok: true,
       dailyTotals,
+      rawDailyTotals,
+      adjustedDailyTotals: stuckAdjusted.adjustedDailyTotals?.length ? stuckAdjusted.adjustedDailyTotals : dailyTotals,
       ath,
       todayPeak,
       averages: { days7, days30 },
@@ -1000,7 +1054,10 @@ export async function GET(req) {
       slugAverages,
       slugDetails,
       slugDaily,
+      rawSlugDaily,
       trendDelta,
+      rawTrendDelta,
+      stuckAdjustment: stuckAdjusted.stuckAdjustment ?? [],
       generatedAt: new Date().toISOString(),
       recovery: recoveryMeta,
     };

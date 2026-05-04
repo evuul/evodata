@@ -37,6 +37,7 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
+import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import {
   computeBuybackSummary,
   computeLobbyTrend,
@@ -201,13 +202,44 @@ export default function LiveLoggedOutPreview({
   const { locale, setLocale } = useLocale();
   const numberLocale = resolveNumberLocale(locale);
   const dateLocale = locale === "en" ? "en-GB" : "sv-SE";
+  const [adjustedAveragePlayersData, setAdjustedAveragePlayersData] = useState(null);
   const formatDate = (value) => {
     if (!value) return null;
     const date = new Date(value);
     return Number.isNaN(date.valueOf()) ? null : date.toLocaleDateString(dateLocale);
   };
+  useEffect(() => {
+    let cancelled = false;
+    const loadAdjustedPlayers = async () => {
+      try {
+        const json = await fetchOverviewShared(200);
+        const rows = Array.isArray(json?.adjustedDailyTotals)
+          ? json.adjustedDailyTotals
+          : Array.isArray(json?.dailyTotals)
+            ? json.dailyTotals
+            : [];
+        const next = rows
+          .map((row) => ({
+            Datum: row?.date,
+            Players: Number(row?.avgPlayers),
+          }))
+          .filter((row) => row.Datum && Number.isFinite(row.Players));
+        if (!cancelled && next.length) {
+          setAdjustedAveragePlayersData(next);
+        }
+      } catch {
+        // Keep the static fallback if the adjusted overview cannot be loaded.
+      }
+    };
+    loadAdjustedPlayers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const previewPlayersData = adjustedAveragePlayersData?.length ? adjustedAveragePlayersData : averagePlayersData ?? [];
   const { latest, previous } = pickLatestReports(financialReports?.financialReports ?? []);
-  const { latestDay, weeklyAvg } = computePlayersPreview(averagePlayersData ?? []);
+  const { latestDay, weeklyAvg } = computePlayersPreview(previewPlayersData);
   const latestDividend = pickLatestDividend(dividendData);
 
   const ebitdaValue = latest?.adjustedEBITDA ?? null;
@@ -312,7 +344,7 @@ export default function LiveLoggedOutPreview({
   const insiderValue = formatCurrencySek(latestInsiderBuy?.valueSek, numberLocale);
 
   const revenueAth = computeRevenueAth(financialReports?.financialReports ?? []);
-  const lobbyTrend = computeLobbyTrend(averagePlayersData ?? []);
+  const lobbyTrend = computeLobbyTrend(previewPlayersData);
   const buybackSummary = computeBuybackSummary(buybackData);
   const shareholderReturn = computeShareholderReturn(dividendData, buybackData);
 
@@ -397,8 +429,8 @@ export default function LiveLoggedOutPreview({
       ? latest.operatingRevenues * (1 + lobbyTrend.pct / 100)
       : null;
 
-  const lobbyRecord = Array.isArray(averagePlayersData)
-    ? averagePlayersData.reduce((best, item) => {
+  const lobbyRecord = Array.isArray(previewPlayersData)
+    ? previewPlayersData.reduce((best, item) => {
         const players = Number(item?.Players ?? item?.players);
         const dateStr = item?.Datum ?? item?.date ?? null;
         if (!Number.isFinite(players) || !dateStr) return best;

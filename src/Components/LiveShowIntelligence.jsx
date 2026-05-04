@@ -282,14 +282,18 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         setOverviewError("");
         const json = await fetchOverviewShared(REPORT_LOOKBACK_DAYS);
 
-        const rows = Array.isArray(json?.dailyTotals)
-          ? json.dailyTotals
-              .map((row) => ({
-                Datum: row?.date,
-                Players: Number(row?.avgPlayers),
-              }))
-              .filter((row) => row?.Datum && Number.isFinite(row?.Players))
-          : [];
+        const dailyRows = Array.isArray(json?.adjustedDailyTotals)
+          ? json.adjustedDailyTotals
+          : Array.isArray(json?.dailyTotals)
+            ? json.dailyTotals
+            : [];
+
+        const rows = dailyRows
+          .map((row) => ({
+            Datum: row?.date,
+            Players: Number(row?.avgPlayers),
+          }))
+          .filter((row) => row?.Datum && Number.isFinite(row?.Players));
 
         const averages = Array.isArray(json?.slugAverages)
           ? json.slugAverages

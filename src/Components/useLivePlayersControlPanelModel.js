@@ -231,7 +231,11 @@ export default function useLivePlayersControlPanelModel() {
     const cached = force ? null : overviewCache.get(cacheKey);
     if (cached) {
       setOverviewError("");
-      setDailyTotals(cached.dailyTotals);
+      setDailyTotals(
+        Array.isArray(cached.adjustedDailyTotals) && cached.adjustedDailyTotals.length
+          ? cached.adjustedDailyTotals
+          : cached.dailyTotals
+      );
       setSlugAverages(cached.slugAverages);
       setSlugDetails(cached.slugDetails);
       const cachedDailyEntries = Array.isArray(cached.slugDailyEntries) ? cached.slugDailyEntries : [];
@@ -300,9 +304,21 @@ export default function useLivePlayersControlPanelModel() {
       const todaysPeak = normalizeTodayPeak(json?.todayPeak);
       const yesterdaysPeak = normalizeTodayPeak(json?.yesterdayPeak);
       const overviewAth = normalizeLobbyAth(json?.ath);
+      const adjustedTotals = Array.isArray(json?.adjustedDailyTotals)
+        ? json.adjustedDailyTotals
+            .map((row) => ({ date: row?.date, avgPlayers: Number(row?.avgPlayers) }))
+            .filter((row) => row?.date && Number.isFinite(row?.avgPlayers))
+        : totals;
+      const rawTotals = Array.isArray(json?.rawDailyTotals)
+        ? json.rawDailyTotals
+            .map((row) => ({ date: row?.date, avgPlayers: Number(row?.avgPlayers) }))
+            .filter((row) => row?.date && Number.isFinite(row?.avgPlayers))
+        : totals;
 
       const payload = {
-        dailyTotals: totals,
+        dailyTotals: adjustedTotals,
+        adjustedDailyTotals: adjustedTotals,
+        rawDailyTotals: rawTotals,
         slugAverages: averages,
         slugDetails: details,
         slugDailyEntries,
@@ -316,7 +332,7 @@ export default function useLivePlayersControlPanelModel() {
         overviewCache.set(cacheKey, payload, OVERVIEW_TTL);
       }
 
-      setDailyTotals(totals);
+      setDailyTotals(adjustedTotals);
       setSlugAverages(averages);
       setSlugDetails(details);
       const map = new Map(slugDailyEntries);
