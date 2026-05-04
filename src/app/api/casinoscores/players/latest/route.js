@@ -1,10 +1,13 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-import { getLatestPlayersSnapshot, getLatestSample } from "@/lib/csStore";
+import { getLatestPlayersSnapshot, getLatestSample, getSeriesBulk } from "@/lib/csStore";
+import { computeTrailingStuckMeta } from "@/lib/stuckGames";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=120";
+const STUCK_LOOKBACK_DAYS = 90;
+const STUCK_MIN_RUN = 8;
 
 function resJSON(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -28,6 +31,12 @@ export async function GET() {
           players: Number.isFinite(Number(item?.players)) ? Number(item.players) : null,
           fetchedAt: item?.fetchedAt || null,
           ageSeconds: Number.isFinite(ts) ? Math.max(0, Math.round((now - ts) / 1000)) : null,
+          stuck: Boolean(item?.stuck),
+          stuckDays: Number.isFinite(Number(item?.stuckDays)) ? Math.max(1, Math.round(Number(item.stuckDays))) : null,
+          stuckSince: item?.stuckSince || null,
+          stuckLatestAt: item?.stuckLatestAt || null,
+          stuckValue: Number.isFinite(Number(item?.stuckValue)) ? Math.round(Number(item.stuckValue)) : null,
+          stuckRunLength: Number.isFinite(Number(item?.stuckRunLength)) ? Math.round(Number(item.stuckRunLength)) : null,
         };
       });
       return resJSON({
@@ -38,6 +47,7 @@ export async function GET() {
       });
     }
 
+    const seriesMap = await getSeriesBulk(SERIES_SLUGS, STUCK_LOOKBACK_DAYS).catch(() => new Map());
     const items = [];
     let newestTs = 0;
 
@@ -57,6 +67,25 @@ export async function GET() {
         });
       } else {
         items.push({ id: slug, players: null, fetchedAt: null, ageSeconds: null });
+      }
+    }
+
+    for (const item of items) {
+      const stuckMeta = computeTrailingStuckMeta(seriesMap.get(item.id) ?? [], { minRun: STUCK_MIN_RUN });
+      if (stuckMeta) {
+        item.stuck = true;
+        item.stuckDays = stuckMeta.stuckDays;
+        item.stuckSince = stuckMeta.stuckSince;
+        item.stuckLatestAt = stuckMeta.stuckLatestAt;
+        item.stuckValue = stuckMeta.stuckValue;
+        item.stuckRunLength = stuckMeta.stuckRunLength;
+      } else {
+        item.stuck = false;
+        item.stuckDays = null;
+        item.stuckSince = null;
+        item.stuckLatestAt = null;
+        item.stuckValue = null;
+        item.stuckRunLength = 0;
       }
     }
 

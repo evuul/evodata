@@ -421,12 +421,22 @@ export default function useLivePlayersControlPanelModel() {
     const sourceGames = contextGames ?? GAME_CONFIG ?? [];
     const rows = sourceGames.map((g) => {
       const entry = liveGames?.[g.id] || {};
-      const players = typeof entry.players === "number" ? entry.players : null;
+      const rawPlayers = typeof entry.players === "number" ? entry.players : null;
+      const stuck = Boolean(entry.stuck);
+      const players = stuck ? null : rawPlayers;
       return {
         id: g.id,
         label: g.label,
         players,
         updated: entry.updated || null,
+        stuck,
+        stuckDays: Number.isFinite(Number(entry.stuckDays)) ? Math.round(Number(entry.stuckDays)) : null,
+        stuckSince: entry.stuckSince ?? null,
+        stuckLatestAt: entry.stuckLatestAt ?? null,
+        stuckValue: Number.isFinite(Number(entry.stuckValue)) ? Math.round(Number(entry.stuckValue)) : null,
+        stuckRunLength: Number.isFinite(Number(entry.stuckRunLength))
+          ? Math.round(Number(entry.stuckRunLength))
+          : null,
         color: GAME_COLORS?.[g.id] || "#38bdf8",
       };
     });
@@ -625,15 +635,18 @@ export default function useLivePlayersControlPanelModel() {
       slugAverages
         .map((item) => {
           const game = SLUG_TO_GAME.get(item.slug);
+          const liveEntry = liveGames?.[game?.id] || {};
           return {
             slug: item.slug,
             label: game?.label || item.slug,
             avgPlayers: item.avgPlayers,
             color: GAME_COLORS?.[game?.id] || "#38bdf8",
+            stuck: Boolean(liveEntry.stuck),
+            stuckDays: Number.isFinite(Number(liveEntry.stuckDays)) ? Math.round(Number(liveEntry.stuckDays)) : null,
           };
         })
-        .sort((a, b) => b.avgPlayers - a.avgPlayers),
-    [slugAverages]
+        .sort((a, b) => Number(a.stuck) - Number(b.stuck) || b.avgPlayers - a.avgPlayers),
+    [slugAverages, liveGames]
   );
 
   const athRows = useMemo(
@@ -839,6 +852,11 @@ export default function useLivePlayersControlPanelModel() {
     return asiaLiveTotal / totalLivePlayers;
   }, [asiaLiveTotal, totalLivePlayers]);
 
+  const stuckLiveGamesCount = useMemo(
+    () => liveGamesList.reduce((count, row) => count + (row.stuck ? 1 : 0), 0),
+    [liveGamesList]
+  );
+
   const asiaRankingRows = useMemo(
     () => rankingRows.filter((row) => ASIA_GAME_KEY_SET.has(row.slug)),
     [rankingRows]
@@ -954,6 +972,7 @@ export default function useLivePlayersControlPanelModel() {
     asiaLiveTotal,
     asiaLiveShare,
     asiaTableRows,
+    stuckLiveGamesCount,
     formatDateTime,
   };
 }

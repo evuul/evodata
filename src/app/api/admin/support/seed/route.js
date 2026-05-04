@@ -68,6 +68,5 @@ export async function POST(request) {
     });
   }
 
-  return json({ ticketId: ticket.id });
+  return json({ ok: true, ticketId: ticket.id });
 }
-

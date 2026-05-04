@@ -3,7 +3,7 @@
 // Ranking section for the live players control panel.
 
 import React from "react";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Chip, Stack, Typography } from "@mui/material";
 
 export default function LivePlayersControlPanelRankingSection({
   rankingRows,
@@ -58,9 +58,31 @@ export default function LivePlayersControlPanelRankingSection({
                 #{index + 1} {row.label}
               </Typography>
             </Stack>
-            <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
-              {numberFormatter.format(row.avgPlayers)}
-            </Typography>
+            {row.stuck ? (
+              <Stack spacing={0.35} alignItems="flex-end">
+                <Chip
+                  size="small"
+                  label={translate(
+                    `Stuck ${Number.isFinite(row.stuckDays) ? `${row.stuckDays}d` : ""}`.trim(),
+                    `Stuck ${Number.isFinite(row.stuckDays) ? `${row.stuckDays}d` : ""}`.trim()
+                  )}
+                  sx={{
+                    backgroundColor: "rgba(120,53,15,0.28)",
+                    color: "#fbbf24",
+                    border: "1px solid rgba(251,191,36,0.4)",
+                    borderRadius: "999px",
+                    fontWeight: 700,
+                  }}
+                />
+                <Typography variant="caption" sx={{ color: "rgba(251,191,36,0.8)" }}>
+                  {translate("Siffran dold", "Value hidden")}
+                </Typography>
+              </Stack>
+            ) : (
+              <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
+                {numberFormatter.format(row.avgPlayers)}
+              </Typography>
+            )}
           </Stack>
         ))}
         {rankingRows.length === 0 && (

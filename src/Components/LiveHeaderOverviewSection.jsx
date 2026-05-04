@@ -50,7 +50,14 @@ function HeaderMetricCard({ title, dotColor, children }) {
 }
 
 function TopThreeMobileItem({ item, index, translate, formatTime }) {
-  const playersLabel = Number.isFinite(item.players) ? item.players.toLocaleString("sv-SE") : "—";
+  const playersLabel = item.stuck
+    ? translate(
+        `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim(),
+        `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim()
+      )
+    : Number.isFinite(item.players)
+    ? item.players.toLocaleString("sv-SE")
+    : "—";
   const updatedLabel = item.updated ? formatTime(item.updated) : null;
   const displayLabel = item.label === "Monopoly Big Baller" ? "Big Baller" : item.label;
   const rankBg =
@@ -112,7 +119,7 @@ function TopThreeMobileItem({ item, index, translate, formatTime }) {
       </Stack>
       <Typography
         sx={{
-          color: item.color,
+          color: item.stuck ? "#fbbf24" : item.color,
           fontWeight: 800,
           fontSize: "1rem",
           lineHeight: 1,
@@ -138,6 +145,7 @@ export default function LiveHeaderOverviewSection({
   loadingPlayers,
   hourlyComparisonMeta,
   maintenanceWarningLabel,
+  stuckLiveGamesCount,
   simulateLobby,
   setSimulateLobby,
   simulateButtonLabel,
@@ -254,6 +262,25 @@ export default function LiveHeaderOverviewSection({
             {hourlyComparisonMeta ? (
               <Typography variant="caption" sx={{ color: hourlyComparisonMeta.color }}>
                 {hourlyComparisonMeta.text}
+              </Typography>
+            ) : null}
+            {stuckLiveGamesCount > 0 ? (
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "#fbbf24",
+                  border: "1px solid rgba(251,191,36,0.35)",
+                  backgroundColor: "rgba(120,53,15,0.2)",
+                  borderRadius: "8px",
+                  px: 1,
+                  py: 0.4,
+                  fontWeight: 600,
+                }}
+              >
+                {translate(
+                  `${stuckLiveGamesCount} spel döljs som stuck tills de uppdateras.`,
+                  `${stuckLiveGamesCount} games are hidden as stuck until they update.`
+                )}
               </Typography>
             ) : null}
             {maintenanceWarningLabel ? (
@@ -483,8 +510,15 @@ export default function LiveHeaderOverviewSection({
               justifyContent="center"
               alignItems="stretch"
             >
-              {top3.map((item, index) => {
-                const playersLabel = Number.isFinite(item.players) ? item.players.toLocaleString("sv-SE") : "—";
+            {top3.map((item, index) => {
+                const playersLabel = item.stuck
+                  ? translate(
+                      `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim(),
+                      `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim()
+                    )
+                  : Number.isFinite(item.players)
+                  ? item.players.toLocaleString("sv-SE")
+                  : "—";
                 const updatedLabel = item.updated ? formatTime(item.updated) : null;
                 const displayLabel = item.label === "Monopoly Big Baller" ? "Big Baller" : item.label;
                 return (
@@ -522,12 +556,29 @@ export default function LiveHeaderOverviewSection({
                         <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 700, textAlign: "center" }}>
                           {displayLabel}
                         </Typography>
-                        <Typography variant="h3" sx={{ color: item.color, fontWeight: 700, textAlign: "center" }}>
+                        <Typography
+                          variant="h3"
+                          sx={{ color: item.stuck ? "#fbbf24" : item.color, fontWeight: 700, textAlign: "center" }}
+                        >
                           {playersLabel}
                         </Typography>
                       </Stack>
-                      <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                        {updatedLabel ? translate(`Senast ${updatedLabel}`, `Latest ${updatedLabel}`) : translate("Ingen tidsstämpel", "No timestamp")}
+                      <Typography
+                        variant="caption"
+                        sx={{ color: item.stuck ? "#fbbf24" : "rgba(148,163,184,0.7)" }}
+                      >
+                        {item.stuck
+                          ? translate(
+                              item.stuckSince
+                                ? `Stuck sedan ${formatTime(item.stuckSince)}`
+                                : "Ingen ny mätdata ännu",
+                              item.stuckSince
+                                ? `Stuck since ${formatTime(item.stuckSince)}`
+                                : "No fresh datapoints yet"
+                            )
+                          : updatedLabel
+                          ? translate(`Senast ${updatedLabel}`, `Latest ${updatedLabel}`)
+                          : translate("Ingen tidsstämpel", "No timestamp")}
                       </Typography>
                     </Box>
                   </Grid>

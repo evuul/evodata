@@ -6,6 +6,7 @@ import {
   normalizePlayers,
   getLatestSample,
   saveSample,
+  getSeriesBulk,
   maybeUpdateDailyLobbyPeak,
   getGlobalLobbyAth,
   setGlobalLobbyAth,
@@ -14,6 +15,7 @@ import {
   setLatestPlayersSnapshot,
   bucketLabelFromTs,
 } from "@/lib/csStore";
+import { computeTrailingStuckMeta } from "@/lib/stuckGames";
 import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
@@ -34,6 +36,8 @@ const SOURCE_STALE_AFTER_MS = 20 * 60 * 1000;
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=60";
 const BASELINE_DAYS = 30;
 const BASELINE_BUCKET_MS = 5 * 60 * 1000;
+const STUCK_LOOKBACK_DAYS = 90;
+const STUCK_MIN_RUN = 8;
 
 const g = globalThis;
 if (!g.__CS_LOBBY_CACHE__) {
@@ -202,11 +206,55 @@ export async function GET(req) {
     });
   }
 
+  if (shouldPersistSamples) {
+    // Persistera en sample per spel för varje ny lobby-snapshot.
+    // Detta gör att dagliga trenddata fortsätter fyllas även om cron missar.
+    const persistTasks = [];
+    for (const entry of items) {
+      if (!entry || entry.stale || !Number.isFinite(entry.players) || !entry.fetchedAt) continue;
+      persistTasks.push(
+        saveSample(entry.id, entry.fetchedAt, entry.players).catch(() => undefined)
+      );
+    }
+    if (persistTasks.length) {
+      await Promise.all(persistTasks);
+    }
+  }
+
+  const seriesMap = await getSeriesBulk(
+    GAME_CONFIG.map((game) => game.id).filter(Boolean),
+    STUCK_LOOKBACK_DAYS
+  ).catch(() => new Map());
+  const stuckById = new Map();
+  for (const game of GAME_CONFIG) {
+    const series = seriesMap.get(game.id) ?? [];
+    stuckById.set(game.id, computeTrailingStuckMeta(series, { minRun: STUCK_MIN_RUN }));
+  }
+
+  for (const entry of items) {
+    const stuckMeta = stuckById.get(entry.id);
+    if (stuckMeta) {
+      entry.stuck = true;
+      entry.stuckDays = stuckMeta.stuckDays;
+      entry.stuckSince = stuckMeta.stuckSince;
+      entry.stuckLatestAt = stuckMeta.stuckLatestAt;
+      entry.stuckValue = stuckMeta.stuckValue;
+      entry.stuckRunLength = stuckMeta.stuckRunLength;
+    } else {
+      entry.stuck = false;
+      entry.stuckDays = null;
+      entry.stuckSince = null;
+      entry.stuckLatestAt = null;
+      entry.stuckValue = null;
+      entry.stuckRunLength = 0;
+    }
+  }
+
   if (shouldPersistSamples && Number.isFinite(lobbyCreatedAt)) {
     let totalPlayers = 0;
     let countedGames = 0;
     for (const entry of items) {
-      if (!entry?.stale && Number.isFinite(entry?.players)) {
+      if (!entry?.stale && !entry?.stuck && Number.isFinite(entry?.players)) {
         totalPlayers += entry.players;
         countedGames += 1;
       }
@@ -230,24 +278,17 @@ export async function GET(req) {
   }
 
   if (shouldPersistSamples) {
-    // Persistera en sample per spel för varje ny lobby-snapshot.
-    // Detta gör att dagliga trenddata fortsätter fyllas även om cron missar.
-    const persistTasks = [];
-    for (const entry of items) {
-      if (!entry || entry.stale || !Number.isFinite(entry.players) || !entry.fetchedAt) continue;
-      persistTasks.push(
-        saveSample(entry.id, entry.fetchedAt, entry.players).catch(() => undefined)
-      );
-    }
-    if (persistTasks.length) {
-      await Promise.all(persistTasks);
-    }
-
     setLatestPlayersSnapshot({
       items: items.map((entry) => ({
         id: entry.id,
         players: entry.players,
         fetchedAt: entry.fetchedAt,
+        stuck: entry.stuck,
+        stuckDays: entry.stuckDays,
+        stuckSince: entry.stuckSince,
+        stuckLatestAt: entry.stuckLatestAt,
+        stuckValue: entry.stuckValue,
+        stuckRunLength: entry.stuckRunLength,
       })),
       updatedAt: newestTs ? new Date(newestTs).toISOString() : lobby?.createdAt ?? null,
     }).catch(() => undefined);

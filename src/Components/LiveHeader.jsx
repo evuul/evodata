@@ -83,6 +83,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     setLocale,
     showMyPageNewBadge,
     playerDataAttentionLabel,
+    stuckLiveGamesCount,
     cashView,
     setCashView,
     activePanel,
@@ -220,6 +221,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           loadingPlayers={loadingPlayers}
           hourlyComparisonMeta={hourlyComparisonMeta}
           maintenanceWarningLabel={maintenanceWarningLabel}
+          stuckLiveGamesCount={stuckLiveGamesCount}
           simulateLobby={simulateLobby}
           setSimulateLobby={setSimulateLobby}
           simulateButtonLabel={simulateButtonLabel}

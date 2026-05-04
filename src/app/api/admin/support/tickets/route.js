@@ -56,6 +56,5 @@ export async function GET(request) {
       hasReply: Boolean(t.adminReply?.message),
     }));
 
-  return json({ tickets: rows, total: rows.length });
+  return json({ ok: true, tickets: rows, total: rows.length });
 }
-

@@ -302,11 +302,19 @@ export function useLiveHeaderModel() {
     const games = playerGames ?? [];
     const rows = games.map((game) => {
       const entry = liveGames?.[game.id] || {};
-      const players = typeof entry.players === "number" ? entry.players : null;
+      const rawPlayers = typeof entry.players === "number" ? entry.players : null;
+      const stuck = Boolean(entry.stuck);
+      const players = stuck ? null : rawPlayers;
       return {
         ...game,
         players,
         updated: entry.updated ?? null,
+        stuck,
+        stuckDays: Number.isFinite(Number(entry.stuckDays)) ? Math.round(Number(entry.stuckDays)) : null,
+        stuckSince: entry.stuckSince ?? null,
+        stuckLatestAt: entry.stuckLatestAt ?? null,
+        stuckValue: Number.isFinite(Number(entry.stuckValue)) ? Math.round(Number(entry.stuckValue)) : null,
+        stuckRunLength: Number.isFinite(Number(entry.stuckRunLength)) ? Math.round(Number(entry.stuckRunLength)) : null,
         color: GAME_COLORS?.[game.id] || "#38bdf8",
       };
     });
@@ -326,7 +334,8 @@ export function useLiveHeaderModel() {
     let sum = 0;
     let hasData = false;
     games.forEach((game) => {
-      const value = liveGames?.[game.id]?.players;
+      const entry = liveGames?.[game.id] || {};
+      const value = entry.stuck ? null : entry.players;
       if (Number.isFinite(value)) {
         sum += value;
         hasData = true;
@@ -345,9 +354,18 @@ export function useLiveHeaderModel() {
           label: game.label || game.id,
           players: entry.players,
           stale: Boolean(entry.stale),
+          stuck: Boolean(entry.stuck),
         };
       })
-      .filter((game) => Number(game.players) === 0 && !game.stale);
+      .filter((game) => Number(game.players) === 0 && !game.stale && !game.stuck);
+  }, [playerGames, liveGames]);
+
+  const stuckLiveGamesCount = useMemo(() => {
+    const games = Array.isArray(playerGames) ? playerGames : [];
+    return games.reduce((count, game) => {
+      const entry = liveGames?.[game.id] || {};
+      return count + (entry.stuck ? 1 : 0);
+    }, 0);
   }, [playerGames, liveGames]);
 
   const simulatedTotalPlayers = useMemo(() => {
@@ -684,5 +702,6 @@ export function useLiveHeaderModel() {
     latestTopWinLabel,
     supportUrl: SUPPORT_URL,
     showMyPageNewBadge: SHOW_MY_PAGE_NEW_BADGE,
+    stuckLiveGamesCount,
   };
 }

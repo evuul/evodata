@@ -69,20 +69,39 @@ export default function LivePlayersControlPanelLiveGamesSection({
                     </Typography>
                     <Chip
                       size="small"
-                      label={Number.isFinite(item.players) ? numberFormatter.format(item.players) : "—"}
+                      label={
+                        item.stuck
+                          ? translate(
+                              `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim(),
+                              `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim()
+                            )
+                          : Number.isFinite(item.players)
+                          ? numberFormatter.format(item.players)
+                          : "—"
+                      }
                       sx={{
-                        backgroundColor: "rgba(15,23,42,0.55)",
-                        color: item.color,
-                        border: `1px solid ${item.color}55`,
+                        backgroundColor: item.stuck ? "rgba(120,53,15,0.28)" : "rgba(15,23,42,0.55)",
+                        color: item.stuck ? "#fbbf24" : item.color,
+                        border: `1px solid ${item.stuck ? "rgba(251,191,36,0.4)" : `${item.color}55`}`,
                         borderRadius: "999px",
+                        fontWeight: 700,
                       }}
                     />
                   </Stack>
                   <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc" }}>
                     {item.label}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
-                    {item.updated
+                  <Typography variant="caption" sx={{ color: item.stuck ? "#fbbf24" : "rgba(148,163,184,0.7)" }}>
+                    {item.stuck
+                      ? translate(
+                          item.stuckSince
+                            ? `Stuck sedan ${timeFormatter.format(new Date(item.stuckSince))}`
+                            : "Ingen ny mätdata ännu",
+                          item.stuckSince
+                            ? `Stuck since ${timeFormatter.format(new Date(item.stuckSince))}`
+                            : "No fresh datapoints yet"
+                        )
+                      : item.updated
                       ? translate(
                           `Senast ${timeFormatter.format(new Date(item.updated))}`,
                           `Last updated ${timeFormatter.format(new Date(item.updated))}`

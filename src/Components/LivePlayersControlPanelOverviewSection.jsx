@@ -26,6 +26,7 @@ export default function LivePlayersControlPanelOverviewSection({
   topGrowthUseMa,
   topGrowthDays,
   hourlyByHourRows,
+  stuckLiveGamesCount,
 }) {
   return (
     <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
@@ -80,6 +81,25 @@ export default function LivePlayersControlPanelOverviewSection({
                   {hourlyComparisonMeta ? (
                     <Typography variant="caption" sx={{ color: hourlyComparisonMeta.color }}>
                       {hourlyComparisonMeta.text}
+                    </Typography>
+                  ) : null}
+                  {stuckLiveGamesCount > 0 ? (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#fbbf24",
+                        border: "1px solid rgba(251,191,36,0.35)",
+                        backgroundColor: "rgba(120,53,15,0.2)",
+                        borderRadius: "8px",
+                        px: 1,
+                        py: 0.4,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {translate(
+                        `${stuckLiveGamesCount} spel döljs som stuck tills de uppdateras.`,
+                        `${stuckLiveGamesCount} games are hidden as stuck until they update.`
+                      )}
                     </Typography>
                   ) : null}
                   {lobbyBoostOn && (

@@ -39,6 +39,7 @@ export async function GET(request, { params }) {
   if (String(t.email || "").toLowerCase() !== email) return json({ error: "Forbidden" }, { status: 403 });
 
   return json({
+    ok: true,
     ticket: {
       id: t.id,
       subject: t.subject,
@@ -94,6 +95,7 @@ export async function PUT(request, { params }) {
     adminReply: null,
   });
   return json({
+    ok: true,
     ticket: {
       id: next.id,
       subject: next.subject,

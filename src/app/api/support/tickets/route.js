@@ -47,6 +47,7 @@ export async function GET(request) {
   const tickets = await listSupportTicketsByIds(ids, 50);
 
   return json({
+    ok: true,
     viewerEmail: email,
     tickets: tickets
       .sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")))
@@ -81,5 +82,5 @@ export async function POST(request) {
     message,
   });
 
-  return json({ ticket: toSummary(ticket) });
+  return json({ ok: true, ticket: toSummary(ticket) });
 }

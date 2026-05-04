@@ -89,17 +89,25 @@ export function PlayersLiveProvider({ children, enabled = true }) {
 
       const map = {};
       if (Array.isArray(json.items)) {
-        json.items.forEach((item) => {
-          const id = item?.id;
-          if (!id) return;
-          const players = Number(item?.players);
-          map[id] = {
-            players: Number.isFinite(players) ? players : null,
-            updated: item?.fetchedAt ?? null,
-            stale: item?.stale ?? false,
-          };
-        });
-      }
+          json.items.forEach((item) => {
+            const id = item?.id;
+            if (!id) return;
+            const players = Number(item?.players);
+            map[id] = {
+              players: Number.isFinite(players) ? players : null,
+              updated: item?.fetchedAt ?? null,
+              stale: item?.stale ?? false,
+              stuck: item?.stuck ?? false,
+              stuckDays: Number.isFinite(Number(item?.stuckDays)) ? Math.round(Number(item.stuckDays)) : null,
+              stuckSince: item?.stuckSince ?? null,
+              stuckLatestAt: item?.stuckLatestAt ?? null,
+              stuckValue: Number.isFinite(Number(item?.stuckValue)) ? Math.round(Number(item.stuckValue)) : null,
+              stuckRunLength: Number.isFinite(Number(item?.stuckRunLength))
+                ? Math.round(Number(item.stuckRunLength))
+                : null,
+            };
+          });
+        }
 
       setData((prev) => {
         const merged = {};
@@ -147,6 +155,14 @@ export function PlayersLiveProvider({ children, enabled = true }) {
         hydrated[item.id] = {
           players: Number.isFinite(playersVal) ? playersVal : null,
           updated: item.fetchedAt || null,
+          stuck: item?.stuck ?? false,
+          stuckDays: Number.isFinite(Number(item?.stuckDays)) ? Math.round(Number(item.stuckDays)) : null,
+          stuckSince: item?.stuckSince || null,
+          stuckLatestAt: item?.stuckLatestAt || null,
+          stuckValue: Number.isFinite(Number(item?.stuckValue)) ? Math.round(Number(item.stuckValue)) : null,
+          stuckRunLength: Number.isFinite(Number(item?.stuckRunLength))
+            ? Math.round(Number(item.stuckRunLength))
+            : null,
         };
       }
 

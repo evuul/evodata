@@ -95,6 +95,7 @@ const LivePlayersControlPanel = () => {
     asiaLiveTotal,
     asiaLiveShare,
     asiaTableRows,
+    stuckLiveGamesCount,
     formatDateTime,
   } = useLivePlayersControlPanelModel();
 
@@ -147,6 +148,7 @@ const LivePlayersControlPanel = () => {
             topGrowthUseMa={topGrowthUseMa}
             topGrowthDays={TOP_GROWTH_DAYS}
             hourlyByHourRows={hourlyByHourRows}
+            stuckLiveGamesCount={stuckLiveGamesCount}
           />
           <LiveGamesSection
             translate={translate}

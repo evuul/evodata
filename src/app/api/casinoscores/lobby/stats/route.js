@@ -229,7 +229,7 @@ export async function GET(req) {
     const latestItems = Array.isArray(latestSnapshot?.items) ? latestSnapshot.items : [];
     const latestTotalPlayers = latestItems.reduce((sum, item) => {
       const n = Number(item?.players);
-      return Number.isFinite(n) ? sum + n : sum;
+      return Number.isFinite(n) && !item?.stuck ? sum + n : sum;
     }, 0);
     const hourlyComparisonRaw = includeHourly
       ? buildHourlyComparison({ baseline, totalPlayers: latestTotalPlayers })

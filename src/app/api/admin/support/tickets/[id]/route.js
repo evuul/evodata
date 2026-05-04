@@ -42,7 +42,7 @@ export async function GET(request, { params }) {
   const id = params?.id;
   const t = await getSupportTicket(id);
   if (!t) return json({ error: "Not found" }, { status: 404 });
-  return json({ ticket: t });
+  return json({ ok: true, ticket: t });
 }
 
 export async function PUT(request, { params }) {
@@ -73,15 +73,14 @@ export async function PUT(request, { params }) {
       },
     });
     if (!next) return json({ error: "Not found" }, { status: 404 });
-    return json({ ticket: next });
+    return json({ ok: true, ticket: next });
   }
 
   if (action === "close") {
     const next = await updateSupportTicket(id, { status: "closed" });
     if (!next) return json({ error: "Not found" }, { status: 404 });
-    return json({ ticket: next });
+    return json({ ok: true, ticket: next });
   }
 
   return json({ error: "Unknown action" }, { status: 400 });
 }
-
