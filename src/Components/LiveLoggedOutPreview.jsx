@@ -958,6 +958,30 @@ export default function LiveLoggedOutPreview({
       </Box>
 
       <Box
+        role="status"
+        aria-live="polite"
+        sx={{
+          mb: { xs: 2.5, sm: 3 },
+          mx: "auto",
+          px: 2,
+          py: 1.25,
+          borderRadius: "14px",
+          border: "1px solid rgba(245,158,11,0.35)",
+          background: "linear-gradient(90deg, rgba(120,53,15,0.34), rgba(180,83,9,0.14))",
+          color: "#fde68a",
+          maxWidth: 980,
+          textAlign: "center",
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {translate(
+            "Spelardatan är just nu inkomplett. Forecasten baseras tillfälligt på historiska snitt och uppdateras när ny mätdata kommer in.",
+            "Player data is currently incomplete. The forecast is temporarily based on historical averages and will update when fresh measurements arrive."
+          )}
+        </Typography>
+      </Box>
+
+      <Box
         sx={{
           display: "flex",
           alignItems: "center",

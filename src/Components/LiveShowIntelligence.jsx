@@ -821,7 +821,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           textAlign: "center",
         }}
       >
-        <Box sx={{ maxWidth: 560 }}>
+      <Box sx={{ maxWidth: 560 }}>
           <Typography
             variant="overline"
             sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.75)" }}
@@ -878,6 +878,31 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             />
           )}
         </Stack>
+      </Box>
+
+      <Box
+        role="status"
+        aria-live="polite"
+        sx={{
+          mt: 2,
+          mx: "auto",
+          px: 2,
+          py: 1.25,
+          borderRadius: "14px",
+          border: "1px solid rgba(245,158,11,0.35)",
+          background: "linear-gradient(90deg, rgba(120,53,15,0.34), rgba(180,83,9,0.14))",
+          color: "#fde68a",
+          width: "100%",
+          maxWidth: 760,
+          textAlign: "center",
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          {translate(
+            "Spelardatan är just nu inkomplett. Forecasten baseras tillfälligt på historiska snitt och uppdateras när ny mätdata kommer in.",
+            "Player data is currently incomplete. The forecast is temporarily based on historical averages and will update when fresh measurements arrive."
+          )}
+        </Typography>
       </Box>
 
       {combinedQ4Estimate && (
