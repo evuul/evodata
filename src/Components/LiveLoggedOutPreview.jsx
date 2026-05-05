@@ -213,11 +213,12 @@ export default function LiveLoggedOutPreview({
     const loadAdjustedPlayers = async () => {
       try {
         const json = await fetchOverviewShared(200);
-        const rows = Array.isArray(json?.adjustedDailyTotals)
-          ? json.adjustedDailyTotals
-          : Array.isArray(json?.dailyTotals)
-            ? json.dailyTotals
-            : [];
+        const rows =
+          Array.isArray(json?.adjustedDailyTotals) && json.adjustedDailyTotals.length
+            ? json.adjustedDailyTotals
+            : Array.isArray(json?.dailyTotals) && json.dailyTotals.length
+              ? json.dailyTotals
+              : [];
         const next = rows
           .map((row) => ({
             Datum: row?.date,

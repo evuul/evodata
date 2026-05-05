@@ -282,11 +282,12 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         setOverviewError("");
         const json = await fetchOverviewShared(REPORT_LOOKBACK_DAYS);
 
-        const dailyRows = Array.isArray(json?.adjustedDailyTotals)
-          ? json.adjustedDailyTotals
-          : Array.isArray(json?.dailyTotals)
-            ? json.dailyTotals
-            : [];
+        const dailyRows =
+          Array.isArray(json?.adjustedDailyTotals) && json.adjustedDailyTotals.length
+            ? json.adjustedDailyTotals
+            : Array.isArray(json?.dailyTotals) && json.dailyTotals.length
+              ? json.dailyTotals
+              : [];
 
         const rows = dailyRows
           .map((row) => ({

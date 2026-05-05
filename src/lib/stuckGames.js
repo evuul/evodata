@@ -178,8 +178,14 @@ export function buildStuckAdjustedDailyTotals(perSlugData, stuckBySlug, options 
           : null;
     const postRows = originalDaily.filter((row) => row.date >= startYmd);
 
-    const estimatedDaily = originalDaily.map((row) => {
-      if (row.date < startYmd) return row;
+    const estimatedDaily = [];
+    let previousValue = startAnchor;
+    for (const row of originalDaily) {
+      if (row.date < startYmd) {
+        estimatedDaily.push(row);
+        previousValue = Number(row.avg);
+        continue;
+      }
       const postIndex = postRows.findIndex((entry) => entry.date === row.date);
       const progress = postRows.length > 1 && postIndex >= 0 ? postIndex / (postRows.length - 1) : 1;
       const easedProgress = 1 - Math.pow(1 - clamp(progress, 0, 1), 1.8);
@@ -197,19 +203,17 @@ export function buildStuckAdjustedDailyTotals(perSlugData, stuckBySlug, options 
           : 0;
       const damp = 1 / (1 + Math.max(0, postIndex) * 0.08);
       const rate = clamp((transitionRate + curvature) * damp, -0.2, 0.2);
-      const previousValue = estimatedDaily.length
-        ? Number(estimatedDaily[estimatedDaily.length - 1].avg)
-        : startAnchor;
       const estimatedValue = Number.isFinite(previousValue) && previousValue > 0
         ? previousValue * (1 + rate)
         : Number(stuckMeta?.stuckValue) || row.avg;
-      return {
+      previousValue = estimatedValue;
+      estimatedDaily.push({
         ...row,
         avg: Math.round(estimatedValue * 100) / 100,
         estimated: true,
         stuck: true,
-      };
-    });
+      });
+    }
 
     stuckAdjustment.push({
       slug: item.slug,
