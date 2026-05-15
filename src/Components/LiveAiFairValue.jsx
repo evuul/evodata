@@ -261,6 +261,20 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
     ? translate('OK', 'OK')
     : translate('saknas', 'missing');
 
+  const fairValueHeadline = activeScenario && Number.isFinite(activeScenario.impliedPriceSEK)
+    ? currency0.format(activeScenario.impliedPriceSEK)
+    : '–';
+  const fairValueVsPrice = upsideValue != null
+    ? `${upsideValue >= 0 ? '+' : ''}${pct1.format(upsideValue)}%`
+    : '–';
+  const fairValueLabel = translate('AI Fair Value', 'AI Fair Value');
+  const fairValueInsight = activeScenario
+    ? translate(
+        `Scenario: ${scenarioInfo.label} · PE ${activeScenario.pe ?? '–'}x`,
+        `Scenario: ${scenarioInfo.label} · PE ${activeScenario.pe ?? '–'}x`
+      )
+    : translate('Saknar scenario', 'No scenario available');
+
   useEffect(() => {
     let active = true;
     const fetchReports = async () => {
@@ -531,11 +545,75 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
             </Typography>
           </Box>
         ) : (
-          <Stack spacing={{ xs: 2.4, sm: 3 }}>
-            <Grid container spacing={2.4} justifyContent="center" alignItems="stretch">
-              <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
-                <Box
+        <Stack spacing={{ xs: 2.4, sm: 3 }}>
+          <Box
+            sx={{
+              borderRadius: '20px',
+              border: '1px solid rgba(148,163,184,0.2)',
+              background: 'linear-gradient(135deg, rgba(15,23,42,0.72), rgba(30,41,59,0.72))',
+              p: { xs: 2, sm: 2.2, md: 2.4 },
+            }}
+          >
+            <Stack
+              direction={{ xs: 'column', md: 'row' }}
+              spacing={1.5}
+              alignItems={{ xs: 'flex-start', md: 'center' }}
+              justifyContent="space-between"
+            >
+              <Box>
+                <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.78)', letterSpacing: 1.1 }}>
+                  {translate('Sammanfattning', 'Summary')}
+                </Typography>
+                <Typography variant="h5" sx={{ color: '#f8fafc', fontWeight: 800, mt: 0.3 }}>
+                  {fairValueLabel}
+                </Typography>
+                <Typography sx={{ color: 'rgba(226,232,240,0.72)', mt: 0.4 }}>
+                  {fairValueInsight}
+                </Typography>
+              </Box>
+              <Stack
+                direction="row"
+                spacing={1}
+                flexWrap="wrap"
+                justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
+              >
+                <Chip
+                  label={translate(`Aktuell kurs ${currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}`, `Current price ${currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}`)}
                   sx={{
+                    backgroundColor: 'rgba(96,165,250,0.12)',
+                    color: '#bfdbfe',
+                    border: '1px solid rgba(96,165,250,0.28)',
+                    fontWeight: 600,
+                  }}
+                />
+                <Chip
+                  label={translate(`Fair value ${fairValueHeadline}`, `Fair value ${fairValueHeadline}`)}
+                  sx={{
+                    backgroundColor: 'rgba(34,197,94,0.12)',
+                    color: '#bbf7d0',
+                    border: '1px solid rgba(34,197,94,0.28)',
+                    fontWeight: 600,
+                  }}
+                />
+                <Chip
+                  label={translate(`Uppsida ${fairValueVsPrice}`, `Upside ${fairValueVsPrice}`)}
+                  sx={{
+                    backgroundColor: upsideValue != null && upsideValue >= 0
+                      ? 'rgba(34,197,94,0.12)'
+                      : 'rgba(248,113,113,0.12)',
+                    color: upsideValue != null && upsideValue >= 0 ? '#bbf7d0' : '#fecaca',
+                    border: `1px solid ${upsideValue != null && upsideValue >= 0 ? 'rgba(34,197,94,0.28)' : 'rgba(248,113,113,0.28)'}`,
+                    fontWeight: 600,
+                  }}
+                />
+              </Stack>
+            </Stack>
+          </Box>
+
+          <Grid container spacing={2.4} justifyContent="center" alignItems="stretch">
+            <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
+              <Box
+                sx={{
                     ...METRIC_CARD_BASE_SX,
                     background: 'rgba(15,23,42,0.7)',
                     border: '1px solid rgba(148,163,184,0.25)',
@@ -725,25 +803,6 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
                   </Typography>
                 </Box>
               </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Box
-                  sx={{
-                    background: 'rgba(96,165,250,0.1)',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(96,165,250,0.3)',
-                    p: 2,
-                    textAlign: 'center',
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {translate('Omsättning TTM', 'Revenue TTM')}
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
-                    {revenueLabel}
-                  </Typography>
-                </Box>
-              </Grid>
             </Grid>
           </Stack>
         )}
@@ -772,10 +831,11 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
               '• Nettoåterköp antas öka EPS enligt 1/(1−y); scenarier varierar både multipel och kassaanvändning.',
               '• Net buybacks are assumed to boost EPS via 1/(1−y); scenarios vary both multiples and cash usage.'
             )}
-            <br />
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>
             {translate(
-              `• Datahämtning live: aktiekurs ${priceStatusText}, FX ${fxStatusText}, återköp ${buybackStatusText}.`,
-              `• Live data: stock price ${priceStatusText}, FX ${fxStatusText}, buybacks ${buybackStatusText}.`
+              `Datahämtning live: aktiekurs ${priceStatusText}, FX ${fxStatusText}, återköp ${buybackStatusText}, omsättning ${revenueLabel}.`,
+              `Live data: stock price ${priceStatusText}, FX ${fxStatusText}, buybacks ${buybackStatusText}, revenue ${revenueLabel}.`
             )}
           </Typography>
         </Stack>
