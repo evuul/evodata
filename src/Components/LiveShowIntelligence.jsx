@@ -722,13 +722,13 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
   const trendText = useMemo(() => {
     if (!Number.isFinite(estimatedRevenue)) {
-      return translate("Uppskattad omsättning saknas – inväntar mer data.", "Estimated revenue missing – waiting for more data.");
+      return translate("Forecasten väntar på mer data.", "The forecast is waiting for more data.");
     }
     const refLabel = labelFromPeriod(lastYearSameQuarterPeriod);
     if (changeYoY.percent == null) {
       return translate(
-        `Taktar mot ${refLabel} på ungefär ${formatMillion(estimatedRevenue)} €M.`,
-        `Tracking toward ${refLabel} at roughly ${formatMillion(estimatedRevenue)} €M.`
+        `Run-rate ligger runt ${formatMillion(estimatedRevenue)} €M mot ${refLabel}.`,
+        `Run-rate is around ${formatMillion(estimatedRevenue)} €M versus ${refLabel}.`
       );
     }
 
@@ -740,8 +740,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     const percentStr = `${percentSign}${Math.abs(changeYoY.percent).toFixed(1)}%`;
 
     return translate(
-      `Taktar ${descriptorSv} ${refLabel} med ${amountStr} (${percentStr}).`,
-      `Tracking ${descriptorEn} ${refLabel} by ${amountStr} (${percentStr}).`
+      `Run-rate ligger ${descriptorSv} ${refLabel} med ${amountStr} (${percentStr}).`,
+      `Run-rate is ${descriptorEn} ${refLabel} by ${amountStr} (${percentStr}).`
     );
   }, [estimatedRevenue, changeYoY, lastYearSameQuarterPeriod, translate]);
 
@@ -826,13 +826,13 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             variant="overline"
             sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.75)" }}
           >
-            {translate("Live Show Intelligence", "Live Show Intelligence")}
+            {translate("Gameshow forecast", "Gameshow forecast")}
           </Typography>
           <Typography
             variant={isMobile ? "h5" : "h4"}
             sx={{ fontWeight: 700, color: "#f8fafc" }}
           >
-            {translate("Gameshow Earnings Outlook", "Gameshow Earnings Outlook")}
+            {translate("Spelshowarens omsättningsbrief", "Gameshow revenue brief")}
           </Typography>
           <Typography
             sx={{
@@ -843,8 +843,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             }}
           >
             {translate(
-              "Uppskattad live-omsättning baserad på lobbydata och historisk omsättning per spelare.",
-              "Estimated live revenue based on lobby data and historical revenue per player."
+              "Live-lobbyn översätts till en enkel prognos för nuvarande kvartal.",
+              "Live lobby data is translated into a simple current-quarter forecast."
             )}
           </Typography>
         </Box>
@@ -886,21 +886,21 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         sx={{
           mt: 2,
           mx: "auto",
-          px: 2,
-          py: 1.25,
-          borderRadius: "14px",
-          border: "1px solid rgba(245,158,11,0.35)",
-          background: "linear-gradient(90deg, rgba(120,53,15,0.34), rgba(180,83,9,0.14))",
+          px: 1.6,
+          py: 1,
+          borderRadius: "999px",
+          border: "1px solid rgba(245,158,11,0.28)",
+          background: "rgba(120,53,15,0.22)",
           color: "#fde68a",
           width: "100%",
-          maxWidth: 760,
+          maxWidth: 820,
           textAlign: "center",
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.4 }}>
           {translate(
-            "Spelardatan är just nu inkomplett. Forecasten baseras tillfälligt på historiska snitt och uppdateras när ny mätdata kommer in.",
-            "Player data is currently incomplete. The forecast is temporarily based on historical averages and will update when fresh measurements arrive."
+            "Spelardatan är delvis inkomplett, så forecasten väger just nu tyngre mot historiska snitt.",
+            "Player data is partially incomplete, so the forecast currently leans more heavily on historical averages."
           )}
         </Typography>
       </Box>
@@ -926,8 +926,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             <Stack spacing={0.4}>
               <Typography variant="overline" sx={{ letterSpacing: 1 }}>
                 {translate(
-                  `${combinedQ4Estimate.period} rapport-estimat`,
-                  `${combinedQ4Estimate.period} report estimate`
+                  `${combinedQ4Estimate.period} forecast`,
+                  `${combinedQ4Estimate.period} forecast`
                 )}
               </Typography>
               <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -935,8 +935,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               </Typography>
               <Typography sx={{ color: "rgba(226,232,240,0.78)" }}>
                 {translate(
-                  "Gameshow-estimat + RNG i ~1–2% takt från senaste kvartalen.",
-                  "Gameshow estimate plus RNG at ~1–2% quarterly cadence."
+                  "Live och RNG visas som separat bidrag till totalen.",
+                  "Live and RNG are shown as separate contributions to the total."
                 )}
               </Typography>
             </Stack>
@@ -992,7 +992,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 }}
               >
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {`${currentQuarter} ${currentYear}`}
+                  {translate("Kvartalsfart", "Quarter pace")} · {`${currentQuarter} ${currentYear}`}
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
                   {translate(
@@ -1033,7 +1033,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 }}
               >
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Genomsnittliga spelare (justerade)", "Average players (adjusted)")}
+                  {translate("Justerade spelare", "Adjusted players")}
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, mt: 1, color: "#93c5fd" }}>
                   {adjustedAveragePlayers.toLocaleString("sv-SE")}
@@ -1067,7 +1067,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 }}
               >
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Uppskattad omsättning", "Estimated revenue")}
+                  {translate("Forecastomsättning", "Forecast revenue")}
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
                   {formatMillion(estimatedRevenue)} €M
@@ -1129,7 +1129,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               }}
             >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {translate("Live-snitt spelare", "Live avg players")} · {labelFromPeriod(currentPeriod)}
+                {translate("Live-spelare över tid", "Live players over time")} · {labelFromPeriod(currentPeriod)}
               </Typography>
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
                 {qData.length > 0
@@ -1216,10 +1216,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             {/* Tabell */}
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {translate("Kvartalsjämförelse", "Quarterly comparison")}
+                {translate("Modellcheck per kvartal", "Quarterly model check")}
               </Typography>
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
-                {translate("Estimerad vs faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
+                {translate("Estimerad mot faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
               </Typography>
               {isMobile ? (
                 <Stack spacing={1.2}>
@@ -1325,7 +1325,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
           {/* Topp 3-spel */}
           {topGames.length > 0 && (
-            <Box
+              <Box
               sx={{
                 mt: { xs: 3, md: 4 },
                 background: "rgba(15,23,42,0.55)",
@@ -1346,8 +1346,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               >
                 <Typography variant="h6" sx={{ fontWeight: 700 }}>
                   {translate(
-                    `Topp 3 liveshower senaste ${REPORT_LOOKBACK_DAYS} dagarna`,
-                    `Top 3 live shows over the past ${REPORT_LOOKBACK_DAYS} days`
+                    `Topp 3 senaste ${REPORT_LOOKBACK_DAYS} dagarna`,
+                    `Top 3 over the past ${REPORT_LOOKBACK_DAYS} days`
                   )}
                 </Typography>
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
