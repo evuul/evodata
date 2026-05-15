@@ -52,6 +52,7 @@ const ReturnsView = ({
   const totalReturnsM = (totalReturns / 1_000_000).toLocaleString("sv-SE");
   const totalDividendsM = (totalDividends / 1_000_000).toLocaleString("sv-SE");
   const totalBuybacksM = (totalBuybacks / 1_000_000).toLocaleString("sv-SE");
+  const buybackSharePct = Number.isFinite(totalReturns) && totalReturns > 0 ? (totalBuybacks / totalReturns) * 100 : null;
   const directYieldLabel = loadingPrice
     ? translate("Laddar direktavkastning…", "Loading dividend yield…")
     : translate(
@@ -90,6 +91,12 @@ const ReturnsView = ({
       >
         {translate("Återinvestering till investerare", "Capital returned to investors")}
       </Typography>
+      <Typography sx={{ color: COLORS.textSecondary, lineHeight: 1.6, maxWidth: 880, mt: -1.2 }}>
+        {translate(
+          "Här summeras hur mycket kapital som faktiskt gått tillbaka till aktieägarna via utdelning och återköp. Buybacks visar den del som kommit via återköp i stället för direkt utdelning.",
+          "This summarizes how much capital has actually been returned to shareholders via dividends and buybacks. Buybacks show the portion returned through repurchases rather than direct dividends."
+        )}
+      </Typography>
 
       <Stack
         direction={{ xs: "column", md: "row" }}
@@ -122,6 +129,14 @@ const ReturnsView = ({
             <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
               {totalReturnsM} Mkr
             </Typography>
+            {Number.isFinite(buybackSharePct) && (
+              <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+                {translate(
+                  `${buybackSharePct.toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% av totalen är återköp`,
+                  `${buybackSharePct.toLocaleString("sv-SE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% of the total is buybacks`
+                )}
+              </Typography>
+            )}
           </Box>
           <Box
             sx={{

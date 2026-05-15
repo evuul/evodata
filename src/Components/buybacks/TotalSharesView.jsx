@@ -44,6 +44,7 @@ const TotalSharesView = ({
   latestTotalShares,
   latestEvolutionShares = 0,
   buybackSinceStartSummary = null,
+  cancelledShares = 0,
   chartTypeTotalShares,
   onChangeChartTypeTotalShares,
   yDomain,
@@ -99,15 +100,11 @@ const TotalSharesView = ({
         {translate("Totala aktier", "Total shares")}
       </Typography>
 
-      <Stack
-        direction={{ xs: "column", sm: "row" }}
-        spacing={{ xs: 1.2, sm: 1.6 }}
-        sx={{ flexWrap: "wrap" }}
-      >
+      <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 1.2, sm: 1.6 }} sx={{ flexWrap: "wrap" }}>
         <Box
           sx={{
             flex: 1,
-            minWidth: { xs: "100%", sm: 220 },
+            minWidth: { xs: "100%", md: 220 },
             background: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(15,118,110,0.2))",
             borderRadius: "16px",
             border: `1px solid rgba(56,189,248,0.35)`,
@@ -131,7 +128,7 @@ const TotalSharesView = ({
         <Box
           sx={{
             flex: 1,
-            minWidth: { xs: "100%", sm: 220 },
+            minWidth: { xs: "100%", md: 220 },
             background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(16,185,129,0.18))",
             borderRadius: "16px",
             border: `1px solid rgba(34,197,94,0.32)`,
@@ -153,6 +150,30 @@ const TotalSharesView = ({
               "Totalt antal aktier minus Evolutions egna innehav",
               "Total share count minus Evolution-held stock"
             )}
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: { xs: "100%", md: 220 },
+            background: "linear-gradient(135deg, rgba(244,114,182,0.18), rgba(185,28,28,0.16))",
+            borderRadius: "16px",
+            border: `1px solid rgba(248,113,113,0.35)`,
+            px: 2.2,
+            py: 1.8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.4,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+            {translate("Makulerade aktier", "Cancelled shares")}
+          </Typography>
+          <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+            {Number.isFinite(cancelledShares) ? cancelledShares.toLocaleString("sv-SE") : "–"}
+          </Typography>
+          <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+            {translate("Totalt indragna sedan programstart", "Total retired since program start")}
           </Typography>
         </Box>
       </Stack>
@@ -379,6 +400,15 @@ const TotalSharesView = ({
           )}
         </Typography>
       ) : null}
+
+      {Number.isFinite(cancelledShares) && cancelledShares > 0 && (
+        <Typography variant="caption" sx={{ color: COLORS.textSecondary, textAlign: "center", mt: -0.3 }}>
+          {translate(
+            `Indragna aktier påverkar den långsiktiga aktiestocken och redovisas separat i historiken.`,
+            `Retired shares affect the long-term share base and are reported separately in history.`
+          )}
+        </Typography>
+      )}
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         {translate("Historisk data", "Historical data")}

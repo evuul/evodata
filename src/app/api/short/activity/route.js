@@ -82,6 +82,37 @@ function calcRollingAverage(values, windowSize) {
   });
 }
 
+function buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latestTrading) {
+  const latestShort = Array.isArray(shortHistory) && shortHistory.length ? shortHistory[shortHistory.length - 1] : null;
+  const currentShortInterestPercent = Number.isFinite(Number(latestShort?.percent))
+    ? Number(latestShort.percent)
+    : null;
+  const currentShortInterestShares =
+    currentShortInterestPercent != null && Number.isFinite(getTotalSharesForDate(latestShort?.date))
+      ? Math.round((currentShortInterestPercent / 100) * getTotalSharesForDate(latestShort.date))
+      : null;
+  const averageDailyVolumeShares =
+    Number.isFinite(latestTrading?.volumeAverage20)
+      ? latestTrading.volumeAverage20
+      : tradingDates.length > 0 && Number.isFinite(totalVolume)
+        ? Math.round(totalVolume / tradingDates.length)
+        : null;
+  const daysToCoverEstimate =
+    currentShortInterestShares != null &&
+    Number.isFinite(averageDailyVolumeShares) &&
+    averageDailyVolumeShares > 0
+      ? +(currentShortInterestShares / averageDailyVolumeShares).toFixed(2)
+      : null;
+
+  return {
+    currentShortInterestDate: latestShort?.date ?? null,
+    currentShortInterestPercent,
+    currentShortInterestShares,
+    averageDailyVolumeShares,
+    daysToCoverEstimate,
+  };
+}
+
 function isWeekend(dateStr) {
   try {
     const d = new Date(`${dateStr}T00:00:00Z`);
@@ -312,12 +343,10 @@ export async function GET(request) {
         const hasShortData = Number.isFinite(percentRaw);
         const displayPercent = hasShortData ? +percentRaw.toFixed(2) : 0;
         const volumeShares = volumeByDate.get(date) ?? null;
-        let shortShares = null;
-        if (hasShortData && totalShares != null) {
-          shortShares = Math.round((percentRaw / 100) * totalShares);
-        } else if (!hasShortData) {
-          shortShares = 0;
-        }
+        const shortShares =
+          hasShortData && totalShares != null
+            ? Math.round((percentRaw / 100) * totalShares)
+            : null;
 
         let shortChangeShares = null;
         let shortShareOfVolumePercent = null;
@@ -344,8 +373,8 @@ export async function GET(request) {
           prevActualShortShares = shortShares;
           prevActualDate = date;
         } else {
-          shortChangeShares = 0;
-          shortShareOfVolumePercent = 0;
+          shortChangeShares = null;
+          shortShareOfVolumePercent = null;
         }
 
         items.push({
@@ -389,6 +418,7 @@ export async function GET(request) {
       const aggregateShare = totalVolume > 0 ? +(totalShortFlow / totalVolume * 100).toFixed(2) : null;
 
       const latest = enriched[enriched.length - 1] ?? null;
+      const daysToCover = buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latest);
 
       const payload = {
         ok: true,
@@ -397,6 +427,7 @@ export async function GET(request) {
         items: enriched,
         latest,
         aggregateShare,
+        ...daysToCover,
         updatedAt: new Date().toISOString(),
         source: "yahoo-chart",
       };
@@ -499,12 +530,10 @@ export async function GET(request) {
       const hasShortData = Number.isFinite(percentRaw);
       const displayPercent = hasShortData ? +percentRaw.toFixed(2) : 0;
       const volumeShares = volumeByDate.get(date) ?? null;
-      let shortShares = null;
-      if (hasShortData && totalShares != null) {
-        shortShares = Math.round((percentRaw / 100) * totalShares);
-      } else if (!hasShortData) {
-        shortShares = 0;
-      }
+      const shortShares =
+        hasShortData && totalShares != null
+          ? Math.round((percentRaw / 100) * totalShares)
+          : null;
 
       let shortChangeShares = null;
       let shortShareOfVolumePercent = null;
@@ -531,8 +560,8 @@ export async function GET(request) {
         prevActualShortShares = shortShares;
         prevActualDate = date;
       } else {
-        shortChangeShares = 0;
-        shortShareOfVolumePercent = 0;
+        shortChangeShares = null;
+        shortShareOfVolumePercent = null;
       }
 
       items.push({
@@ -584,6 +613,7 @@ export async function GET(request) {
     const aggregateShare = totalVolume > 0 ? +(totalShortFlow / totalVolume * 100).toFixed(2) : null;
 
     const latest = enriched[enriched.length - 1] ?? null;
+    const daysToCover = buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latest);
 
     return {
       ok: true,
@@ -592,6 +622,7 @@ export async function GET(request) {
       items: enriched,
       latest,
       aggregateShare,
+      ...daysToCover,
       updatedAt: new Date().toISOString(),
       source,
     };

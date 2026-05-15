@@ -61,6 +61,7 @@ const HistoryView = ({
   historicalPnL,
   currentSharePrice,
   historicalTotals,
+  cancelledShares = 0,
 }) => {
   const translate = useTranslate();
   const areaFillId = `histArea-${useId()}`;
@@ -121,6 +122,7 @@ const HistoryView = ({
       : value > 0
       ? "#34d399"
       : "#f87171";
+  const cancelledSharesDisplay = Number.isFinite(cancelledShares) ? cancelledShares.toLocaleString("sv-SE") : null;
 
   const summary = useMemo(() => {
     if (!Array.isArray(historyChartData) || historyChartData.length === 0) {
@@ -297,6 +299,35 @@ const HistoryView = ({
               </Typography>
             )}
           </Box>
+
+          {Number.isFinite(cancelledShares) && cancelledShares > 0 && (
+            <Box
+              sx={{
+                flex: 1,
+                background: "linear-gradient(140deg, rgba(244,114,182,0.2), rgba(185,28,28,0.16))",
+                borderRadius: "16px",
+                border: `1px solid rgba(248,113,113,0.32)`,
+                px: 2.2,
+                py: 1.8,
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.5,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+                {translate("Makulerade aktier", "Cancelled shares")}
+              </Typography>
+              <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+                {cancelledSharesDisplay}
+              </Typography>
+              <Typography variant="body2" sx={{ color: COLORS.textSecondary }}>
+                {translate(
+                  "Sedan programstart. Det här är den faktiska minskningen i aktiestocken från indragningar.",
+                  "Since program start. This is the actual reduction in share count from cancellations."
+                )}
+              </Typography>
+            </Box>
+          )}
 
           {historicalPnL && (
             <Box
@@ -580,6 +611,12 @@ const HistoryView = ({
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
         {translate("Transaktioner", "Transactions")}
+      </Typography>
+      <Typography variant="body2" sx={{ color: COLORS.textSecondary, lineHeight: 1.6, mt: -1 }}>
+        {translate(
+          "Raderna nedan är de enskilda återköpen. Indragningar syns separat ovan eftersom de påverkar totalstocken, inte själva köpen.",
+          "The rows below are the individual buybacks. Cancellations are shown separately above because they affect the total share base, not the purchase rows."
+        )}
       </Typography>
       <TableContainer
         sx={{

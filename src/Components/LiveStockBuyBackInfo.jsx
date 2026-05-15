@@ -146,6 +146,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     const prevWeek = getPreviousWeekBuybacks(curData, thisWeek.periodStart);
     return { weekNow: thisWeek, weekPrev: prevWeek };
   }, [curData]);
+  const weekDeltaShares = useMemo(() => weekNow.totalShares - weekPrev.totalShares, [weekNow.totalShares, weekPrev.totalShares]);
+  const weekDeltaSharesPct = useMemo(() => {
+    if (!Number.isFinite(weekPrev.totalShares) || weekPrev.totalShares <= 0) return null;
+    return (weekDeltaShares / weekPrev.totalShares) * 100;
+  }, [weekDeltaShares, weekPrev.totalShares]);
 
   const avgDaily = useMemo(() => calculateAverageDailyBuyback(curData), [curData]);
   const buybackBudgetSek = useMemo(() => {
@@ -710,6 +715,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           overviewXAxisTickFormatter={overviewXAxisTickFormatter}
           viewMode={viewMode}
           fmtThousands={fmtThousands}
+          weekNow={weekNow}
+          weekPrev={weekPrev}
+          weekDeltaShares={weekDeltaShares}
+          weekDeltaSharesPct={weekDeltaSharesPct}
+          avgDaily={avgDaily}
         />
       )}
 
@@ -899,7 +909,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             ownershipPercentageData={ownershipPercentageData}
             latestEvolutionShares={latestEvolutionShares}
             latestOwnershipPercentage={latestOwnershipPercentage}
-            cancelledShares={cancelledShares}
             chartTypeOwnership={chartTypeOwnership}
             onChangeChartTypeOwnership={(_e, v) => v && setChartTypeOwnership(v)}
             yDomain={getYDomain(evolutionOwnershipData, 'shares')}
@@ -917,11 +926,12 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             latestTotalShares={totalSharesData.slice(-1)[0]?.totalShares || 0}
             latestEvolutionShares={latestEvolutionShares}
             buybackSinceStartSummary={buybackSinceStartSummary}
+            cancelledShares={cancelledShares}
             chartTypeTotalShares={chartTypeTotalShares}
             onChangeChartTypeTotalShares={(_e, v) => v && setChartTypeTotalShares(v)}
             yDomain={getYDomain(totalSharesData, 'totalShares')}
             yTicks={getYTickValues(totalSharesData, 'totalShares', 'yearly')}
-            formatYAxisTick={formatYAxisTick}
+          formatYAxisTick={formatYAxisTick}
           />
         </Box>
       )}
@@ -944,6 +954,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             historicalPnL={historicalPnL}
             currentSharePrice={currentSharePrice}
             historicalTotals={historicalTotals}
+            cancelledShares={cancelledShares}
           />
         </Box>
       )}

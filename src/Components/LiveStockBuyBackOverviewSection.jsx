@@ -55,7 +55,41 @@ export default function LiveStockBuyBackOverviewSection({
   overviewXAxisTickFormatter,
   viewMode,
   fmtThousands,
+  weekNow,
+  weekPrev,
+  weekDeltaShares,
+  weekDeltaSharesPct,
+  avgDaily,
 }) {
+  const formatPct = (value) => (Number.isFinite(value) ? `${value.toFixed(1)}%` : "–");
+  const weekDirection = Number.isFinite(weekDeltaShares) && weekDeltaShares !== 0 ? (weekDeltaShares > 0 ? "up" : "down") : "flat";
+  const weekDeltaTone = weekDirection === "up" ? "#34d399" : weekDirection === "down" ? "#f87171" : "#cbd5e1";
+  const weekRangeLabel =
+    weekNow?.periodStart && weekNow?.periodEnd
+      ? translate(
+          `Senaste vecka: ${weekNow.periodStart.toLocaleDateString("sv-SE")}–${weekNow.periodEnd.toLocaleDateString("sv-SE")}`,
+          `Last week: ${weekNow.periodStart.toLocaleDateString("sv-SE")}–${weekNow.periodEnd.toLocaleDateString("sv-SE")}`
+        )
+      : null;
+  const prevWeekLabel =
+    weekPrev?.periodStart && weekPrev?.periodEnd
+      ? translate(
+          `Föregående vecka: ${weekPrev.periodStart.toLocaleDateString("sv-SE")}–${weekPrev.periodEnd.toLocaleDateString("sv-SE")}`,
+          `Previous week: ${weekPrev.periodStart.toLocaleDateString("sv-SE")}–${weekPrev.periodEnd.toLocaleDateString("sv-SE")}`
+        )
+      : null;
+  const weekDeltaLabel =
+    Number.isFinite(weekDeltaShares) && Number.isFinite(weekDeltaSharesPct)
+      ? translate(
+          `${weekDeltaShares > 0 ? "+" : ""}${fmtNum(weekDeltaShares)} aktier vs förra veckan (${formatPct(weekDeltaSharesPct)})`,
+          `${weekDeltaShares > 0 ? "+" : ""}${fmtNum(weekDeltaShares)} shares vs last week (${formatPct(weekDeltaSharesPct)})`
+        )
+      : translate("Veckojämförelse saknas", "Week-over-week comparison unavailable");
+  const avgDailyValue = Number.isFinite(avgDaily?.averageDaily) ? Math.round(avgDaily.averageDaily) : null;
+  const avgDailyLabel =
+    avgDailyValue != null
+      ? translate(`Snitt ${fmtNum(avgDailyValue)} aktier per handelsdag`, `Average ${fmtNum(avgDailyValue)} shares per trading day`)
+      : translate("Snitttakt saknas", "Average pace unavailable");
   return (
     <>
       {Number.isFinite(buybackBudgetSek) && (
@@ -75,138 +109,117 @@ export default function LiveStockBuyBackOverviewSection({
             spacing={1}
             alignItems={{ xs: "flex-start", sm: "center" }}
             justifyContent="space-between"
-            sx={{ mb: { xs: 1.5, md: 2 } }}
+            sx={{ mb: { xs: 1.5, md: 1.8 } }}
           >
             <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2 }}>
-              {translate("Översikt • Aktivt program", "Overview • Active program")}
+              {translate("Nyckeltal för mandatet", "Mandate key metrics")}
             </Typography>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-              {Number.isFinite(cashUsagePercent) && (
-                <Chip
-                  size="small"
-                  label={translate(
-                    `Använt: ${cashUsagePercent.toFixed(1)}%`,
-                    `Used: ${cashUsagePercent.toFixed(1)}%`
-                  )}
-                  sx={{
-                    backgroundColor: "rgba(16,185,129,0.16)",
-                    color: "#a7f3d0",
-                    border: "1px solid rgba(16,185,129,0.35)",
-                  }}
-                />
+            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
+              {translate(
+                "Tre siffror räcker här: hur mycket som är använt, hur fort det går och vad som återstår.",
+                "Three numbers are enough here: how much is used, how fast it runs, and what remains."
               )}
-              {Number.isFinite(remainingCashSharePercent) && (
-                <Chip
-                  size="small"
-                  label={translate(
-                    `${fmtPercent(remainingCashSharePercent)} av aktiestock`,
-                    `${fmtPercent(remainingCashSharePercent)} of share base`
-                  )}
-                  sx={{
-                    backgroundColor: "rgba(59,130,246,0.16)",
-                    color: "#bfdbfe",
-                    border: "1px solid rgba(59,130,246,0.35)",
-                  }}
-                />
-              )}
-            </Stack>
+            </Typography>
           </Stack>
 
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))", xl: "repeat(4, minmax(0, 1fr))" },
-              gap: { xs: 1.2, md: 2.2 },
-              alignItems: "start",
+              gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+              gap: { xs: 1.2, md: 1.8 },
+              alignItems: "stretch",
             }}
           >
-            <Stack spacing={0.75} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700 }}>
-                {translate("Kassaläge", "Cash position")}
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(15,23,42,0.58))",
+                borderRadius: "14px",
+                border: "1px solid rgba(56,189,248,0.28)",
+                p: { xs: 1.6, md: 2 },
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.82)", fontWeight: 700 }}>
+                {translate("Använt mandat", "Mandate used")}
               </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.1rem", md: "1.25rem" }, color: "#f8fafc" }}>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.2rem", md: "1.35rem" }, color: "#f8fafc", mt: 0.4 }}>
                 {fmtCurrency(totalSpent)}
               </Typography>
-              <Typography variant="body2" sx={{ color: "#e2e8f0", fontWeight: 600, letterSpacing: 0.2 }}>
+              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.76)", mt: 0.5 }}>
                 {translate("Budget:", "Budget:")} {fmtEuroMillions(buybackCash)} (≈ {fmtCurrency(buybackBudgetSek)})
               </Typography>
-            </Stack>
-
-            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700 }}>
-                {translate("Återstående kassa", "Remaining cash")}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.15rem", md: "1.3rem" }, color: "#f8fafc" }}>
-                {fmtCurrency(remainingCash)}
-              </Typography>
-              {Number.isFinite(cashUsagePercent) ? (
-                <>
-                  <Typography variant="caption" sx={{ color: "#cbd5f5", fontWeight: 600, letterSpacing: 0.3 }}>
-                    {translate(`${cashUsagePercent.toFixed(1)}% utnyttjat`, `${cashUsagePercent.toFixed(1)}% used`)}
-                  </Typography>
-                  <LinearProgress
-                    variant="determinate"
-                    value={cashUsagePercent}
-                    sx={{
-                      height: 6,
-                      width: { xs: "100%", md: "80%" },
+              {Number.isFinite(cashUsagePercent) && (
+                <LinearProgress
+                  variant="determinate"
+                  value={cashUsagePercent}
+                  sx={{
+                    mt: 1.4,
+                    height: 6,
+                    borderRadius: 999,
+                    backgroundColor: "rgba(148,163,184,0.18)",
+                    "& .MuiLinearProgress-bar": {
                       borderRadius: 999,
-                      backgroundColor: "rgba(148,163,184,0.18)",
-                      "& .MuiLinearProgress-bar": {
-                        borderRadius: 999,
-                        background: "linear-gradient(90deg, #38bdf8, #34d399)",
-                      },
-                    }}
-                  />
-                </>
-              ) : (
-                <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
-                  {translate("Lägg till budget för att följa kassaanvändning.", "Add a budget to track cash usage.")}
+                      background: "linear-gradient(90deg, #38bdf8, #34d399)",
+                    },
+                  }}
+                />
+              )}
+            </Box>
+
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, rgba(16,185,129,0.16), rgba(15,23,42,0.58))",
+                borderRadius: "14px",
+                border: "1px solid rgba(16,185,129,0.28)",
+                p: { xs: 1.6, md: 2 },
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.82)", fontWeight: 700 }}>
+                {translate("Veckotakt", "Weekly pace")}
+              </Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.2rem", md: "1.35rem" }, color: "#f8fafc", mt: 0.4 }}>
+                {translate(`${fmtNum(weekNow.totalShares)} aktier`, `${fmtNum(weekNow.totalShares)} shares`)}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.76)", mt: 0.5 }}>
+                {weekDeltaLabel}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.76)", mt: 0.8, fontWeight: 600 }}>
+                {avgDailyLabel}
+              </Typography>
+            </Box>
+
+            <Box
+              sx={{
+                background: "linear-gradient(135deg, rgba(245,158,11,0.16), rgba(15,23,42,0.58))",
+                borderRadius: "14px",
+                border: "1px solid rgba(245,158,11,0.28)",
+                p: { xs: 1.6, md: 2 },
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.82)", fontWeight: 700 }}>
+                {translate("Kvar att köpa", "Remaining capacity")}
+              </Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.2rem", md: "1.35rem" }, color: "#f8fafc", mt: 0.4 }}>
+                {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
+                  ? translate(`≈ ${fmtNum(sharesAffordable)} aktier`, `≈ ${fmtNum(sharesAffordable)} shares`)
+                  : translate("Ingen livekurs", "No live price")}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.76)", mt: 0.5 }}>
+                {Number.isFinite(remainingCash)
+                  ? translate(
+                      `${fmtCurrency(remainingCash)} kvar och ${est && Number.isFinite(est.daysToCompletion) ? `${fmtNum(est.daysToCompletion)} handelsdagar kvar` : "ingen färdig prognos"}.`,
+                      `${fmtCurrency(remainingCash)} left and ${est && Number.isFinite(est.daysToCompletion) ? `${fmtNum(est.daysToCompletion)} trading days left` : "no final forecast"}.`
+                    )
+                  : translate("Behöver kassauppgift för prognos.", "Need cash information for forecast.")}
+              </Typography>
+              {Number.isFinite(remainingCashSharePercent) && (
+                <Typography variant="body2" sx={{ color: "#cbd5f5", mt: 0.8, fontWeight: 600 }}>
+                  {translate(
+                    `${fmtPercent(remainingCashSharePercent)} av aktiestocken`,
+                    `${fmtPercent(remainingCashSharePercent)} of share base`
+                  )}
                 </Typography>
               )}
-            </Stack>
-
-            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700 }}>
-                {translate("Kapacitet vid kurs", "Capacity at price")}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.05rem", md: "1.18rem" }, color: "#f8fafc" }}>
-                {Number.isFinite(sharesAffordable) && Number.isFinite(currentSharePrice)
-                  ? translate(
-                      `≈ ${fmtNum(sharesAffordable)} aktier vid ${fmtCurrency(currentSharePrice)}`,
-                      `≈ ${fmtNum(sharesAffordable)} shares at ${fmtCurrency(currentSharePrice)}`
-                    )
-                  : translate("Ingen livekurs tillgänglig.", "No live price available.")}
-              </Typography>
-              <Typography sx={{ fontWeight: 700, color: "#f8fafc", fontSize: { xs: "1.05rem", md: "1.18rem" } }}>
-                {Number.isFinite(remainingCashSharePercent)
-                  ? translate(
-                      `${fmtPercent(remainingCashSharePercent)} av aktiestocken`,
-                      `${fmtPercent(remainingCashSharePercent)} of share base`
-                    )
-                  : translate("Beräknas när kurs och budget finns.", "Calculated when price and budget exist.")}
-              </Typography>
-            </Stack>
-
-            <Stack spacing={0.8} sx={{ minWidth: 0 }}>
-              <Typography variant="subtitle2" sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700 }}>
-                {translate("Framåtblick", "Forward look")}
-              </Typography>
-              <Typography sx={{ fontWeight: 800, fontSize: { xs: "1.05rem", md: "1.18rem" }, color: "#f8fafc" }}>
-                {est && Number.isFinite(est.daysToCompletion)
-                  ? translate(`${fmtNum(est.daysToCompletion)} handelsdagar kvar`, `${fmtNum(est.daysToCompletion)} trading days left`)
-                  : Number.isFinite(remainingCash) && remainingCash <= 0
-                  ? translate("Budget förbrukad", "Budget spent")
-                  : translate("Lägg till budget", "Add budget")}
-              </Typography>
-              <Typography variant="body2" sx={{ color: "#cbd5f5", fontWeight: 600 }}>
-                {est?.estimatedCompletionDate
-                  ? translate(`Klar: ${est.estimatedCompletionDate}`, `Complete: ${est.estimatedCompletionDate}`)
-                  : Number.isFinite(remainingCash) && remainingCash <= 0
-                  ? translate("Återköpsbudgeten är förbrukad.", "The buyback budget is spent.")
-                  : translate("Behöver kassainformation för prognos.", "Need cash information for forecast.")}
-              </Typography>
-            </Stack>
+            </Box>
           </Box>
         </Box>
       )}

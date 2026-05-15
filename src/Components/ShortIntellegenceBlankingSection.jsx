@@ -31,7 +31,19 @@ export default function ShortIntellegenceBlankingSection({
         gap: { xs: 2, md: 3 },
         overflow: "visible",
       }}
-    >
+      >
+      <Box>
+        <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.78)", letterSpacing: 1.2 }}>
+          {translate("Blankningsbrief", "Short interest brief")}
+        </Typography>
+        <Typography sx={{ color: "rgba(226,232,240,0.74)", lineHeight: 1.6, mt: 0.4, maxWidth: 820 }}>
+          {translate(
+            "Det här är den offentliga blankningshistoriken. Den är fördröjd, så följ riktningen snarare än en enskild punkt.",
+            "This is the public short interest history. It is delayed, so follow the direction rather than a single point."
+          )}
+        </Typography>
+      </Box>
+
       <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
         {BLANKING_RANGES.map((value) => (
           <Chip
@@ -154,24 +166,33 @@ export default function ShortIntellegenceBlankingSection({
                 fontWeight: 600,
               }}
             >
-              {translate("Senaste blankning", "Latest short interest")}
+              {translate("Aktuell blankning", "Current short interest")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
               {formatPercent(blankingSummary.latestPercent, 2)}
             </Typography>
-            <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem" }}>
-              {blankingSummary.totalShares != null
-                ? translate(
-                    `${formatNumber(blankingSummary.totalShares)} aktier`,
-                    `${formatNumber(blankingSummary.totalShares)} shares`
-                  )
-                : "–"}
-            </Typography>
-            <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem" }}>
-            {blankingSummary.latestDate ? fullLabel(blankingSummary.latestDate) : "–"}
-          </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: 0.75,
+              }}
+            >
+              <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.85rem" }}>
+                {blankingSummary.totalShares != null
+                  ? translate(
+                      `${formatNumber(blankingSummary.totalShares)} uppskattade aktier`,
+                      `${formatNumber(blankingSummary.totalShares)} estimated shares`
+                    )
+                  : "–"}
+              </Typography>
+              <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.8rem" }}>
+                {blankingSummary.latestDate ? fullLabel(blankingSummary.latestDate) : "–"}
+              </Typography>
+            </Box>
+          </Box>
         </Box>
-      </Box>
         <Box>
           <Box
             sx={{
@@ -230,7 +251,7 @@ export default function ShortIntellegenceBlankingSection({
                 fontWeight: 600,
               }}
             >
-              {translate("Totalt blankat värde", "Total shorted value")}
+              {translate("Beräknad exponering", "Estimated exposure")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
               {blankingSummary.totalValue != null

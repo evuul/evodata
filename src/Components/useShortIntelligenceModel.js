@@ -136,21 +136,39 @@ const buildBlankingDomain = (series) => {
   return [Math.floor(min * 10) / 10, Math.ceil(max * 10) / 10];
 };
 
-const buildLatestTradingSummary = (latestTrading) => {
-  if (!latestTrading) return null;
+const buildLatestTradingSummary = (latestTrading, meta = null) => {
+  if (!latestTrading && !meta) return null;
   return {
-    date: fullLabel(latestTrading.date),
-    volumeM: Number.isFinite(latestTrading.volumeShares)
+    date: latestTrading?.date ? fullLabel(latestTrading.date) : null,
+    volumeM: Number.isFinite(latestTrading?.volumeShares)
       ? latestTrading.volumeShares / 1_000_000
       : null,
-    shortPercent: formatPercent(latestTrading.shortShareOfVolumePercent),
-    netChange: Number.isFinite(latestTrading.shortChangeShares)
+    shortPercent: Number.isFinite(latestTrading?.shortShareOfVolumePercent)
+      ? formatPercent(latestTrading.shortShareOfVolumePercent)
+      : null,
+    netChange: Number.isFinite(latestTrading?.shortChangeShares)
       ? `${latestTrading.shortChangeShares > 0 ? "+" : latestTrading.shortChangeShares < 0 ? "-" : ""}${formatNumber(
           Math.abs(latestTrading.shortChangeShares)
         )}`
       : "–",
-    daysToCover: Number.isFinite(latestTrading.daysToCover)
-      ? latestTrading.daysToCover
+    daysToCover: Number.isFinite(meta?.daysToCoverEstimate)
+      ? meta.daysToCoverEstimate
+      : Number.isFinite(latestTrading?.daysToCoverEstimate)
+        ? latestTrading.daysToCoverEstimate
+        : Number.isFinite(latestTrading?.daysToCover)
+          ? latestTrading.daysToCover
+          : null,
+    currentShortInterestPercent: Number.isFinite(meta?.currentShortInterestPercent)
+      ? formatPercent(meta.currentShortInterestPercent)
+      : null,
+    currentShortInterestShares: Number.isFinite(meta?.currentShortInterestShares)
+      ? meta.currentShortInterestShares
+      : null,
+    currentShortInterestDate: meta?.currentShortInterestDate
+      ? fullLabel(meta.currentShortInterestDate)
+      : null,
+    averageDailyVolumeShares: Number.isFinite(meta?.averageDailyVolumeShares)
+      ? meta.averageDailyVolumeShares
       : null,
   };
 };
@@ -170,6 +188,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   const [tradingItems, setTradingItems] = useState([]);
   const [aggregateShare, setAggregateShare] = useState(null);
   const [latestTrading, setLatestTrading] = useState(null);
+  const [latestTradingMeta, setLatestTradingMeta] = useState(null);
 
   useEffect(() => {
     if (!tradingRanges.includes(tradingRange)) {
@@ -233,6 +252,19 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
         const json = await parseJsonResponse(res, { requireOk: false });
         setTradingItems(Array.isArray(json?.items) ? json.items : []);
         setLatestTrading(json?.latest ?? null);
+        setLatestTradingMeta({
+          daysToCoverEstimate: Number.isFinite(json?.daysToCoverEstimate) ? json.daysToCoverEstimate : null,
+          currentShortInterestPercent: Number.isFinite(json?.currentShortInterestPercent)
+            ? json.currentShortInterestPercent
+            : null,
+          currentShortInterestShares: Number.isFinite(json?.currentShortInterestShares)
+            ? json.currentShortInterestShares
+            : null,
+          currentShortInterestDate: json?.currentShortInterestDate ?? null,
+          averageDailyVolumeShares: Number.isFinite(json?.averageDailyVolumeShares)
+            ? json.averageDailyVolumeShares
+            : null,
+        });
         setAggregateShare(Number.isFinite(json?.aggregateShare) ? json.aggregateShare : null);
       } catch (error) {
         console.error("Failed to fetch trading activity", error);
@@ -284,7 +316,10 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     return Math.max(Math.floor(length / divisor) - 1, 0);
   }, [tradingSeries, isMobile]);
 
-  const latestTradingSummary = useMemo(() => buildLatestTradingSummary(latestTrading), [latestTrading]);
+  const latestTradingSummary = useMemo(
+    () => buildLatestTradingSummary(latestTrading, latestTradingMeta),
+    [latestTrading, latestTradingMeta]
+  );
 
   const activeLoading = view === "blanking" ? blankingLoading : tradingLoading;
 
@@ -304,6 +339,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     tradingItems,
     aggregateShare,
     latestTrading,
+    latestTradingMeta,
     blankingSeries,
     blankingSummary,
     blankingDomain,

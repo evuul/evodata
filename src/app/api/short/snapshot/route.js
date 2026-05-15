@@ -118,7 +118,11 @@ function detectOutlier(history, today, value) {
 }
 
 export async function POST() {
+  let history = [];
+  const today = stockholmYMD();
   try {
+    history = await loadShortHistory();
+
     const emittentUrl = `https://www.fi.se/sv/vara-register/blankningsregistret/emittent?id=${encodeURIComponent(
       EVO_LEI
     )}`;
@@ -131,11 +135,21 @@ export async function POST() {
     }
 
     if (total == null) {
-      return new Response(JSON.stringify({ error: "Could not extract total percent" }), { status: 422 });
+      return new Response(
+        JSON.stringify({
+          ok: false,
+          refreshed: false,
+          date: today,
+          percent: null,
+          totalDays: history.length,
+          error: "Could not extract total percent",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
     }
-
-    const today = stockholmYMD();
-    const history = await loadShortHistory();
 
     const value = +Number(total).toFixed(2);
     const outlier = detectOutlier(history, today, value);
@@ -177,9 +191,20 @@ export async function POST() {
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500, headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: false,
+        refreshed: false,
+        date: today,
+        percent: null,
+        totalDays: history.length,
+        error: message,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   }
 }
 

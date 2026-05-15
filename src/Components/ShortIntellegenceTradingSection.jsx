@@ -28,6 +28,11 @@ export default function ShortIntellegenceTradingSection({
   aggregateShare,
   tradingTooltip,
 }) {
+  const daysToCoverValue =
+    latestTradingSummary && Number.isFinite(latestTradingSummary.daysToCover)
+      ? latestTradingSummary.daysToCover
+      : null;
+
   return (
     <Box
       sx={{
@@ -42,7 +47,19 @@ export default function ShortIntellegenceTradingSection({
         gap: { xs: 2, md: 3 },
         overflow: "visible",
       }}
-    >
+      >
+      <Box>
+        <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.78)", letterSpacing: 1.2 }}>
+          {translate("Handelsbrief", "Trading brief")}
+        </Typography>
+        <Typography sx={{ color: "rgba(226,232,240,0.74)", lineHeight: 1.6, mt: 0.4, maxWidth: 820 }}>
+          {translate(
+            "Här ser du blankarandel, volym, nettoposition och days to cover för den valda perioden.",
+            "Here you can see short share, volume, net position, and days to cover for the selected period."
+          )}
+        </Typography>
+      </Box>
+
       <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
         {tradingRanges.map((value) => (
           <Chip
@@ -213,13 +230,13 @@ export default function ShortIntellegenceTradingSection({
                 fontWeight: 600,
               }}
             >
-              {translate("Senaste handelsdag", "Latest trading day")}
+              {translate("Aktuell blankning", "Current short interest")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {latestTradingSummary ? latestTradingSummary.shortPercent : "–"}
+              {latestTradingSummary?.currentShortInterestPercent ?? "–"}
             </Typography>
             <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-              {latestTradingSummary ? latestTradingSummary.date : "–"}
+              {latestTradingSummary?.currentShortInterestDate ?? "–"}
             </Typography>
           </Box>
         </Box>
@@ -270,7 +287,7 @@ export default function ShortIntellegenceTradingSection({
                 fontWeight: 600,
               }}
             >
-              {translate("Periodsnitt blankarandel", "Average short share for period")}
+              {translate("Blankarandel i perioden", "Short share in period")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
               {aggregateShare != null ? formatPercent(aggregateShare, 1) : "–"}
@@ -299,12 +316,16 @@ export default function ShortIntellegenceTradingSection({
               {translate("Days to cover", "Days to cover")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {latestTradingSummary && latestTradingSummary.daysToCover != null
-                ? latestTradingSummary.daysToCover.toFixed(2)
-                : "–"}
+              {daysToCoverValue != null ? daysToCoverValue.toFixed(2) : "–"}
             </Typography>
-            <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-              {translate("Kort/20d volymsnitt", "Shorts / 20d avg volume")}
+            <Typography
+              sx={{
+                color: "rgba(148,163,184,0.75)",
+                fontSize: "0.85rem",
+                visibility: "hidden",
+              }}
+            >
+              {translate("Kort / snittvolym", "Shorts / average volume")}
             </Typography>
           </Box>
         </Box>

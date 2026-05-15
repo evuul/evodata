@@ -44,7 +44,6 @@ const OwnershipView = ({
   ownershipPercentageData,
   latestEvolutionShares,
   latestOwnershipPercentage,
-  cancelledShares,
   chartTypeOwnership,
   onChangeChartTypeOwnership,
   yDomain,
@@ -54,6 +53,7 @@ const OwnershipView = ({
   const translate = useTranslate();
   const areaFillId = `ownAreaFill-${useId()}`;
   const data = evolutionOwnershipData || [];
+  const ownershipSeries = Array.isArray(ownershipPercentageData) ? ownershipPercentageData : [];
   const tickFontSize = isMobile ? 12 : 14;
   const yTickWidth = isMobile ? 42 : 60;
   const xHeight = isMobile ? 40 : 40;
@@ -66,6 +66,30 @@ const OwnershipView = ({
     return value.toLocaleString("sv-SE");
   };
   const yTickFormatter = isMobile ? formatCompactMobileTick : formatYAxisTick;
+  const latestOwnership = Number.isFinite(latestOwnershipPercentage) ? latestOwnershipPercentage : null;
+  const previousDataPoint = data.length > 1 ? data[data.length - 2] : null;
+  const previousOwnershipPoint = ownershipSeries.length > 1 ? ownershipSeries[ownershipSeries.length - 2] : null;
+  const previousShares = Number(previousDataPoint?.shares);
+  const currentShares = Number.isFinite(latestEvolutionShares) ? latestEvolutionShares : null;
+  const sharesChange = Number.isFinite(currentShares) && Number.isFinite(previousShares) ? currentShares - previousShares : null;
+  const ownershipChangePct =
+    Number.isFinite(latestOwnership) && Number.isFinite(previousOwnershipPoint?.percentage)
+      ? latestOwnership - previousOwnershipPoint.percentage
+      : null;
+  const sharesChangeLabel =
+    Number.isFinite(sharesChange)
+      ? translate(
+          `${sharesChange >= 0 ? "+" : ""}${sharesChange.toLocaleString("sv-SE")} aktier`,
+          `${sharesChange >= 0 ? "+" : ""}${sharesChange.toLocaleString("sv-SE")} shares`
+        )
+      : translate("Saknar jämförelsedata", "Comparison data unavailable");
+  const ownershipChangeLabel =
+    Number.isFinite(ownershipChangePct)
+      ? translate(
+          `${ownershipChangePct >= 0 ? "+" : ""}${ownershipChangePct.toFixed(2)} procentenheter`,
+          `${ownershipChangePct >= 0 ? "+" : ""}${ownershipChangePct.toFixed(2)} percentage points`
+        )
+      : translate("Saknar jämförelse", "Comparison unavailable");
 
   return (
     <Box
@@ -82,27 +106,36 @@ const OwnershipView = ({
         gap: 2.4,
       }}
     >
-      <Typography
-        variant="h6"
-        sx={{
-          fontWeight: 700,
-          color: COLORS.textPrimary,
-          fontSize: { xs: "1.05rem", sm: "1.35rem", md: "1.5rem" },
-        }}
-      >
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+            color: COLORS.textPrimary,
+            fontSize: { xs: "1.05rem", sm: "1.35rem", md: "1.5rem" },
+          }}
+        >
         {translate("Evolutions ägande", "Evolution ownership")}
-      </Typography>
+        </Typography>
+
+      <Box sx={{ maxWidth: 880 }}>
+        <Typography sx={{ color: COLORS.textSecondary, lineHeight: 1.6 }}>
+          {translate(
+            "Här ser du hur mycket Evolution själv äger, hur stor andel det motsvarar och hur senaste året skiljer sig från året före.",
+            "This shows how much Evolution owns itself, what share that represents, and how the latest year compares with the year before."
+          )}
+        </Typography>
+      </Box>
 
       <Stack
-        direction={{ xs: "column", sm: "row" }}
+        direction={{ xs: "column", md: "row" }}
         spacing={{ xs: 1.2, sm: 1.6 }}
         sx={{ flexWrap: "wrap" }}
       >
         <Box
           sx={{
             flex: 1,
-            minWidth: { xs: "100%", sm: 200 },
-            background: "linear-gradient(135deg, rgba(56,189,248,0.25), rgba(14,116,144,0.25))",
+            minWidth: { xs: "100%", md: 220 },
+            background: "linear-gradient(135deg, rgba(56,189,248,0.22), rgba(14,116,144,0.22))",
             borderRadius: "16px",
             border: `1px solid rgba(56,189,248,0.35)`,
             px: 2.2,
@@ -116,7 +149,7 @@ const OwnershipView = ({
             {translate("Aktieinnehav", "Shareholding")}
           </Typography>
           <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
-            {latestEvolutionShares.toLocaleString("sv-SE")}
+            {Number.isFinite(currentShares) ? currentShares.toLocaleString("sv-SE") : "–"}
           </Typography>
           <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
             {translate("Totalt antal Evolution-ägda aktier", "Total Evolution-owned shares")}
@@ -125,8 +158,8 @@ const OwnershipView = ({
         <Box
           sx={{
             flex: 1,
-            minWidth: { xs: "100%", sm: 200 },
-            background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(21,128,61,0.2))",
+            minWidth: { xs: "100%", md: 220 },
+            background: "linear-gradient(135deg, rgba(34,197,94,0.18), rgba(21,128,61,0.18))",
             borderRadius: "16px",
             border: `1px solid rgba(34,197,94,0.35)`,
             px: 2.2,
@@ -140,42 +173,50 @@ const OwnershipView = ({
             {translate("Ägarandel", "Ownership share")}
           </Typography>
           <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
-            {latestOwnershipPercentage.toFixed(2)}%
+            {latestOwnership != null ? `${latestOwnership.toFixed(2)}%` : "–"}
           </Typography>
           <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
             {translate("Baserat på senaste totala aktiestocken", "Based on latest total share count")}
           </Typography>
         </Box>
-        {cancelledShares > 0 && (
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: { xs: "100%", sm: 200 },
-              background: "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(185,28,28,0.18))",
-              borderRadius: "16px",
-              border: `1px solid rgba(248,113,113,0.35)`,
-              px: 2.2,
-              py: 1.8,
-              display: "flex",
-              flexDirection: "column",
-              gap: 0.5,
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-              {translate("Makulerade aktier", "Cancelled shares")}
-            </Typography>
-            <Typography variant="h6" sx={{ color: "#fca5a5", fontWeight: 600 }}>
-              {cancelledShares.toLocaleString("sv-SE")}
-            </Typography>
-            <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-              {translate("Historiskt indragna sedan programstart", "Retired since program start")}
-            </Typography>
-          </Box>
-        )}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: { xs: "100%", md: 220 },
+            background: "linear-gradient(135deg, rgba(244,114,182,0.18), rgba(185,28,28,0.16))",
+            borderRadius: "16px",
+            border: `1px solid rgba(248,113,113,0.35)`,
+            px: 2.2,
+            py: 1.8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
+            {translate("Senaste förändring", "Latest change")}
+          </Typography>
+          <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
+            {sharesChangeLabel}
+          </Typography>
+          <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
+            {translate(
+              `Ägandet förändrades med ${ownershipChangeLabel} senaste året.`,
+              `Ownership changed by ${ownershipChangeLabel} over the latest year.`
+            )}
+          </Typography>
+        </Box>
       </Stack>
 
       <Typography variant="h6" sx={{ color: COLORS.accent, fontWeight: 600 }}>
-        {translate("Antal aktier över tid", "Shares over time")}
+        {translate("Årsutveckling", "Yearly development")}
+      </Typography>
+
+      <Typography sx={{ color: COLORS.textSecondary, lineHeight: 1.6, mt: -1 }}>
+        {translate(
+          "Diagrammet visar hur Evolutions egna aktier byggts upp över tid. Tabellen längre ner är detaljvyn per år.",
+          "The chart shows how Evolution's owned shares have built up over time. The table below is the year-by-year detail view."
+        )}
       </Typography>
 
       <Box
@@ -218,7 +259,7 @@ const OwnershipView = ({
       </Box>
 
       <Box sx={{ width: "100%", mx: { xs: -0.6, md: 0 } }}>
-      <ResponsiveContainer width="100%" height={isMobile ? 280 : 300}>
+        <ResponsiveContainer width="100%" height={isMobile ? 280 : 300}>
         {chartTypeOwnership === "line" ? (
           <ComposedChart
             data={data}
@@ -364,7 +405,7 @@ const OwnershipView = ({
             />
           </BarChart>
         )}
-      </ResponsiveContainer>
+        </ResponsiveContainer>
       </Box>
 
       <Typography variant="h6" sx={{ color: COLORS.textPrimary, fontWeight: 600 }}>
@@ -410,7 +451,7 @@ const OwnershipView = ({
                   borderBottom: `1px solid ${COLORS.border}`,
                 }}
               >
-                {translate("% ägande", "% ownership")}
+                {translate("Ägarandel", "Ownership")}
               </TableCell>
             </TableRow>
           </TableHead>
@@ -431,10 +472,9 @@ const OwnershipView = ({
                   {item.shares.toLocaleString()}
                 </TableCell>
                 <TableCell sx={{ color: COLORS.textPrimary, textAlign: "center" }}>
-                  {ownershipPercentageData
+                  {(ownershipPercentageData
                     .find((d) => d.date === item.date)
-                    ?.percentage.toFixed(2) || "0.00"}
-                  %
+                    ?.percentage.toFixed(2) || "0.00")}%
                 </TableCell>
               </TableRow>
             ))}

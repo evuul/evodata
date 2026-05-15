@@ -12,14 +12,13 @@ import {
   useTheme,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import {
-} from "recharts";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { useTranslate } from "@/context/LocaleContext";
 import {
   VIEW_OPTIONS,
   formatPercent,
   formatNumber,
+  formatMillion,
   fullLabel,
   useShortIntelligenceModel,
 } from "./useShortIntelligenceModel";
@@ -145,7 +144,7 @@ const ShortIntellegence = () => {
   return (
     <Box
       sx={{
-        background: "linear-gradient(135deg, #0f172a, #1f2937)",
+        background: "rgba(15,23,42,0.55)",
         borderRadius: "18px",
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
@@ -176,8 +175,8 @@ const ShortIntellegence = () => {
             sx={{ color: "rgba(226,232,240,0.7)", mt: 1, maxWidth: 520 }}
           >
             {translate(
-              "Växla mellan blankningsgrad och handelsdata för att se hur kortsiktiga positioner utvecklas och påverkar likviditeten.",
-              "Switch between short interest and trading data to see how short-term positions evolve and impact liquidity."
+              "Blankningsvyn visar den offentliga positionen över tid. Handelsvyn visar hur blankare har handlat i den valda perioden.",
+              "The short view shows the public short position over time. The trading view shows how shorts have traded in the selected period."
             )}
           </Typography>
         </Box>
@@ -232,6 +231,96 @@ const ShortIntellegence = () => {
         </Stack>
       </Stack>
 
+      <Box
+        sx={{
+          mt: { xs: 2.5, md: 3 },
+          p: { xs: 1.5, md: 2 },
+          borderRadius: "16px",
+          border: "1px solid rgba(148,163,184,0.18)",
+          background: "rgba(15,23,42,0.48)",
+        }}
+      >
+        <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.78)", letterSpacing: 1.2 }}>
+          {translate("Snabb översikt", "Quick brief")}
+        </Typography>
+        <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.6, mt: 0.5 }}>
+          {translate(
+            "Tre siffror räcker ofta: aktuell blankning, senaste rörelse och hur hårt blankarna trycker på handeln.",
+            "Three numbers usually tell the story: current short interest, the latest move, and how hard shorts are pressing on trading."
+          )}
+        </Typography>
+        <Box
+          sx={{
+            mt: 1.5,
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+            gap: { xs: 1.2, md: 1.6 },
+          }}
+        >
+          <Box
+            sx={{
+              background: "linear-gradient(135deg, rgba(96,165,250,0.16), rgba(15,23,42,0.56))",
+              border: "1px solid rgba(96,165,250,0.28)",
+              borderRadius: "14px",
+              p: 1.6,
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.72)" }}>
+              {translate("Senaste blankning", "Latest short interest")}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.4 }}>
+              {formatPercent(blankingSummary?.latestPercent, 2)}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.3 }}>
+              {blankingSummary?.latestDate ? fullLabel(blankingSummary.latestDate) : "–"}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              background: "linear-gradient(135deg, rgba(248,113,113,0.14), rgba(15,23,42,0.56))",
+              border: "1px solid rgba(248,113,113,0.24)",
+              borderRadius: "14px",
+              p: 1.6,
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.72)" }}>
+              {translate("Förändring senaste dag", "Change since last day")}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.4 }}>
+              {blankingSummary?.deltaPP != null
+                ? `${blankingSummary.deltaPP >= 0 ? "+" : ""}${blankingSummary.deltaPP.toFixed(2)} pp`
+                : "–"}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.3 }}>
+              {blankingSummary?.deltaShares != null
+                ? translate(
+                    `${formatNumber(Math.abs(blankingSummary.deltaShares))} aktier`,
+                    `${formatNumber(Math.abs(blankingSummary.deltaShares))} shares`
+                  )
+                : "–"}
+            </Typography>
+          </Box>
+          <Box
+            sx={{
+              background: "linear-gradient(135deg, rgba(250,204,21,0.14), rgba(15,23,42,0.56))",
+              border: "1px solid rgba(250,204,21,0.24)",
+              borderRadius: "14px",
+              p: 1.6,
+            }}
+          >
+            <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.72)" }}>
+              {translate("Aktuell blankning", "Current short interest")}
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.4 }}>
+              {latestTradingSummary?.currentShortInterestPercent ?? "–"}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.3 }}>
+              {latestTradingSummary?.currentShortInterestDate ?? translate("Kräver shortdata", "Needs short data")}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
       <ToggleButtonGroup
         value={view}
         exclusive
@@ -262,11 +351,11 @@ const ShortIntellegence = () => {
                     ? "rgba(96,165,250,0.3)"
                     : "rgba(250,204,21,0.28)",
               },
-            }}
-          >
-            {translate(option.labelSv, option.labelEn)}
-          </ToggleButton>
-        ))}
+                }}
+              >
+                {translate(option.labelSv, option.labelEn)}
+              </ToggleButton>
+            ))}
       </ToggleButtonGroup>
 
       <Box sx={{ position: "relative", mt: { xs: 3, md: 4 } }}>
