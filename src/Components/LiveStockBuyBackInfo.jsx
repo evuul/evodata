@@ -84,16 +84,21 @@ const fmtCurrency = (value) =>
     : '–';
 
 const fmtEuroMillions = (value) =>
-  Number.isFinite(value) ? `${(value / 1_000_000).toLocaleString('sv-SE', { maximumFractionDigits: 1 })} M€` : '–';
+  Number.isFinite(value)
+    ? `${(value / 1_000_000).toLocaleString('sv-SE', {
+        maximumFractionDigits: value >= 1_000_000_000 ? 0 : 1,
+      })} M€`
+    : '–';
 
-const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === '1';
+const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE !== '0';
 const FORECAST_BUYBACK_SHARE = 0.8;
 const FORECAST_DIVIDEND_SHARE = 0;
 const FORECAST_RETAINED_SHARE = Math.max(0, 1 - FORECAST_BUYBACK_SHARE - FORECAST_DIVIDEND_SHARE);
 const FORECAST_BUYBACK_LABEL = `${Math.round(FORECAST_BUYBACK_SHARE * 100)}%`;
 const FORECAST_DIVIDEND_LABEL = `${Math.round(FORECAST_DIVIDEND_SHARE * 100)}%`;
 const FORECAST_RETAINED_LABEL = `${Math.round(FORECAST_RETAINED_SHARE * 100)}%`;
-const FORECAST_CAPITAL_UPDATE_DATE = '2026-03-18';
+const FORECAST_CAPITAL_UPDATE_DATE = '2026-05-18';
+const CURRENT_BUYBACK_MANDATE_START_DATE = '2026-05-18';
 
 const toLabel = (datum) => {
   if (!datum) return '';
@@ -141,18 +146,27 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     fetchData();
   }, [fetchData]);
 
+  const currentMandateData = useMemo(
+    () =>
+      (curData || []).filter((row) => {
+        if (!row?.Datum) return false;
+        return row.Datum >= CURRENT_BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0;
+      }),
+    [curData]
+  );
+
   const { weekNow, weekPrev } = useMemo(() => {
-    const thisWeek = getLastWeekBuybacks(curData);
-    const prevWeek = getPreviousWeekBuybacks(curData, thisWeek.periodStart);
+    const thisWeek = getLastWeekBuybacks(currentMandateData);
+    const prevWeek = getPreviousWeekBuybacks(currentMandateData, thisWeek.periodStart);
     return { weekNow: thisWeek, weekPrev: prevWeek };
-  }, [curData]);
+  }, [currentMandateData]);
   const weekDeltaShares = useMemo(() => weekNow.totalShares - weekPrev.totalShares, [weekNow.totalShares, weekPrev.totalShares]);
   const weekDeltaSharesPct = useMemo(() => {
     if (!Number.isFinite(weekPrev.totalShares) || weekPrev.totalShares <= 0) return null;
     return (weekDeltaShares / weekPrev.totalShares) * 100;
   }, [weekDeltaShares, weekPrev.totalShares]);
 
-  const avgDaily = useMemo(() => calculateAverageDailyBuyback(curData), [curData]);
+  const avgDaily = useMemo(() => calculateAverageDailyBuyback(currentMandateData), [currentMandateData]);
   const buybackBudgetSek = useMemo(() => {
     if (!Number.isFinite(buybackCash) || buybackCash <= 0) return null;
     const rate = Number(fxRate);
@@ -161,8 +175,8 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   }, [buybackCash, fxRate]);
   const stats = useMemo(() => calculateBuybackStats(curData), [curData]);
   const totalSpent = useMemo(
-    () => (curData || []).filter((row) => Number(row?.Antal_aktier) > 0).reduce((sum, row) => sum + (row?.Transaktionsvärde || 0), 0),
-    [curData]
+    () => currentMandateData.reduce((sum, row) => sum + (row?.Transaktionsvärde || 0), 0),
+    [currentMandateData]
   );
   const remainingCash = useMemo(
     () => (Number.isFinite(buybackBudgetSek) ? Math.max(buybackBudgetSek - totalSpent, 0) : null),
@@ -171,9 +185,9 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const est = useMemo(
     () =>
       Number.isFinite(remainingCash) && remainingCash > 0
-        ? calculateEstimatedCompletion(remainingCash, curData)
+        ? calculateEstimatedCompletion(remainingCash, currentMandateData)
         : null,
-    [remainingCash, curData]
+    [remainingCash, currentMandateData]
   );
   const cashUsagePercent =
     Number.isFinite(buybackBudgetSek) && buybackBudgetSek > 0 ? Math.min((totalSpent / buybackBudgetSek) * 100, 100) : null;
@@ -294,12 +308,12 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     );
     return Number.isFinite(sum) ? sum : null;
   }, [financialReports]);
-  const estimateBuybackEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * FORECAST_BUYBACK_SHARE : null;
-  const estimateDividendEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * FORECAST_DIVIDEND_SHARE : null;
-  const estimateRetainedEur = Number.isFinite(profit2025EurM) ? profit2025EurM * 1_000_000 * FORECAST_RETAINED_SHARE : null;
-  const estimateBuybackSek = Number.isFinite(estimateBuybackEur) ? estimateBuybackEur * fxRateValue : null;
-  const estimateDividendSek = Number.isFinite(estimateDividendEur) ? estimateDividendEur * fxRateValue : null;
-  const estimateRetainedSek = Number.isFinite(estimateRetainedEur) ? estimateRetainedEur * fxRateValue : null;
+  const estimateBuybackEur = Number.isFinite(buybackCash) ? buybackCash : null;
+  const estimateDividendEur = 0;
+  const estimateRetainedEur = 0;
+  const estimateBuybackSek = Number.isFinite(buybackBudgetSek) ? buybackBudgetSek : null;
+  const estimateDividendSek = 0;
+  const estimateRetainedSek = 0;
   const estimateSharesAffordable = useMemo(() => {
     if (!Number.isFinite(estimateBuybackSek) || !Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
     return Math.floor(estimateBuybackSek / currentSharePrice);
@@ -409,14 +423,14 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
   const chartData = useMemo(() => {
     let base = [];
-    if (viewMode === 'daily') base = buildDaily(combinedBuybacks);
-    else if (viewMode === 'weekly') base = buildWeekly(combinedBuybacks);
-    else if (viewMode === 'monthly') base = buildMonthly(combinedBuybacks);
-    else base = buildYearly(combinedBuybacks);
+    if (viewMode === 'daily') base = buildDaily(currentMandateData);
+    else if (viewMode === 'weekly') base = buildWeekly(currentMandateData);
+    else if (viewMode === 'monthly') base = buildMonthly(currentMandateData);
+    else base = buildYearly(currentMandateData);
     return base
       .map((row) => ({ x: toLabel(row.Datum), sharesK: (row.Antal_aktier || 0) / 1_000 }))
       .filter((r) => Number.isFinite(r.sharesK));
-  }, [viewMode, combinedBuybacks]);
+  }, [viewMode, currentMandateData]);
   const overviewXAxisInterval = useMemo(() => {
     const len = chartData.length;
     if (!len) return 0;
@@ -542,8 +556,8 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           </Typography>
           <Typography sx={{ color: 'rgba(226,232,240,0.7)', mt: 1, maxWidth: 560, mx: 'auto' }}>
             {translate(
-              'Senaste veckans återköp jämfört med föregående, genomsnittlig takt och en enkel tidslinje. Uppdateras automatiskt.',
-              'Compare last week’s buybacks with the prior one, track the average pace, and see a simple timeline. Updates automatically.'
+              'Nytt återköpsmandat på 2000 M€ och EST-fördelningen visas här. Jämför senaste veckans återköp, följ takten och se tidslinjen.',
+              'The new 2000 M€ buyback mandate and the EST allocation are shown here. Compare the latest week, track pace, and view the timeline.'
             )}
           </Typography>
         </Box>
@@ -558,6 +572,18 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           justifyContent="center"
           sx={{ mt: 1 }}
         >
+          {Number.isFinite(buybackCash) && buybackCash > 0 && (
+            <Chip
+              size="small"
+              label={translate(`Nytt mandat: ${fmtEuroMillions(buybackCash)}`, `New mandate: ${fmtEuroMillions(buybackCash)}`)}
+              sx={{
+                backgroundColor: 'rgba(56,189,248,0.12)',
+                color: '#bae6fd',
+                borderRadius: '10px',
+                border: '1px solid rgba(56,189,248,0.3)',
+              }}
+            />
+          )}
           {Number.isFinite(fxRate) && (
             <Chip
               size="small"

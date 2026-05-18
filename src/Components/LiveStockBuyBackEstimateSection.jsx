@@ -44,17 +44,9 @@ const MetricCard = ({ accent, title, value, note, badge }) => (
 
 export default function LiveStockBuyBackEstimateSection({
   translate,
-  FORECAST_BUYBACK_LABEL,
-  FORECAST_DIVIDEND_LABEL,
-  FORECAST_RETAINED_LABEL,
   FORECAST_CAPITAL_UPDATE_DATE,
-  hasFullYear2025Reported,
-  profit2025EurM,
   estimateBuybackEur,
   estimateBuybackSek,
-  estimateDividendEur,
-  estimateDividendSek,
-  estimateRetainedSek,
   estimateSharesAffordable,
   currentSharePrice,
   estimateSharePercent,
@@ -70,13 +62,6 @@ export default function LiveStockBuyBackEstimateSection({
   fmtCurrency,
   fmtEuroMillions,
 }) {
-  const profitLabel = Number.isFinite(profit2025EurM)
-    ? translate(`${profit2025EurM.toFixed(1)} M€`, `${profit2025EurM.toFixed(1)} M€`)
-    : translate("Saknar 2025-data", "Missing 2025 data");
-  const retainedLabel = Number.isFinite(estimateRetainedSek)
-    ? fmtCurrency(estimateRetainedSek)
-    : "–";
-
   return (
     <Box
       sx={{
@@ -96,8 +81,8 @@ export default function LiveStockBuyBackEstimateSection({
           </Typography>
           <Typography sx={{ color: "rgba(226,232,240,0.8)", mt: 0.6, lineHeight: 1.6, maxWidth: 860 }}>
             {translate(
-              `Uppdaterat efter styrelsens besked ${FORECAST_CAPITAL_UPDATE_DATE}: modellen antar ${FORECAST_BUYBACK_LABEL} återköp, ${FORECAST_DIVIDEND_LABEL} utdelning och ${FORECAST_RETAINED_LABEL} kvar i kassan.`,
-              `Updated after the Board's ${FORECAST_CAPITAL_UPDATE_DATE} announcement: the model assumes ${FORECAST_BUYBACK_LABEL} buybacks, ${FORECAST_DIVIDEND_LABEL} dividends, and ${FORECAST_RETAINED_LABEL} retained cash.`
+              `Uppdaterat efter styrelsens besked ${FORECAST_CAPITAL_UPDATE_DATE}: rutan räknar på hela nya återköpsmandatet och vad det betyder på nuvarande kurs.`,
+              `Updated after the Board's ${FORECAST_CAPITAL_UPDATE_DATE} announcement: this view uses the full new buyback mandate and shows what it means at the current price.`
             )}
           </Typography>
         </Box>
@@ -109,8 +94,8 @@ export default function LiveStockBuyBackEstimateSection({
             value={Number.isFinite(estimateBuybackEur) ? `${fmtEuroMillions(estimateBuybackEur)}` : "–"}
             badge={Number.isFinite(estimateBuybackSek) ? `${fmtCurrency(estimateBuybackSek)} SEK` : null}
             note={translate(
-              `Baseras på ${profitLabel} och ${FORECAST_BUYBACK_LABEL} av modellens vinstantagande.`,
-              `Based on ${profitLabel} and ${FORECAST_BUYBACK_LABEL} of the model's profit assumption.`
+              "Hela nya mandatet, inte den gamla vinstmodellen.",
+              "The full new mandate, not the old profit model."
             )}
           />
 
@@ -166,8 +151,8 @@ export default function LiveStockBuyBackEstimateSection({
 
         <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)", lineHeight: 1.6 }}>
           {translate(
-            `Modellen visar en förenklad allokering. ${Number.isFinite(estimateDividendEur) ? `${fmtEuroMillions(estimateDividendEur)} går till utdelning` : "Utdelningsdelen är noll i modellen"} och ${retainedLabel} stannar i balansräkningen${Number.isFinite(dividendPerShareSek) ? ` • Utdelning per aktie: ${dividendPerShareEur?.toFixed?.(2) ?? "–"} € / ${dividendPerShareSek?.toFixed?.(2) ?? "–"} SEK` : ""}.`,
-            `The model uses a simplified allocation. ${Number.isFinite(estimateDividendEur) ? `${fmtEuroMillions(estimateDividendEur)} goes to dividends` : "The dividend allocation is zero in the model"} and ${retainedLabel} stays on the balance sheet${Number.isFinite(dividendPerShareSek) ? ` • Dividend per share: ${dividendPerShareEur?.toFixed?.(2) ?? "–"} € / ${dividendPerShareSek?.toFixed?.(2) ?? "–"} SEK` : ""}.`
+            "Det här visar full återköpspotential om hela mandatet används på nuvarande kurs. Makuleringseffekten syns i EPS-raden.",
+            "This shows the full buyback potential if the entire mandate is used at the current price. The cancellation effect is shown in the EPS row."
           )}
         </Typography>
       </Stack>

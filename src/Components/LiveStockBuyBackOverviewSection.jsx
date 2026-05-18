@@ -112,12 +112,12 @@ export default function LiveStockBuyBackOverviewSection({
             sx={{ mb: { xs: 1.5, md: 1.8 } }}
           >
             <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.85)", letterSpacing: 1.2 }}>
-              {translate("Nyckeltal för mandatet", "Mandate key metrics")}
+              {translate("Nyckeltal för nya mandatet", "New mandate key metrics")}
             </Typography>
             <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
               {translate(
-                "Tre siffror räcker här: hur mycket som är använt, hur fort det går och vad som återstår.",
-                "Three numbers are enough here: how much is used, how fast it runs, and what remains."
+                `Det nya mandatet startade ${FORECAST_CAPITAL_UPDATE_DATE}.`,
+                `The new mandate started on ${FORECAST_CAPITAL_UPDATE_DATE}.`
               )}
             </Typography>
           </Stack>
@@ -304,7 +304,10 @@ export default function LiveStockBuyBackOverviewSection({
           </Box>
         ) : (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "rgba(148,163,184,0.75)" }}>
-            {translate("Ingen återköpsdata tillgänglig.", "No buyback data available.")}
+            {translate(
+              `Inga rader i nya mandatet ännu. Historik finns i övriga flikar från ${FORECAST_CAPITAL_UPDATE_DATE}.`,
+              `No rows in the new mandate yet. Historical data is available in the other tabs from ${FORECAST_CAPITAL_UPDATE_DATE}.`
+            )}
           </Box>
         )}
       </Box>

@@ -15,7 +15,8 @@ import { findLatestReport, sortReports } from "@/lib/reportUtils";
 import { calculateEvolutionOwnershipPerYear, totalSharesData } from "./buybacks/utils";
 
 const DEFAULT_MANDATE_SEK = Number(process.env.NEXT_PUBLIC_BUYBACK_MANDATE_SEK) || null;
-const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE === "1";
+const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE !== "0";
+const CURRENT_BUYBACK_MANDATE_START_DATE = "2026-05-18";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const formatPct = (value) =>
@@ -56,9 +57,9 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     return Number.isFinite(fallback) ? fallback : null;
   }, []);
 
-  const { last12mBuybacksSek, totalBuybacksSek, buybackWindowEnd, buybackWindowStart } = useMemo(() => {
+  const { last12mBuybacksSek } = useMemo(() => {
     const rows = Array.isArray(buybackData) ? buybackData : [];
-    if (!rows.length) return { last12mBuybacksSek: null, totalBuybacksSek: null, buybackWindowEnd: null, buybackWindowStart: null };
+    if (!rows.length) return { last12mBuybacksSek: null };
     const parsed = rows
       .map((row) => {
         const date = new Date(row.Datum || row.date || row.Date || row.d);
@@ -66,19 +67,19 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
         return { date, value };
       })
       .filter((item) => Number.isFinite(item.value) && !Number.isNaN(item.date?.valueOf()));
-    if (!parsed.length) return { last12mBuybacksSek: null, totalBuybacksSek: null, buybackWindowEnd: null, buybackWindowStart: null };
+    if (!parsed.length) return { last12mBuybacksSek: null };
     const latestDate = parsed.reduce((latest, item) => (item.date > latest ? item.date : latest), parsed[0].date);
-    const earliestDate = parsed.reduce((earliest, item) => (item.date < earliest ? item.date : earliest), parsed[0].date);
     const cutoff = new Date(latestDate.getTime() - 365 * DAY_MS);
     const total = parsed.reduce((acc, item) => (item.date >= cutoff ? acc + item.value : acc), 0);
-    const totalAll = parsed.reduce((acc, item) => acc + item.value, 0);
-    return {
-      last12mBuybacksSek: total || null,
-      totalBuybacksSek: totalAll || null,
-      buybackWindowEnd: latestDate,
-      buybackWindowStart: earliestDate,
-    };
+    return { last12mBuybacksSek: total || null };
   }, [buybackData]);
+  const currentMandateRows = useMemo(
+    () =>
+      (Array.isArray(buybackData) ? buybackData : []).filter(
+        (row) => row?.Datum && row.Datum >= CURRENT_BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0
+      ),
+    [buybackData]
+  );
   const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(buybackData || []), [buybackData]);
   const latestEvolutionShares = useMemo(
     () => (evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : null),
@@ -162,18 +163,15 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   }, [buybackCash, fxRate]);
 
   const mandateRemaining = useMemo(() => {
-    const spent = Number.isFinite(totalBuybacksSek) ? totalBuybacksSek : null;
+    const spent = currentMandateRows.reduce((sum, row) => sum + (Number(row?.Transaktionsvärde) || 0), 0);
     if (Number.isFinite(buybackBudgetSek) && spent != null) {
       return Math.max(buybackBudgetSek - spent, 0);
     }
-    if (!Number.isFinite(DEFAULT_MANDATE_SEK) || !Number.isFinite(last12mBuybacksSek)) return null;
-    return Math.max(DEFAULT_MANDATE_SEK - last12mBuybacksSek, 0);
-  }, [buybackBudgetSek, last12mBuybacksSek, totalBuybacksSek]);
+    if (!Number.isFinite(DEFAULT_MANDATE_SEK)) return null;
+    return Math.max(DEFAULT_MANDATE_SEK - spent, 0);
+  }, [buybackBudgetSek, currentMandateRows, DEFAULT_MANDATE_SEK]);
 
   const latestQuarterLabel = latestReport ? `${latestReport.year} ${latestReport.quarter}` : "–";
-  const buybackWindowLabel = buybackWindowEnd ? new Date(buybackWindowEnd).toLocaleDateString("sv-SE") : "–";
-  const buybackWindowStartLabel = buybackWindowStart ? new Date(buybackWindowStart).toLocaleDateString("sv-SE") : "–";
-
   return (
     <Card
       sx={{
@@ -303,8 +301,8 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
               </Typography>
               <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.6)" }}>
                 {translate(
-                  `Draget ${totalBuybacksSek ? formatSekMillions(totalBuybacksSek) : "–"} sedan ${buybackWindowStartLabel}`,
-                  `Spent ${totalBuybacksSek ? formatSekMillions(totalBuybacksSek) : "–"} since ${buybackWindowStartLabel}`
+                  `Draget ${currentMandateRows.length ? formatSekMillions(currentMandateRows.reduce((sum, row) => sum + (Number(row?.Transaktionsvärde) || 0), 0)) : "0 MSEK"} sedan ${CURRENT_BUYBACK_MANDATE_START_DATE}`,
+                  `Spent ${currentMandateRows.length ? formatSekMillions(currentMandateRows.reduce((sum, row) => sum + (Number(row?.Transaktionsvärde) || 0), 0)) : "0 MSEK"} since ${CURRENT_BUYBACK_MANDATE_START_DATE}`
                 )}
               </Typography>
             </Stack>

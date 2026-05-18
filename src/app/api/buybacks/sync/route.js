@@ -3,7 +3,7 @@ export const runtime = 'nodejs';
 
 import { ensureRecentBuybackSync, syncBuybacks } from '@/lib/buybacksSync';
 
-const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? '0') === '1';
+const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? '1') === '1';
 
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {

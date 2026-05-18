@@ -5,6 +5,8 @@
 import React from "react";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 
+const BUYBACK_CASH_EUR = 2_000_000_000;
+
 export default function LiveHeaderPanelContent({
   activePanel,
   translate,
@@ -98,7 +100,7 @@ export default function LiveHeaderPanelContent({
             buybackData={buybackData}
             financialReports={financialReports}
             sharesData={sharesData}
-            buybackCash={500_000_000}
+            buybackCash={BUYBACK_CASH_EUR}
           />
         )}
       </Box>
@@ -135,7 +137,7 @@ export default function LiveHeaderPanelContent({
     return (
       <panels.LiveStockBuyBackInfoPanel
         dividendData={dividendData}
-        buybackCash={500_000_000}
+        buybackCash={BUYBACK_CASH_EUR}
         financialReports={financialReports}
       />
     );

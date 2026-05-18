@@ -2,8 +2,10 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { ensureRecentBuybackSync, readBuybackFiles } from '@/lib/buybacksSync';
+import buybackDataDefault from '../../../data/buybackData.json';
+import oldBuybackDataDefault from '../../../data/oldBuybackData.json';
 
-const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? '0') === '1';
+const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? '1') === '1';
 
 function isMondayInStockholm(date = new Date()) {
   const weekday = new Intl.DateTimeFormat('en-US', {
@@ -17,12 +19,14 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const force = searchParams.get('force') === '1';
   const shouldSync = BUYBACKS_ACTIVE && (force || isMondayInStockholm());
+  let syncError = null;
 
   if (shouldSync) {
     try {
       await ensureRecentBuybackSync();
     } catch (err) {
-      console.error('Auto buyback sync failed:', err.message);
+      syncError = err instanceof Error ? err.message : String(err);
+      console.error('Auto buyback sync failed:', syncError);
     }
   }
 
@@ -34,6 +38,7 @@ export async function GET(request) {
         current: curData,
         updatedAt: new Date().toISOString(),
         buybacksActive: BUYBACKS_ACTIVE,
+        syncError,
       }),
       {
         status: 200,
@@ -41,9 +46,19 @@ export async function GET(request) {
       },
     );
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({
+        old: oldBuybackDataDefault,
+        current: buybackDataDefault,
+        updatedAt: new Date().toISOString(),
+        buybacksActive: BUYBACKS_ACTIVE,
+        syncError: syncError || (err instanceof Error ? err.message : String(err)),
+        fallback: true,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
   }
 }
