@@ -51,6 +51,7 @@ const SCENARIO_PALETTE_BASE = {
 };
 
 const DEFAULT_SCENARIO_BASE = { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' };
+const BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 const METRIC_CARD_BASE_SX = {
   borderRadius: '18px',
   p: 2.8,
@@ -138,7 +139,62 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
   }, [stockPrice]);
 
   const effectiveReports = Array.isArray(liveReports) ? liveReports : reports;
-  const effectiveBuyback = liveBuyback ?? buyback;
+  const getOutstandingShares = useCallback((shares) => {
+    const latestShares = Array.isArray(shares) && shares.length ? shares[shares.length - 1]?.sharesOutstanding : null;
+    const sharesOutstanding = Number(latestShares);
+    if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
+    return sharesOutstanding > 1e6 ? sharesOutstanding : sharesOutstanding * 1e6;
+  }, []);
+
+  const computeHistoricalBuybackAssumptions = useCallback(
+    (rows, shares) => {
+      if (!Array.isArray(rows) || rows.length === 0) return null;
+      const sharesBase = getOutstandingShares(shares);
+      if (!Number.isFinite(sharesBase) || sharesBase <= 0) return null;
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const totalShares = rows.reduce((sum, row) => {
+        const dateStr = row?.Datum || row?.date;
+        const date = dateStr ? new Date(dateStr) : null;
+        if (!date || Number.isNaN(date.getTime()) || date < cutoff) return sum;
+        const count = Number(row?.Antal_aktier ?? row?.shares ?? 0);
+        return Number.isFinite(count) ? sum + count : sum;
+      }, 0);
+      if (totalShares <= 0) return null;
+      const base = clamp(totalShares / sharesBase, MIN_BBY, MAX_BBY);
+      return {
+        base,
+        bull: clamp(base * 1.2, MIN_BBY, MAX_BBY),
+        bear: clamp(base * 0.8, MIN_BBY, MAX_BBY),
+      };
+    },
+    [getOutstandingShares]
+  );
+
+  const computeMandateBuybackAssumptions = useCallback(
+    (mandateCashEur, shares) => {
+      const sharesOutstanding = getOutstandingShares(shares);
+      if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
+      if (!Number.isFinite(currentPriceSEK) || currentPriceSEK <= 0) return null;
+      const mandateSek = Number(mandateCashEur) * fx;
+      if (!Number.isFinite(mandateSek) || mandateSek <= 0) return null;
+      const buybackYield = mandateSek / currentPriceSEK / sharesOutstanding;
+      const base = clamp(buybackYield, MIN_BBY, MAX_BBY);
+      return {
+        base,
+        bull: clamp(base * 1.2, MIN_BBY, MAX_BBY),
+        bear: clamp(base * 0.8, MIN_BBY, MAX_BBY),
+      };
+    },
+    [currentPriceSEK, fx, getOutstandingShares]
+  );
+
+  const liveMandateBuyback = useMemo(() => {
+    if (buybackMeta?.buybacksActive === false) return null;
+    return computeMandateBuybackAssumptions(BUYBACK_MANDATE_CASH_EUR, sharesData);
+  }, [buybackMeta, computeMandateBuybackAssumptions, sharesData]);
+
+  const effectiveBuyback = liveMandateBuyback ?? liveBuyback ?? buyback;
 
   const fairValue = useMemo(
     () =>
@@ -240,8 +296,8 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
   const errorChipLabel = translate('Fel', 'Error');
   const updatedPrefix = translate('Uppdaterad', 'Updated');
   const descriptionText = translate(
-    'Normaliserad AI-modell väger samman 8Q EPS, clampad tillväxt och nettoåterköp för att uppskatta värderingsspann. Välj scenario för att se antaganden och potentiell uppsida.',
-    'Normalized AI model blends 8Q EPS, clamped growth, and net buybacks to estimate the valuation range. Pick a scenario to view assumptions and potential upside.'
+    'Normaliserad AI-modell väger samman 8Q EPS, clampad tillväxt och det nya återköpsmandatet för att uppskatta värderingsspann. Välj scenario för att se antaganden och potentiell uppsida.',
+    'Normalized AI model blends 8Q EPS, clamped growth, and the new buyback mandate to estimate the valuation range. Pick a scenario to view assumptions and potential upside.'
   );
   const dataUnavailableText = translate(
     'AI:n saknar tillräcklig kvartalsdata för att beräkna ett värde. Säkerställ att minst 8 kvartal med EPS finns i underlaget.',
@@ -296,33 +352,6 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
     };
   }, []);
 
-  const computeBuybackAssumptions = useCallback(
-    (rows, shares) => {
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-      const latestShares = Array.isArray(shares) && shares.length ? shares[shares.length - 1]?.sharesOutstanding : null;
-      const sharesOutstanding = Number(latestShares);
-      if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
-      const sharesBase = sharesOutstanding > 1e6 ? sharesOutstanding : sharesOutstanding * 1e6;
-      const cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
-      const totalShares = rows.reduce((sum, row) => {
-        const dateStr = row?.Datum || row?.date;
-        const date = dateStr ? new Date(dateStr) : null;
-        if (!date || Number.isNaN(date.getTime()) || date < cutoff) return sum;
-        const count = Number(row?.Antal_aktier ?? row?.shares ?? 0);
-        return Number.isFinite(count) ? sum + count : sum;
-      }, 0);
-      if (totalShares <= 0) return null;
-      const base = clamp(totalShares / sharesBase, MIN_BBY, MAX_BBY);
-      return {
-        base,
-        bull: clamp(base * 1.2, MIN_BBY, MAX_BBY),
-        bear: clamp(base * 0.8, MIN_BBY, MAX_BBY),
-      };
-    },
-    []
-  );
-
   useEffect(() => {
     let active = true;
     const fetchBuybacks = async () => {
@@ -334,7 +363,7 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
         setBuybackMeta(data);
         if (data?.buybacksActive === false) return;
         const rows = Array.isArray(data?.current) ? data.current : Array.isArray(data?.old) ? data.old : [];
-        const assumptions = computeBuybackAssumptions(rows, sharesData);
+        const assumptions = computeHistoricalBuybackAssumptions(rows, sharesData);
         if (assumptions) {
           setLiveBuyback(assumptions);
         }
@@ -346,14 +375,14 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
     return () => {
       active = false;
     };
-  }, [computeBuybackAssumptions, sharesData]);
+  }, [computeHistoricalBuybackAssumptions, sharesData]);
 
   useEffect(() => {
     if (buybackData && !liveBuyback) {
-      const assumptions = computeBuybackAssumptions(buybackData, sharesData);
+      const assumptions = computeHistoricalBuybackAssumptions(buybackData, sharesData);
       if (assumptions) setLiveBuyback(assumptions);
     }
-  }, [buybackData, computeBuybackAssumptions, liveBuyback, sharesData]);
+  }, [buybackData, computeHistoricalBuybackAssumptions, liveBuyback, sharesData]);
 
   return (
     <Box
@@ -828,8 +857,8 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
             )}
             <br />
             {translate(
-              '• Nettoåterköp antas öka EPS enligt 1/(1−y); scenarier varierar både multipel och kassaanvändning.',
-              '• Net buybacks are assumed to boost EPS via 1/(1−y); scenarios vary both multiples and cash usage.'
+              '• Nettoåterköp antas använda hela 2 000 M€-mandatet vid aktuell kurs och höja EPS via 1/(1−y); scenarier varierar både multipel och kassaanvändning.',
+              '• Net buybacks are assumed to use the full 2,000 M€ mandate at the current price and lift EPS via 1/(1−y); scenarios vary both multiples and cash usage.'
             )}
           </Typography>
           <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>

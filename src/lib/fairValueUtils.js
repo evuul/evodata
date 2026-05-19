@@ -4,7 +4,7 @@ export const MIN_FWD_GROWTH = -0.1;
 const MIN_PE = 10;
 const MAX_PE = 35;
 export const MIN_BBY = 0.0;
-export const MAX_BBY = 0.08;
+export const MAX_BBY = 0.25;
 
 const DEFAULT_BUYBACK = { base: 0.03, bull: 0.04, bear: 0.02 };
 
