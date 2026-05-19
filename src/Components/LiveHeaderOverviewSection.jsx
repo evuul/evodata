@@ -8,6 +8,8 @@ import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
 
+const LIVE_HEADER_OVERVIEW_CARDS = 4;
+
 const cardShellSx = {
   background: "rgba(15,23,42,0.35)",
   borderRadius: "18px",
@@ -133,6 +135,32 @@ function TopThreeMobileItem({ item, index, translate, formatTime }) {
   );
 }
 
+function formatCompactSek(value) {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) {
+    return `${(value / 1_000_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} mdkr`;
+  }
+  if (abs >= 1_000_000) {
+    return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} mkr`;
+  }
+  return `${value.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} kr`;
+}
+
+function formatMandateEur(value) {
+  if (!Number.isFinite(value)) return "—";
+  return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 0 })} M€`;
+}
+
+function formatCompactShares(value) {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) return `${(value / 1_000_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} B`;
+  if (abs >= 1_000_000) return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} M`;
+  if (abs >= 100_000) return `${Math.floor(value / 1_000).toLocaleString("sv-SE")} k`;
+  return value.toLocaleString("sv-SE", { maximumFractionDigits: 0 });
+}
+
 export default function LiveHeaderOverviewSection({
   translate,
   isMobileMenu,
@@ -161,10 +189,12 @@ export default function LiveHeaderOverviewSection({
   fmtCap,
   marketCap,
   marketStatusChip,
+  buybackSummary,
   latestTopWinLabelWithEmoji,
   top3,
   formatTime,
 }) {
+  const buybackUpdatedLabel = buybackSummary?.updatedAt ? formatTime(buybackSummary.updatedAt) : null;
   return (
     <>
       {playerDataAttentionLabel ? (
@@ -385,12 +415,57 @@ export default function LiveHeaderOverviewSection({
               {translate("Uppdateras tillsammans med kursdata.", "Updates alongside price data.")}
             </Typography>
           </HeaderMetricCard>
+
+          <HeaderMetricCard title={translate("Återköp", "Buybacks")} dotColor="#34d399">
+            <Typography
+              variant="h2"
+              sx={{
+                fontWeight: 800,
+                fontSize: { xs: "2.1rem", md: "2.5rem" },
+                color: "#f8fafc",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatCompactShares(buybackSummary?.sharesRepurchased)}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+              {translate("Återköpta aktier", "Shares repurchased")}
+            </Typography>
+            <Stack direction="row" spacing={0.8} flexWrap="wrap" justifyContent="center" sx={{ mt: 0.2 }}>
+              <Chip
+                size="small"
+                label={`${translate("Använt", "Used")}: ${buybackSummary?.usedLabel ?? formatCompactSek(buybackSummary?.usedSek)}`}
+                sx={{
+                  backgroundColor: "rgba(56,189,248,0.14)",
+                  color: "#dbeafe",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(56,189,248,0.28)",
+                }}
+              />
+              <Chip
+                size="small"
+                label={`${translate("Kvar", "Remaining")}: ${buybackSummary?.remainingLabel ?? formatCompactSek(buybackSummary?.remainingSek)}`}
+                sx={{
+                  backgroundColor: "rgba(52,211,153,0.14)",
+                  color: "#d1fae5",
+                  borderRadius: "999px",
+                  border: "1px solid rgba(52,211,153,0.28)",
+                }}
+              />
+            </Stack>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
+              {translate(
+                `Mandat ${formatMandateEur(buybackSummary?.mandateEur)}${buybackUpdatedLabel ? ` · uppdaterat ${buybackUpdatedLabel}` : ""}`,
+                `Mandate ${formatMandateEur(buybackSummary?.mandateEur)}${buybackUpdatedLabel ? ` · updated ${buybackUpdatedLabel}` : ""}`
+              )}
+            </Typography>
+          </HeaderMetricCard>
         </Box>
 
         {isMobileMenu ? (
           <>
             <Stack direction="row" spacing={0.7} justifyContent="center" sx={{ mt: 1.1 }}>
-              {[0, 1, 2].map((dot) => (
+              {Array.from({ length: LIVE_HEADER_OVERVIEW_CARDS }, (_, dot) => (
                 <Box
                   key={dot}
                   sx={{
@@ -435,13 +510,13 @@ export default function LiveHeaderOverviewSection({
                 borderRadius: "999px",
                 background: "rgba(15,23,42,0.7)",
                 border: "1px solid rgba(148,163,184,0.35)",
-                display: mobileCardIndex < 2 ? "flex" : "none",
+                display: mobileCardIndex < LIVE_HEADER_OVERVIEW_CARDS - 1 ? "flex" : "none",
                 alignItems: "center",
                 justifyContent: "center",
                 color: "#e2e8f0",
                 cursor: "pointer",
               }}
-              onClick={() => scrollToCard(Math.min(2, mobileCardIndex + 1))}
+              onClick={() => scrollToCard(Math.min(LIVE_HEADER_OVERVIEW_CARDS - 1, mobileCardIndex + 1))}
             >
               <ArrowForwardIos sx={{ fontSize: "0.75rem" }} />
             </Box>

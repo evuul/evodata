@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { useStockPriceContext } from "../context/StockPriceContext";
+import { useFxRateContext } from "../context/FxRateContext";
 import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "../context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -27,6 +28,9 @@ const SUPPORT_URL = "https://buymeacoffee.com/evuul";
 const DONATION_NUDGE_STORAGE_KEY = "evodata_donation_nudge_dismissed_v1";
 const DONATION_NUDGE_TTL_MS = 24 * 60 * 60 * 1000;
 const LIVE_CACHE_MS = 10 * 60 * 1000;
+const BUYBACK_CASH_EUR = 2_000_000_000;
+const BUYBACK_MANDATE_START_DATE = "2026-05-18";
+const LIVE_HEADER_OVERVIEW_CARDS = 4;
 const LOBBY_ATH_DAYS = 365;
 const SHOW_MY_PAGE_NEW_BADGE = true;
 const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
@@ -34,6 +38,7 @@ const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPAR
 const liveCaches = {
   short: { ts: 0, percent: null },
   top3: { ts: 0, entries: null },
+  buybackSummary: { ts: 0, summary: null },
 };
 
 export function useLiveHeaderModel() {
@@ -48,6 +53,7 @@ export function useLiveHeaderModel() {
     daysWithLosses,
     lastUpdated: stockLastUpdated,
   } = useStockPriceContext();
+  const { rate: fxRate } = useFxRateContext();
   const {
     data: liveGames,
     loading: loadingPlayers,
@@ -66,6 +72,7 @@ export function useLiveHeaderModel() {
   const [loadingShort, setLoadingShort] = useState(false);
   const [latestTopWin, setLatestTopWin] = useState(null);
   const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
+  const [buybackSummary, setBuybackSummary] = useState(null);
   const [lobbyAth, setLobbyAth] = useState(null);
   const [showDonationNudge, setShowDonationNudge] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
@@ -111,6 +118,11 @@ export function useLiveHeaderModel() {
     },
     [timeFormatter]
   );
+
+  const fxRateNumber = useMemo(() => {
+    const parsed = Number(fxRate);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [fxRate]);
 
   const scrollToCard = useCallback((index) => {
     const el = mobileCardsRef.current;
@@ -165,6 +177,59 @@ export function useLiveHeaderModel() {
   useEffect(() => {
     fetchShortFromHistory();
   }, [fetchShortFromHistory]);
+
+  const fetchBuybackSummary = useCallback(async () => {
+    const now = Date.now();
+    if (now - liveCaches.buybackSummary.ts < LIVE_CACHE_MS && liveCaches.buybackSummary.summary) {
+      setBuybackSummary(liveCaches.buybackSummary.summary);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/buybacks/data", { cache: "no-store" });
+      if (!res.ok) throw new Error(`buybacks failed: ${res.status}`);
+      const data = await res.json();
+      const currentRows = Array.isArray(data?.current) ? data.current : [];
+      const mandateRows = currentRows.filter(
+        (row) => row?.Datum && row.Datum >= BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0
+      );
+      const sharesRepurchased = mandateRows.reduce((sum, row) => sum + (Number(row?.Antal_aktier) || 0), 0);
+      const usedSek = mandateRows.reduce((sum, row) => sum + (Number(row?.Transaktionsvärde) || 0), 0);
+      const budgetSek = Number.isFinite(fxRateNumber) ? BUYBACK_CASH_EUR * fxRateNumber : null;
+      const remainingSek = Number.isFinite(budgetSek) ? Math.max(budgetSek - usedSek, 0) : null;
+      const remainingEur = Number.isFinite(fxRateNumber) ? Math.max(BUYBACK_CASH_EUR - usedSek / fxRateNumber, 0) : null;
+      const summary = {
+        mandateStart: BUYBACK_MANDATE_START_DATE,
+        mandateEur: BUYBACK_CASH_EUR,
+        usedSek,
+        usedEur: Number.isFinite(fxRateNumber) ? usedSek / fxRateNumber : null,
+        remainingSek,
+        remainingEur,
+        sharesRepurchased,
+        updatedAt: data?.updatedAt || new Date().toISOString(),
+        syncError: data?.syncError || null,
+        fallback: Boolean(data?.fallback),
+      };
+      liveCaches.buybackSummary = { ts: now, summary };
+      setBuybackSummary(summary);
+    } catch (error) {
+      console.warn("[LiveHeader] Failed to fetch buyback summary:", error);
+      const fallbackSummary = {
+        mandateStart: BUYBACK_MANDATE_START_DATE,
+        mandateEur: BUYBACK_CASH_EUR,
+        usedSek: 0,
+        usedEur: 0,
+        remainingSek: Number.isFinite(fxRateNumber) ? BUYBACK_CASH_EUR * fxRateNumber : null,
+        remainingEur: BUYBACK_CASH_EUR,
+        sharesRepurchased: 0,
+        updatedAt: new Date().toISOString(),
+        syncError: error instanceof Error ? error.message : String(error),
+        fallback: true,
+      };
+      liveCaches.buybackSummary = { ts: now, summary: fallbackSummary };
+      setBuybackSummary(fallbackSummary);
+    }
+  }, [fxRateNumber]);
 
   useEffect(() => {
     try {
@@ -253,21 +318,25 @@ export function useLiveHeaderModel() {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       loadLatestTopWin();
       loadLobbyOverview();
+      fetchBuybackSummary();
     };
 
     loadLatestTopWin();
     loadLobbyOverview();
+    fetchBuybackSummary();
     const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
+    const buybackIntervalId = setInterval(fetchBuybackSummary, 30 * 60 * 1000);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
 
     return () => {
       isActive = false;
       clearInterval(intervalId);
+      clearInterval(buybackIntervalId);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("visibilitychange", handleFocus);
     };
-  }, []);
+  }, [fetchBuybackSummary]);
 
   useEffect(() => {
     if (!isMobileMenu) return () => {};
@@ -279,7 +348,7 @@ export function useLiveHeaderModel() {
       const width = el.clientWidth;
       if (!width) return;
       const step = width;
-      const nextIndex = Math.max(0, Math.min(2, Math.round(el.scrollLeft / step)));
+      const nextIndex = Math.max(0, Math.min(LIVE_HEADER_OVERVIEW_CARDS - 1, Math.round(el.scrollLeft / step)));
       setMobileCardIndex(nextIndex);
     };
 
@@ -553,6 +622,28 @@ export function useLiveHeaderModel() {
     [translate]
   );
 
+  const buybackSummaryDisplay = useMemo(() => {
+    if (!buybackSummary) return null;
+    return {
+      ...buybackSummary,
+      mandateLabel: Number.isFinite(buybackSummary.mandateEur)
+        ? `${(buybackSummary.mandateEur / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 0 })} M€`
+        : "—",
+      usedLabel:
+        Number.isFinite(buybackSummary.usedSek)
+          ? buybackSummary.usedSek >= 1_000_000_000
+            ? `${(buybackSummary.usedSek / 1_000_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} mdkr`
+            : `${buybackSummary.usedSek.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} kr`
+          : "—",
+      remainingLabel:
+        Number.isFinite(buybackSummary.remainingSek)
+          ? buybackSummary.remainingSek >= 1_000_000_000
+            ? `${(buybackSummary.remainingSek / 1_000_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} mdkr`
+            : `${buybackSummary.remainingSek.toLocaleString("sv-SE", { maximumFractionDigits: 0 })} kr`
+          : "—",
+    };
+  }, [buybackSummary]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -703,5 +794,6 @@ export function useLiveHeaderModel() {
     supportUrl: SUPPORT_URL,
     showMyPageNewBadge: SHOW_MY_PAGE_NEW_BADGE,
     stuckLiveGamesCount,
+    buybackSummary: buybackSummaryDisplay,
   };
 }
