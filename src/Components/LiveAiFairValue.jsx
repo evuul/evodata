@@ -24,7 +24,8 @@ import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
-import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH, MIN_BBY, MAX_BBY, clamp } from '@/lib/fairValueUtils';
+import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH } from '@/lib/fairValueUtils';
+import { computeBuybackMandateAssumptions, DEFAULT_BUYBACK_MANDATE_CASH_EUR } from '@/lib/buybackMandate';
 import { useTheme } from '@mui/material/styles';
 
 const currency0 = new Intl.NumberFormat('sv-SE', {
@@ -51,7 +52,6 @@ const SCENARIO_PALETTE_BASE = {
 };
 
 const DEFAULT_SCENARIO_BASE = { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' };
-const BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 const METRIC_CARD_BASE_SX = {
   borderRadius: '18px',
   p: 2.8,
@@ -86,12 +86,11 @@ const formatDateTime = (date) => {
   }).format(date);
 };
 
-export default function LiveAiFairValue({ reports = [], buyback, buybackData, sharesData }) {
+export default function LiveAiFairValue({ reports = [], buyback, sharesData }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const translate = useTranslate();
   const [liveReports, setLiveReports] = useState(reports);
-  const [liveBuyback, setLiveBuyback] = useState(buyback ?? null);
   const [buybackMeta, setBuybackMeta] = useState(null);
   const scenarioPalette = useMemo(() => {
     const entries = {};
@@ -138,63 +137,16 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
     return close;
   }, [stockPrice]);
 
-  const effectiveReports = Array.isArray(liveReports) ? liveReports : reports;
-  const getOutstandingShares = useCallback((shares) => {
-    const latestShares = Array.isArray(shares) && shares.length ? shares[shares.length - 1]?.sharesOutstanding : null;
-    const sharesOutstanding = Number(latestShares);
-    if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
-    return sharesOutstanding > 1e6 ? sharesOutstanding : sharesOutstanding * 1e6;
-  }, []);
-
-  const computeHistoricalBuybackAssumptions = useCallback(
-    (rows, shares) => {
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-      const sharesBase = getOutstandingShares(shares);
-      if (!Number.isFinite(sharesBase) || sharesBase <= 0) return null;
-      const cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
-      const totalShares = rows.reduce((sum, row) => {
-        const dateStr = row?.Datum || row?.date;
-        const date = dateStr ? new Date(dateStr) : null;
-        if (!date || Number.isNaN(date.getTime()) || date < cutoff) return sum;
-        const count = Number(row?.Antal_aktier ?? row?.shares ?? 0);
-        return Number.isFinite(count) ? sum + count : sum;
-      }, 0);
-      if (totalShares <= 0) return null;
-      const base = clamp(totalShares / sharesBase, MIN_BBY, MAX_BBY);
-      return {
-        base,
-        bull: clamp(base * 1.2, MIN_BBY, MAX_BBY),
-        bear: clamp(base * 0.8, MIN_BBY, MAX_BBY),
-      };
-    },
-    [getOutstandingShares]
-  );
-
-  const computeMandateBuybackAssumptions = useCallback(
-    (mandateCashEur, shares) => {
-      const sharesOutstanding = getOutstandingShares(shares);
-      if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
-      if (!Number.isFinite(currentPriceSEK) || currentPriceSEK <= 0) return null;
-      const mandateSek = Number(mandateCashEur) * fx;
-      if (!Number.isFinite(mandateSek) || mandateSek <= 0) return null;
-      const buybackYield = mandateSek / currentPriceSEK / sharesOutstanding;
-      const base = clamp(buybackYield, MIN_BBY, MAX_BBY);
-      return {
-        base,
-        bull: clamp(base * 1.2, MIN_BBY, MAX_BBY),
-        bear: clamp(base * 0.8, MIN_BBY, MAX_BBY),
-      };
-    },
-    [currentPriceSEK, fx, getOutstandingShares]
-  );
-
   const liveMandateBuyback = useMemo(() => {
-    if (buybackMeta?.buybacksActive === false) return null;
-    return computeMandateBuybackAssumptions(BUYBACK_MANDATE_CASH_EUR, sharesData);
-  }, [buybackMeta, computeMandateBuybackAssumptions, sharesData]);
+    return computeBuybackMandateAssumptions({
+      mandateCashEur: DEFAULT_BUYBACK_MANDATE_CASH_EUR,
+      currentPriceSEK,
+      fxRate: fx,
+      sharesData,
+    });
+  }, [currentPriceSEK, fx, sharesData]);
 
-  const effectiveBuyback = liveMandateBuyback ?? liveBuyback ?? buyback;
+  const effectiveBuyback = liveMandateBuyback ?? buyback;
 
   const fairValue = useMemo(
     () =>
@@ -361,12 +313,6 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
         const data = await res.json();
         if (!active) return;
         setBuybackMeta(data);
-        if (data?.buybacksActive === false) return;
-        const rows = Array.isArray(data?.current) ? data.current : Array.isArray(data?.old) ? data.old : [];
-        const assumptions = computeHistoricalBuybackAssumptions(rows, sharesData);
-        if (assumptions) {
-          setLiveBuyback(assumptions);
-        }
       } catch (_err) {
         // keep fallback buyback
       }
@@ -375,14 +321,7 @@ export default function LiveAiFairValue({ reports = [], buyback, buybackData, sh
     return () => {
       active = false;
     };
-  }, [computeHistoricalBuybackAssumptions, sharesData]);
-
-  useEffect(() => {
-    if (buybackData && !liveBuyback) {
-      const assumptions = computeHistoricalBuybackAssumptions(buybackData, sharesData);
-      if (assumptions) setLiveBuyback(assumptions);
-    }
-  }, [buybackData, computeHistoricalBuybackAssumptions, liveBuyback, sharesData]);
+  }, [sharesData]);
 
   return (
     <Box

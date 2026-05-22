@@ -1,5 +1,6 @@
 "use client";
 
+// Interactive valuation signal card for Mina Sidor.
 import { useMemo } from "react";
 import { Box, Chip, Grid, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -10,6 +11,8 @@ import { useFxRateContext } from "@/context/FxRateContext";
 import valuationConfig from "@/app/data/valuationConfig.json";
 
 const num1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
+const pct1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
+const BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 
 const signalStyleMap = {
   strong_buy: {
@@ -113,6 +116,12 @@ const metricMood = (kind, value) => {
     if (value <= 12) return { sv: "Hög", en: "High", color: "#facc15", ratio: 76 };
     return { sv: "Dyr", en: "Expensive", color: "#f87171", ratio: 90 };
   }
+  if (kind === "buyback") {
+    if (value >= 12) return { sv: "Starkt", en: "Strong", color: "#34d399", ratio: 90 };
+    if (value >= 8) return { sv: "Bra", en: "Good", color: "#7dd3fc", ratio: 68 };
+    if (value >= 4) return { sv: "Neutral", en: "Neutral", color: "#facc15", ratio: 42 };
+    return { sv: "Svagt", en: "Weak", color: "#f87171", ratio: 20 };
+  }
   const g = Number(t?.evEbitda?.greenMax ?? 10);
   const y = Number(t?.evEbitda?.yellowMax ?? 14);
   const r = Number(t?.evEbitda?.redMin ?? 18);
@@ -192,6 +201,8 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
         currentPriceSEK: currentPrice,
         marketCapSEK,
         fxRate: Number(fxRate) || 11,
+        buybackMandateCashEUR: BUYBACK_MANDATE_CASH_EUR,
+        sharesData: amountOfShares,
       }),
     [reports, currentPrice, marketCapSEK, fxRate]
   );
@@ -234,6 +245,12 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
   const pegMetricLabel = Number.isFinite(signal?.metrics?.peg) ? `${num1.format(signal.metrics.peg)}x` : "–";
   const pbMetricLabel = Number.isFinite(signal?.metrics?.pBook) ? `${num1.format(signal.metrics.pBook)}x` : "–";
   const psMetricLabel = Number.isFinite(signal?.metrics?.pSales) ? `${num1.format(signal.metrics.pSales)}x` : "–";
+  const buybackMetricLabel = Number.isFinite(signal?.metrics?.buybackMandateYieldPct)
+    ? `${pct1.format(signal.metrics.buybackMandateYieldPct)}%`
+    : "–";
+  const buybackBoostLabel = Number.isFinite(signal?.metrics?.buybackBoostPct)
+    ? `+${pct1.format(signal.metrics.buybackBoostPct)}%`
+    : "–";
   const evEbitdaMetricLabel = Number.isFinite(signal?.metrics?.evEbitda)
     ? `${num1.format(signal.metrics.evEbitda)}x`
     : "–";
@@ -242,6 +259,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
   const pegMood = metricMood("peg", signal?.metrics?.peg);
   const pbMood = metricMood("pb", signal?.metrics?.pBook);
   const psMood = metricMood("ps", signal?.metrics?.pSales);
+  const buybackMood = metricMood("buyback", signal?.metrics?.buybackMandateYieldPct);
   const evMood = metricMood("ev", signal?.metrics?.evEbitda);
   const hasPenalties = Array.isArray(signal?.penalties) && signal.penalties.length > 0;
   const metricTooltips = {
@@ -268,6 +286,10 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
     evEbitda: translate(
       "EV/EBITDA jämför enterprise value med EBITDA och används för att jämföra värdering mellan bolag.",
       "EV/EBITDA compares enterprise value to EBITDA and is used to compare valuation across companies."
+    ),
+    buyback: translate(
+      "2 md EUR-programmet visar hur mycket av nuvarande börsvärde som kan återköpas vid dagens kurs.",
+      "The EUR 2bn program shows how much of the current market cap can be repurchased at today's price."
     ),
   };
 
@@ -350,8 +372,8 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
                 />
                 <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.72)" }}>
                   {translate(
-                    `Baspoäng ${signal.baseScore ?? "–"} • avdrag ${signal.penaltyPoints ?? "–"}`,
-                    `Base score ${signal.baseScore ?? "–"} • penalties ${signal.penaltyPoints ?? "–"}`
+                    `Baspoäng ${signal.baseScore ?? "–"} • återköpsstöd ${signal.buybackSupportPoints ?? "–"} • avdrag ${signal.penaltyPoints ?? "–"}`,
+                    `Base score ${signal.baseScore ?? "–"} • buyback support ${signal.buybackSupportPoints ?? "–"} • penalties ${signal.penaltyPoints ?? "–"}`
                   )}
                 </Typography>
                 {signal?.meta?.latestQuarter ? (
@@ -389,6 +411,12 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
                         "Fundamentals look stable in the model. The setup is better for gradual accumulation than short-term chasing."
                       )}
                 </Typography>
+                <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.82)" }}>
+                  {translate(
+                    `2 md EUR-återköpsprogrammet motsvarar ${buybackMetricLabel} av nuvarande börsvärde och ger cirka ${buybackBoostLabel} EPS-boost vid dagens kurs.`,
+                    `The EUR 2bn buyback program equals ${buybackMetricLabel} of the current market cap and adds about ${buybackBoostLabel} EPS boost at today's price.`
+                  )}
+                </Typography>
                 {hasPenalties ? (
                   <Stack spacing={0.4}>
                     {signal.penalties.slice(0, 2).map((p) => (
@@ -415,7 +443,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
               xs: "1fr",
               sm: "repeat(2, minmax(0, 1fr))",
               md: "repeat(3, minmax(0, 1fr))",
-              lg: "repeat(6, minmax(0, 1fr))",
+              lg: "repeat(7, minmax(0, 1fr))",
             },
           }}
         >
@@ -458,6 +486,14 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
             moodColor={psMood.color}
             ratio={psMood.ratio}
             tooltip={metricTooltips.ps}
+          />
+          <MetricBox
+            label={translate("Återköp (2 md €)", "Buyback (EUR 2bn)")}
+            value={buybackMetricLabel}
+            moodLabel={translate(buybackMood.sv, buybackMood.en)}
+            moodColor={buybackMood.color}
+            ratio={buybackMood.ratio}
+            tooltip={metricTooltips.buyback}
           />
           <MetricBox
             label={translate("EV/EBITDA (LTM)", "EV/EBITDA (LTM)")}

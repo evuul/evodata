@@ -1,6 +1,9 @@
-import valuationConfig from "@/app/data/valuationConfig.json";
+// Valuation signal scoring for Mina Sidor and related valuation surfaces.
+import valuationConfig from "./valuationConfigData.js";
 
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
+const BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
+const MAX_BUYBACK_YIELD = 0.25;
 
 const toNumber = (value) => {
   const num = Number(value);
@@ -8,6 +11,14 @@ const toNumber = (value) => {
 };
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const latestOutstandingSharesM = (sharesData = []) => {
+  if (!Array.isArray(sharesData) || sharesData.length === 0) return null;
+  const latest = sharesData.at(-1);
+  const sharesOutstanding = Number(latest?.sharesOutstanding);
+  if (!Number.isFinite(sharesOutstanding) || sharesOutstanding <= 0) return null;
+  return sharesOutstanding;
+};
 
 const sortReports = (reports = []) =>
   [...reports].sort((a, b) => {
@@ -123,6 +134,8 @@ export function computeValuationSignal({
   currentPriceSEK,
   marketCapSEK,
   fxRate,
+  buybackMandateCashEUR = BUYBACK_MANDATE_CASH_EUR,
+  sharesData = [],
   config = valuationConfig,
 }) {
   const sorted = sortReports(reports);
@@ -136,12 +149,14 @@ export function computeValuationSignal({
       signal: "unknown",
       penalties: [],
       positives: [],
+      buybackSupportPoints: 0,
     };
   }
 
   const priceSEK = toNumber(currentPriceSEK);
   const fx = toNumber(fxRate);
   const marketCap = toNumber(marketCapSEK);
+  const sharesOutstandingM = latestOutstandingSharesM(sharesData);
 
   const epsLtmEur = ltm.reduce((acc, r) => acc + (toNumber(r?.adjustedEarningsPerShare) || 0), 0);
   const ocfPsLtmEur = ltm.reduce((acc, r) => acc + (toNumber(r?.ocfPerShare) || 0), 0);
@@ -221,6 +236,24 @@ export function computeValuationSignal({
       ? enterpriseValueEurM / ebitdaLtmEurM
       : null;
 
+  const buybackMandateEur = toNumber(buybackMandateCashEUR);
+  const buybackMandateSek =
+    Number.isFinite(buybackMandateEur) && Number.isFinite(fx) && fx > 0
+      ? buybackMandateEur * fx
+      : null;
+  const buybackMandateYieldPct =
+    Number.isFinite(buybackMandateSek) &&
+    Number.isFinite(marketCap) &&
+    marketCap > 0
+      ? (buybackMandateSek / marketCap) * 100
+      : null;
+  const buybackYield = Number.isFinite(buybackMandateYieldPct)
+    ? clamp(buybackMandateYieldPct / 100, 0, MAX_BUYBACK_YIELD)
+    : null;
+  const buybackBoostPct = Number.isFinite(buybackYield)
+    ? ((1 / (1 - buybackYield)) - 1) * 100
+    : null;
+
   const peCfg = config?.thresholds?.pe || {};
   const fcfCfg = config?.thresholds?.fcfYieldPct || {};
   const evCfg = config?.thresholds?.evEbitda || {};
@@ -251,6 +284,9 @@ export function computeValuationSignal({
       Number(evScore ?? 0) * weightEv) /
       weightSum) || 0;
   const baseScore = Math.round(clamp(baseScoreRaw, 0, 100));
+  const buybackSupportPoints = Number.isFinite(buybackBoostPct)
+    ? Math.min(8, Math.max(0, Math.round(buybackBoostPct / 3)))
+    : 0;
 
   const penaltiesCfg = config?.penalties || {};
   const penaltyEvents = [
@@ -259,7 +295,7 @@ export function computeValuationSignal({
     resolveAsiaPenalty(sorted, penaltiesCfg),
   ].filter(Boolean);
   const penaltyPoints = penaltyEvents.reduce((acc, p) => acc + (Number(p.points) || 0), 0);
-  const score = Math.round(clamp(baseScore - penaltyPoints, 0, 100));
+  const score = Math.round(clamp(baseScore + buybackSupportPoints - penaltyPoints, 0, 100));
 
   const positives = [];
   if (Number.isFinite(pe) && pe <= (peCfg.greenMax ?? 15)) positives.push("P/E is in green zone.");
@@ -287,6 +323,8 @@ export function computeValuationSignal({
       pSales,
       fcfYieldPct,
       evEbitda,
+      buybackMandateYieldPct,
+      buybackBoostPct,
       epsLtmSek,
       forwardEpsLtmSek,
       fcfPsLtmSek,
@@ -296,7 +334,9 @@ export function computeValuationSignal({
       netCashEurM,
       revenueGrowthPct: clampedGrowthPct,
       revLtmEurM,
+      sharesOutstandingM,
     },
+    buybackSupportPoints,
     meta: {
       latestQuarter: latest ? `${latest.year} ${latest.quarter}` : null,
       ltmQuarters: ltm.map((r) => `${r.year} ${r.quarter}`),
