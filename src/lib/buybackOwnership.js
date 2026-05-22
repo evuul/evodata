@@ -25,8 +25,6 @@ export const computeFullBuybackMandateSummary = ({
   const mandateEur = Number(mandateCashEur);
 
   if (
-    !Number.isFinite(shares) ||
-    shares <= 0 ||
     !Number.isFinite(currentPrice) ||
     currentPrice <= 0 ||
     !Number.isFinite(fx) ||
@@ -47,15 +45,20 @@ export const computeFullBuybackMandateSummary = ({
     return null;
   }
 
-  const ownershipBefore = shares / currentOutstanding;
-  const ownershipAfter = shares / postBuybackOutstanding;
+  const hasHoldings = Number.isFinite(shares) && shares > 0;
+  const ownershipBefore = hasHoldings ? shares / currentOutstanding : null;
+  const ownershipAfter = hasHoldings ? shares / postBuybackOutstanding : null;
   const ownershipLiftPct =
-    ownershipBefore > 0 ? ((ownershipAfter / ownershipBefore) - 1) * 100 : null;
-  const buybackBenefit = ownershipBefore > 0 ? mandateSek * ownershipBefore : 0;
+    ownershipBefore && ownershipBefore > 0 && ownershipAfter
+      ? ((ownershipAfter / ownershipBefore) - 1) * 100
+      : null;
+  const buybackBenefit = ownershipBefore && ownershipBefore > 0 ? mandateSek * ownershipBefore : null;
   const dividendBenefit = Number.isFinite(dividendsReceived) && dividendsReceived > 0 ? dividendsReceived : 0;
-  const totalShareholderReturn = dividendBenefit + buybackBenefit;
+  const totalShareholderReturn = Number.isFinite(buybackBenefit) ? dividendBenefit + buybackBenefit : null;
   const totalShareholderReturnPct =
-    Number.isFinite(totalValue) && totalValue > 0 ? (totalShareholderReturn / totalValue) * 100 : null;
+    Number.isFinite(totalShareholderReturn) && Number.isFinite(totalValue) && totalValue > 0
+      ? (totalShareholderReturn / totalValue) * 100
+      : null;
   const buybackYieldPct = (repurchasedShares / currentOutstanding) * 100;
 
   return {
@@ -68,6 +71,7 @@ export const computeFullBuybackMandateSummary = ({
     totalShareholderReturnPct,
     mandateSek,
     buybackYieldPct,
+    hasHoldings,
     repurchasedShares,
     currentOutstanding,
     postBuybackOutstanding,

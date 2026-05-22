@@ -19,3 +19,20 @@ test("full mandate summary increases ownership using current price and shares", 
   assert.equal(result.repurchasedShares, 20_000_000);
   assert.equal(result.postBuybackOutstanding, 180_000_000);
 });
+
+test("full mandate summary still returns program metrics without holdings", () => {
+  const result = computeFullBuybackMandateSummary({
+    profileShares: 0,
+    currentPriceSEK: 100,
+    fxRate: 1,
+    sharesData: [{ date: "2026-04-30", sharesOutstanding: 200 }],
+    dividendsReceived: 0,
+    totalValue: 0,
+  });
+
+  assert.ok(result);
+  assert.equal(result.hasHoldings, false);
+  assert.equal(result.buybackYieldPct, 10);
+  assert.equal(result.ownershipBefore, null);
+  assert.equal(result.ownershipAfter, null);
+});

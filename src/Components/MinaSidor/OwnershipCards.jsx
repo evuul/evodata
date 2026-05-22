@@ -15,6 +15,7 @@ export default function OwnershipCards({
   const [scenarioView, setScenarioView] = useState("actual");
   const selectedSummary = scenarioView === "mandate" ? buybackMandateSummary : buybackSummary;
   const isMandateView = scenarioView === "mandate";
+  const programBuybackPct = selectedSummary?.buybackYieldPct != null ? formatPercent(selectedSummary.buybackYieldPct) : "–";
   const cardSx = {
     p: { xs: 2, md: 2.2 },
     ...cardBase,
@@ -85,9 +86,21 @@ export default function OwnershipCards({
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
             {selectedSummary
               ? formatOwnershipPercent(
-                  (ownershipView === "before" ? selectedSummary.ownershipBefore : selectedSummary.ownershipAfter) * 100
+                  Number.isFinite(ownershipView === "before" ? selectedSummary.ownershipBefore : selectedSummary.ownershipAfter)
+                    ? (ownershipView === "before" ? selectedSummary.ownershipBefore : selectedSummary.ownershipAfter) * 100
+                    : NaN
                 )
               : "–"}
+          </Typography>
+          <Typography sx={{ color: text.faint, fontSize: "0.82rem" }}>
+            {translate(
+              isMandateView
+                ? `Programmet återköper cirka ${programBuybackPct} av nuvarande aktiestock.`
+                : "Visar faktiska historiska återköp.",
+              isMandateView
+                ? `The program repurchases about ${programBuybackPct} of the current share base.`
+                : "Shows actual historical buybacks."
+            )}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
             <Chip
@@ -147,6 +160,19 @@ export default function OwnershipCards({
           >
             {selectedSummary?.ownershipLiftPct != null ? formatPercent(selectedSummary.ownershipLiftPct) : "–"}
           </Typography>
+          {isMandateView ? (
+            <Typography sx={{ color: text.faint, fontSize: "0.82rem" }}>
+              {selectedSummary?.hasHoldings
+                ? translate(
+                    "Din ägarandel ökar när samma antal aktier delas på färre utestående aktier.",
+                    "Your ownership rises because the same number of shares is spread over fewer outstanding shares."
+                  )
+                : translate(
+                    "Lägg in dina innehav för att räkna din personliga ägarökning.",
+                    "Add your holdings to calculate your personal ownership lift."
+                  )}
+            </Typography>
+          ) : null}
           <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
             <Chip
               size="small"
@@ -170,7 +196,7 @@ export default function OwnershipCards({
             )}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {selectedSummary ? formatSek(selectedSummary.buybackBenefit) : "–"}
+            {selectedSummary && selectedSummary.buybackBenefit != null ? formatSek(selectedSummary.buybackBenefit) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
             {translate(
@@ -184,7 +210,7 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>{translate("Total aktieägaravkastning", "Total shareholder return")}</Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {selectedSummary ? formatSek(selectedSummary.totalShareholderReturn) : "–"}
+            {selectedSummary && selectedSummary.totalShareholderReturn != null ? formatSek(selectedSummary.totalShareholderReturn) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
             {selectedSummary?.totalShareholderReturnPct != null
