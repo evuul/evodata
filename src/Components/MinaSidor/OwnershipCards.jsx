@@ -1,19 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
 import { cardBase, equalHeightCard, ownershipChipColors, statusColors, text } from "./styles";
+import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
 
 export default function OwnershipCards({
   translate,
   buybackSummary,
   buybackMandateSummary,
+  profileShares,
+  currentPrice,
+  fxRate,
+  sharesData,
+  dividendsReceivedSafe,
+  totalValue,
   ownershipView,
   onChangeView,
 }) {
   const [scenarioView, setScenarioView] = useState("actual");
-  const selectedSummary = scenarioView === "mandate" ? buybackMandateSummary : buybackSummary;
+  const computedMandateSummary = useMemo(
+    () =>
+      computeFullBuybackMandateSummary({
+        profileShares,
+        currentPriceSEK: currentPrice,
+        fxRate,
+        sharesData,
+        dividendsReceived: dividendsReceivedSafe,
+        totalValue,
+      }),
+    [currentPrice, dividendsReceivedSafe, fxRate, profileShares, sharesData, totalValue]
+  );
+  const selectedSummary =
+    scenarioView === "mandate" ? buybackMandateSummary ?? computedMandateSummary : buybackSummary;
   const isMandateView = scenarioView === "mandate";
   const programBuybackPct = selectedSummary?.buybackYieldPct != null ? formatPercent(selectedSummary.buybackYieldPct) : "–";
   const cardSx = {

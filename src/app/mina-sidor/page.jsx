@@ -22,6 +22,7 @@ import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } f
 import { formatSek } from "@/Components/MinaSidor/utils";
 
 import dividendData from "@/app/data/dividendData.json";
+import outstandingShares from "@/app/data/amountOfShares.json";
 
 import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
 import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions";
@@ -504,6 +505,12 @@ export default function MinaSidorPage() {
               translate={translate}
               buybackSummary={buybackSummary}
               buybackMandateSummary={buybackMandateSummary}
+              profileShares={profile.shares}
+              currentPrice={currentPrice}
+              fxRate={fxRate}
+              sharesData={outstandingShares}
+              dividendsReceivedSafe={dividendsReceivedSafe}
+              totalValue={totalValue}
               ownershipView={ownershipView}
               onChangeView={setOwnershipView}
             />
