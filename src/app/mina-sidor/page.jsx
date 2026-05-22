@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { useStockPriceContext } from "@/context/StockPriceContext";
+import { useFxRateContext } from "@/context/FxRateContext";
 import { usePlayersLive } from "@/context/PlayersLiveContext";
 import MinaSidorHeader from "@/Components/MinaSidor/MinaSidorHeader";
 import HoldingsChips from "@/Components/MinaSidor/HoldingsChips";
@@ -38,6 +39,7 @@ export default function MinaSidorPage() {
   const router = useRouter();
   const { token, isAuthenticated, initialized, user, changePassword, logout } = useAuth();
   const { stockPrice } = useStockPriceContext();
+  const { rate: fxRate } = useFxRateContext();
   const { data: playersLive, lobbyStats } = usePlayersLive();
 
   // --- Portfolio Data Hook ---
@@ -74,9 +76,10 @@ export default function MinaSidorPage() {
     breakEvenDisplay,
     breakEvenPaidBack,
     buybackSummary,
+    buybackMandateSummary,
     greetingName,
     totalLivePlayers
-  } = usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive });
+  } = usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive, fxRate });
 
   // --- Portfolio Actions Hook ---
   const {
@@ -500,6 +503,7 @@ export default function MinaSidorPage() {
             <OwnershipCards
               translate={translate}
               buybackSummary={buybackSummary}
+              buybackMandateSummary={buybackMandateSummary}
               ownershipView={ownershipView}
               onChangeView={setOwnershipView}
             />

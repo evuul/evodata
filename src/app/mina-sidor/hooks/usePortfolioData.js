@@ -5,6 +5,7 @@ import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
+import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
 import { fetchAuthJson } from "@/lib/clientApi";
 
 const NO_DIVIDEND_PROPOSAL = {
@@ -14,7 +15,7 @@ const NO_DIVIDEND_PROPOSAL = {
     status: "no_dividend_proposed",
 };
 
-export function usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive }) {
+export function usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive, fxRate }) {
     const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -444,6 +445,17 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         };
     }, [buybackData, dividendsReceivedSafe, estimatedDividendsFromTransactionsMeta, profile.shares, totalValue]);
 
+    const buybackMandateSummary = useMemo(() => {
+        return computeFullBuybackMandateSummary({
+            profileShares: profile.shares,
+            currentPrice,
+            fxRate,
+            sharesData: amountOfShares,
+            dividendsReceived: dividendsReceivedSafe,
+            totalValue,
+        });
+    }, [currentPrice, dividendsReceivedSafe, fxRate, profile.shares, totalValue]);
+
     const greetingName = useMemo(() => {
         const first = String(user?.firstName || profileIdentity.firstName || "").trim();
         if (first) return first;
@@ -510,6 +522,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         breakEvenDisplay,
         breakEvenPaidBack,
         buybackSummary,
+        buybackMandateSummary,
         greetingName,
         totalLivePlayers
     };

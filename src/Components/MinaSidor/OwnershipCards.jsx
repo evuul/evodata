@@ -1,10 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
 import { cardBase, equalHeightCard, ownershipChipColors, statusColors, text } from "./styles";
 
-export default function OwnershipCards({ translate, buybackSummary, ownershipView, onChangeView }) {
+export default function OwnershipCards({
+  translate,
+  buybackSummary,
+  buybackMandateSummary,
+  ownershipView,
+  onChangeView,
+}) {
+  const [scenarioView, setScenarioView] = useState("actual");
+  const selectedSummary = scenarioView === "mandate" ? buybackMandateSummary : buybackSummary;
+  const isMandateView = scenarioView === "mandate";
   const cardSx = {
     p: { xs: 2, md: 2.2 },
     ...cardBase,
@@ -27,14 +37,55 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
       <Box sx={{ display: "flex" }}>
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
-            {ownershipView === "before"
-              ? translate("Din ägarandel (före återköp)", "Your ownership (pre-buyback)")
-              : translate("Din ägarandel (efter återköp)", "Your ownership (post-buyback)")}
+            {isMandateView
+              ? translate("Scenario: hela återköpsprogrammet", "Scenario: full buyback program")
+              : translate("Scenario: riktiga återköp", "Scenario: actual buybacks")}
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.8 }} flexWrap="wrap">
+            <Chip
+              size="small"
+              clickable
+              onClick={() => setScenarioView("actual")}
+              label={translate("Riktiga återköp", "Actual buybacks")}
+              sx={{
+                backgroundColor:
+                  scenarioView === "actual"
+                    ? ownershipChipColors.pre.activeBg
+                    : ownershipChipColors.pre.inactiveBg,
+                color: ownershipChipColors.pre.color,
+                border: scenarioView === "actual" ? ownershipChipColors.pre.activeBorder : "none",
+              }}
+            />
+            <Chip
+              size="small"
+              clickable
+              onClick={() => setScenarioView("mandate")}
+              label={translate("Hela 2 md €-programmet", "Full EUR 2bn program")}
+              sx={{
+                backgroundColor:
+                  scenarioView === "mandate"
+                    ? ownershipChipColors.post.activeBg
+                    : ownershipChipColors.post.inactiveBg,
+                color: ownershipChipColors.post.color,
+                border: scenarioView === "mandate" ? ownershipChipColors.post.activeBorder : "none",
+              }}
+            />
+          </Stack>
+          <Typography sx={{ color: text.faint, mt: 1 }}>
+            {isMandateView
+              ? translate(
+                  "Antagande: hela programmet återköps på nuvarande kurs.",
+                  "Assumption: the full program is bought back at the current price."
+                )
+              : translate(
+                  "Antagande: faktiska historiska återköp som redan genomförts.",
+                  "Assumption: actual historical buybacks already completed."
+                )}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {buybackSummary
+            {selectedSummary
               ? formatOwnershipPercent(
-                  (ownershipView === "before" ? buybackSummary.ownershipBefore : buybackSummary.ownershipAfter) * 100
+                  (ownershipView === "before" ? selectedSummary.ownershipBefore : selectedSummary.ownershipAfter) * 100
                 )
               : "–"}
           </Typography>
@@ -43,7 +94,10 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
               size="small"
               clickable
               onClick={() => onChangeView("before")}
-              label={translate("Före återköp", "Pre-buyback")}
+              label={translate(
+                isMandateView ? "Före program" : "Före återköp",
+                isMandateView ? "Pre-program" : "Pre-buyback"
+              )}
               sx={{
                 backgroundColor:
                   ownershipView === "before"
@@ -57,7 +111,10 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
               size="small"
               clickable
               onClick={() => onChangeView("after")}
-              label={translate("Efter återköp", "Post-buyback")}
+              label={translate(
+                isMandateView ? "Efter program" : "Efter återköp",
+                isMandateView ? "Post-program" : "Post-buyback"
+              )}
               sx={{
                 backgroundColor:
                   ownershipView === "after"
@@ -73,19 +130,22 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
       <Box sx={{ display: "flex" }}>
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
-            {translate("Ägarlyft från återköp", "Ownership lift from buybacks")}
+            {translate(
+              isMandateView ? "Ägarlyft från hela programmet" : "Ägarlyft från återköp",
+              isMandateView ? "Ownership lift from full program" : "Ownership lift from buybacks"
+            )}
           </Typography>
           <Typography
             variant="h5"
             sx={{
               fontWeight: 800,
               color:
-                buybackSummary?.ownershipLiftPct != null && buybackSummary.ownershipLiftPct >= 0
+                selectedSummary?.ownershipLiftPct != null && selectedSummary.ownershipLiftPct >= 0
                   ? statusColors.positive
                   : statusColors.negative,
             }}
           >
-            {buybackSummary?.ownershipLiftPct != null ? formatPercent(buybackSummary.ownershipLiftPct) : "–"}
+            {selectedSummary?.ownershipLiftPct != null ? formatPercent(selectedSummary.ownershipLiftPct) : "–"}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
             <Chip
@@ -103,12 +163,20 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
       </Box>
       <Box sx={{ display: "flex" }}>
         <Paper sx={cardSx}>
-          <Typography sx={{ color: text.subtle }}>{translate("Återköpsvärde till dig", "Buyback value to you")}</Typography>
+          <Typography sx={{ color: text.subtle }}>
+            {translate(
+              isMandateView ? "Värde av hela programmet till dig" : "Återköpsvärde till dig",
+              isMandateView ? "Your share of the full program" : "Buyback value to you"
+            )}
+          </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {buybackSummary ? formatSek(buybackSummary.buybackBenefit) : "–"}
+            {selectedSummary ? formatSek(selectedSummary.buybackBenefit) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
-            {translate("Andel av återköp 2025", "Your share of 2025 buybacks")}
+            {translate(
+              isMandateView ? "Andel av hela 2 md €-programmet" : "Andel av återköp 2025",
+              isMandateView ? "Your share of the full EUR 2bn program" : "Your share of 2025 buybacks"
+            )}
           </Typography>
         </Paper>
       </Box>
@@ -116,29 +184,29 @@ export default function OwnershipCards({ translate, buybackSummary, ownershipVie
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>{translate("Total aktieägaravkastning", "Total shareholder return")}</Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {buybackSummary ? formatSek(buybackSummary.totalShareholderReturn) : "–"}
+            {selectedSummary ? formatSek(selectedSummary.totalShareholderReturn) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
-            {buybackSummary?.totalShareholderReturnPct != null
+            {selectedSummary?.totalShareholderReturnPct != null
               ? translate(
-                  `${formatPercent(buybackSummary.totalShareholderReturnPct)} av nuvärdet`,
-                  `${formatPercent(buybackSummary.totalShareholderReturnPct)} of current value`
+                  `${formatPercent(selectedSummary.totalShareholderReturnPct)} av nuvärdet`,
+                  `${formatPercent(selectedSummary.totalShareholderReturnPct)} of current value`
                 )
               : translate("Utdelning + återköp", "Dividend + buybacks")}
           </Typography>
-          {buybackSummary?.dividendBenefit != null ? (
+          {selectedSummary?.dividendBenefit != null ? (
             <Typography sx={{ color: "rgba(226,232,240,0.55)", fontSize: "0.82rem" }}>
               {translate(
-                `Utdelning (mottagen): ${formatSek(buybackSummary.dividendBenefit)} + återköp: ${formatSek(buybackSummary.buybackBenefit)}`,
-                `Dividends (received): ${formatSek(buybackSummary.dividendBenefit)} + buybacks: ${formatSek(buybackSummary.buybackBenefit)}`
+                `Utdelning (mottagen): ${formatSek(selectedSummary.dividendBenefit)} + återköp: ${formatSek(selectedSummary.buybackBenefit)}`,
+                `Dividends (received): ${formatSek(selectedSummary.dividendBenefit)} + buybacks: ${formatSek(selectedSummary.buybackBenefit)}`
               )}
             </Typography>
           ) : null}
-          {buybackSummary?.dividendExDateFrom && buybackSummary?.dividendExDateTo ? (
+          {selectedSummary?.dividendExDateFrom && selectedSummary?.dividendExDateTo ? (
             <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.78rem" }}>
               {translate(
-                `X-datum inkluderade: ${buybackSummary.dividendExDateFrom} → ${buybackSummary.dividendExDateTo} (${buybackSummary.dividendCountedExDates ?? 0} st)`,
-                `Ex-dates included: ${buybackSummary.dividendExDateFrom} to ${buybackSummary.dividendExDateTo} (${buybackSummary.dividendCountedExDates ?? 0})`
+                `X-datum inkluderade: ${selectedSummary.dividendExDateFrom} → ${selectedSummary.dividendExDateTo} (${selectedSummary.dividendCountedExDates ?? 0} st)`,
+                `Ex-dates included: ${selectedSummary.dividendExDateFrom} to ${selectedSummary.dividendExDateTo} (${selectedSummary.dividendCountedExDates ?? 0})`
               )}
             </Typography>
           ) : null}
