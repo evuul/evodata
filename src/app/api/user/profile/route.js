@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJson, getSessionKey, getUserKey, setJson } from "@/lib/authStore";
+import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +44,7 @@ export async function GET(request) {
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin,
     notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
-    profile: user.profile ?? { shares: 0, avgCost: 0 },
+    profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   });
 }
 
@@ -63,7 +64,7 @@ export async function PUT(request) {
 
   const { user } = resolved;
   user.isAdmin = String(user.email || "").toLowerCase() === ADMIN_EMAIL;
-  const profile = user.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] };
+  const profile = normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
   const action = payload?.action;
   const shares = Number(payload?.shares ?? 0);
   const price = Number(payload?.price ?? 0);
@@ -308,7 +309,8 @@ export async function PUT(request) {
   }
 
   profile.updatedAt = now;
-  user.profile = profile;
+  const normalizedProfile = normalizePortfolioProfile(profile);
+  user.profile = normalizedProfile;
   user.updatedAt = now;
 
   await setJson(getUserKey(user.email), user);
@@ -321,6 +323,6 @@ export async function PUT(request) {
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin: Boolean(user.isAdmin),
     notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
-    profile,
+    profile: normalizedProfile,
   });
 }

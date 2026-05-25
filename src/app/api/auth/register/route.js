@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
 import { buildWelcomeEmail } from "@/lib/emailTemplates";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
+import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -89,7 +90,7 @@ export async function POST(request) {
       lastName: user.lastName,
       isSubscriber: user.isSubscriber,
       isAdmin,
-      profile: user.profile,
+      profile: normalizePortfolioProfile(user.profile),
     },
   });
 }

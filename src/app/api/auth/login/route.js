@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPassword } from "@/lib/authStore";
+import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -89,7 +90,7 @@ export async function POST(request) {
       lastName: user.lastName ?? "",
       isSubscriber: Boolean(user.isSubscriber),
       isAdmin,
-      profile: user.profile ?? { shares: 0, avgCost: 0 },
+      profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
     },
   });
 }

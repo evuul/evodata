@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { fetchAuthJson } from "@/lib/clientApi";
+import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export function usePortfolioActions({ token, user, profile, setProfile, setLoading, setError, translate }) {
     const [activity, setActivity] = useState([]);
@@ -39,7 +40,7 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "buy", shares, price, buyDate }),
             });
-            setProfile(data.profile ?? profile);
+            setProfile(normalizePortfolioProfile(data.profile ?? profile));
             pushActivity({
                 type: "buy",
                 shares,
@@ -67,7 +68,7 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "sell", shares, price }),
             });
-            setProfile(data.profile ?? profile);
+            setProfile(normalizePortfolioProfile(data.profile ?? profile));
             pushActivity({
                 type: "sell",
                 shares,
@@ -99,7 +100,7 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
                     acquisitionDate: acquisitionDate || null,
                 }),
             });
-            setProfile(data.profile ?? profile);
+            setProfile(normalizePortfolioProfile(data.profile ?? profile));
             pushActivity({
                 type: "set",
                 timestamp: new Date().toISOString(),
@@ -139,7 +140,7 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "importTransactions", transactions, dividendTotal: payload.dividendTotal }),
             });
-            setProfile(data.profile ?? profile);
+            setProfile(normalizePortfolioProfile(data.profile ?? profile));
             pushActivity({
                 type: "import",
                 timestamp: new Date().toISOString(),

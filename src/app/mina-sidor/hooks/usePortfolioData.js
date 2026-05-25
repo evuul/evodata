@@ -7,6 +7,7 @@ import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
 import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
 import { fetchAuthJson } from "@/lib/clientApi";
+import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 const NO_DIVIDEND_PROPOSAL = {
     date: "2026-03-18",
@@ -54,7 +55,11 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
                 setIsSubscriber(Boolean(data.isSubscriber));
                 setAthEmailEnabled(Boolean(data?.notifications?.athEmail));
                 setDailyAvgEmailEnabled(Boolean(data?.notifications?.dailyAvgEmail));
-                setProfile(data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
+                setProfile(
+                    normalizePortfolioProfile(
+                        data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] }
+                    )
+                );
                 setError("");
             } catch (err) {
                 setError(err?.message || "Något gick fel.");

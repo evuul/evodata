@@ -8,6 +8,7 @@ import {
   setJson,
   verifyPassword,
 } from "@/lib/authStore";
+import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -68,7 +69,7 @@ export async function PUT(request) {
       lastName: user.lastName,
       isSubscriber: Boolean(user.isSubscriber),
       isAdmin: Boolean(user.isAdmin),
-      profile: user.profile ?? { shares: 0, avgCost: 0 },
+      profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
     },
   });
 }
@@ -105,4 +106,3 @@ export async function DELETE(request) {
 
   return json({ ok: true });
 }
-
