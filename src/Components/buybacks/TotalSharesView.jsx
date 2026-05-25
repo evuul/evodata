@@ -27,6 +27,7 @@ import {
   Bar,
 } from "recharts";
 import { useTranslate } from "@/context/LocaleContext";
+import { formatSharesCompact } from "./utils";
 
 const COLORS = {
   surface: "rgba(15,23,42,0.62)",
@@ -61,6 +62,7 @@ const TotalSharesView = ({
   const adjustedShareCount = Math.max(latestTotalShares - evolutionShares, 0);
   const totalRepurchased = Number(buybackSinceStartSummary?.totalSharesRepurchased);
   const repurchasedPct = Number(buybackSinceStartSummary?.repurchasedPct);
+  const totalRepurchasedLabel = formatSharesCompact(totalRepurchased);
   const startDateLabel = buybackSinceStartSummary?.startDate
     ? new Date(buybackSinceStartSummary.startDate).toLocaleDateString("sv-SE")
     : null;
@@ -377,9 +379,7 @@ const TotalSharesView = ({
           }}
         >
           {translate(
-            `Sedan återköpsstart${startDateLabel ? ` (${startDateLabel})` : ""}: ${Math.round(
-              totalRepurchased
-            ).toLocaleString("sv-SE")} återköpta aktier${
+            `Sedan återköpsstart${startDateLabel ? ` (${startDateLabel})` : ""}: ${totalRepurchasedLabel ?? "–"} återköpta aktier${
               Number.isFinite(repurchasedPct)
                 ? ` (${repurchasedPct.toLocaleString("sv-SE", {
                     minimumFractionDigits: 2,
@@ -387,9 +387,7 @@ const TotalSharesView = ({
                   })}%)`
                 : ""
             }.`,
-            `Since buyback start${startDateLabel ? ` (${startDateLabel})` : ""}: ${Math.round(
-              totalRepurchased
-            ).toLocaleString("sv-SE")} shares repurchased${
+            `Since buyback start${startDateLabel ? ` (${startDateLabel})` : ""}: ${totalRepurchasedLabel ?? "–"} shares repurchased${
               Number.isFinite(repurchasedPct)
                 ? ` (${repurchasedPct.toLocaleString("sv-SE", {
                     minimumFractionDigits: 2,

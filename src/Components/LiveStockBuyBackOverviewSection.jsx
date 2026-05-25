@@ -90,6 +90,18 @@ export default function LiveStockBuyBackOverviewSection({
     avgDailyValue != null
       ? translate(`Snitt ${fmtNum(avgDailyValue)} aktier per handelsdag`, `Average ${fmtNum(avgDailyValue)} shares per trading day`)
       : translate("Snitttakt saknas", "Average pace unavailable");
+  const completionLabel =
+    est?.estimatedCompletionDate
+      ? translate(
+          `Om snittet håller: klart omkring ${est.estimatedCompletionDate}.`,
+          `If the pace holds: around ${est.estimatedCompletionDate}.`
+        )
+      : est && Number.isFinite(est.daysToCompletion)
+        ? translate(
+            `Om snittet håller: cirka ${fmtNum(est.daysToCompletion)} handelsdagar kvar.`,
+            `If the pace holds: about ${fmtNum(est.daysToCompletion)} trading days left.`
+          )
+        : null;
   return (
     <>
       {Number.isFinite(buybackBudgetSek) && (
@@ -211,6 +223,11 @@ export default function LiveStockBuyBackOverviewSection({
                     )
                   : translate("Behöver kassauppgift för prognos.", "Need cash information for forecast.")}
               </Typography>
+              {completionLabel && (
+                <Typography variant="body2" sx={{ color: "#cbd5f5", mt: 0.55, fontWeight: 600 }}>
+                  {completionLabel}
+                </Typography>
+              )}
               {Number.isFinite(remainingCashSharePercent) && (
                 <Typography variant="body2" sx={{ color: "#cbd5f5", mt: 0.8, fontWeight: 600 }}>
                   {translate(

@@ -173,7 +173,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     if (!Number.isFinite(rate) || rate <= 0) return null;
     return buybackCash * rate;
   }, [buybackCash, fxRate]);
-  const stats = useMemo(() => calculateBuybackStats(curData), [curData]);
+  const stats = useMemo(() => calculateBuybackStats(currentMandateData), [currentMandateData]);
   const totalSpent = useMemo(
     () => currentMandateData.reduce((sum, row) => sum + (row?.Transaktionsvärde || 0), 0),
     [currentMandateData]

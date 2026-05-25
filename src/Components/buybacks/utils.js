@@ -204,7 +204,7 @@ export const calculateAverageDailyBuyback = (data) => {
   return { averageDaily, averagePrice };
 };
 
-export const calculateEstimatedCompletion = (remainingCash, transactions) => {
+export const calculateEstimatedCompletion = (remainingCash, transactions, asOfDate = new Date()) => {
   if (!Array.isArray(transactions) || !transactions.length) return null;
   if (!Number.isFinite(remainingCash) || remainingCash <= 0) return null;
 
@@ -236,8 +236,8 @@ export const calculateEstimatedCompletion = (remainingCash, transactions) => {
   }
 
   const daysToCompletion = remainingSharesToBuy / averageDailyShares;
-  const today = new Date();
-  let estimatedCompletionDate = new Date(today);
+  const referenceDate = asOfDate instanceof Date ? new Date(asOfDate) : new Date(asOfDate);
+  let estimatedCompletionDate = new Date(referenceDate);
   let remainingTradingDays = Math.ceil(daysToCompletion);
   let safetyCounter = 0;
   while (remainingTradingDays > 0 && safetyCounter < 2000) {
@@ -257,6 +257,14 @@ export const calculateEstimatedCompletion = (remainingCash, transactions) => {
         ? estimatedCompletionDate.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' })
         : null,
   };
+};
+
+export const formatSharesCompact = (value) => {
+  if (!Number.isFinite(value)) return null;
+  return `${(value / 1_000).toLocaleString('sv-SE', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })}k`;
 };
 
 function countTradingDays(startDate, endDate) {

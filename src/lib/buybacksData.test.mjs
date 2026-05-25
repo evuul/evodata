@@ -1,0 +1,52 @@
+// Regression tests for the static buyback data snapshots.
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+
+function readJson(path) {
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+function getRowsByDates(rows, dates) {
+  return dates.map((date) => rows.find((row) => row.Datum === date));
+}
+
+test("new Evolution buyback block is present in both historical snapshots", () => {
+  const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
+  const historical = readJson(new URL("../app/data/oldBuybackData.json", import.meta.url));
+  const dates = ["2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22"];
+
+  const currentRows = getRowsByDates(current, dates);
+  const historicalRows = getRowsByDates(historical, dates);
+
+  for (const row of currentRows) assert.ok(row, "missing row in current snapshot");
+  for (const row of historicalRows) assert.ok(row, "missing row in historical snapshot");
+
+  assert.equal(
+    currentRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
+    535802,
+  );
+  assert.equal(
+    historicalRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
+    535802,
+  );
+  assert.deepEqual(
+    currentRows.map((row) => row.Datum),
+    dates,
+  );
+  assert.deepEqual(
+    historicalRows.map((row) => row.Datum),
+    dates,
+  );
+});
+
+test("new Evolution buyback block average price is computed from the new mandate only", () => {
+  const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
+  const mandateRows = current.filter((row) => row.Datum >= "2026-05-18" && Number(row.Antal_aktier) > 0);
+  const totalShares = mandateRows.reduce((sum, row) => sum + row.Antal_aktier, 0);
+  const totalValue = mandateRows.reduce((sum, row) => sum + row.Transaktionsvärde, 0);
+  const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
+
+  assert.equal(totalShares, 535802);
+  assert.ok(Math.abs(averagePrice - 709.401075397255) < 0.000001);
+});
