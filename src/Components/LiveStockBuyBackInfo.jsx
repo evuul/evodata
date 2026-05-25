@@ -512,8 +512,8 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
     return Number(value).toLocaleString('sv-SE');
   };
-  const sortedOldData = useMemo(() => {
-    const arr = Array.isArray(oldData) ? [...oldData] : [];
+  const sortedHistoryData = useMemo(() => {
+    const arr = Array.isArray(combinedBuybacks) ? [...combinedBuybacks] : [];
     const { key, direction } = sortConfig;
     arr.sort((a, b) => {
       const dir = direction === 'asc' ? 1 : -1;
@@ -521,7 +521,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       return dir * (Number(a[key] || 0) - Number(b[key] || 0));
     });
     return arr;
-  }, [oldData, sortConfig]);
+  }, [combinedBuybacks, sortConfig]);
   const onSort = (key) => setSortConfig((prev) => ({ key, direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc' }));
 
   const lastUpdatedLabel = useMemo(() => {
@@ -974,7 +974,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             yDomain={getYDomain(historyChartData, 'Antal_aktier')}
             yTicks={getYTickValues(historyChartData, 'Antal_aktier', viewMode)}
             formatYAxisTick={formatYAxisTick}
-            sortedData={sortedOldData}
+            sortedData={sortedHistoryData}
             sortConfig={sortConfig}
             onSort={onSort}
             historicalPnL={historicalPnL}
