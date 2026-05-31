@@ -7,7 +7,11 @@ const MAX_PE = 35;
 export const MIN_BBY = 0.0;
 export const MAX_BBY = 0.25;
 
-const DEFAULT_BUYBACK = { base: 0.04, bull: 0.07, bear: 0.03 };
+export const DEFAULT_FAIR_VALUE_BUYBACK = Object.freeze({
+  base: 0.12,
+  bull: 0.15,
+  bear: 0.1,
+});
 
 export const resolveFairValueReports = (liveReports, fallbackReports) =>
   Array.isArray(liveReports) && liveReports.length > 0
@@ -111,7 +115,7 @@ const emptyResult = Object.freeze({
 
 export const computeFairValueInsights = ({
   reports,
-  buyback = DEFAULT_BUYBACK,
+  buyback = DEFAULT_FAIR_VALUE_BUYBACK,
   fxRate,
   currentPriceSEK,
 } = {}) => {
@@ -166,14 +170,14 @@ export const computeFairValueInsights = ({
   const bullGrowth = clamp(baseGrowth + 0.05, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
   const bearGrowth = clamp(baseGrowth - 0.05, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
 
-  const bbBase = clamp(buyback?.base ?? DEFAULT_BUYBACK.base, MIN_BBY, MAX_BBY);
+  const bbBase = clamp(buyback?.base ?? DEFAULT_FAIR_VALUE_BUYBACK.base, MIN_BBY, MAX_BBY);
   const bbBull = clamp(
-    buyback?.bull ?? bbBase + 0.01,
+    buyback?.bull ?? DEFAULT_FAIR_VALUE_BUYBACK.bull,
     MIN_BBY,
     MAX_BBY
   );
   const bbBear = clamp(
-    buyback?.bear ?? Math.max(0, bbBase - 0.01),
+    buyback?.bear ?? DEFAULT_FAIR_VALUE_BUYBACK.bear,
     MIN_BBY,
     MAX_BBY
   );

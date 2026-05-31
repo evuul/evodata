@@ -26,11 +26,11 @@ import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
 import {
   computeFairValueInsights,
+  DEFAULT_FAIR_VALUE_BUYBACK,
   MIN_FWD_GROWTH,
   MAX_FWD_GROWTH,
   resolveFairValueReports,
 } from '@/lib/fairValueUtils';
-import { computeBuybackMandateAssumptions, DEFAULT_BUYBACK_MANDATE_CASH_EUR } from '@/lib/buybackMandate';
 import { useTheme } from '@mui/material/styles';
 
 const currency0 = new Intl.NumberFormat('sv-SE', {
@@ -142,16 +142,7 @@ export default function LiveAiFairValue({ reports = [], buyback, sharesData }) {
     return close;
   }, [stockPrice]);
 
-  const liveMandateBuyback = useMemo(() => {
-    return computeBuybackMandateAssumptions({
-      mandateCashEur: DEFAULT_BUYBACK_MANDATE_CASH_EUR,
-      currentPriceSEK,
-      fxRate: fx,
-      sharesData,
-    });
-  }, [currentPriceSEK, fx, sharesData]);
-
-  const effectiveBuyback = liveMandateBuyback ?? buyback;
+  const effectiveBuyback = buyback ?? DEFAULT_FAIR_VALUE_BUYBACK;
   const effectiveReports = resolveFairValueReports(liveReports, reports);
 
   const fairValue = useMemo(
@@ -802,8 +793,8 @@ export default function LiveAiFairValue({ reports = [], buyback, sharesData }) {
             )}
             <br />
             {translate(
-              '• Nettoåterköp antas använda hela 2 000 M€-mandatet vid aktuell kurs och höja EPS via 1/(1−y); scenarier varierar både multipel och kassaanvändning.',
-              '• Net buybacks are assumed to use the full 2,000 M€ mandate at the current price and lift EPS via 1/(1−y); scenarios vary both multiples and cash usage.'
+              '• Nettoåterköp modelleras med 10%/12%/15% i bear/fair/bull enligt programramen och höjer EPS via 1/(1−y); scenarier varierar både multipel och antagande.',
+              '• Net buybacks are modelled at 10%/12%/15% in bear/fair/bull according to the program framework and lift EPS via 1/(1−y); scenarios vary both multiples and assumptions.'
             )}
           </Typography>
           <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>

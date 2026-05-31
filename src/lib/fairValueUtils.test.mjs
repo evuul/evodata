@@ -21,17 +21,17 @@ test('default buyback assumptions reflect the updated bull/fair/bear rates', () 
     currentPriceSEK: 100,
   });
 
-  assert.equal(result.bbInfo.base, 0.04);
-  assert.equal(result.bbInfo.bull, 0.07);
-  assert.equal(result.bbInfo.bear, 0.03);
+  assert.equal(result.bbInfo.base, 0.12);
+  assert.equal(result.bbInfo.bull, 0.15);
+  assert.equal(result.bbInfo.bear, 0.1);
 
   const bull = result.scenarios.find((scenario) => scenario.id === 'bull');
   const fair = result.scenarios.find((scenario) => scenario.id === 'fair');
   const bear = result.scenarios.find((scenario) => scenario.id === 'bear');
 
-  assert.equal(bull.buybackRate, 0.07);
-  assert.equal(fair.buybackRate, 0.04);
-  assert.equal(bear.buybackRate, 0.03);
+  assert.equal(bull.buybackRate, 0.15);
+  assert.equal(fair.buybackRate, 0.12);
+  assert.equal(bear.buybackRate, 0.1);
 });
 
 test('resolveFairValueReports prefers live data and falls back safely', () => {
