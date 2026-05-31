@@ -9,6 +9,13 @@ export const MAX_BBY = 0.25;
 
 const DEFAULT_BUYBACK = { base: 0.04, bull: 0.07, bear: 0.03 };
 
+export const resolveFairValueReports = (liveReports, fallbackReports) =>
+  Array.isArray(liveReports) && liveReports.length > 0
+    ? liveReports
+    : Array.isArray(fallbackReports)
+      ? fallbackReports
+      : [];
+
 export const quarterToNumber = (q) =>
   q === 'Q1' ? 1 : q === 'Q2' ? 2 : q === 'Q3' ? 3 : q === 'Q4' ? 4 : 0;
 

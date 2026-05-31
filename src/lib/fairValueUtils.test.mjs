@@ -1,7 +1,7 @@
 // Regression tests for the fair value buyback assumptions.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computeFairValueInsights } from './fairValueUtils.js';
+import { computeFairValueInsights, resolveFairValueReports } from './fairValueUtils.js';
 
 const sampleReports = [
   { year: 2025, quarter: 'Q1', adjustedEarningsPerShare: 1, adjustedOperatingMargin: 59, operatingRevenues: 500 },
@@ -32,4 +32,14 @@ test('default buyback assumptions reflect the updated bull/fair/bear rates', () 
   assert.equal(bull.buybackRate, 0.07);
   assert.equal(fair.buybackRate, 0.04);
   assert.equal(bear.buybackRate, 0.03);
+});
+
+test('resolveFairValueReports prefers live data and falls back safely', () => {
+  const fallbackReports = [{ year: 2025, quarter: 'Q4' }];
+  const liveReports = [{ year: 2026, quarter: 'Q1' }];
+
+  assert.deepEqual(resolveFairValueReports(liveReports, fallbackReports), liveReports);
+  assert.deepEqual(resolveFairValueReports([], fallbackReports), fallbackReports);
+  assert.deepEqual(resolveFairValueReports(null, fallbackReports), fallbackReports);
+  assert.deepEqual(resolveFairValueReports([], null), []);
 });

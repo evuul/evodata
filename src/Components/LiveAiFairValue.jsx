@@ -24,7 +24,12 @@ import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
-import { computeFairValueInsights, MIN_FWD_GROWTH, MAX_FWD_GROWTH } from '@/lib/fairValueUtils';
+import {
+  computeFairValueInsights,
+  MIN_FWD_GROWTH,
+  MAX_FWD_GROWTH,
+  resolveFairValueReports,
+} from '@/lib/fairValueUtils';
 import { computeBuybackMandateAssumptions, DEFAULT_BUYBACK_MANDATE_CASH_EUR } from '@/lib/buybackMandate';
 import { useTheme } from '@mui/material/styles';
 
@@ -147,6 +152,7 @@ export default function LiveAiFairValue({ reports = [], buyback, sharesData }) {
   }, [currentPriceSEK, fx, sharesData]);
 
   const effectiveBuyback = liveMandateBuyback ?? buyback;
+  const effectiveReports = resolveFairValueReports(liveReports, reports);
 
   const fairValue = useMemo(
     () =>
