@@ -28,9 +28,9 @@ const getToken = (request) => {
 
 const resolveUserFromToken = async (token) => {
   if (!token) return null;
-  const session = await getJson(getSessionKey(token));
+  const session = await getJson(getSessionKey(token), { cache: false });
   if (!session?.email) return null;
-  const user = await getJson(getUserKey(session.email));
+  const user = await getJson(getUserKey(session.email), { cache: false });
   return user ? { user, email: session.email } : null;
 };
 

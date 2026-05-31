@@ -60,7 +60,7 @@ export async function POST(request) {
     return json({ error: "Ogiltig inloggning." }, { status: 400 });
   }
 
-  let user = await getJson(getUserKey(email));
+  let user = await getJson(getUserKey(email), { cache: false });
   if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
     const now = new Date().toISOString();
     user = buildDemoUser({ now, existing: user || null });

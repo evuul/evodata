@@ -76,20 +76,23 @@ export const getSessionKey = (token) => `session:${token}`;
 export const getPasswordResetKey = (tokenId) => `pwdreset:${tokenId}`;
 export const getUserIndexKey = () => "admin:user:index";
 
-export const getJson = async (key) => {
-  const cached = cacheReadGet(key);
-  if (cached !== undefined) return cached;
+export const getJson = async (key, options = {}) => {
+  const useCache = options.cache !== false;
+  if (useCache) {
+    const cached = cacheReadGet(key);
+    if (cached !== undefined) return cached;
+  }
   const data = await upstashRequest(`/get/${encodeURIComponent(key)}`);
   if (!data?.result) {
-    cacheReadSet(key, null);
+    if (useCache) cacheReadSet(key, null);
     return null;
   }
   try {
     const parsed = typeof data.result === "string" ? JSON.parse(data.result) : data.result;
-    cacheReadSet(key, parsed);
+    if (useCache) cacheReadSet(key, parsed);
     return parsed;
   } catch {
-    cacheReadSet(key, null);
+    if (useCache) cacheReadSet(key, null);
     return null;
   }
 };

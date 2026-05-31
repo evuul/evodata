@@ -31,7 +31,7 @@ export async function POST(request) {
   const genericMessage =
     "If the address exists, a reset link has been sent.";
 
-  const user = await getJson(getUserKey(email));
+  const user = await getJson(getUserKey(email), { cache: false });
   if (!user) {
     return json({ message: genericMessage });
   }

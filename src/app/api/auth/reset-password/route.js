@@ -39,7 +39,7 @@ export async function POST(request) {
   }
 
   const userKey = getUserKey(email);
-  const user = await getJson(userKey);
+  const user = await getJson(userKey, { cache: false });
   if (!user) {
     return json({ error: "Invalid token or email." }, { status: 400 });
   }
