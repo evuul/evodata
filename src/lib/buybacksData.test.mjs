@@ -14,7 +14,17 @@ function getRowsByDates(rows, dates) {
 test("new Evolution buyback block is present in both historical snapshots", () => {
   const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
   const historical = readJson(new URL("../app/data/oldBuybackData.json", import.meta.url));
-  const dates = ["2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22"];
+  const dates = [
+    "2026-05-19",
+    "2026-05-20",
+    "2026-05-21",
+    "2026-05-22",
+    "2026-05-25",
+    "2026-05-26",
+    "2026-05-27",
+    "2026-05-28",
+    "2026-05-29",
+  ];
 
   const currentRows = getRowsByDates(current, dates);
   const historicalRows = getRowsByDates(historical, dates);
@@ -24,11 +34,11 @@ test("new Evolution buyback block is present in both historical snapshots", () =
 
   assert.equal(
     currentRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
-    535802,
+    1227987,
   );
   assert.equal(
     historicalRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
-    535802,
+    1227987,
   );
   assert.deepEqual(
     currentRows.map((row) => row.Datum),
@@ -40,13 +50,13 @@ test("new Evolution buyback block is present in both historical snapshots", () =
   );
 });
 
-test("new Evolution buyback block average price is computed from the new mandate only", () => {
+test("new Evolution buyback block average price is computed from the latest week only", () => {
   const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
-  const mandateRows = current.filter((row) => row.Datum >= "2026-05-18" && Number(row.Antal_aktier) > 0);
-  const totalShares = mandateRows.reduce((sum, row) => sum + row.Antal_aktier, 0);
-  const totalValue = mandateRows.reduce((sum, row) => sum + row.Transaktionsvärde, 0);
+  const weekRows = current.filter((row) => row.Datum >= "2026-05-25" && row.Datum <= "2026-05-29");
+  const totalShares = weekRows.reduce((sum, row) => sum + row.Antal_aktier, 0);
+  const totalValue = weekRows.reduce((sum, row) => sum + row.Transaktionsvärde, 0);
   const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
 
-  assert.equal(totalShares, 535802);
-  assert.ok(Math.abs(averagePrice - 709.401075397255) < 0.000001);
+  assert.equal(totalShares, 692185);
+  assert.ok(Math.abs(averagePrice - 694.2989389686284) < 0.000001);
 });
