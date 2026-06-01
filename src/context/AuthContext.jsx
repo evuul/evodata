@@ -22,6 +22,17 @@ const GUEST_AUTH_STATE = AUTH_DISABLED
   ? { token: "guest-token", user: null, accessExpiresAt: null, initialized: true }
   : { token: null, user: null, accessExpiresAt: null, initialized: false };
 
+const createAuthError = (message, { status, code } = {}) => {
+  const error = new Error(message);
+  if (Number.isFinite(status)) {
+    error.status = status;
+  }
+  if (code) {
+    error.code = code;
+  }
+  return error;
+};
+
 export function AuthProvider({ children }) {
   const [authState, setAuthState] = useState(() => ({ ...GUEST_AUTH_STATE }));
 
@@ -75,38 +86,63 @@ export function AuthProvider({ children }) {
       return guestState;
     }
 
-    const response = await fetch(`${API_BASE_URL}${LOGIN_PATH}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    let payload = {};
     try {
-      payload = await response.json();
-    } catch {
-      // If response is empty or not JSON we fall back to a generic error below.
-    }
+      const response = await fetch(`${API_BASE_URL}${LOGIN_PATH}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!response.ok) {
-      const message =
-        payload?.message ||
-        payload?.error ||
-        payload?.errors?.[0] ||
-        "Inloggningen misslyckades. Kontrollera uppgifterna och försök igen.";
-      throw new Error(message);
-    }
+      let payload = {};
+      try {
+        payload = await response.json();
+      } catch {
+        // If response is empty or not JSON we fall back to a status-specific error below.
+      }
 
-    const token = payload?.token ?? payload?.accessToken;
-    if (!token) {
-      throw new Error("Oväntat svar från servern: ingen token mottagen.");
-    }
+      if (!response.ok) {
+        const status = response.status;
+        const message =
+          payload?.message ||
+          payload?.error ||
+          payload?.errors?.[0] ||
+          (status === 401
+            ? "Fel e-post eller lösenord."
+            : status === 400
+              ? "Ogiltig inloggning."
+              : "Inloggningsservern svarar inte just nu. Försök igen om en stund.");
+        const code =
+          status === 401
+            ? "INVALID_CREDENTIALS"
+            : status === 400
+              ? "INVALID_LOGIN_PAYLOAD"
+              : status >= 500
+                ? "AUTH_SERVER_UNAVAILABLE"
+                : "AUTH_REQUEST_FAILED";
+        throw createAuthError(message, { status, code });
+      }
 
-    const user = payload?.user ?? { email };
-    const accessExpiresAt = payload?.accessExpiresAt ?? null;
-    setAuthState({ token, user, accessExpiresAt, initialized: true });
-    persistAuth(token, user, accessExpiresAt);
-    return { token, user, accessExpiresAt };
+      const token = payload?.token ?? payload?.accessToken;
+      if (!token) {
+        throw createAuthError("Oväntat svar från servern: ingen token mottagen.", {
+          code: "AUTH_INVALID_RESPONSE",
+        });
+      }
+
+      const user = payload?.user ?? { email };
+      const accessExpiresAt = payload?.accessExpiresAt ?? null;
+      setAuthState({ token, user, accessExpiresAt, initialized: true });
+      persistAuth(token, user, accessExpiresAt);
+      return { token, user, accessExpiresAt };
+    } catch (error) {
+      if (error instanceof Error && error.code) {
+        throw error;
+      }
+      throw createAuthError(
+        "Inloggningsservern svarar inte just nu. Försök igen om en stund.",
+        { code: "AUTH_NETWORK_ERROR" }
+      );
+    }
   }, [persistAuth]);
 
   const register = useCallback(async ({ email, password, firstName, lastName }) => {

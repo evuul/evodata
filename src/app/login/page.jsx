@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
+import { classifyLoginError, LOGIN_ERROR_KIND } from "@/lib/loginError";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
@@ -129,7 +130,19 @@ function LoginPageContent() {
       const next = searchParams?.get("next");
       router.replace(next || "/");
     } catch (err) {
-      setError(err?.message || defaultLoginError);
+      const kind = classifyLoginError(err);
+      const mappedError =
+        kind === LOGIN_ERROR_KIND.invalidCredentials
+          ? translate("Fel e-post eller lösenord.", "Wrong email or password.")
+          : kind === LOGIN_ERROR_KIND.invalidInput
+            ? translate("Ogiltig inloggning. Kontrollera e-post och lösenord.", "Invalid login. Check your email and password.")
+            : kind === LOGIN_ERROR_KIND.serverUnavailable
+              ? translate(
+                  "Inloggningsservern svarar inte just nu. Försök igen om en stund.",
+                  "The login server is unavailable right now. Please try again in a moment."
+                )
+              : err?.message || defaultLoginError;
+      setError(mappedError);
     } finally {
       setSubmitting(false);
     }

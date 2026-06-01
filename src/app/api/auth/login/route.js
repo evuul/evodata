@@ -46,51 +46,59 @@ const buildDemoUser = ({ now, existing }) => ({
 });
 
 export async function POST(request) {
-  let payload = null;
   try {
-    payload = await request.json();
-  } catch {
-    payload = null;
-  }
+    let payload = null;
+    try {
+      payload = await request.json();
+    } catch {
+      payload = null;
+    }
 
-  const email = String(payload?.email || "").trim().toLowerCase();
-  const password = String(payload?.password || "");
+    const email = String(payload?.email || "").trim().toLowerCase();
+    const password = String(payload?.password || "");
 
-  if (!email || !password) {
-    return json({ error: "Ogiltig inloggning." }, { status: 400 });
-  }
+    if (!email || !password) {
+      return json({ error: "Ogiltig inloggning." }, { status: 400 });
+    }
 
-  let user = await getJson(getUserKey(email), { cache: false });
-  if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
-    const now = new Date().toISOString();
-    user = buildDemoUser({ now, existing: user || null });
-    await setJson(getUserKey(email), user);
+    let user = await getJson(getUserKey(email), { cache: false });
+    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      const now = new Date().toISOString();
+      user = buildDemoUser({ now, existing: user || null });
+      await setJson(getUserKey(email), user);
+      await addUserToIndex(email);
+    }
+
+    if (!user || !verifyPassword(password, user.passwordHash)) {
+      return json({ error: "Fel e-post eller lösenord." }, { status: 401 });
+    }
+
+    const isAdmin = email === ADMIN_EMAIL;
+    if (Boolean(user.isAdmin) !== isAdmin) {
+      user.isAdmin = isAdmin;
+      user.updatedAt = new Date().toISOString();
+      await setJson(getUserKey(email), user);
+    }
+
+    const { token } = await createSession(email);
     await addUserToIndex(email);
+
+    return json({
+      token,
+      user: {
+        email,
+        firstName: user.firstName ?? "",
+        lastName: user.lastName ?? "",
+        isSubscriber: Boolean(user.isSubscriber),
+        isAdmin,
+        profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
+      },
+    });
+  } catch (error) {
+    console.error("Login request failed:", error);
+    return json(
+      { error: "Inloggningsservern svarar inte just nu. Försök igen om en stund." },
+      { status: 500 }
+    );
   }
-
-  if (!user || !verifyPassword(password, user.passwordHash)) {
-    return json({ error: "Fel e-post eller lösenord." }, { status: 401 });
-  }
-
-  const isAdmin = email === ADMIN_EMAIL;
-  if (Boolean(user.isAdmin) !== isAdmin) {
-    user.isAdmin = isAdmin;
-    user.updatedAt = new Date().toISOString();
-    await setJson(getUserKey(email), user);
-  }
-
-  const { token } = await createSession(email);
-  await addUserToIndex(email);
-
-  return json({
-    token,
-    user: {
-      email,
-      firstName: user.firstName ?? "",
-      lastName: user.lastName ?? "",
-      isSubscriber: Boolean(user.isSubscriber),
-      isAdmin,
-      profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
-    },
-  });
 }
