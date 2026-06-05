@@ -125,6 +125,8 @@ const ShortIntellegence = () => {
     blankingRange,
     setBlankingRange,
     blankingUpdatedAt,
+    shortSnapshot,
+    shortSnapshotLoading,
     tradingRanges,
     tradingRange,
     setTradingRange,
@@ -134,6 +136,8 @@ const ShortIntellegence = () => {
     blankingSummary,
     blankingDomain,
     blankingAxisInterval,
+    publicPositions,
+    publicPositionsError,
     tradingSeries,
     tradingAxisInterval,
     latestTradingSummary,
@@ -198,6 +202,20 @@ const ShortIntellegence = () => {
               sx={{
                 backgroundColor: "rgba(59,130,246,0.15)",
                 color: "#93c5fd",
+                fontWeight: 500,
+              }}
+            />
+          )}
+          {shortSnapshot?.observedDate && (
+            <Chip
+              label={translate(
+                `FI live ${shortSnapshot.observedDate}`,
+                `FI live ${shortSnapshot.observedDate}`
+              )}
+              size="small"
+              sx={{
+                backgroundColor: "rgba(45,212,191,0.15)",
+                color: "#5eead4",
                 fontWeight: 500,
               }}
             />
@@ -385,6 +403,9 @@ const ShortIntellegence = () => {
             blankingAxisInterval={blankingAxisInterval}
             blankingDomain={blankingDomain}
             blankingSummary={blankingSummary}
+            publicPositions={publicPositions}
+            publicPositionsError={publicPositionsError}
+            shortSnapshotLoading={shortSnapshotLoading}
             blankingTooltip={<ShortTooltip />}
           />
         ) : (

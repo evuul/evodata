@@ -3,63 +3,15 @@ export const revalidate = 0;
 export const runtime = "nodejs";
 
 import { loadShortHistory, saveShortHistory } from "@/lib/shortHistoryStore";
+import {
+  EVO_LEI,
+  fetchFiShortRegisterData,
+  stockholmYmd,
+} from "@/lib/fiShortRegister";
 
-const EVO_LEI = "549300SUH6ZR1RF6TA88";
 const OUTLIER_WINDOW_DAYS = 10;
 const OUTLIER_BAND_MARGIN_PP = 0.75;
 const OUTLIER_MIN_DELTA_PP = 1.5;
-
-function parsePercent(s) {
-  if (s == null) return null;
-  const t = String(s).replace(/\u00A0/g, " ").replace(/%/g, "").replace(/\s/g, "").replace(",", ".");
-  const v = parseFloat(t);
-  return Number.isFinite(v) ? v : null;
-}
-
-async function fetchText(url) {
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (compatible; EvoTrackerBot/1.0)",
-      "Accept-Language": "sv-SE,sv;q=0.9,en;q=0.8",
-      "Referer": "https://www.fi.se/sv/vara-register/blankningsregistret/",
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`Fetch failed ${res.status}`);
-  return await res.text();
-}
-
-function extractTotalPercent(html, lei) {
-  try {
-    const re = new RegExp(`<td\\s*>${lei}<\\/td>[\\s\\S]*?<td[^>]*class=['"]numeric['"][^>]*>(.*?)<\\/td>`, "i");
-    const m = re.exec(html);
-    if (m) return parsePercent(m[1]);
-  } catch {}
-  return null;
-}
-
-function extractTotalPercentFromEmittent(html) {
-  try {
-    const re = /<td>\s*Summa procent\s*<\/td>\s*<td>\s*([^<]+)\s*<\/td>/i;
-    const m = re.exec(html);
-    if (m) return parsePercent(m[1]);
-  } catch {}
-  return null;
-}
-
-function stockholmYMD(d = new Date()) {
-  try {
-    const parts = new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit",
-    }).formatToParts(d);
-    const y = parts.find(p => p.type === "year")?.value ?? "0000";
-    const m = parts.find(p => p.type === "month")?.value ?? "00";
-    const day = parts.find(p => p.type === "day")?.value ?? "00";
-    return `${y}-${m}-${day}`;
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
 
 function getRecentEntries(history, today, limit = OUTLIER_WINDOW_DAYS) {
   if (!Array.isArray(history)) return [];
@@ -122,17 +74,9 @@ export async function POST() {
   const today = stockholmYMD();
   try {
     history = await loadShortHistory();
-
-    const emittentUrl = `https://www.fi.se/sv/vara-register/blankningsregistret/emittent?id=${encodeURIComponent(
+    const { totalPercent: total, publicPercent, publicPositions, observedDate } = await fetchFiShortRegisterData(
       EVO_LEI
-    )}`;
-    const emittentHtml = await fetchText(emittentUrl);
-    let total = extractTotalPercentFromEmittent(emittentHtml);
-
-    if (total == null) {
-      const listHtml = await fetchText("https://www.fi.se/sv/vara-register/blankningsregistret/");
-      total = extractTotalPercent(listHtml, EVO_LEI);
-    }
+    );
 
     if (total == null) {
       return new Response(
@@ -183,7 +127,16 @@ export async function POST() {
     const saved = await saveShortHistory(next);
 
     return new Response(
-      JSON.stringify({ ok: true, ignored: false, date: today, percent: value, totalDays: saved.length }),
+      JSON.stringify({
+        ok: true,
+        ignored: false,
+        date: today,
+        percent: value,
+        publicPercent: Number.isFinite(publicPercent) ? publicPercent : null,
+        publicPositions: Array.isArray(publicPositions) ? publicPositions : [],
+        observedDate: observedDate ?? today,
+        totalDays: saved.length,
+      }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },

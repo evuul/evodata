@@ -27,7 +27,7 @@ const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
 const SUPPORT_URL = "https://buymeacoffee.com/evuul";
 const DONATION_NUDGE_STORAGE_KEY = "evodata_donation_nudge_dismissed_v1";
 const DONATION_NUDGE_TTL_MS = 24 * 60 * 60 * 1000;
-const LIVE_CACHE_MS = 10 * 60 * 1000;
+const LIVE_CACHE_MS = 2 * 60 * 1000;
 const BUYBACK_CASH_EUR = 2_000_000_000;
 const BUYBACK_MANDATE_START_DATE = "2026-05-18";
 const LIVE_HEADER_OVERVIEW_CARDS = 4;
@@ -142,29 +142,30 @@ export function useLiveHeaderModel() {
     }
     try {
       setLoadingShort(true);
-      const res = await fetch("/api/short/history");
-      if (!res.ok) throw new Error("history failed");
-      const data = await res.json();
-      const items = Array.isArray(data.items) ? data.items : [];
-      if (items.length) {
-        const latest = items[items.length - 1];
-        const percent = Number(latest.percent);
+      const liveRes = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: "no-store" });
+      if (liveRes.ok) {
+        const liveData = await liveRes.json();
+        const percent = Number(liveData?.totalPercent);
         if (Number.isFinite(percent)) {
           setShortPercent(percent);
           liveCaches.short = { ts: now, percent };
           return;
         }
       }
-      throw new Error("missing");
+      throw new Error("live missing");
     } catch {
       try {
-        const res = await fetch(`/api/short?lei=${EVO_LEI}`);
+        const res = await fetch("/api/short/history");
         if (!res.ok) return;
-        const json = await res.json();
-        const percent = Number(json.totalPercent);
-        if (Number.isFinite(percent)) {
-          setShortPercent(percent);
-          liveCaches.short = { ts: Date.now(), percent };
+        const data = await res.json();
+        const items = Array.isArray(data.items) ? data.items : [];
+        if (items.length) {
+          const latest = items[items.length - 1];
+          const percent = Number(latest.percent);
+          if (Number.isFinite(percent)) {
+            setShortPercent(percent);
+            liveCaches.short = { ts: Date.now(), percent };
+          }
         }
       } catch {
         /* ignore fallback errors */

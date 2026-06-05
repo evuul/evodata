@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseJsonResponse } from "@/lib/apiResponse";
 import { totalSharesData } from "./buybacks/utils";
 import { useStockPriceContext } from "@/context/StockPriceContext";
+import { EVO_LEI } from "@/lib/fiShortRegister";
 
 export const VIEW_OPTIONS = [
   { value: "blanking", labelSv: "Blankningstrend", labelEn: "Short interest trend" },
@@ -68,8 +69,8 @@ export const buildTradingSeries = (items) =>
     shortChangeShares: item.shortChangeShares,
   }));
 
-export const computeBlankingSummary = (series, stockPrice) => {
-  if (!series.length) {
+export const computeBlankingSummary = (series, stockPrice, liveSnapshot = null) => {
+  if (!series.length && !Number.isFinite(liveSnapshot?.totalPercent)) {
     return {
       latestPercent: null,
       latestDate: null,
@@ -81,13 +82,28 @@ export const computeBlankingSummary = (series, stockPrice) => {
     };
   }
 
-  const latest = series[series.length - 1];
+  const latestHistory = series.length ? series[series.length - 1] : null;
   const previous = series.length > 1 ? series[series.length - 2] : null;
-  const deltaPP = previous ? Number((latest.percent - previous.percent).toFixed(2)) : null;
+  const livePercent = Number.isFinite(liveSnapshot?.totalPercent) ? Number(liveSnapshot.totalPercent) : null;
+  const latestPercent = livePercent ?? (Number.isFinite(Number(latestHistory?.percent)) ? Number(latestHistory.percent) : null);
+  const latestDate = liveSnapshot?.observedDate ?? latestHistory?.date ?? null;
+  const sameDate =
+    Boolean(liveSnapshot?.observedDate) &&
+    Boolean(latestHistory?.date) &&
+    liveSnapshot.observedDate === latestHistory.date;
+  const historyDelta =
+    previous && latestHistory
+      ? Number((Number(latestHistory.percent) - Number(previous.percent)).toFixed(2))
+      : null;
+  const liveDelta =
+    Number.isFinite(livePercent) && Number.isFinite(latestHistory?.percent)
+      ? Number((livePercent - Number(latestHistory.percent)).toFixed(2))
+      : null;
+  const deltaPP = sameDate ? historyDelta : liveDelta ?? historyDelta;
 
   const totalShares =
-    Number.isFinite(latest.percent) && LATEST_TOTAL_SHARES
-      ? Math.round((latest.percent / 100) * LATEST_TOTAL_SHARES)
+    Number.isFinite(latestPercent) && LATEST_TOTAL_SHARES
+      ? Math.round((latestPercent / 100) * LATEST_TOTAL_SHARES)
       : null;
   const deltaShares =
     deltaPP != null && LATEST_TOTAL_SHARES
@@ -101,8 +117,8 @@ export const computeBlankingSummary = (series, stockPrice) => {
     deltaShares != null && Number.isFinite(price) ? deltaShares * price : null;
 
   return {
-    latestPercent: latest.percent,
-    latestDate: latest.date,
+    latestPercent,
+    latestDate,
     deltaPP,
     deltaShares,
     totalShares,
@@ -180,6 +196,10 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   const [blankingLoading, setBlankingLoading] = useState(false);
   const [blankingData, setBlankingData] = useState([]);
   const [blankingUpdatedAt, setBlankingUpdatedAt] = useState(null);
+  const [shortSnapshotLoading, setShortSnapshotLoading] = useState(false);
+  const [shortSnapshot, setShortSnapshot] = useState(null);
+  const [publicPositions, setPublicPositions] = useState([]);
+  const [publicPositionsError, setPublicPositionsError] = useState("");
 
   const tradingRanges = isMobile ? TRADING_RANGES_MOBILE : TRADING_RANGES_DESKTOP;
   const [tradingRange, setTradingRange] = useState(tradingRanges[1]);
@@ -231,6 +251,40 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     }
   }, []);
 
+  const fetchShortSnapshot = useCallback(async () => {
+    setShortSnapshotLoading(true);
+    try {
+      const res = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: "no-store" });
+      const json = await parseJsonResponse(res, { requireOk: false });
+      const totalPercent = Number.isFinite(json?.totalPercent) ? json.totalPercent : null;
+      setShortSnapshot(
+        totalPercent != null
+          ? {
+              totalPercent,
+              observedDate: json?.observedDate ?? null,
+            }
+          : null
+      );
+      setPublicPositions(Array.isArray(json?.publicPositions) ? json.publicPositions : []);
+      setPublicPositionsError(
+        typeof json?.publicPositionsError === "string" && json.publicPositionsError.trim()
+          ? json.publicPositionsError.trim()
+          : ""
+      );
+    } catch (error) {
+      console.error("Failed to fetch live short snapshot", error);
+      setShortSnapshot(null);
+      setPublicPositions([]);
+      setPublicPositionsError(
+        error instanceof Error
+          ? error.message
+          : translate("Kunde inte hämta publika blankare", "Could not fetch public short positions")
+      );
+    } finally {
+      setShortSnapshotLoading(false);
+    }
+  }, [translate]);
+
   const refreshBlanking = useCallback(async () => {
     setBlankingLoading(true);
     try {
@@ -239,9 +293,9 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
         cache: "no-store",
       }).catch(() => {});
     } finally {
-      await fetchBlanking();
+      await Promise.all([fetchBlanking(), fetchShortSnapshot()]);
     }
-  }, [fetchBlanking]);
+  }, [fetchBlanking, fetchShortSnapshot]);
 
   const fetchTrading = useCallback(
     async (days) => {
@@ -281,8 +335,8 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   );
 
   useEffect(() => {
-    fetchBlanking();
-  }, [fetchBlanking]);
+    refreshBlanking();
+  }, [refreshBlanking]);
 
   useEffect(() => {
     fetchTrading(tradingRange);
@@ -294,8 +348,8 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   );
 
   const blankingSummary = useMemo(
-    () => computeBlankingSummary(blankingSeries, stockPrice),
-    [blankingSeries, stockPrice]
+    () => computeBlankingSummary(blankingSeries, stockPrice, shortSnapshot),
+    [blankingSeries, stockPrice, shortSnapshot]
   );
 
   const blankingDomain = useMemo(() => buildBlankingDomain(blankingSeries), [blankingSeries]);
@@ -321,7 +375,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     [latestTrading, latestTradingMeta]
   );
 
-  const activeLoading = view === "blanking" ? blankingLoading : tradingLoading;
+  const activeLoading = view === "blanking" ? blankingLoading || shortSnapshotLoading : tradingLoading;
 
   return {
     view,
@@ -331,6 +385,10 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     blankingLoading,
     blankingData,
     blankingUpdatedAt,
+    shortSnapshot,
+    shortSnapshotLoading,
+    publicPositions,
+    publicPositionsError,
     tradingRanges,
     tradingRange,
     setTradingRange,

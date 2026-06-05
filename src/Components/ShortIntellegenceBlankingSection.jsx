@@ -2,7 +2,7 @@
 
 // Blankning-vy för short intelligence-dashboarden.
 
-import { Box, Chip, Typography, Stack } from "@mui/material";
+import { Box, Chip, Typography, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from "@mui/material";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { BLANKING_RANGES, formatPercent, formatNumber, formatMillion, fullLabel } from "./useShortIntelligenceModel";
 
@@ -15,6 +15,9 @@ export default function ShortIntellegenceBlankingSection({
   blankingAxisInterval,
   blankingDomain,
   blankingSummary,
+  publicPositions,
+  publicPositionsError,
+  shortSnapshotLoading,
   blankingTooltip,
 }) {
   return (
@@ -273,6 +276,107 @@ export default function ShortIntellegenceBlankingSection({
                 : "–"}
             </Typography>
           </Box>
+        </Box>
+      </Box>
+
+      <Box
+        sx={{
+          mt: { xs: 1, md: 0.5 },
+          borderTop: "1px solid rgba(148,163,184,0.14)",
+          pt: { xs: 2, md: 2.5 },
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" flexWrap="wrap">
+          <Box>
+            <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.78)", letterSpacing: 1.2 }}>
+              {translate("Aktuella positioner", "Current positions")}
+            </Typography>
+            <Typography sx={{ color: "rgba(226,232,240,0.72)", lineHeight: 1.5, mt: 0.35 }}>
+              {translate(
+                "Publika blankare över 0,5% från FI:s register.",
+                "Public shorts above 0.5% from FI's register."
+              )}
+            </Typography>
+          </Box>
+          {publicPositions.length > 0 && (
+            <Chip
+              size="small"
+              label={translate(
+                `${publicPositions.length} publika positioner`,
+                `${publicPositions.length} public positions`
+              )}
+              sx={{
+                backgroundColor: "rgba(96,165,250,0.16)",
+                color: "#bfdbfe",
+                fontWeight: 500,
+              }}
+            />
+          )}
+        </Stack>
+
+        <Box
+          sx={{
+            mt: 1.5,
+            border: "1px solid rgba(148,163,184,0.14)",
+            borderRadius: "14px",
+            overflow: "hidden",
+            background: "rgba(15,23,42,0.42)",
+          }}
+        >
+          {publicPositionsError ? (
+            <Box sx={{ p: 2.5, color: "#fca5a5" }}>
+              <Typography>{publicPositionsError}</Typography>
+            </Box>
+          ) : shortSnapshotLoading && !publicPositions.length ? (
+            <Box sx={{ p: 2.5, color: "rgba(148,163,184,0.72)" }}>
+              <Typography>{translate("Hämtar publika positioner...", "Loading public positions...")}</Typography>
+            </Box>
+          ) : publicPositions.length ? (
+            <TableContainer sx={{ maxHeight: 420 }}>
+              <Table stickyHeader size="small" aria-label={translate("Aktuella positioner", "Current positions")}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ backgroundColor: "rgba(148,163,184,0.16)", fontWeight: 700, color: "#f8fafc" }}>
+                      {translate("Positionsinnehavare", "Holder")}
+                    </TableCell>
+                    <TableCell sx={{ backgroundColor: "rgba(148,163,184,0.16)", fontWeight: 700, color: "#f8fafc" }}>
+                      ISIN
+                    </TableCell>
+                    <TableCell align="right" sx={{ backgroundColor: "rgba(148,163,184,0.16)", fontWeight: 700, color: "#f8fafc" }}>
+                      {translate("Position i procent (%)", "Position in percent (%)")}
+                    </TableCell>
+                    <TableCell sx={{ backgroundColor: "rgba(148,163,184,0.16)", fontWeight: 700, color: "#f8fafc" }}>
+                      {translate("Positionsdatum", "Position date")}
+                    </TableCell>
+                    <TableCell align="right" sx={{ backgroundColor: "rgba(148,163,184,0.16)", fontWeight: 700, color: "#f8fafc" }}>
+                      {translate("Föregående Position (%)", "Previous position (%)")}
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {publicPositions.map((position) => (
+                    <TableRow key={`${position.holder}-${position.positionsDate}-${position.isin}`}>
+                      <TableCell sx={{ color: "#f8fafc", fontWeight: 600 }}>{position.holder}</TableCell>
+                      <TableCell sx={{ color: "#f8fafc" }}>{position.isin}</TableCell>
+                      <TableCell align="right" sx={{ color: "#f8fafc" }}>
+                        {position.positionPercentRaw || "–"}
+                      </TableCell>
+                      <TableCell sx={{ color: "#f8fafc" }}>
+                        {position.positionsDate || "–"}
+                      </TableCell>
+                      <TableCell align="right" sx={{ color: "#f8fafc" }}>
+                        {position.previousPositionPercentRaw || "–"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Box sx={{ p: 2.5, color: "rgba(148,163,184,0.72)" }}>
+              <Typography>{translate("Inga publika blankare över 0,5% just nu.", "No public shorts above 0.5% right now.")}</Typography>
+            </Box>
+          )}
         </Box>
       </Box>
     </Box>
