@@ -24,6 +24,11 @@ test("new Evolution buyback block is present in both historical snapshots", () =
     "2026-05-27",
     "2026-05-28",
     "2026-05-29",
+    "2026-06-01",
+    "2026-06-02",
+    "2026-06-03",
+    "2026-06-04",
+    "2026-06-05",
   ];
 
   const currentRows = getRowsByDates(current, dates);
@@ -34,11 +39,11 @@ test("new Evolution buyback block is present in both historical snapshots", () =
 
   assert.equal(
     currentRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
-    1227987,
+    2066158,
   );
   assert.equal(
     historicalRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
-    1227987,
+    2066158,
   );
   assert.deepEqual(
     currentRows.map((row) => row.Datum),
@@ -52,11 +57,11 @@ test("new Evolution buyback block is present in both historical snapshots", () =
 
 test("new Evolution buyback block average price is computed from the latest week only", () => {
   const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
-  const weekRows = current.filter((row) => row.Datum >= "2026-05-25" && row.Datum <= "2026-05-29");
+  const weekRows = current.filter((row) => row.Datum >= "2026-06-01" && row.Datum <= "2026-06-05");
   const totalShares = weekRows.reduce((sum, row) => sum + row.Antal_aktier, 0);
   const totalValue = weekRows.reduce((sum, row) => sum + row.Transaktionsvärde, 0);
   const averagePrice = totalShares > 0 ? totalValue / totalShares : 0;
 
-  assert.equal(totalShares, 692185);
-  assert.ok(Math.abs(averagePrice - 694.2989389686284) < 0.000001);
+  assert.equal(totalShares, 838171);
+  assert.ok(Math.abs(averagePrice - 704.6032310948481) < 0.000001);
 });
