@@ -7,6 +7,10 @@ import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 
 import { loadShortHistory } from "@/lib/shortHistoryStore";
 import { totalSharesData } from "@/Components/buybacks/utils";
+import {
+  buildDaysToCoverEstimate,
+  resolveCurrentShortContext,
+} from "@/lib/shortActivitySummary";
 
 const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
 
@@ -80,37 +84,6 @@ function calcRollingAverage(values, windowSize) {
     if (!nums.length) return null;
     return nums.reduce((sum, v) => sum + v, 0) / nums.length;
   });
-}
-
-function buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latestTrading) {
-  const latestShort = Array.isArray(shortHistory) && shortHistory.length ? shortHistory[shortHistory.length - 1] : null;
-  const currentShortInterestPercent = Number.isFinite(Number(latestShort?.percent))
-    ? Number(latestShort.percent)
-    : null;
-  const currentShortInterestShares =
-    currentShortInterestPercent != null && Number.isFinite(getTotalSharesForDate(latestShort?.date))
-      ? Math.round((currentShortInterestPercent / 100) * getTotalSharesForDate(latestShort.date))
-      : null;
-  const averageDailyVolumeShares =
-    Number.isFinite(latestTrading?.volumeAverage20)
-      ? latestTrading.volumeAverage20
-      : tradingDates.length > 0 && Number.isFinite(totalVolume)
-        ? Math.round(totalVolume / tradingDates.length)
-        : null;
-  const daysToCoverEstimate =
-    currentShortInterestShares != null &&
-    Number.isFinite(averageDailyVolumeShares) &&
-    averageDailyVolumeShares > 0
-      ? +(currentShortInterestShares / averageDailyVolumeShares).toFixed(2)
-      : null;
-
-  return {
-    currentShortInterestDate: latestShort?.date ?? null,
-    currentShortInterestPercent,
-    currentShortInterestShares,
-    averageDailyVolumeShares,
-    daysToCoverEstimate,
-  };
 }
 
 function isWeekend(dateStr) {
@@ -318,6 +291,7 @@ export async function GET(request) {
         return json({ ok: false, error: "Ingen handelsdata tillgänglig" });
       }
 
+      const currentShortContext = await resolveCurrentShortContext(shortHistory);
       const shortPercentMap = new Map(shortHistory.map((entry) => [entry.date, entry.percent]));
       const sortedShortDates = shortHistory.map((entry) => entry.date).sort((a, b) => a.localeCompare(b));
       const firstTradingDate = tradingDates[0];
@@ -418,7 +392,13 @@ export async function GET(request) {
       const aggregateShare = totalVolume > 0 ? +(totalShortFlow / totalVolume * 100).toFixed(2) : null;
 
       const latest = enriched[enriched.length - 1] ?? null;
-      const daysToCover = buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latest);
+      const daysToCover = buildDaysToCoverEstimate(
+        shortHistory,
+        tradingDates,
+        totalVolume,
+        latest,
+        currentShortContext
+      );
 
       const payload = {
         ok: true,
@@ -428,6 +408,7 @@ export async function GET(request) {
         latest,
         aggregateShare,
         ...daysToCover,
+        currentShortInterestSource: currentShortContext.currentShortInterestSource,
         updatedAt: new Date().toISOString(),
         source: "yahoo-chart",
       };
@@ -505,6 +486,7 @@ export async function GET(request) {
       return { ok: false, error: "Ingen handelsdata tillgänglig" };
     }
 
+    const currentShortContext = await resolveCurrentShortContext(shortHistory);
     const shortPercentMap = new Map(shortHistory.map((entry) => [entry.date, entry.percent]));
     const sortedShortDates = shortHistory.map((entry) => entry.date).sort((a, b) => a.localeCompare(b));
     const firstTradingDate = tradingDates[0];
@@ -613,7 +595,13 @@ export async function GET(request) {
     const aggregateShare = totalVolume > 0 ? +(totalShortFlow / totalVolume * 100).toFixed(2) : null;
 
     const latest = enriched[enriched.length - 1] ?? null;
-    const daysToCover = buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latest);
+    const daysToCover = buildDaysToCoverEstimate(
+      shortHistory,
+      tradingDates,
+      totalVolume,
+      latest,
+      currentShortContext
+    );
 
     return {
       ok: true,
@@ -623,6 +611,7 @@ export async function GET(request) {
       latest,
       aggregateShare,
       ...daysToCover,
+      currentShortInterestSource: currentShortContext.currentShortInterestSource,
       updatedAt: new Date().toISOString(),
       source,
     };
