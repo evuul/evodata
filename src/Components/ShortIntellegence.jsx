@@ -263,15 +263,15 @@ const ShortIntellegence = () => {
         </Typography>
         <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.6, mt: 0.5 }}>
           {translate(
-            "Tre siffror räcker ofta: aktuell blankning, senaste rörelse och hur hårt blankarna trycker på handeln.",
-            "Three numbers usually tell the story: current short interest, the latest move, and how hard shorts are pressing on trading."
+            "Tre siffror räcker ofta: senaste FI-blankningen, senaste rörelsen och hur hårt blankarna trycker på handeln.",
+            "Three numbers usually tell the story: the latest FI short interest, the latest move, and how hard shorts are pressing on trading."
           )}
         </Typography>
         <Box
           sx={{
             mt: 1.5,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
             gap: { xs: 1.2, md: 1.6 },
           }}
         >
@@ -320,20 +320,22 @@ const ShortIntellegence = () => {
           </Box>
           <Box
             sx={{
-              background: "linear-gradient(135deg, rgba(250,204,21,0.14), rgba(15,23,42,0.56))",
-              border: "1px solid rgba(250,204,21,0.24)",
+              background: "linear-gradient(135deg, rgba(45,212,191,0.14), rgba(15,23,42,0.56))",
+              border: "1px solid rgba(45,212,191,0.24)",
               borderRadius: "14px",
               p: 1.6,
             }}
           >
             <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.72)" }}>
-              {translate("Aktuell blankning", "Current short interest")}
+              {translate("Senaste FI-blankning", "Latest FI short interest")}
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.4 }}>
-              {latestTradingSummary?.currentShortInterestPercent ?? "–"}
+              {blankingSummary?.latestPercent != null
+                ? formatPercent(blankingSummary.latestPercent, 2)
+                : "–"}
             </Typography>
             <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.3 }}>
-              {latestTradingSummary?.currentShortInterestDate ?? translate("Kräver shortdata", "Needs short data")}
+              {blankingSummary?.latestDate ? fullLabel(blankingSummary.latestDate) : translate("Kräver shortdata", "Needs short data")}
             </Typography>
           </Box>
         </Box>

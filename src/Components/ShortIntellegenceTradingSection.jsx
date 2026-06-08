@@ -230,7 +230,7 @@ export default function ShortIntellegenceTradingSection({
                 fontWeight: 600,
               }}
             >
-              {translate("Aktuell blankning", "Current short interest")}
+              {translate("Senaste FI-blankning", "Latest FI short interest")}
             </Typography>
             <Typography variant="h5" sx={{ fontWeight: 700 }}>
               {latestTradingSummary?.currentShortInterestPercent ?? "–"}
