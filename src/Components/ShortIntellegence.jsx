@@ -263,8 +263,8 @@ const ShortIntellegence = () => {
         </Typography>
         <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.6, mt: 0.5 }}>
           {translate(
-            "Tre siffror räcker ofta: senaste FI-blankningen, senaste rörelsen och hur hårt blankarna trycker på handeln.",
-            "Three numbers usually tell the story: the latest FI short interest, the latest move, and how hard shorts are pressing on trading."
+            "Två siffror räcker ofta: senaste FI-blankningen och senaste rörelsen.",
+            "Two numbers usually tell the story: the latest FI short interest and the latest move."
           )}
         </Typography>
         <Box
@@ -275,24 +275,6 @@ const ShortIntellegence = () => {
             gap: { xs: 1.2, md: 1.6 },
           }}
         >
-          <Box
-            sx={{
-              background: "linear-gradient(135deg, rgba(96,165,250,0.16), rgba(15,23,42,0.56))",
-              border: "1px solid rgba(96,165,250,0.28)",
-              borderRadius: "14px",
-              p: 1.6,
-            }}
-          >
-            <Typography variant="caption" sx={{ color: "rgba(226,232,240,0.72)" }}>
-              {translate("Senaste blankning", "Latest short interest")}
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 800, mt: 0.4 }}>
-              {formatPercent(blankingSummary?.latestPercent, 2)}
-            </Typography>
-            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.3 }}>
-              {blankingSummary?.latestDate ? fullLabel(blankingSummary.latestDate) : "–"}
-            </Typography>
-          </Box>
           <Box
             sx={{
               background: "linear-gradient(135deg, rgba(248,113,113,0.14), rgba(15,23,42,0.56))",
