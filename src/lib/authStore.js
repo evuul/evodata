@@ -1,7 +1,10 @@
+// Shared auth store helpers backed by Upstash KV.
 import crypto from "crypto";
 
-const UPSTASH_REST_URL = process.env.UPSTASH_REST_URL;
-const UPSTASH_REST_TOKEN = process.env.UPSTASH_REST_TOKEN;
+const UPSTASH_REST_URL =
+  process.env.UPSTASH_REST_URL || process.env.KV_REST_API_URL || process.env.KV_URL;
+const UPSTASH_REST_TOKEN =
+  process.env.UPSTASH_REST_TOKEN || process.env.KV_REST_API_TOKEN || process.env.KV_REST_TOKEN;
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const PASSWORD_RESET_TTL_SECONDS = 60 * 30; // 30 minutes
