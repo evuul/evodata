@@ -11,6 +11,8 @@ function normalizeWhitespace(value) {
   return String(value ?? "").replace(/\u00A0/g, " ").replace(/\s+/g, " ").trim();
 }
 
+let inFlightSnapshotPromise = null;
+
 export function stockholmYmd(date = new Date()) {
   try {
     const parts = new Intl.DateTimeFormat("sv-SE", {

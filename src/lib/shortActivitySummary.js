@@ -1,10 +1,8 @@
 // Helpers for the short activity summary and current short-interest resolution.
 
 import { totalSharesData } from "../Components/buybacks/utils.js";
-import {
-  EVO_LEI,
-  resolveFiShortSnapshot,
-} from "./fiShortRegister.js";
+import { EVO_LEI } from "./fiShortRegister.js";
+import { resolveFiShortSnapshot } from "./fiShortSnapshot.js";
 
 function getTotalSharesForDate(dateStr) {
   const year = Number.parseInt(String(dateStr).slice(0, 4), 10);
