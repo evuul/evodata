@@ -135,6 +135,23 @@ const buildBlankingSeries = (items, limit) => {
   }));
 };
 
+const mergeLiveSnapshotIntoHistory = (history, liveSnapshot) => {
+  const items = Array.isArray(history) ? history.slice() : [];
+  const date = typeof liveSnapshot?.observedDate === "string" ? liveSnapshot.observedDate : null;
+  const percent = Number(liveSnapshot?.totalPercent);
+  if (!date || !Number.isFinite(percent)) return items;
+
+  const updated = { date, percent: +percent.toFixed(2) };
+  const idx = items.findIndex((item) => item?.date === date);
+  if (idx >= 0) {
+    items[idx] = updated;
+  } else {
+    items.push(updated);
+  }
+
+  return items.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+};
+
 const buildBlankingDomain = (series) => {
   if (!series.length) return [0, 1];
   const values = series.map((item) => item.percent).filter(Number.isFinite);
@@ -343,8 +360,8 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   }, [fetchTrading, tradingRange]);
 
   const blankingSeries = useMemo(
-    () => buildBlankingSeries(blankingData, blankingRange),
-    [blankingData, blankingRange]
+    () => buildBlankingSeries(mergeLiveSnapshotIntoHistory(blankingData, shortSnapshot), blankingRange),
+    [blankingData, shortSnapshot, blankingRange]
   );
 
   const blankingSummary = useMemo(
