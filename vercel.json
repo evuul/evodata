@@ -11,10 +11,6 @@
     {
       "path": "/api/alerts/daily-avg",
       "schedule": "30 * * * *"
-    },
-    {
-      "path": "/api/short/cron",
-      "schedule": "0 16 * * *"
     }
   ]
 }

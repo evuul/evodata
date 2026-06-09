@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
-import { loadShortHistory, saveShortHistory } from "@/lib/shortHistoryStore";
+import { loadShortHistory, saveShortHistory, upsertShortHistoryEntry } from "@/lib/shortHistoryStore";
 import {
   EVO_LEI,
   resolveFiShortSnapshot,
@@ -131,16 +131,8 @@ export async function POST(request) {
       );
     }
 
-    const next = Array.isArray(history) ? [...history] : [];
-    const idx = next.findIndex(entry => entry.date === today);
-    const updated = { date: today, percent: value };
-    if (idx >= 0) {
-      next[idx] = updated;
-    } else {
-      next.push(updated);
-    }
-
-    const saved = await saveShortHistory(next);
+    const { items: next, changed } = upsertShortHistoryEntry(history, { date: today, percent: value });
+    const saved = changed ? await saveShortHistory(next) : next;
 
     return new Response(
       JSON.stringify({

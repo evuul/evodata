@@ -287,14 +287,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
 
   const refreshBlanking = useCallback(async () => {
     setBlankingLoading(true);
-    try {
-      await fetch("/api/short/snapshot?force=1", {
-        method: "POST",
-        cache: "no-store",
-      }).catch(() => {});
-    } finally {
-      await Promise.all([fetchBlanking(), fetchShortSnapshot()]);
-    }
+    await Promise.all([fetchBlanking(), fetchShortSnapshot()]);
   }, [fetchBlanking, fetchShortSnapshot]);
 
   const fetchTrading = useCallback(
