@@ -4,7 +4,7 @@ export const runtime = "nodejs";
 
 import { loadShortHistory } from "@/lib/shortHistoryStore";
 
-const CACHE_CONTROL = "no-store, max-age=0, must-revalidate";
+const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=600";
 
 export async function GET() {
   try {

@@ -1,12 +1,41 @@
 import fs from "fs/promises";
 import path from "path";
-import { getKvClient } from "./kvClient.js";
 
 const DATA_FILE = path.join(process.cwd(), "src", "app", "data", "shortHistory.json");
 const KV_KEY = "short:history:v1";
 const OUTLIER_WINDOW_DAYS = 10;
 const OUTLIER_BAND_MARGIN_PP = 0.75;
 const OUTLIER_MIN_DELTA_PP = 1.5;
+
+let kvClientPromise = null;
+
+function ensureKvEnv() {
+  if (!process.env.KV_REST_API_URL && process.env.KV_URL) {
+    process.env.KV_REST_API_URL = process.env.KV_URL;
+  }
+  if (!process.env.KV_REST_API_TOKEN && process.env.KV_REST_TOKEN) {
+    process.env.KV_REST_API_TOKEN = process.env.KV_REST_TOKEN;
+  }
+}
+
+async function getKvClient() {
+  ensureKvEnv();
+  if (kvClientPromise) return kvClientPromise;
+
+  kvClientPromise = (async () => {
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      return undefined;
+    }
+    try {
+      const mod = await import("@vercel/kv");
+      return mod.kv;
+    } catch {
+      return undefined;
+    }
+  })();
+
+  return kvClientPromise;
+}
 
 function normalizeShortHistory(data) {
   if (!Array.isArray(data)) return [];
