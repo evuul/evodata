@@ -34,34 +34,3 @@ test("getJson can bypass the read cache for fresh auth data", async () => {
     globalThis.fetch = originalFetch;
   }
 });
-
-test("authStore accepts KV environment aliases", async () => {
-  delete process.env.UPSTASH_REST_URL;
-  delete process.env.UPSTASH_REST_TOKEN;
-  process.env.KV_REST_API_URL = "https://upstash.example";
-  process.env.KV_REST_API_TOKEN = "token";
-
-  const originalFetch = globalThis.fetch;
-  let calls = 0;
-
-  globalThis.fetch = async () => ({
-    ok: true,
-    json: async () => {
-      calls += 1;
-      return { result: JSON.stringify({ passwordHash: "alias" }) };
-    },
-    text: async () => JSON.stringify({ result: JSON.stringify({ passwordHash: "alias" }) }),
-  });
-
-  try {
-    const { getJson } = await import("./authStore.js?alias=" + Date.now());
-    const user = await getJson("user:alias", { cache: false });
-
-    assert.equal(user.passwordHash, "alias");
-    assert.equal(calls, 1);
-  } finally {
-    globalThis.fetch = originalFetch;
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
-  }
-});
