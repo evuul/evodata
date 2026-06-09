@@ -219,7 +219,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   const fetchBlanking = useCallback(async () => {
     setBlankingLoading(true);
     try {
-      const res = await fetch("/api/short/history");
+      const res = await fetch("/api/short/history", { cache: "no-store" });
       const json = await parseJsonResponse(res, { requireOk: false });
       const items = Array.isArray(json?.items) ? json.items : [];
       const sorted = items
@@ -288,7 +288,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   const refreshBlanking = useCallback(async () => {
     setBlankingLoading(true);
     try {
-      await fetch("/api/short/snapshot", {
+      await fetch("/api/short/snapshot?force=1", {
         method: "POST",
         cache: "no-store",
       }).catch(() => {});

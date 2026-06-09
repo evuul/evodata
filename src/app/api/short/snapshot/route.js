@@ -5,7 +5,7 @@ export const runtime = "nodejs";
 import { loadShortHistory, saveShortHistory } from "@/lib/shortHistoryStore";
 import {
   EVO_LEI,
-  fetchFiShortRegisterData,
+  resolveFiShortSnapshot,
   stockholmYmd,
 } from "@/lib/fiShortRegister";
 
@@ -69,14 +69,30 @@ function detectOutlier(history, today, value) {
   };
 }
 
-export async function POST() {
+function shouldForceRefresh(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    return searchParams.get("force") === "1" || searchParams.get("force") === "true";
+  } catch {
+    return false;
+  }
+}
+
+export async function POST(request) {
   let history = [];
   const today = stockholmYMD();
   try {
     history = await loadShortHistory();
-    const { totalPercent: total, publicPercent, publicPositions, observedDate } = await fetchFiShortRegisterData(
-      EVO_LEI
-    );
+    const force = shouldForceRefresh(request);
+    const {
+      totalPercent: total,
+      publicPercent,
+      publicPositions,
+      observedDate,
+      fetchedAt,
+      cached,
+      stale,
+    } = await resolveFiShortSnapshot({ lei: EVO_LEI, force });
 
     if (total == null) {
       return new Response(
@@ -135,6 +151,9 @@ export async function POST() {
         publicPercent: Number.isFinite(publicPercent) ? publicPercent : null,
         publicPositions: Array.isArray(publicPositions) ? publicPositions : [],
         observedDate: observedDate ?? today,
+        fetchedAt: fetchedAt ?? null,
+        cached: Boolean(cached),
+        stale: Boolean(stale),
         totalDays: saved.length,
       }),
       {
@@ -162,4 +181,4 @@ export async function POST() {
 }
 
 // (valfritt) Låt GET också trigga snapshot
-export async function GET() { return POST(); }
+export async function GET(request) { return POST(request); }

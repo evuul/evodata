@@ -155,7 +155,7 @@ export function useLiveHeaderModel() {
       throw new Error("live missing");
     } catch {
       try {
-        const res = await fetch("/api/short/history");
+        const res = await fetch("/api/short/history", { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
         const items = Array.isArray(data.items) ? data.items : [];

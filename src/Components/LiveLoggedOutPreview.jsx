@@ -37,6 +37,7 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
+import { parseJsonResponse } from "@/lib/apiResponse";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import {
   computeBuybackSummary,
@@ -203,6 +204,7 @@ export default function LiveLoggedOutPreview({
   const numberLocale = resolveNumberLocale(locale);
   const dateLocale = locale === "en" ? "en-GB" : "sv-SE";
   const [adjustedAveragePlayersData, setAdjustedAveragePlayersData] = useState(null);
+  const [liveShortHistoryData, setLiveShortHistoryData] = useState(null);
   const formatDate = (value) => {
     if (!value) return null;
     const date = new Date(value);
@@ -233,6 +235,32 @@ export default function LiveLoggedOutPreview({
       }
     };
     loadAdjustedPlayers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadShortHistory = async () => {
+      try {
+        const res = await fetch("/api/short/history", { cache: "no-store" });
+        const json = await parseJsonResponse(res, { requireOk: false });
+        const rows = Array.isArray(json?.items) ? json.items : [];
+        const next = rows
+          .map((item) => ({
+            date: item?.date,
+            percent: Number(item?.percent),
+          }))
+          .filter((row) => row.date && Number.isFinite(row.percent));
+        if (!cancelled && next.length) {
+          setLiveShortHistoryData(next);
+        }
+      } catch {
+        // Keep the static fallback if live history cannot be loaded.
+      }
+    };
+    loadShortHistory();
     return () => {
       cancelled = true;
     };
@@ -276,7 +304,8 @@ export default function LiveLoggedOutPreview({
       : null;
 
   const topGames = computeTopGamesPreview(gameShowsData);
-  const shortTrend = computeShortTrendPreview(shortHistoryData);
+  const shortHistoryPreview = liveShortHistoryData?.length ? liveShortHistoryData : shortHistoryData;
+  const shortTrend = computeShortTrendPreview(shortHistoryPreview);
   const latestInsiderBuy = pickLatestInsiderBuy(insiderTransactions);
 
   const shortWindowPercents = Array.isArray(shortTrend?.window)
