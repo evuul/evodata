@@ -1,16 +1,3 @@
 {
-  "crons": [
-    {
-      "path": "/api/casinoscores/cron",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/alerts/ath",
-      "schedule": "*/15 * * * *"
-    },
-    {
-      "path": "/api/alerts/daily-avg",
-      "schedule": "30 * * * *"
-    }
-  ]
+  "crons": []
 }
