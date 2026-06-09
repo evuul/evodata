@@ -39,6 +39,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
 import { parseJsonResponse } from "@/lib/apiResponse";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
+import { mergeLiveBlankingPoint } from "@/lib/blankingSeries";
 import {
   computeBuybackSummary,
   computeLobbyTrend,
@@ -205,6 +206,7 @@ export default function LiveLoggedOutPreview({
   const dateLocale = locale === "en" ? "en-GB" : "sv-SE";
   const [adjustedAveragePlayersData, setAdjustedAveragePlayersData] = useState(null);
   const [liveShortHistoryData, setLiveShortHistoryData] = useState(null);
+  const [liveShortSnapshot, setLiveShortSnapshot] = useState(null);
   const formatDate = (value) => {
     if (!value) return null;
     const date = new Date(value);
@@ -266,6 +268,29 @@ export default function LiveLoggedOutPreview({
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadShortSnapshot = async () => {
+      try {
+        const res = await fetch("/api/short", { cache: "no-store" });
+        const json = await parseJsonResponse(res, { requireOk: false });
+        const totalPercent = Number(json?.totalPercent);
+        if (!cancelled && Number.isFinite(totalPercent)) {
+          setLiveShortSnapshot({
+            observedDate: json?.observedDate ?? null,
+            totalPercent,
+          });
+        }
+      } catch {
+        // Keep the static fallback if the live snapshot cannot be loaded.
+      }
+    };
+    loadShortSnapshot();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const previewPlayersData = adjustedAveragePlayersData?.length ? adjustedAveragePlayersData : averagePlayersData ?? [];
   const { latest, previous } = pickLatestReports(financialReports?.financialReports ?? []);
   const { latestDay, weeklyAvg } = computePlayersPreview(previewPlayersData);
@@ -304,7 +329,10 @@ export default function LiveLoggedOutPreview({
       : null;
 
   const topGames = computeTopGamesPreview(gameShowsData);
-  const shortHistoryPreview = liveShortHistoryData?.length ? liveShortHistoryData : shortHistoryData;
+  const shortHistoryPreview = mergeLiveBlankingPoint(
+    liveShortHistoryData?.length ? liveShortHistoryData : shortHistoryData,
+    liveShortSnapshot
+  );
   const shortTrend = computeShortTrendPreview(shortHistoryPreview);
   const latestInsiderBuy = pickLatestInsiderBuy(insiderTransactions);
 

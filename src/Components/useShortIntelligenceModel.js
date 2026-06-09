@@ -4,6 +4,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseJsonResponse } from "@/lib/apiResponse";
+import {
+  mergeLiveBlankingPoint,
+  normalizeBlankingItems,
+} from "@/lib/blankingSeries";
 import { totalSharesData } from "./buybacks/utils";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { EVO_LEI } from "@/lib/fiShortRegister";
@@ -222,27 +226,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
       const res = await fetch("/api/short/history", { cache: "no-store" });
       const json = await parseJsonResponse(res, { requireOk: false });
       const items = Array.isArray(json?.items) ? json.items : [];
-      const sorted = items
-        .slice()
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .map((item, idx, arr) => {
-          const prev = idx > 0 ? arr[idx - 1] : null;
-          const percent = Number(item.percent);
-          const prevPercent = prev != null ? Number(prev.percent) : null;
-          const delta =
-            prevPercent != null &&
-            Number.isFinite(prevPercent) &&
-            Number.isFinite(percent)
-              ? Number(percent - prevPercent).toFixed(2)
-              : null;
-          return {
-            date: item.date,
-            percent: Number.isFinite(percent) ? percent : null,
-            delta: delta != null ? Number(delta) : null,
-          };
-        })
-        .filter((item) => item.date && Number.isFinite(item.percent));
-      setBlankingData(sorted);
+      setBlankingData(normalizeBlankingItems(items));
       setBlankingUpdatedAt(json?.updatedAt || null);
     } catch (error) {
       console.error("Failed to fetch blanking history", error);
@@ -342,9 +326,14 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     fetchTrading(tradingRange);
   }, [fetchTrading, tradingRange]);
 
+  const blankingDataForChart = useMemo(
+    () => mergeLiveBlankingPoint(blankingData, shortSnapshot),
+    [blankingData, shortSnapshot]
+  );
+
   const blankingSeries = useMemo(
-    () => buildBlankingSeries(blankingData, blankingRange),
-    [blankingData, blankingRange]
+    () => buildBlankingSeries(blankingDataForChart, blankingRange),
+    [blankingDataForChart, blankingRange]
   );
 
   const blankingSummary = useMemo(
