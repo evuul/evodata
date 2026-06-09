@@ -116,26 +116,6 @@ function historyEquals(a, b) {
   return true;
 }
 
-export function upsertShortHistoryEntry(items, entry) {
-  const normalized = sanitizeShortHistory(items);
-  const date = String(entry?.date ?? "").trim();
-  const percent = Number(entry?.percent);
-
-  if (!date || !Number.isFinite(percent)) {
-    return { items: normalized, changed: false };
-  }
-
-  const updated = { date, percent: +percent.toFixed(2) };
-  const next = normalized.filter((item) => item.date !== date);
-  next.push(updated);
-  const sanitized = sanitizeShortHistory(next);
-
-  return {
-    items: sanitized,
-    changed: !historyEquals(normalized, sanitized),
-  };
-}
-
 async function readFileFallback() {
   try {
     const raw = await fs.readFile(DATA_FILE, "utf8");
