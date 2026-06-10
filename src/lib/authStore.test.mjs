@@ -34,3 +34,34 @@ test("getJson can bypass the read cache for fresh auth data", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("getJson exposes Upstash error metadata for diagnostics", async () => {
+  process.env.UPSTASH_REST_URL = "https://upstash.example";
+  process.env.UPSTASH_REST_TOKEN = "token";
+
+  const originalFetch = globalThis.fetch;
+
+  globalThis.fetch = async () => ({
+    ok: false,
+    status: 401,
+    text: async () => "unauthorized",
+  });
+
+  try {
+    const { getJson } = await import("./authStore.js?errors=" + Date.now());
+
+    await assert.rejects(
+      () => getJson("user:test", { cache: false }),
+      (error) => {
+        assert.equal(error.code, "AUTHSTORE_UPSTASH_HTTP_ERROR");
+        assert.equal(error.status, 401);
+        assert.equal(error.path, "/get/user%3Atest");
+        assert.equal(error.method, "GET");
+        assert.equal(error.upstashHost, "upstash.example");
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

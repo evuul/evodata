@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPassword } from "@/lib/authStore";
+import { logAuthError } from "@/lib/authDebug";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export const dynamic = "force-dynamic";
@@ -46,6 +47,8 @@ const buildDemoUser = ({ now, existing }) => ({
 });
 
 export async function POST(request) {
+  let stage = "parse-request";
+
   try {
     let payload = null;
     try {
@@ -61,18 +64,22 @@ export async function POST(request) {
       return json({ error: "Ogiltig inloggning." }, { status: 400 });
     }
 
+    stage = "read-user";
     let user = await getJson(getUserKey(email), { cache: false });
     if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+      stage = "seed-demo-user";
       const now = new Date().toISOString();
       user = buildDemoUser({ now, existing: user || null });
       await setJson(getUserKey(email), user);
       await addUserToIndex(email);
     }
 
+    stage = "verify-password";
     if (!user || !verifyPassword(password, user.passwordHash)) {
       return json({ error: "Fel e-post eller lösenord." }, { status: 401 });
     }
 
+    stage = "sync-admin-flag";
     const isAdmin = email === ADMIN_EMAIL;
     if (Boolean(user.isAdmin) !== isAdmin) {
       user.isAdmin = isAdmin;
@@ -80,7 +87,9 @@ export async function POST(request) {
       await setJson(getUserKey(email), user);
     }
 
+    stage = "create-session";
     const { token } = await createSession(email);
+    stage = "sync-user-index";
     await addUserToIndex(email);
 
     return json({
@@ -95,7 +104,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    console.error("Login request failed:", error);
+    logAuthError({ route: "login", stage, error });
     return json(
       { error: "Inloggningsservern svarar inte just nu. Försök igen om en stund." },
       { status: 500 }

@@ -13,25 +13,56 @@ const readCache = new Map();
 
 const requireUpstash = () => {
   if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
-    throw new Error("Missing UPSTASH_REST_URL or UPSTASH_REST_TOKEN");
+    const error = new Error("Missing UPSTASH_REST_URL or UPSTASH_REST_TOKEN");
+    error.code = "AUTHSTORE_MISSING_UPSTASH_ENV";
+    throw error;
+  }
+};
+
+const getUpstashHost = () => {
+  try {
+    return new URL(String(UPSTASH_REST_URL || "").trim()).host;
+  } catch {
+    return null;
   }
 };
 
 const upstashRequest = async (path, init = {}) => {
   requireUpstash();
-  const res = await fetch(`${UPSTASH_REST_URL}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${UPSTASH_REST_TOKEN}`,
-      ...(init.headers || {}),
-    },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Upstash ${path} failed: ${res.status} ${text}`);
+  const baseUrl = String(UPSTASH_REST_URL).trim();
+  const requestUrl = new URL(path, baseUrl).toString();
+
+  try {
+    const res = await fetch(requestUrl, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${UPSTASH_REST_TOKEN}`,
+        ...(init.headers || {}),
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      const responseText = await res.text();
+      const error = new Error(`Upstash ${path} failed: ${res.status} ${responseText}`);
+      error.code = "AUTHSTORE_UPSTASH_HTTP_ERROR";
+      error.status = res.status;
+      error.path = path;
+      error.method = init.method || "GET";
+      error.upstashHost = getUpstashHost();
+      throw error;
+    }
+
+    return res.json();
+  } catch (error) {
+    if (error && typeof error === "object") {
+      error.code ||= "AUTHSTORE_UPSTASH_REQUEST_ERROR";
+      error.path ||= path;
+      error.method ||= init.method || "GET";
+      error.upstashHost ||= getUpstashHost();
+    }
+    throw error;
   }
-  return res.json();
 };
 
 const encodeValue = (value) => encodeURIComponent(value);
