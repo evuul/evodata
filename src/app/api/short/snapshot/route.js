@@ -77,7 +77,7 @@ function shouldForceRefresh(request) {
 
 export async function POST(request) {
   let history = [];
-  const today = stockholmYMD();
+  const today = stockholmYmd();
   try {
     history = await loadShortHistory();
     const force = shouldForceRefresh(request);
