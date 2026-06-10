@@ -1,3 +1,7 @@
+// HTML email templates and account display helpers for outbound auth emails.
+
+import { isConfiguredAdminEmail } from "./adminAccess.js";
+
 const escapeHtml = (value) =>
   String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -6,11 +10,9 @@ const escapeHtml = (value) =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
-
 const resolveAccountDisplay = ({ email, firstName }) => {
   const normalizedEmail = String(email || "").trim().toLowerCase();
-  if (normalizedEmail && normalizedEmail === ADMIN_EMAIL) {
+  if (isConfiguredAdminEmail(normalizedEmail)) {
     return "Alexander";
   }
   const maybeName = String(firstName || "").trim();

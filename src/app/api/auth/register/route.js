@@ -4,6 +4,7 @@ import { logAuthError } from "@/lib/authDebug";
 import { buildWelcomeEmail } from "@/lib/emailTemplates";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
+import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,10 +16,9 @@ const json = (data, init = {}) =>
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
 
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
-
 export async function POST(request) {
   let stage = "parse-request";
+  let emailDomain = null;
 
   try {
     let payload = null;
@@ -32,6 +32,7 @@ export async function POST(request) {
     const password = String(payload?.password || "");
     const firstName = String(payload?.firstName || "").trim();
     const lastName = String(payload?.lastName || "").trim();
+    emailDomain = email.includes("@") ? email.split("@").pop() : null;
 
     if (!email || !password || password.length < 8 || !firstName || !lastName) {
       return json({ error: "Ogiltig registrering." }, { status: 400 });
@@ -44,7 +45,7 @@ export async function POST(request) {
     }
 
     stage = "prepare-user-record";
-    const isAdmin = email === ADMIN_EMAIL;
+    const isAdmin = isConfiguredAdminEmail(email);
     const passwordHash = hashPassword(password);
     const now = new Date().toISOString();
     const user = {
@@ -64,6 +65,7 @@ export async function POST(request) {
         avgCost: 0,
         acquisitionDate: null,
         lots: [],
+        transactions: [],
         updatedAt: now,
       },
     };
@@ -104,7 +106,7 @@ export async function POST(request) {
       },
     });
   } catch (error) {
-    logAuthError({ route: "register", stage, error });
+    logAuthError({ route: "register", stage, error, context: { emailDomain } });
     return json(
       { error: "Registreringsservern svarar inte just nu. Försök igen om en stund." },
       { status: 500 }

@@ -3,6 +3,22 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizePortfolioProfile } from "./portfolioProfile.js";
 
+test("keeps a new registration profile valid without transactions", () => {
+  const profile = normalizePortfolioProfile({
+    shares: 0,
+    avgCost: 0,
+    acquisitionDate: null,
+    lots: [],
+    updatedAt: "2026-06-10T09:30:00.000Z",
+  });
+
+  assert.deepEqual(profile.lots, []);
+  assert.deepEqual(profile.transactions, []);
+  assert.equal(profile.shares, 0);
+  assert.equal(profile.avgCost, 0);
+  assert.equal(profile.acquisitionDate, null);
+});
+
 test("normalizes holdings from persisted lots when shares are missing", () => {
   const profile = normalizePortfolioProfile({
     shares: 0,

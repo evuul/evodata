@@ -2,6 +2,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+test("resolveAuthStoreConfig prefers Vercel KV write env aliases", async () => {
+  const { resolveAuthStoreConfig } = await import("./authStore.js?config=" + Date.now());
+
+  assert.deepEqual(
+    resolveAuthStoreConfig({
+      KV_REST_API_URL: "https://kv.example",
+      KV_REST_API_TOKEN: "kv-write-token",
+      KV_REST_API_READ_ONLY_TOKEN: "read-only-token",
+      UPSTASH_REST_URL: "https://old-upstash.example",
+      UPSTASH_REST_TOKEN: "old-token",
+    }),
+    {
+      url: "https://kv.example",
+      token: "kv-write-token",
+    }
+  );
+});
+
 test("getJson can bypass the read cache for fresh auth data", async () => {
   process.env.UPSTASH_REST_URL = "https://upstash.example";
   process.env.UPSTASH_REST_TOKEN = "token";

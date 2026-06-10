@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPassword } from "@/lib/authStore";
 import { logAuthError } from "@/lib/authDebug";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
+import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,7 +14,6 @@ const json = (data, init = {}) =>
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
 
-const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 const DEMO_EMAIL = "demo@evotracker.org";
 const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD || "Demo12345!";
 
@@ -80,7 +80,7 @@ export async function POST(request) {
     }
 
     stage = "sync-admin-flag";
-    const isAdmin = email === ADMIN_EMAIL;
+    const isAdmin = isConfiguredAdminEmail(email);
     if (Boolean(user.isAdmin) !== isAdmin) {
       user.isAdmin = isAdmin;
       user.updatedAt = new Date().toISOString();

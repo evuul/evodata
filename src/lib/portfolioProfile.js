@@ -152,7 +152,9 @@ export const normalizePortfolioProfile = (profile) => {
     };
   }
 
-  const derivedFromTransactions = buildProfileFromTransactions(raw.transactions);
+  const derivedFromTransactions = Array.isArray(raw.transactions)
+    ? buildProfileFromTransactions(raw.transactions)
+    : null;
   if (derivedFromTransactions) {
     return {
       ...raw,
