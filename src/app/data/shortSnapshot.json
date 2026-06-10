@@ -1,0 +1,28 @@
+{
+  "lei": "549300SUH6ZR1RF6TA88",
+  "totalPercent": 5.5,
+  "publicPercent": 1.41,
+  "publicPositions": [
+    {
+      "holder": "GREENVALE CAPITAL LLP",
+      "isin": "SE0012673267",
+      "positionPercent": 0.85,
+      "positionPercentRaw": "0,85",
+      "positionsDate": "2026-06-04",
+      "previousPositionPercent": 0.9,
+      "previousPositionPercentRaw": "0,9"
+    },
+    {
+      "holder": "BlackRock Investment Management (UK) Limited",
+      "isin": "SE0012673267",
+      "positionPercent": 0.56,
+      "positionPercentRaw": "0,56",
+      "positionsDate": "2026-05-19",
+      "previousPositionPercent": 0.6,
+      "previousPositionPercentRaw": "0,6"
+    }
+  ],
+  "observedDate": "2026-06-10",
+  "source": "Finansinspektionen",
+  "fetchedAt": "2026-06-10T21:01:49.312Z"
+}

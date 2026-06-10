@@ -34,7 +34,6 @@ import OwnershipView from './buybacks/OwnershipView';
 import TotalSharesView from './buybacks/TotalSharesView';
 import HistoryView from './buybacks/HistoryView';
 import ReturnsView from './buybacks/ReturnsView';
-import LiveStockBuyBackEstimateSection from './LiveStockBuyBackEstimateSection';
 import LiveStockBuyBackOverviewSection from './LiveStockBuyBackOverviewSection';
 import {
   buybackDataForGraphDaily as buildDaily,
@@ -62,7 +61,6 @@ const TIME_OPTIONS = [
 ];
 const SUB_VIEWS = [
   { value: 'overview', labelSv: 'Översikt', labelEn: 'Overview' },
-  { value: 'estimate', labelSv: 'EST / Prognos', labelEn: 'EST / Forecast' },
   { value: 'ownership', labelSv: 'Evolutions ägande', labelEn: "Evolution's ownership" },
   { value: 'total', labelSv: 'Totala aktier', labelEn: 'Total shares' },
   { value: 'history', labelSv: 'Återköpshistorik', labelEn: 'Buyback history' },
@@ -91,12 +89,6 @@ const fmtEuroMillions = (value) =>
     : '–';
 
 const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE !== '0';
-const FORECAST_BUYBACK_SHARE = 0.8;
-const FORECAST_DIVIDEND_SHARE = 0;
-const FORECAST_RETAINED_SHARE = Math.max(0, 1 - FORECAST_BUYBACK_SHARE - FORECAST_DIVIDEND_SHARE);
-const FORECAST_BUYBACK_LABEL = `${Math.round(FORECAST_BUYBACK_SHARE * 100)}%`;
-const FORECAST_DIVIDEND_LABEL = `${Math.round(FORECAST_DIVIDEND_SHARE * 100)}%`;
-const FORECAST_RETAINED_LABEL = `${Math.round(FORECAST_RETAINED_SHARE * 100)}%`;
 const FORECAST_CAPITAL_UPDATE_DATE = '2026-05-18';
 const CURRENT_BUYBACK_MANDATE_START_DATE = '2026-05-18';
 
@@ -223,13 +215,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     );
     return Number.isFinite(sum) ? sum : null;
   }, [financialReports]);
-  const yearEndLabel = useMemo(() => {
-    const now = new Date();
-    const yearEnd = new Date(now.getFullYear(), 11, 31);
-    const daysLeft = Math.max(0, Math.ceil((yearEnd.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
-    return { year: now.getFullYear(), daysLeft };
-  }, []);
-
   const fxPairLabel = useMemo(() => {
     const base = fxMeta?.base;
     const quote = fxMeta?.quote;
@@ -281,80 +266,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     latestTotalSharesCount > 0
       ? (remainingCash / (latestTotalSharesCount * currentSharePrice)) * 100
       : null;
-  const profit2025EurM = useMemo(() => {
-    const reports = financialReports?.financialReports || [];
-    const rows = reports.filter((r) => Number(r?.year) === 2025);
-    if (!rows.length) return null;
-    const sum = rows.reduce(
-      (acc, r) => acc + (Number.isFinite(r?.adjustedProfitForPeriod) ? r.adjustedProfitForPeriod : 0),
-      0
-    );
-    return Number.isFinite(sum) ? sum : null;
-  }, [financialReports]);
-  const hasFullYear2025Reported = useMemo(() => {
-    const reports = financialReports?.financialReports || [];
-    const rows = reports.filter((r) => Number(r?.year) === 2025);
-    if (!rows.length) return false;
-    const quarters = new Set(rows.map((r) => String(r?.quarter || "")));
-    return quarters.has("Q1") && quarters.has("Q2") && quarters.has("Q3") && quarters.has("Q4");
-  }, [financialReports]);
-  const eps2025 = useMemo(() => {
-    const reports = financialReports?.financialReports || [];
-    const rows = reports.filter((r) => Number(r?.year) === 2025);
-    if (!rows.length) return null;
-    const sum = rows.reduce(
-      (acc, r) => acc + (Number.isFinite(r?.adjustedEarningsPerShare) ? r.adjustedEarningsPerShare : 0),
-      0
-    );
-    return Number.isFinite(sum) ? sum : null;
-  }, [financialReports]);
-  const estimateBuybackEur = Number.isFinite(buybackCash) ? buybackCash : null;
-  const estimateDividendEur = 0;
-  const estimateRetainedEur = 0;
-  const estimateBuybackSek = Number.isFinite(buybackBudgetSek) ? buybackBudgetSek : null;
-  const estimateDividendSek = 0;
-  const estimateRetainedSek = 0;
-  const estimateSharesAffordable = useMemo(() => {
-    if (!Number.isFinite(estimateBuybackSek) || !Number.isFinite(currentSharePrice) || currentSharePrice <= 0) return null;
-    return Math.floor(estimateBuybackSek / currentSharePrice);
-  }, [estimateBuybackSek, currentSharePrice]);
-  const estimateSharePercent = useMemo(() => {
-    if (!Number.isFinite(estimateSharesAffordable) || !Number.isFinite(latestTotalSharesCount) || latestTotalSharesCount <= 0) return null;
-    return (estimateSharesAffordable / latestTotalSharesCount) * 100;
-  }, [estimateSharesAffordable, latestTotalSharesCount]);
-  const sharesAfterBuyback = useMemo(() => {
-    if (!Number.isFinite(latestTotalSharesCount) || !Number.isFinite(estimateSharesAffordable)) return null;
-    return Math.max(latestTotalSharesCount - estimateSharesAffordable, 0);
-  }, [latestTotalSharesCount, estimateSharesAffordable]);
-  const dividendPerShareEur = useMemo(() => {
-    if (!Number.isFinite(estimateDividendEur) || !Number.isFinite(sharesAfterBuyback) || sharesAfterBuyback <= 0) return null;
-    return estimateDividendEur / sharesAfterBuyback;
-  }, [estimateDividendEur, sharesAfterBuyback]);
-  const dividendPerShareSek = useMemo(() => {
-    if (!Number.isFinite(dividendPerShareEur)) return null;
-    return dividendPerShareEur * fxRateValue;
-  }, [dividendPerShareEur, fxRateValue]);
-  const estimateProFormaEps = useMemo(() => {
-    if (!Number.isFinite(eps2025) || !Number.isFinite(estimateSharePercent)) return null;
-    const pct = estimateSharePercent / 100;
-    if (pct <= 0 || pct >= 0.9) return null;
-    return eps2025 / (1 - pct);
-  }, [eps2025, estimateSharePercent]);
-  const estimateEpsLift = useMemo(() => {
-    if (!Number.isFinite(eps2025) || !Number.isFinite(estimateProFormaEps) || eps2025 === 0) return null;
-    return ((estimateProFormaEps - eps2025) / eps2025) * 100;
-  }, [eps2025, estimateProFormaEps]);
-  const proFormaEps = useMemo(() => {
-    if (!Number.isFinite(ttmEps) || !Number.isFinite(remainingCashSharePercent)) return null;
-    const pct = remainingCashSharePercent / 100;
-    if (pct <= 0 || pct >= 0.9) return null;
-    return ttmEps / (1 - pct);
-  }, [ttmEps, remainingCashSharePercent]);
-  const epsLiftPercent = useMemo(() => {
-    if (!Number.isFinite(ttmEps) || !Number.isFinite(proFormaEps) || ttmEps === 0) return null;
-    return ((proFormaEps - ttmEps) / ttmEps) * 100;
-  }, [ttmEps, proFormaEps]);
-
   const combinedBuybacks = useMemo(() => {
     const normalized = new Map();
     const pushRow = (row) => {
@@ -711,24 +622,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           sharesAffordable={sharesAffordable}
           currentSharePrice={currentSharePrice}
           est={est}
-          estimateBuybackEur={estimateBuybackEur}
-          estimateBuybackSek={estimateBuybackSek}
-          estimateDividendEur={estimateDividendEur}
-          estimateDividendSek={estimateDividendSek}
-          estimateRetainedSek={estimateRetainedSek}
-          estimateSharesAffordable={estimateSharesAffordable}
-          estimateSharePercent={estimateSharePercent}
-          sharesAfterBuyback={sharesAfterBuyback}
-          dividendPerShareEur={dividendPerShareEur}
-          dividendPerShareSek={dividendPerShareSek}
-          estimateProFormaEps={estimateProFormaEps}
-          estimateEpsLift={estimateEpsLift}
-          eps2025={eps2025}
-          hasFullYear2025Reported={hasFullYear2025Reported}
-          yearEndLabel={yearEndLabel}
-          FORECAST_BUYBACK_LABEL={FORECAST_BUYBACK_LABEL}
-          FORECAST_DIVIDEND_LABEL={FORECAST_DIVIDEND_LABEL}
-          FORECAST_RETAINED_LABEL={FORECAST_RETAINED_LABEL}
           FORECAST_CAPITAL_UPDATE_DATE={FORECAST_CAPITAL_UPDATE_DATE}
           fmtNum={fmtNum}
           fmtPercent={fmtPercent}
@@ -746,37 +639,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           weekDeltaShares={weekDeltaShares}
           weekDeltaSharesPct={weekDeltaSharesPct}
           avgDaily={avgDaily}
-        />
-      )}
-
-      {subView === 'estimate' && (
-        <LiveStockBuyBackEstimateSection
-          translate={translate}
-          FORECAST_BUYBACK_LABEL={FORECAST_BUYBACK_LABEL}
-          FORECAST_DIVIDEND_LABEL={FORECAST_DIVIDEND_LABEL}
-          FORECAST_RETAINED_LABEL={FORECAST_RETAINED_LABEL}
-          FORECAST_CAPITAL_UPDATE_DATE={FORECAST_CAPITAL_UPDATE_DATE}
-          hasFullYear2025Reported={hasFullYear2025Reported}
-          profit2025EurM={profit2025EurM}
-          estimateBuybackEur={estimateBuybackEur}
-          estimateBuybackSek={estimateBuybackSek}
-          estimateDividendEur={estimateDividendEur}
-          estimateDividendSek={estimateDividendSek}
-          estimateRetainedSek={estimateRetainedSek}
-          estimateSharesAffordable={estimateSharesAffordable}
-          currentSharePrice={currentSharePrice}
-          estimateSharePercent={estimateSharePercent}
-          eps2025={eps2025}
-          estimateProFormaEps={estimateProFormaEps}
-          estimateEpsLift={estimateEpsLift}
-          yearEndLabel={yearEndLabel}
-          dividendPerShareEur={dividendPerShareEur}
-          dividendPerShareSek={dividendPerShareSek}
-          sharesAfterBuyback={sharesAfterBuyback}
-          fmtNum={fmtNum}
-          fmtPercent={fmtPercent}
-          fmtCurrency={fmtCurrency}
-          fmtEuroMillions={fmtEuroMillions}
         />
       )}
 

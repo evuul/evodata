@@ -39,6 +39,7 @@ import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
 import { parseJsonResponse } from "@/lib/apiResponse";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
+import { fetchShortHistory } from "@/lib/shortSnapshotClient";
 import {
   computeBuybackSummary,
   computeLobbyTrend,
@@ -244,17 +245,9 @@ export default function LiveLoggedOutPreview({
     let cancelled = false;
     const loadShortHistory = async () => {
       try {
-        const res = await fetch("/api/short/history", { cache: "no-store" });
-        const json = await parseJsonResponse(res, { requireOk: false });
-        const rows = Array.isArray(json?.items) ? json.items : [];
-        const next = rows
-          .map((item) => ({
-            date: item?.date,
-            percent: Number(item?.percent),
-          }))
-          .filter((row) => row.date && Number.isFinite(row.percent));
-        if (!cancelled && next.length) {
-          setLiveShortHistoryData(next);
+        const history = await fetchShortHistory();
+        if (!cancelled && history.items.length) {
+          setLiveShortHistoryData(history.items);
         }
       } catch {
         // Keep the static fallback if live history cannot be loaded.
