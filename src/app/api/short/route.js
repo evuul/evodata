@@ -3,8 +3,8 @@ export const runtime = 'nodejs';
 
 import {
   EVO_LEI,
-  fetchFiShortRegisterData,
 } from "@/lib/fiShortRegister";
+import { resolveFiShortSnapshot } from "@/lib/fiShortSnapshot";
 
 const CACHE_CONTROL = "no-store, max-age=0, must-revalidate";
 
@@ -13,7 +13,7 @@ export async function GET(request) {
   const lei = searchParams.get('lei') || EVO_LEI;
 
   try {
-    const data = await fetchFiShortRegisterData(lei);
+    const data = await resolveFiShortSnapshot({ lei });
     const total = typeof data.totalPercent === "number" ? data.totalPercent : null;
     const publicPercent = Number.isFinite(data.publicPercent) ? data.publicPercent : null;
     const nonPublicPercent =
@@ -27,6 +27,9 @@ export async function GET(request) {
       publicPositions: Array.isArray(data.publicPositions) ? data.publicPositions : [],
       publicPositionsError: null,
       observedDate: data.observedDate,
+      fetchedAt: data.fetchedAt ?? null,
+      cached: Boolean(data.cached),
+      stale: Boolean(data.stale),
       source: data.source,
     };
     return new Response(JSON.stringify(body), {
