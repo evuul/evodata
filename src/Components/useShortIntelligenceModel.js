@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { parseJsonResponse } from "@/lib/apiResponse";
+import { normalizeShortSnapshotResponse } from "@/lib/shortSnapshotClient";
 import { totalSharesData } from "./buybacks/utils";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 import { EVO_LEI } from "@/lib/fiShortRegister";
@@ -273,15 +274,7 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     try {
       const res = await fetch(`/api/short?lei=${EVO_LEI}`, { cache: "no-store" });
       const json = await parseJsonResponse(res, { requireOk: false });
-      const totalPercent = Number.isFinite(json?.totalPercent) ? json.totalPercent : null;
-      setShortSnapshot(
-        totalPercent != null
-          ? {
-              totalPercent,
-              observedDate: json?.observedDate ?? null,
-            }
-          : null
-      );
+      setShortSnapshot(normalizeShortSnapshotResponse(json));
       setPublicPositions(Array.isArray(json?.publicPositions) ? json.publicPositions : []);
       setPublicPositionsError(
         typeof json?.publicPositionsError === "string" && json.publicPositionsError.trim()
