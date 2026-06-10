@@ -2,7 +2,10 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
 
+import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
+
 const CACHE_CONTROL = "no-store, max-age=0, must-revalidate";
+const SECRET = resolveCronSecret(process.env.CRON_SECRET);
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -16,6 +19,20 @@ function json(data, status = 200) {
 
 async function runCron(request) {
   try {
+    const auth = requireCronAuth(request, SECRET, "CRON_SECRET is not configured");
+    if (!auth.ok) {
+      return json(
+        {
+          ok: false,
+          status: auth.status,
+          refreshed: false,
+          error: auth.error,
+          timestamp: new Date().toISOString(),
+        },
+        auth.status
+      );
+    }
+
     const origin = new URL(request.url).origin;
     const res = await fetch(`${origin}/api/short/snapshot?force=1`, {
       method: "POST",

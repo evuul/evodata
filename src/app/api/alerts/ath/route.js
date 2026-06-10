@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getJson, getUserIndexKey, getUserKey, setJson } from "@/lib/authStore";
+import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { getLatestSample } from "@/lib/csStore";
 import { getDailyAggregates } from "@/lib/csStore";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
@@ -14,7 +15,7 @@ export const maxDuration = 30;
 
 // Vercel Cron injects Authorization header using CRON_SECRET.
 // Allow either ATH_ALERTS_CRON_SECRET or CRON_SECRET to authorize.
-const SECRET = process.env.ATH_ALERTS_CRON_SECRET || process.env.CRON_SECRET || "";
+const SECRET = resolveCronSecret(process.env.ATH_ALERTS_CRON_SECRET, process.env.CRON_SECRET);
 const LAST_NOTIFIED_KEY = "alerts:ath:lastNotified";
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
 const TEST_ONLY_ADMIN = ["1", "true", "yes"].includes(
@@ -39,11 +40,7 @@ const json = (data, init = {}) =>
   });
 
 const requireAuth = (req) => {
-  if (!SECRET) return { ok: false, status: 500, error: "ATH_ALERTS_CRON_SECRET is not configured" };
-  const authHeader = req.headers.get("authorization") || "";
-  const expected = `Bearer ${SECRET}`;
-  if (authHeader !== expected) return { ok: false, status: 401, error: "Unauthorized" };
-  return { ok: true };
+  return requireCronAuth(req, SECRET, "ATH_ALERTS_CRON_SECRET is not configured");
 };
 
 const gameNameById = (() => {

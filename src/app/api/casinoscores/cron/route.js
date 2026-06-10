@@ -1,9 +1,10 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { CRON_TARGETS } from "../players/shared";
 
-const SECRET = process.env.CASINOSCORES_CRON_SECRET || process.env.CRON_SECRET || "";
+const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -17,15 +18,10 @@ function json(data, status = 200, extraHeaders = {}) {
 }
 
 async function runCron(req) {
-  if (!SECRET) {
-    return json({ ok: false, error: "CASINOSCORES_CRON_SECRET is not configured" }, 500);
-  }
-
-  const authHeader = req.headers.get("authorization") || "";
-  const expected = `Bearer ${SECRET}`;
-  if (authHeader !== expected) {
-    return json({ ok: false, error: "Unauthorized" }, 401, {
-      "WWW-Authenticate": "Bearer",
+  const auth = requireCronAuth(req, SECRET, "CASINOSCORES_CRON_SECRET is not configured");
+  if (!auth.ok) {
+    return json({ ok: false, error: auth.error }, auth.status, {
+      "WWW-Authenticate": auth.status === 401 ? "Bearer" : undefined,
     });
   }
 
