@@ -66,6 +66,27 @@ const sampleHtml = `
 </html>
 `;
 
+const summaryTableHtml = `
+<html>
+  <body>
+    <h1>Positioner per emittent</h1>
+    <h3>Evolution AB (publ)</h3>
+    <table>
+      <tbody>
+        <tr>
+          <td>LEI-kod</td>
+          <td>549300SUH6ZR1RF6TA88</td>
+        </tr>
+        <tr>
+          <td>Summa procent</td>
+          <td>5,5</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+`;
+
 test("parseFiPercent handles Swedish comma decimals and thresholds", () => {
   assert.equal(parseFiPercent("5,34"), 5.34);
   assert.equal(parseFiPercent(" 0,9 "), 0.9);
@@ -74,6 +95,10 @@ test("parseFiPercent handles Swedish comma decimals and thresholds", () => {
 
 test("extractTotalPercentFromEmittentHtml reads the current total", () => {
   assert.equal(extractTotalPercentFromEmittentHtml(sampleHtml), 5.34);
+});
+
+test("extractTotalPercentFromEmittentHtml prefers the summary table value", () => {
+  assert.equal(extractTotalPercentFromEmittentHtml(summaryTableHtml), 5.5);
 });
 
 test("parseCurrentPositions returns only the current positions table", () => {

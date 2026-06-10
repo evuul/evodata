@@ -112,7 +112,26 @@ function extractTotalPercentFromText(text) {
 }
 
 export function extractTotalPercentFromEmittentHtml(html) {
-  return extractTotalPercentFromText(cheerio.load(html).text());
+  const $ = cheerio.load(html);
+
+  const summaryCell = $("tr, div, p, li")
+    .toArray()
+    .map((element) => $(element))
+    .find((element) => {
+      const cells = element.find("th,td");
+      if (cells.length < 2) return false;
+      const label = normalizeWhitespace(cells.first().text()).toLowerCase();
+      return label === "summa procent";
+    });
+
+  if (summaryCell) {
+    const cells = summaryCell.find("th,td");
+    const value = normalizeWhitespace(cells.eq(1).text());
+    const parsed = parseFiPercent(value);
+    if (parsed != null) return parsed;
+  }
+
+  return extractTotalPercentFromText($.text());
 }
 
 export function extractTotalPercentFromListHtml(html, lei) {
