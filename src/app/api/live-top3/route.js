@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
+import { kvRestRequest } from "@/lib/kvClient";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const revalidate = 0;
 
-const UPSTASH_REST_URL = process.env.UPSTASH_REST_URL;
-const UPSTASH_REST_TOKEN = process.env.UPSTASH_REST_TOKEN;
 const API_CACHE_TTL_MS = 10 * 60 * 1000; // 10 min – matches upstream fetch cadence
 const API_STALE_MS = 5 * 60 * 1000; // allow stale while revalidating
 const CURRENT_KEY = process.env.LIVE_TOP3_CURRENT_KEY ?? "liveTop3:current";
@@ -84,26 +83,9 @@ function json(data, init = {}) {
 }
 
 async function upstashGet(key) {
-  if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
-    throw new Error("Missing UPSTASH_REST_URL or UPSTASH_REST_TOKEN");
-  }
-
-  const res = await fetch(
-    `${UPSTASH_REST_URL}/get/${encodeURIComponent(key)}`,
-    {
-      headers: {
-        Authorization: `Bearer ${UPSTASH_REST_TOKEN}`,
-      },
-      cache: "no-store",
-    }
-  );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Upstash GET ${key} failed: ${res.status} ${text}`);
-  }
-
-  const data = await res.json();
+  const data = await kvRestRequest(`/get/${encodeURIComponent(key)}`, {}, {
+    serviceName: "Live top3 KV",
+  });
   if (!data.result) return null;
 
   try {
@@ -114,28 +96,11 @@ async function upstashGet(key) {
 }
 
 async function upstashLrange(key, start, stop) {
-  if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
-    throw new Error("Missing UPSTASH_REST_URL or UPSTASH_REST_TOKEN");
-  }
-
-  const res = await fetch(
-    `${UPSTASH_REST_URL}/lrange/${encodeURIComponent(
-      key
-    )}/${start}/${stop}`,
-    {
-      headers: {
-        Authorization: `Bearer ${UPSTASH_REST_TOKEN}`,
-      },
-      cache: "no-store",
-    }
+  const data = await kvRestRequest(
+    `/lrange/${encodeURIComponent(key)}/${start}/${stop}`,
+    {},
+    { serviceName: "Live top3 KV" }
   );
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Upstash LRANGE ${key} failed: ${res.status} ${text}`);
-  }
-
-  const data = await res.json();
   if (!Array.isArray(data.result)) return [];
 
   return data.result

@@ -1,25 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
+import { getKvClient } from "./kvClient.js";
 
 const DATA_FILE = path.join(process.cwd(), "src", "app", "data", "insiderTransactions.json");
 const KV_KEY = "insiders:dataset:v1";
-
-let kvClient = null;
-
-async function getKvClient() {
-  if (kvClient !== null) return kvClient;
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    try {
-      const mod = await import("@vercel/kv");
-      kvClient = mod.kv;
-    } catch {
-      kvClient = undefined;
-    }
-  } else {
-    kvClient = undefined;
-  }
-  return kvClient;
-}
 
 const readFileFallback = async () => {
   try {

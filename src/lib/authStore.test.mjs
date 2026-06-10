@@ -16,6 +16,7 @@ test("resolveAuthStoreConfig prefers Vercel KV write env aliases", async () => {
     {
       url: "https://kv.example",
       token: "kv-write-token",
+      readOnlyToken: "read-only-token",
     }
   );
 });

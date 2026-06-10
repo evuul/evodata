@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
+import { kvRestRequest } from "@/lib/kvClient";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const revalidate = 0;
-
-const UPSTASH_REST_URL = process.env.UPSTASH_REST_URL;
-const UPSTASH_REST_TOKEN = process.env.UPSTASH_REST_TOKEN;
 
 const json = (data, init = {}) =>
   NextResponse.json(data, {
@@ -19,38 +17,17 @@ const json = (data, init = {}) =>
 const getKey = (id, type) => `reportVotes:${id}:${type}`;
 
 async function upstashGetNumber(key) {
-  if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
-    throw new Error("Missing UPSTASH_REST_URL or UPSTASH_REST_TOKEN");
-  }
-  const res = await fetch(`${UPSTASH_REST_URL}/get/${encodeURIComponent(key)}`, {
-    headers: { Authorization: `Bearer ${UPSTASH_REST_TOKEN}` },
-    cache: "no-store",
+  const data = await kvRestRequest(`/get/${encodeURIComponent(key)}`, {}, {
+    serviceName: "Report votes KV",
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Upstash GET ${key} failed: ${res.status} ${text}`);
-  }
-  const data = await res.json();
   const value = Number(data.result ?? 0);
   return Number.isFinite(value) ? value : 0;
 }
 
 async function upstashIncrBy(key, amount) {
-  if (!UPSTASH_REST_URL || !UPSTASH_REST_TOKEN) {
-    throw new Error("Missing UPSTASH_REST_URL or UPSTASH_REST_TOKEN");
-  }
-  const res = await fetch(
-    `${UPSTASH_REST_URL}/incrby/${encodeURIComponent(key)}/${amount}`,
-    {
-      headers: { Authorization: `Bearer ${UPSTASH_REST_TOKEN}` },
-      cache: "no-store",
-    }
-  );
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Upstash INCRBY ${key} failed: ${res.status} ${text}`);
-  }
-  const data = await res.json();
+  const data = await kvRestRequest(`/incrby/${encodeURIComponent(key)}/${amount}`, {}, {
+    serviceName: "Report votes KV",
+  });
   const value = Number(data.result ?? 0);
   return Number.isFinite(value) ? value : 0;
 }

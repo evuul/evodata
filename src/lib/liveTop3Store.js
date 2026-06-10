@@ -1,6 +1,8 @@
 // src/lib/liveTop3Store.js
 // Shared helpers for storing and retrieving Live Top 3 snapshots in Upstash/Vercel KV.
 
+import { getKvClient } from "./kvClient.js";
+
 const CURRENT_KEY = process.env.LIVE_TOP3_CURRENT_KEY ?? "liveTop3:current";
 const HISTORY_KEY = process.env.LIVE_TOP3_HISTORY_KEY ?? "liveTop3:history";
 const HISTORY_LIMIT = Number(process.env.LIVE_TOP3_HISTORY_LIMIT ?? "288"); // default ≈ 24h @ 5 min
@@ -23,19 +25,6 @@ const EVOLUTION_GAMES = [
   "LIGHTNING_STORM",
   "FIREBALL_ROULETTE",
 ];
-
-let kvClient = null;
-let kvStatusChecked = false;
-
-async function getKvClient() {
-  if (kvStatusChecked) return kvClient;
-  kvStatusChecked = true;
-  if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
-    const mod = await import("@vercel/kv");
-    kvClient = mod.kv;
-  }
-  return kvClient;
-}
 
 const memoryState = {
   snapshot: null,

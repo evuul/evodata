@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { kvRestRequest, resolveKvRestConfig } from "./kvClient.js";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
 const PASSWORD_RESET_TTL_SECONDS = 60 * 30; // 30 minutes
@@ -8,85 +9,14 @@ const READ_CACHE_TTL_MS = (() => {
 })();
 const readCache = new Map();
 
-export const resolveAuthStoreConfig = (env = process.env) => {
-  const urlCandidates = [
-    env.KV_REST_API_URL,
-    env.UPSTASH_REST_URL,
-    env.UPSTASH_REDIS_REST_URL,
-    env.KV_URL,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-  const tokenCandidates = [
-    env.KV_REST_API_TOKEN,
-    env.UPSTASH_REST_TOKEN,
-    env.UPSTASH_REDIS_REST_TOKEN,
-    env.KV_REST_TOKEN,
-  ]
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-
-  return {
-    url: urlCandidates[0] || null,
-    token: tokenCandidates[0] || null,
-  };
-};
-
-const requireUpstash = () => {
-  const config = resolveAuthStoreConfig();
-  if (!config.url || !config.token) {
-    const error = new Error("Missing Upstash REST URL or token");
-    error.code = "AUTHSTORE_MISSING_UPSTASH_ENV";
-    throw error;
-  }
-  return config;
-};
-
-const getUpstashHost = () => {
-  try {
-    const { url } = resolveAuthStoreConfig();
-    return new URL(String(url || "").trim()).host;
-  } catch {
-    return null;
-  }
-};
+export const resolveAuthStoreConfig = resolveKvRestConfig;
 
 const upstashRequest = async (path, init = {}) => {
-  const { url, token } = requireUpstash();
-  const baseUrl = String(url).trim();
-  const requestUrl = new URL(path, baseUrl).toString();
-
-  try {
-    const res = await fetch(requestUrl, {
-      ...init,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        ...(init.headers || {}),
-      },
-      cache: "no-store",
-    });
-
-    if (!res.ok) {
-      const responseText = await res.text();
-      const error = new Error(`Upstash ${path} failed: ${res.status} ${responseText}`);
-      error.code = "AUTHSTORE_UPSTASH_HTTP_ERROR";
-      error.status = res.status;
-      error.path = path;
-      error.method = init.method || "GET";
-      error.upstashHost = getUpstashHost();
-      throw error;
-    }
-
-    return res.json();
-  } catch (error) {
-    if (error && typeof error === "object") {
-      error.code ||= "AUTHSTORE_UPSTASH_REQUEST_ERROR";
-      error.path ||= path;
-      error.method ||= init.method || "GET";
-      error.upstashHost ||= getUpstashHost();
-    }
-    throw error;
-  }
+  return kvRestRequest(path, init, {
+    errorCodePrefix: "AUTHSTORE_UPSTASH",
+    missingCode: "AUTHSTORE_MISSING_UPSTASH_ENV",
+    serviceName: "Upstash",
+  });
 };
 
 const encodeValue = (value) => encodeURIComponent(value);

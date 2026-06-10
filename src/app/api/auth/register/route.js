@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
+import { addUserToIndex, createSession, deleteKey, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
 import { logAuthError } from "@/lib/authDebug";
 import { buildWelcomeEmail } from "@/lib/emailTemplates";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { isConfiguredAdminEmail } from "@/lib/adminAccess";
+import { createRegisteredUser } from "@/lib/authUserFactory";
+import { createAccountWithSession, runRegistrationAfterCommit } from "@/lib/registrationFlow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -48,36 +50,16 @@ export async function POST(request) {
     const isAdmin = isConfiguredAdminEmail(email);
     const passwordHash = hashPassword(password);
     const now = new Date().toISOString();
-    const user = {
+    const user = createRegisteredUser({
       email,
       firstName,
       lastName,
       passwordHash,
-      createdAt: now,
-      updatedAt: now,
-      isSubscriber: false,
       isAdmin,
-      notifications: {
-        athEmail: false,
-      },
-      profile: {
-        shares: 0,
-        avgCost: 0,
-        acquisitionDate: null,
-        lots: [],
-        transactions: [],
-        updatedAt: now,
-      },
-    };
+      now,
+    });
 
-    stage = "save-user";
-    await setJson(getUserKey(email), user);
-
-    stage = "index-user";
-    await addUserToIndex(email);
-
-    stage = "send-welcome-email";
-    try {
+    const sendWelcome = async () => {
       if (isMailerConfigured()) {
         const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
         const { subject, html } = buildWelcomeEmail({
@@ -87,12 +69,31 @@ export async function POST(request) {
         });
         await sendEmail({ toEmail: email, subject, html });
       }
-    } catch (error) {
-      console.error("Failed to send welcome email:", error);
-    }
+    };
 
-    stage = "create-session";
-    const { token } = await createSession(email);
+    stage = "create-account-session";
+    const { token } = await createAccountWithSession({
+      email,
+      user,
+      setJson,
+      createSession,
+      deleteKey,
+      getUserKey,
+    });
+
+    stage = "post-registration";
+    const postCommitResult = await runRegistrationAfterCommit({
+      email,
+      indexUser: addUserToIndex,
+      sendWelcome,
+    });
+    if (postCommitResult.failures.length) {
+      console.warn("Registration post-commit tasks failed", {
+        emailDomain,
+        indexed: postCommitResult.indexed,
+        welcomeSent: postCommitResult.welcomeSent,
+      });
+    }
 
     return json({
       token,
