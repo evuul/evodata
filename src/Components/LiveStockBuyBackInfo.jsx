@@ -111,9 +111,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const [viewMode, setViewMode] = useState('weekly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [complianceLoading, setComplianceLoading] = useState(false);
+  const [complianceError, setComplianceError] = useState('');
   const [oldData, setOldData] = useState(oldBuybackDataDefault);
   const [curData, setCurData] = useState(buybackDataDefault);
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
+  const [complianceSeries, setComplianceSeries] = useState([]);
+  const [complianceSummary, setComplianceSummary] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!BUYBACKS_ACTIVE) return;
@@ -134,9 +138,33 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     }
   }, []);
 
+  const fetchCompliance = useCallback(async () => {
+    if (!BUYBACKS_ACTIVE) return;
+    setComplianceLoading(true);
+    setComplianceError('');
+    try {
+      const res = await fetch(`/api/buybacks/compliance?startDate=${CURRENT_BUYBACK_MANDATE_START_DATE}&range=1y`, {
+        cache: 'no-store',
+      });
+      const json = await parseJsonResponse(res, { requireOk: false });
+      setComplianceSeries(Array.isArray(json?.series) ? json.series : []);
+      setComplianceSummary(json?.summary ?? null);
+    } catch (e) {
+      setComplianceSeries([]);
+      setComplianceSummary(null);
+      setComplianceError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setComplianceLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    fetchCompliance();
+  }, [fetchCompliance]);
 
   const currentMandateData = useMemo(
     () =>
@@ -639,6 +667,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           weekDeltaShares={weekDeltaShares}
           weekDeltaSharesPct={weekDeltaSharesPct}
           avgDaily={avgDaily}
+          complianceSeries={complianceSeries}
+          complianceSummary={complianceSummary}
+          complianceLoading={complianceLoading}
+          complianceError={complianceError}
         />
       )}
 

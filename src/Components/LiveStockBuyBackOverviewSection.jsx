@@ -5,8 +5,11 @@
 import { Box, Chip, CircularProgress, LinearProgress, Stack, Typography } from "@mui/material";
 import {
   ResponsiveContainer,
+  ComposedChart,
   AreaChart,
   Area,
+  Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -42,8 +45,15 @@ export default function LiveStockBuyBackOverviewSection({
   weekDeltaShares,
   weekDeltaSharesPct,
   avgDaily,
+  complianceSeries = [],
+  complianceSummary,
+  complianceLoading = false,
+  complianceError = "",
 }) {
   const formatPct = (value) => (Number.isFinite(value) ? `${value.toFixed(1)}%` : "–");
+  const formatShares = (value) => (Number.isFinite(value) ? fmtNum(Math.round(value)) : "–");
+  const latestCompliance = complianceSummary?.latest ?? null;
+  const complianceXAxisInterval = Math.max(Math.ceil((complianceSeries?.length || 0) / (isMobile ? 5 : 10)) - 1, 0);
   const weekDirection = Number.isFinite(weekDeltaShares) && weekDeltaShares !== 0 ? (weekDeltaShares > 0 ? "up" : "down") : "flat";
   const weekDeltaTone = weekDirection === "up" ? "#34d399" : weekDirection === "down" ? "#f87171" : "#cbd5e1";
   const weekRangeLabel =
@@ -220,6 +230,205 @@ export default function LiveStockBuyBackOverviewSection({
               )}
             </Box>
           </Box>
+        </Box>
+      )}
+
+      {complianceLoading ? (
+        <Box
+          sx={{
+            mt: 2,
+            background: "rgba(15,23,42,0.55)",
+            border: "1px solid rgba(148,163,184,0.18)",
+            borderRadius: { xs: "14px", md: "16px" },
+            mx: { xs: -3, sm: -3, md: -4 },
+            px: { xs: 1.3, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
+          }}
+        >
+          <Stack direction="row" spacing={1} alignItems="center">
+            <CircularProgress size={18} sx={{ color: "#38bdf8" }} />
+            <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
+              {translate("Laddar dagligt återköpsutrymme…", "Loading daily buyback capacity…")}
+            </Typography>
+          </Stack>
+        </Box>
+      ) : complianceError ? (
+        <Box
+          sx={{
+            mt: 2,
+            background: "rgba(15,23,42,0.55)",
+            border: "1px solid rgba(248,113,113,0.22)",
+            borderRadius: { xs: "14px", md: "16px" },
+            mx: { xs: -3, sm: -3, md: -4 },
+            px: { xs: 1.3, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
+          }}
+        >
+          <Typography variant="body2" sx={{ color: "#fecaca" }}>
+            {translate(
+              `Kunde inte hämta dagligt återköpsutrymme: ${complianceError}`,
+              `Could not load daily buyback capacity: ${complianceError}`
+            )}
+          </Typography>
+        </Box>
+      ) : Array.isArray(complianceSeries) && complianceSeries.length > 0 && (
+        <Box
+          sx={{
+            mt: 2,
+            background: "rgba(15,23,42,0.55)",
+            border: "1px solid rgba(148,163,184,0.18)",
+            borderRadius: { xs: "14px", md: "16px" },
+            mx: { xs: -3, sm: -3, md: -4 },
+            px: { xs: 1.3, sm: 3, md: 4 },
+            py: { xs: 2, md: 2.5 },
+          }}
+        >
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={1.3}
+            alignItems={{ xs: "flex-start", md: "center" }}
+            justifyContent="space-between"
+            sx={{ mb: 1.5 }}
+          >
+            <Box>
+              <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.88)", letterSpacing: 1.2 }}>
+                {translate("Dagligt återköpsutrymme", "Daily buyback capacity")}
+              </Typography>
+              <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.2 }}>
+                {translate(
+                  "Faktiska återköp jämfört med 25% av rullande snittvolym senaste 20 handelsdagarna (Yahoo Finance).",
+                  "Actual repurchases compared with 25% of the rolling 20-trading-day average volume (Yahoo Finance)."
+                )}
+              </Typography>
+            </Box>
+            <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
+              <Chip
+                size="small"
+                label={translate(
+                  `Senast: ${formatPct(latestCompliance?.utilizationPct)}`,
+                  `Latest: ${formatPct(latestCompliance?.utilizationPct)}`
+                )}
+                sx={{
+                  backgroundColor: "rgba(56,189,248,0.12)",
+                  color: "#bae6fd",
+                  border: "1px solid rgba(56,189,248,0.3)",
+                  borderRadius: "999px",
+                }}
+              />
+              <Chip
+                size="small"
+                label={translate(
+                  `Snitt: ${formatPct(complianceSummary?.averageUtilizationPct)}`,
+                  `Avg: ${formatPct(complianceSummary?.averageUtilizationPct)}`
+                )}
+                sx={{
+                  backgroundColor: "rgba(16,185,129,0.12)",
+                  color: "#bbf7d0",
+                  border: "1px solid rgba(16,185,129,0.3)",
+                  borderRadius: "999px",
+                }}
+              />
+              <Chip
+                size="small"
+                label={translate(
+                  `${fmtNum(complianceSummary?.nearLimitDays || 0)} dagar över 90%`,
+                  `${fmtNum(complianceSummary?.nearLimitDays || 0)} days above 90%`
+                )}
+                sx={{
+                  backgroundColor: "rgba(245,158,11,0.12)",
+                  color: "#fde68a",
+                  border: "1px solid rgba(245,158,11,0.3)",
+                  borderRadius: "999px",
+                }}
+              />
+            </Stack>
+          </Stack>
+
+          <Box sx={{ height: isMobile ? 285 : 330, width: "100%" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart
+                data={complianceSeries}
+                margin={{ top: 12, right: isMobile ? 4 : 16, left: isMobile ? 0 : 8, bottom: isMobile ? 4 : 8 }}
+              >
+                <CartesianGrid stroke="rgba(148,163,184,0.14)" strokeDasharray="4 4" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.78)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                  interval={complianceXAxisInterval}
+                  minTickGap={isMobile ? 18 : 12}
+                />
+                <YAxis
+                  tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.78)" }}
+                  tickLine={false}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                  width={isMobile ? 42 : 64}
+                  tickFormatter={(value) => {
+                    if (!Number.isFinite(value)) return "–";
+                    if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}M`;
+                    if (Math.abs(value) >= 1_000) return `${(value / 1_000).toLocaleString("sv-SE", { maximumFractionDigits: 0 })}k`;
+                    return Number(value).toLocaleString("sv-SE");
+                  }}
+                />
+                <RechartsTooltip
+                  cursor={{ fill: "rgba(148,163,184,0.08)" }}
+                  contentStyle={{
+                    background: "rgba(15,23,42,0.96)",
+                    border: "1px solid rgba(96,165,250,0.25)",
+                    borderRadius: 12,
+                    color: "#f8fafc",
+                    boxShadow: "0 18px 40px rgba(2,6,23,0.35)",
+                  }}
+                  formatter={(value, name) => {
+                    if (name === "actualShares") {
+                      return [translate(`${formatShares(value)} aktier`, `${formatShares(value)} shares`), translate("Faktiskt", "Actual")];
+                    }
+                    if (name === "maxAllowedShares") {
+                      return [translate(`${formatShares(value)} aktier`, `${formatShares(value)} shares`), translate("Max tillåtet", "Max allowed")];
+                    }
+                    return [value, name];
+                  }}
+                  labelFormatter={(_label, payload) => {
+                    const row = payload?.[0]?.payload;
+                    if (!row) return "";
+                    return translate(
+                      `${row.date} · utnyttjat ${formatPct(row.utilizationPct)} · kvar ${formatShares(row.remainingCapacity)} aktier`,
+                      `${row.date} · used ${formatPct(row.utilizationPct)} · ${formatShares(row.remainingCapacity)} shares left`
+                    );
+                  }}
+                />
+                <Bar
+                  dataKey="actualShares"
+                  name="actualShares"
+                  fill="#60a5fa"
+                  radius={[5, 5, 0, 0]}
+                  maxBarSize={isMobile ? 18 : 26}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="maxAllowedShares"
+                  name="maxAllowedShares"
+                  stroke="#a3e635"
+                  strokeWidth={2.4}
+                  dot={false}
+                  connectNulls
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </Box>
+
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.2 }}>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.78)" }}>
+              {translate("Blå stapel = faktiskt återköp.", "Blue bar = actual repurchase.")}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "rgba(190,242,100,0.9)" }}>
+              {translate("Grön linje = max enligt 25%-regeln.", "Green line = 25% rule maximum.")}
+            </Typography>
+            <Typography variant="caption" sx={{ color: "rgba(125,211,252,0.88)" }}>
+              {translate("Volymkälla: Yahoo Finance dagliga handelsvolymer.", "Volume source: Yahoo Finance daily trading volume.")}
+            </Typography>
+          </Stack>
         </Box>
       )}
 
