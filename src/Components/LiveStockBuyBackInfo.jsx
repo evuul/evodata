@@ -30,6 +30,7 @@ import {
   Tooltip as RechartsTooltip,
 } from 'recharts';
 import { parseJsonResponse } from '@/lib/apiResponse';
+import { buildBuybackComplianceSeries, summarizeBuybackCompliance } from '@/lib/buybackCompliance';
 import OwnershipView from './buybacks/OwnershipView';
 import TotalSharesView from './buybacks/TotalSharesView';
 import HistoryView from './buybacks/HistoryView';
@@ -113,11 +114,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const [error, setError] = useState('');
   const [complianceLoading, setComplianceLoading] = useState(false);
   const [complianceError, setComplianceError] = useState('');
+  const [tradingVolumeByDate, setTradingVolumeByDate] = useState(new Map());
   const [oldData, setOldData] = useState(oldBuybackDataDefault);
   const [curData, setCurData] = useState(buybackDataDefault);
   const [lastFetchedAt, setLastFetchedAt] = useState(null);
-  const [complianceSeries, setComplianceSeries] = useState([]);
-  const [complianceSummary, setComplianceSummary] = useState(null);
 
   const fetchData = useCallback(async () => {
     if (!BUYBACKS_ACTIVE) return;
@@ -143,15 +143,24 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     setComplianceLoading(true);
     setComplianceError('');
     try {
-      const res = await fetch(`/api/buybacks/compliance?startDate=${CURRENT_BUYBACK_MANDATE_START_DATE}&range=1y`, {
+      const res = await fetch('/api/short/activity?days=365', {
         cache: 'no-store',
       });
       const json = await parseJsonResponse(res, { requireOk: false });
-      setComplianceSeries(Array.isArray(json?.series) ? json.series : []);
-      setComplianceSummary(json?.summary ?? null);
+      const items = Array.isArray(json?.items) ? json.items : [];
+      const volumeMap = new Map();
+      for (const item of items) {
+        const date = item?.date;
+        const volume = Number(item?.volumeShares);
+        if (!date || !Number.isFinite(volume) || volume <= 0) continue;
+        volumeMap.set(date, volume);
+      }
+      setTradingVolumeByDate(volumeMap);
+      if (json?.ok === false) {
+        setComplianceError(json?.error || json?.message || 'Kunde inte hämta handelsvolymer');
+      }
     } catch (e) {
-      setComplianceSeries([]);
-      setComplianceSummary(null);
+      setTradingVolumeByDate(new Map());
       setComplianceError(e instanceof Error ? e.message : String(e));
     } finally {
       setComplianceLoading(false);
@@ -370,6 +379,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       .map((row) => ({ x: toLabel(row.Datum), sharesK: (row.Antal_aktier || 0) / 1_000 }))
       .filter((r) => Number.isFinite(r.sharesK));
   }, [viewMode, currentMandateData]);
+  const complianceSeries = useMemo(
+    () => buildBuybackComplianceSeries(combinedBuybacks, tradingVolumeByDate, { startDate: CURRENT_BUYBACK_MANDATE_START_DATE }),
+    [combinedBuybacks, tradingVolumeByDate]
+  );
+  const complianceSummary = useMemo(() => summarizeBuybackCompliance(complianceSeries), [complianceSeries]);
   const overviewXAxisInterval = useMemo(() => {
     const len = chartData.length;
     if (!len) return 0;
