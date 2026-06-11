@@ -1,4 +1,5 @@
 import { load } from 'cheerio';
+import { buildPublicErrorBody, logApiError } from '@/lib/apiErrors';
 import { loadInsiderDataset, saveInsiderDataset } from '@/lib/insiderStorage';
 
 export const dynamic = 'force-dynamic';
@@ -482,9 +483,9 @@ export async function GET(request) {
 
     return respondWithDataset(dataset, pagesReturned);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    logApiError({ route: 'insiders', stage: 'load-insiders', error });
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify(buildPublicErrorBody({ message: 'Kunde inte hämta insiderdata just nu.' })),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },

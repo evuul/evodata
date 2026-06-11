@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { getSeries, dailyAverages } from "@/lib/csStore";
+import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../players/shared";
 
 const TZ = "Europe/Stockholm";
@@ -98,6 +99,10 @@ export async function GET(req) {
       ...(includePerGame ? { perGame } : {}),
     });
   } catch (error) {
-    return resJSON({ ok: false, error: String(error?.message || error) }, 500);
+    logApiError({ route: "casinoscores-summary", stage: "build-summary", error });
+    return resJSON(
+      buildPublicErrorBody({ message: "Kunde inte hämta casinoöversikten just nu." }),
+      500
+    );
   }
 }

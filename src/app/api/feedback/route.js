@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 export const runtime = "nodejs"; // ensure Node.js runtime for fs support
 import fs from "fs";
 
@@ -116,6 +117,10 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: error?.message || "Internt fel" }, { status: 500 });
+    logApiError({ route: "feedback", stage: "submit-feedback", error });
+    return NextResponse.json(
+      buildPublicErrorBody({ message: "Kunde inte skicka feedback just nu." }),
+      { status: 500 }
+    );
   }
 }

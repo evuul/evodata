@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { kvRestRequest } from "@/lib/kvClient";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +46,11 @@ export async function GET(request) {
     ]);
     return json({ id, up, down });
   } catch (error) {
-    return json({ error: error.message ?? "Failed to load votes" }, { status: 500 });
+    logApiError({ route: "report-votes", stage: "load-votes", error });
+    return json(
+      buildPublicErrorBody({ message: "Kunde inte hämta röster just nu." }),
+      { status: 500 }
+    );
   }
 }
 
@@ -65,6 +70,10 @@ export async function POST(request) {
     const value = await upstashIncrBy(getKey(id, type), 1);
     return json({ id, type, value });
   } catch (error) {
-    return json({ error: error.message ?? "Failed to record vote" }, { status: 500 });
+    logApiError({ route: "report-votes", stage: "record-vote", error });
+    return json(
+      buildPublicErrorBody({ message: "Kunde inte registrera rösten just nu." }),
+      { status: 500 }
+    );
   }
 }

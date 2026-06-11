@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { kvRestRequest } from "@/lib/kvClient";
 
 export const dynamic = "force-dynamic";
@@ -311,15 +312,9 @@ export async function GET(req) {
 
     return json(payload);
   } catch (error) {
-    console.error("/api/live-top3 error:", error);
+    logApiError({ route: "live-top3", stage: "build-response", error });
     return json(
-      {
-        ok: false,
-        error:
-          error && typeof error === "object" && "message" in error
-            ? error.message
-            : "Unknown error in /api/live-top3",
-      },
+      buildPublicErrorBody({ message: "Kunde inte hämta live topplistan just nu." }),
       { status: 503 }
     );
   }

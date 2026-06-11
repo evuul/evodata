@@ -21,6 +21,7 @@ import {
   resolveRecoveryDate,
   shouldUseLiveTrackerRecovery,
 } from "@/lib/liveTrackerRecovery";
+import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { buildStuckAdjustedDailyTotals, computeTrailingStuckMeta } from "@/lib/stuckGames";
 
 const TZ = "Europe/Stockholm";
@@ -1096,8 +1097,9 @@ export async function GET(req) {
     });
     return resJSON(payload, 200, { ETag: etag });
   } catch (error) {
+    logApiError({ route: "casinoscores-lobby-overview", stage: "build-overview", error });
     return resJSON(
-      { ok: false, error: error?.message || String(error) },
+      buildPublicErrorBody({ message: "Kunde inte hämta lobbyöversikten just nu." }),
       500,
       { "Cache-Control": "no-store" }
     );

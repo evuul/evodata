@@ -8,6 +8,7 @@ import {
   getOrBuildBaseline,
 } from "@/lib/csStore";
 import { recordCostEvent } from "@/lib/csCostTracker";
+import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
@@ -259,7 +260,10 @@ export async function GET(req) {
       }
     );
   } catch (error) {
-    return new Response(JSON.stringify({ ok: false, error: error?.message || String(error) }), {
+    logApiError({ route: "casinoscores-lobby-stats", stage: "build-stats", error });
+    return new Response(JSON.stringify(
+      buildPublicErrorBody({ message: "Kunde inte hämta lobbystatistik just nu." })
+    ), {
       status: 500,
       headers: {
         "Content-Type": "application/json; charset=utf-8",
