@@ -41,6 +41,30 @@ const sumWindow = (values, rollingDays) => {
   return slice.reduce((sum, value) => sum + value, 0) / rollingDays;
 };
 
+const average = (values) => {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const isWeekend = (date) => {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+};
+
+const nextTradingDay = (date) => {
+  const cursor = new Date(date);
+  cursor.setHours(12, 0, 0, 0);
+
+  do {
+    cursor.setDate(cursor.getDate() + 1);
+  } while (isWeekend(cursor));
+
+  return cursor;
+};
+
+const formatDateFromDate = (date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
 const normalizeBuybackRows = (rows) => {
   const byDate = new Map();
 
@@ -112,6 +136,85 @@ export const buildBuybackComplianceSeries = (
   }
 
   return result;
+};
+
+export const buildBuybackComplianceForecast = (
+  volumeByDate,
+  {
+    horizonTradingDays = 5,
+    rollingDays = ROLLING_VOLUME_DAYS,
+    maxShare = MAX_DAILY_VOLUME_SHARE,
+    recentWindowDays = 5,
+  } = {}
+) => {
+  const volumeEntries = normalizeVolumeSource(volumeByDate);
+  if (volumeEntries.length < rollingDays || horizonTradingDays <= 0) {
+    return null;
+  }
+
+  const historicalVolumes = volumeEntries.map(([, volume]) => volume);
+  const rollingWindow = historicalVolumes.slice(-rollingDays);
+  const currentAverageVolume20 = average(rollingWindow);
+  if (!Number.isFinite(currentAverageVolume20) || currentAverageVolume20 <= 0) {
+    return null;
+  }
+
+  const recentVolumes = historicalVolumes.slice(-Math.min(recentWindowDays, historicalVolumes.length));
+  const recentAverageVolume = average(recentVolumes);
+  const projectedVolume =
+    Number.isFinite(recentAverageVolume) && recentAverageVolume > 0 ? recentAverageVolume : currentAverageVolume20;
+  if (!Number.isFinite(projectedVolume) || projectedVolume <= 0) {
+    return null;
+  }
+
+  const latestDate = volumeEntries[volumeEntries.length - 1]?.[0];
+  if (!latestDate) return null;
+
+  const forecastRows = [];
+  let cursor = new Date(`${latestDate}T12:00:00`);
+  if (!Number.isFinite(cursor.getTime())) {
+    cursor = new Date(latestDate);
+  }
+
+  for (let index = 0; index < horizonTradingDays; index += 1) {
+    cursor = nextTradingDay(cursor);
+    const date = formatDateFromDate(cursor);
+    const forecastAverageVolume20 = average(rollingWindow);
+    const maxAllowedShares =
+      Number.isFinite(forecastAverageVolume20) && Number.isFinite(maxShare) && maxShare > 0
+        ? Math.floor(forecastAverageVolume20 * maxShare)
+        : null;
+
+    forecastRows.push({
+      date,
+      label: date.slice(5),
+      projectedVolume: Math.round(projectedVolume),
+      averageVolume20: forecastAverageVolume20,
+      maxAllowedShares,
+      projectedCapacityShares: maxAllowedShares,
+    });
+
+    rollingWindow.push(projectedVolume);
+    if (rollingWindow.length > rollingDays) {
+      rollingWindow.shift();
+    }
+  }
+
+  const currentMaxAllowedShares = Math.floor(currentAverageVolume20 * maxShare);
+  const projectedTotalMaxShares = forecastRows.reduce((sum, row) => sum + (Number(row?.maxAllowedShares) || 0), 0);
+
+  return {
+    rows: forecastRows,
+    summary: {
+      horizonTradingDays,
+      currentAverageVolume20,
+      currentMaxAllowedShares,
+      projectedVolume,
+      projectedDailyMaxShares: forecastRows[0]?.maxAllowedShares ?? null,
+      projectedTotalMaxShares,
+      projectedAverageDailyMaxShares: forecastRows.length > 0 ? projectedTotalMaxShares / forecastRows.length : null,
+    },
+  };
 };
 
 export const summarizeBuybackCompliance = (series) => {

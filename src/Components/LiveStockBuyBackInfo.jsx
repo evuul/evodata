@@ -30,7 +30,11 @@ import {
   Tooltip as RechartsTooltip,
 } from 'recharts';
 import { parseJsonResponse } from '@/lib/apiResponse';
-import { buildBuybackComplianceSeries, summarizeBuybackCompliance } from '@/lib/buybackCompliance';
+import {
+  buildBuybackComplianceForecast,
+  buildBuybackComplianceSeries,
+  summarizeBuybackCompliance,
+} from '@/lib/buybackCompliance';
 import OwnershipView from './buybacks/OwnershipView';
 import TotalSharesView from './buybacks/TotalSharesView';
 import HistoryView from './buybacks/HistoryView';
@@ -384,6 +388,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     [combinedBuybacks, tradingVolumeByDate]
   );
   const complianceSummary = useMemo(() => summarizeBuybackCompliance(complianceSeries), [complianceSeries]);
+  const complianceForecast = useMemo(
+    () => buildBuybackComplianceForecast(tradingVolumeByDate, { horizonTradingDays: 5 }),
+    [tradingVolumeByDate]
+  );
   const overviewXAxisInterval = useMemo(() => {
     const len = chartData.length;
     if (!len) return 0;
@@ -683,6 +691,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           avgDaily={avgDaily}
           complianceSeries={complianceSeries}
           complianceSummary={complianceSummary}
+          complianceForecast={complianceForecast}
           complianceLoading={complianceLoading}
           complianceError={complianceError}
         />
