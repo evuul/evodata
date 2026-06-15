@@ -392,6 +392,22 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     () => buildBuybackComplianceForecast(tradingVolumeByDate, { horizonTradingDays: 5 }),
     [tradingVolumeByDate]
   );
+  const complianceSeriesWithForecast = useMemo(() => {
+    if (!complianceForecast?.rows?.length) return complianceSeries;
+    const forecastRows = complianceForecast.rows.map((row) => ({
+      date: row.date,
+      label: row.label,
+      actualShares: null,
+      dailyVolume: null,
+      averageVolume20: row.averageVolume20,
+      maxAllowedShares: row.maxAllowedShares,
+      utilizationPct: null,
+      remainingCapacity: row.maxAllowedShares,
+      nearLimit: false,
+      forecast: true,
+    }));
+    return [...complianceSeries, ...forecastRows];
+  }, [complianceForecast, complianceSeries]);
   const overviewXAxisInterval = useMemo(() => {
     const len = chartData.length;
     if (!len) return 0;
@@ -689,9 +705,8 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           weekDeltaShares={weekDeltaShares}
           weekDeltaSharesPct={weekDeltaSharesPct}
           avgDaily={avgDaily}
-          complianceSeries={complianceSeries}
+          complianceSeries={complianceSeriesWithForecast}
           complianceSummary={complianceSummary}
-          complianceForecast={complianceForecast}
           complianceLoading={complianceLoading}
           complianceError={complianceError}
         />

@@ -47,7 +47,6 @@ export default function LiveStockBuyBackOverviewSection({
   avgDaily,
   complianceSeries = [],
   complianceSummary,
-  complianceForecast = null,
   complianceLoading = false,
   complianceError = "",
 }) {
@@ -55,9 +54,6 @@ export default function LiveStockBuyBackOverviewSection({
   const formatShares = (value) => (Number.isFinite(value) ? fmtNum(Math.round(value)) : "–");
   const latestCompliance = complianceSummary?.latest ?? null;
   const complianceXAxisInterval = Math.max(Math.ceil((complianceSeries?.length || 0) / (isMobile ? 5 : 10)) - 1, 0);
-  const forecastRows = Array.isArray(complianceForecast?.rows) ? complianceForecast.rows : [];
-  const forecastSummary = complianceForecast?.summary ?? null;
-  const forecastXAxisInterval = Math.max(Math.ceil((forecastRows.length || 0) / (isMobile ? 4 : 6)) - 1, 0);
   const weekDirection = Number.isFinite(weekDeltaShares) && weekDeltaShares !== 0 ? (weekDeltaShares > 0 ? "up" : "down") : "flat";
   const weekDeltaTone = weekDirection === "up" ? "#34d399" : weekDirection === "down" ? "#f87171" : "#cbd5e1";
   const weekRangeLabel =
@@ -396,6 +392,12 @@ export default function LiveStockBuyBackOverviewSection({
                   labelFormatter={(_label, payload) => {
                     const row = payload?.[0]?.payload;
                     if (!row) return "";
+                    if (row?.forecast) {
+                      return translate(
+                        `${row.date} · prognos · kapacitet ${formatShares(row.maxAllowedShares)} aktier`,
+                        `${row.date} · forecast · capacity ${formatShares(row.maxAllowedShares)} shares`
+                      );
+                    }
                     return translate(
                       `${row.date} · utnyttjat ${formatPct(row.utilizationPct)} · kvar ${formatShares(row.remainingCapacity)} aktier`,
                       `${row.date} · used ${formatPct(row.utilizationPct)} · ${formatShares(row.remainingCapacity)} shares left`
@@ -430,176 +432,12 @@ export default function LiveStockBuyBackOverviewSection({
               {translate("Grön linje = max enligt 25%-regeln.", "Green line = 25% rule maximum.")}
             </Typography>
             <Typography variant="caption" sx={{ color: "rgba(125,211,252,0.88)" }}>
-              {translate("Volymkälla: Yahoo Finance dagliga handelsvolymer.", "Volume source: Yahoo Finance daily trading volume.")}
+              {translate(
+                "Volymkälla: Yahoo Finance dagliga handelsvolymer. Linjen fortsätter framåt med samma 25%-regel.",
+                "Volume source: Yahoo Finance daily trading volume. The line continues forward using the same 25% rule."
+              )}
             </Typography>
           </Stack>
-
-          {forecastRows.length > 0 && (
-            <Box
-              sx={{
-                mt: 2,
-                background: "rgba(15,23,42,0.38)",
-                border: "1px solid rgba(56,189,248,0.16)",
-                borderRadius: "14px",
-                px: { xs: 1.4, md: 1.8 },
-                py: { xs: 1.4, md: 1.6 },
-              }}
-            >
-              <Stack
-                direction={{ xs: "column", md: "row" }}
-                spacing={1.1}
-                alignItems={{ xs: "flex-start", md: "center" }}
-                justifyContent="space-between"
-                sx={{ mb: 1.1 }}
-              >
-                <Box>
-                  <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.88)", letterSpacing: 1.2 }}>
-                    {translate("Prognos kommande köp", "Forecast for upcoming buys")}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)", mt: 0.2 }}>
-                    {translate(
-                      "Antagen volym bygger på senaste handelsdagarnas snitt. Den gröna linjen visar maximalt återköp enligt 25%-regeln om volymen håller sig nära den nivån.",
-                      "Assumed volume is based on the most recent trading-day average. The green line shows the maximum repurchase allowed by the 25% rule if volume stays near that level."
-                    )}
-                  </Typography>
-                </Box>
-                <Stack direction="row" spacing={0.8} flexWrap="wrap" useFlexGap>
-                  <Chip
-                    size="small"
-                    label={translate(
-                      `Dag 1: ${formatShares(forecastSummary?.projectedDailyMaxShares)} aktier`,
-                      `Day 1: ${formatShares(forecastSummary?.projectedDailyMaxShares)} shares`
-                    )}
-                    sx={{
-                      backgroundColor: "rgba(56,189,248,0.12)",
-                      color: "#bae6fd",
-                      border: "1px solid rgba(56,189,248,0.3)",
-                      borderRadius: "999px",
-                    }}
-                  />
-                  <Chip
-                    size="small"
-                    label={translate(
-                      `5 dagar: ${formatShares(forecastSummary?.projectedTotalMaxShares)} aktier`,
-                      `5 days: ${formatShares(forecastSummary?.projectedTotalMaxShares)} shares`
-                    )}
-                    sx={{
-                      backgroundColor: "rgba(16,185,129,0.12)",
-                      color: "#bbf7d0",
-                      border: "1px solid rgba(16,185,129,0.3)",
-                      borderRadius: "999px",
-                    }}
-                  />
-                  <Chip
-                    size="small"
-                    label={translate(
-                      `Antagen volym: ${formatShares(forecastSummary?.projectedVolume)} aktier/dag`,
-                      `Assumed volume: ${formatShares(forecastSummary?.projectedVolume)} shares/day`
-                    )}
-                    sx={{
-                      backgroundColor: "rgba(245,158,11,0.12)",
-                      color: "#fde68a",
-                      border: "1px solid rgba(245,158,11,0.3)",
-                      borderRadius: "999px",
-                    }}
-                  />
-                </Stack>
-              </Stack>
-
-              <Box sx={{ height: isMobile ? 200 : 220, width: "100%" }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart
-                    data={forecastRows}
-                    margin={{ top: 8, right: isMobile ? 4 : 16, left: isMobile ? 0 : 8, bottom: isMobile ? 4 : 8 }}
-                  >
-                    <CartesianGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="4 4" />
-                    <XAxis
-                      dataKey="label"
-                      tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.78)" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                      interval={forecastXAxisInterval}
-                      minTickGap={isMobile ? 16 : 12}
-                    />
-                    <YAxis
-                      tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.78)" }}
-                      tickLine={false}
-                      axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                      width={isMobile ? 42 : 64}
-                      tickFormatter={(value) => {
-                        if (!Number.isFinite(value)) return "–";
-                        if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })}M`;
-                        if (Math.abs(value) >= 1_000) return `${(value / 1_000).toLocaleString("sv-SE", { maximumFractionDigits: 0 })}k`;
-                        return Number(value).toLocaleString("sv-SE");
-                      }}
-                    />
-                    <RechartsTooltip
-                      cursor={{ fill: "rgba(148,163,184,0.08)" }}
-                      contentStyle={{
-                        background: "rgba(15,23,42,0.96)",
-                        border: "1px solid rgba(96,165,250,0.25)",
-                        borderRadius: 12,
-                        color: "#f8fafc",
-                        boxShadow: "0 18px 40px rgba(2,6,23,0.35)",
-                      }}
-                      formatter={(value, name) => {
-                        if (name === "maxAllowedShares") {
-                          return [translate(`${formatShares(value)} aktier`, `${formatShares(value)} shares`), translate("Max tillåtet", "Max allowed")];
-                        }
-                        if (name === "projectedVolume") {
-                          return [translate(`${formatShares(value)} aktier`, `${formatShares(value)} shares`), translate("Antagen volym", "Assumed volume")];
-                        }
-                        if (name === "averageVolume20") {
-                          return [translate(`${formatShares(value)} aktier`, `${formatShares(value)} shares`), translate("Rullande 20-dagars snitt", "Rolling 20-day average")];
-                        }
-                        return [value, name];
-                      }}
-                      labelFormatter={(_label, payload) => {
-                        const row = payload?.[0]?.payload;
-                        if (!row) return "";
-                        return translate(
-                          `${row.date} · utrymme ${formatShares(row.maxAllowedShares)} aktier`,
-                          `${row.date} · capacity ${formatShares(row.maxAllowedShares)} shares`
-                        );
-                      }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="maxAllowedShares"
-                      name="maxAllowedShares"
-                      stroke="#a3e635"
-                      strokeWidth={2.6}
-                      fill="rgba(163,230,53,0.12)"
-                      dot={false}
-                      connectNulls
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="projectedVolume"
-                      name="projectedVolume"
-                      stroke="#38bdf8"
-                      strokeWidth={1.8}
-                      strokeDasharray="5 4"
-                      dot={false}
-                      connectNulls
-                    />
-                  </ComposedChart>
-                </ResponsiveContainer>
-              </Box>
-
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 1.1 }}>
-                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.78)" }}>
-                  {translate("Grön yta = forecastat max enligt 25%-regeln.", "Green area = forecasted max under the 25% rule.")}
-                </Typography>
-                <Typography variant="caption" sx={{ color: "rgba(125,211,252,0.88)" }}>
-                  {translate(
-                    "Blå streckad linje = antagen handelsvolym som styr prognosen.",
-                    "Blue dashed line = assumed trading volume driving the forecast."
-                  )}
-                </Typography>
-              </Stack>
-            </Box>
-          )}
         </Box>
       )}
 
