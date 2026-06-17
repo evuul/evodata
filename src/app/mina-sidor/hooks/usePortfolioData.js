@@ -5,7 +5,7 @@ import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
-import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
+import { computeCurrentBuybackProgramSummary, computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
 import { fetchAuthJson } from "@/lib/clientApi";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
@@ -453,13 +453,23 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
     const buybackMandateSummary = useMemo(() => {
         return computeFullBuybackMandateSummary({
             profileShares: profile.shares,
-            currentPrice,
+            currentPriceSEK: currentPrice,
             fxRate,
             sharesData: amountOfShares,
             dividendsReceived: dividendsReceivedSafe,
             totalValue,
         });
     }, [currentPrice, dividendsReceivedSafe, fxRate, profile.shares, totalValue]);
+
+    const buybackCurrentProgramSummary = useMemo(() => {
+        return computeCurrentBuybackProgramSummary({
+            profileShares: profile.shares,
+            buybackRows: buybackData,
+            sharesData: amountOfShares,
+            dividendsReceived: dividendsReceivedSafe,
+            totalValue,
+        });
+    }, [buybackData, dividendsReceivedSafe, profile.shares, totalValue]);
 
     const greetingName = useMemo(() => {
         const first = String(user?.firstName || profileIdentity.firstName || "").trim();
@@ -528,6 +538,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         breakEvenPaidBack,
         buybackSummary,
         buybackMandateSummary,
+        buybackCurrentProgramSummary,
         greetingName,
         totalLivePlayers
     };

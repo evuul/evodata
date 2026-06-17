@@ -10,6 +10,7 @@ export default function OwnershipCards({
   translate,
   buybackSummary,
   buybackMandateSummary,
+  buybackCurrentProgramSummary,
   profileShares,
   currentPrice,
   fxRate,
@@ -33,8 +34,13 @@ export default function OwnershipCards({
     [currentPrice, dividendsReceivedSafe, fxRate, profileShares, sharesData, totalValue]
   );
   const selectedSummary =
-    scenarioView === "mandate" ? buybackMandateSummary ?? computedMandateSummary : buybackSummary;
+    scenarioView === "mandate"
+      ? buybackMandateSummary ?? computedMandateSummary
+      : scenarioView === "current"
+        ? buybackCurrentProgramSummary
+        : buybackSummary;
   const isMandateView = scenarioView === "mandate";
+  const isCurrentProgramView = scenarioView === "current";
   const programBuybackPct = selectedSummary?.buybackYieldPct != null ? formatPercent(selectedSummary.buybackYieldPct) : "–";
   const cardSx = {
     p: { xs: 2, md: 2.2 },
@@ -60,7 +66,9 @@ export default function OwnershipCards({
           <Typography sx={{ color: text.subtle }}>
             {isMandateView
               ? translate("Scenario: hela återköpsprogrammet", "Scenario: full buyback program")
-              : translate("Scenario: riktiga återköp", "Scenario: actual buybacks")}
+              : isCurrentProgramView
+                ? translate("Scenario: nuvarande program hittills", "Scenario: current program to date")
+                : translate("Scenario: riktiga återköp", "Scenario: actual buybacks")}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 0.8 }} flexWrap="wrap">
             <Chip
@@ -75,6 +83,20 @@ export default function OwnershipCards({
                     : ownershipChipColors.pre.inactiveBg,
                 color: ownershipChipColors.pre.color,
                 border: scenarioView === "actual" ? ownershipChipColors.pre.activeBorder : "none",
+              }}
+            />
+            <Chip
+              size="small"
+              clickable
+              onClick={() => setScenarioView("current")}
+              label={translate("Nuvarande program", "Current program")}
+              sx={{
+                backgroundColor:
+                  scenarioView === "current"
+                    ? ownershipChipColors.post.activeBg
+                    : ownershipChipColors.post.inactiveBg,
+                color: ownershipChipColors.post.color,
+                border: scenarioView === "current" ? ownershipChipColors.post.activeBorder : "none",
               }}
             />
             <Chip
@@ -98,6 +120,11 @@ export default function OwnershipCards({
                   "Antagande: hela programmet återköps på nuvarande kurs.",
                   "Assumption: the full program is bought back at the current price."
                 )
+              : isCurrentProgramView
+                ? translate(
+                    "Antagande: återköpen i nuvarande program makuleras direkt.",
+                    "Assumption: buybacks in the current program are cancelled immediately."
+                  )
               : translate(
                   "Antagande: faktiska historiska återköp som redan genomförts.",
                   "Assumption: actual historical buybacks already completed."
@@ -116,9 +143,13 @@ export default function OwnershipCards({
             {translate(
               isMandateView
                 ? `Programmet återköper cirka ${programBuybackPct} av nuvarande aktiestock.`
+                : isCurrentProgramView
+                  ? `Programmet hittills motsvarar cirka ${programBuybackPct} av nuvarande aktiestock.`
                 : "Visar faktiska historiska återköp.",
               isMandateView
                 ? `The program repurchases about ${programBuybackPct} of the current share base.`
+                : isCurrentProgramView
+                  ? `The program to date equals about ${programBuybackPct} of the current share base.`
                 : "Shows actual historical buybacks."
             )}
           </Typography>
@@ -128,8 +159,8 @@ export default function OwnershipCards({
               clickable
               onClick={() => onChangeView("before")}
               label={translate(
-                isMandateView ? "Före program" : "Före återköp",
-                isMandateView ? "Pre-program" : "Pre-buyback"
+                isMandateView || isCurrentProgramView ? "Före program" : "Före återköp",
+                isMandateView || isCurrentProgramView ? "Pre-program" : "Pre-buyback"
               )}
               sx={{
                 backgroundColor:
@@ -145,8 +176,8 @@ export default function OwnershipCards({
               clickable
               onClick={() => onChangeView("after")}
               label={translate(
-                isMandateView ? "Efter program" : "Efter återköp",
-                isMandateView ? "Post-program" : "Post-buyback"
+                isMandateView || isCurrentProgramView ? "Efter program" : "Efter återköp",
+                isMandateView || isCurrentProgramView ? "Post-program" : "Post-buyback"
               )}
               sx={{
                 backgroundColor:
@@ -164,8 +195,16 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {translate(
-              isMandateView ? "Ägarlyft från hela programmet" : "Ägarlyft från återköp",
-              isMandateView ? "Ownership lift from full program" : "Ownership lift from buybacks"
+              isMandateView
+                ? "Ägarlyft från hela programmet"
+                : isCurrentProgramView
+                  ? "Ägarlyft från nuvarande program"
+                  : "Ägarlyft från återköp",
+              isMandateView
+                ? "Ownership lift from full program"
+                : isCurrentProgramView
+                  ? "Ownership lift from current program"
+                  : "Ownership lift from buybacks"
             )}
           </Typography>
           <Typography
@@ -180,7 +219,7 @@ export default function OwnershipCards({
           >
             {selectedSummary?.ownershipLiftPct != null ? formatPercent(selectedSummary.ownershipLiftPct) : "–"}
           </Typography>
-          {isMandateView ? (
+          {isMandateView || isCurrentProgramView ? (
             <Typography sx={{ color: text.faint, fontSize: "0.82rem" }}>
               {selectedSummary?.hasHoldings
                 ? translate(
@@ -211,8 +250,16 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {translate(
-              isMandateView ? "Värde av hela programmet till dig" : "Återköpsvärde till dig",
-              isMandateView ? "Your share of the full program" : "Buyback value to you"
+              isMandateView
+                ? "Värde av hela programmet till dig"
+                : isCurrentProgramView
+                  ? "Värde av nuvarande program till dig"
+                  : "Återköpsvärde till dig",
+              isMandateView
+                ? "Your share of the full program"
+                : isCurrentProgramView
+                  ? "Your share of the current program"
+                  : "Buyback value to you"
             )}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
@@ -220,10 +267,26 @@ export default function OwnershipCards({
           </Typography>
           <Typography sx={{ color: text.faint }}>
             {translate(
-              isMandateView ? "Andel av hela 2 md €-programmet" : "Andel av återköp 2025",
-              isMandateView ? "Your share of the full EUR 2bn program" : "Your share of 2025 buybacks"
+              isMandateView
+                ? "Andel av hela 2 md €-programmet"
+                : isCurrentProgramView
+                  ? "Din andel av genomförda återköp i mandatet"
+                  : "Andel av återköp 2025",
+              isMandateView
+                ? "Your share of the full EUR 2bn program"
+                : isCurrentProgramView
+                  ? "Your share of completed buybacks in the mandate"
+                  : "Your share of 2025 buybacks"
             )}
           </Typography>
+          {isCurrentProgramView && selectedSummary?.repurchasedShares ? (
+            <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.78rem" }}>
+              {translate(
+                `${formatSek(selectedSummary.buybackSpend)} återköpt sedan ${selectedSummary.startDate}`,
+                `${formatSek(selectedSummary.buybackSpend)} repurchased since ${selectedSummary.startDate}`
+              )}
+            </Typography>
+          ) : null}
         </Paper>
       </Box>
       <Box sx={{ display: "flex" }}>
