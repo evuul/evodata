@@ -78,7 +78,6 @@ export default function MinaSidorPage() {
     breakEvenPaidBack,
     buybackSummary,
     buybackMandateSummary,
-    buybackCurrentProgramSummary,
     greetingName,
     totalLivePlayers
   } = usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive, fxRate });
@@ -506,7 +505,6 @@ export default function MinaSidorPage() {
               translate={translate}
               buybackSummary={buybackSummary}
               buybackMandateSummary={buybackMandateSummary}
-              buybackCurrentProgramSummary={buybackCurrentProgramSummary}
               profileShares={profile.shares}
               currentPrice={currentPrice}
               fxRate={fxRate}
