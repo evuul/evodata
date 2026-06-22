@@ -29,6 +29,15 @@ test("new Evolution buyback block is present in both historical snapshots", () =
     "2026-06-03",
     "2026-06-04",
     "2026-06-05",
+    "2026-06-08",
+    "2026-06-09",
+    "2026-06-10",
+    "2026-06-11",
+    "2026-06-12",
+    "2026-06-15",
+    "2026-06-16",
+    "2026-06-17",
+    "2026-06-18",
   ];
 
   const currentRows = getRowsByDates(current, dates);
@@ -39,11 +48,11 @@ test("new Evolution buyback block is present in both historical snapshots", () =
 
   assert.equal(
     currentRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
-    2066158,
+    3756971,
   );
   assert.equal(
     historicalRows.reduce((sum, row) => sum + row.Antal_aktier, 0),
-    2066158,
+    3756971,
   );
   assert.deepEqual(
     currentRows.map((row) => row.Datum),
