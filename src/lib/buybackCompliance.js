@@ -51,13 +51,78 @@ const isWeekend = (date) => {
   return day === 0 || day === 6;
 };
 
+const getEasterSunday = (year) => {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+};
+
+const getHolidayDateKeys = (year) => {
+  const easterSunday = getEasterSunday(year);
+  const addDays = (baseDate, offsetDays) => {
+    const date = new Date(baseDate);
+    date.setDate(date.getDate() + offsetDays);
+    return formatDateFromDate(date);
+  };
+
+  const midsummerEve = (() => {
+    const date = new Date(year, 5, 19);
+    while (date.getDay() !== 5) {
+      date.setDate(date.getDate() + 1);
+    }
+    return formatDateFromDate(date);
+  })();
+
+  const allSaintsDay = (() => {
+    const date = new Date(year, 9, 31);
+    while (date.getDay() !== 6) {
+      date.setDate(date.getDate() + 1);
+    }
+    return formatDateFromDate(date);
+  })();
+
+  return new Set([
+    `${year}-01-01`,
+    `${year}-01-06`,
+    addDays(easterSunday, -2),
+    addDays(easterSunday, 1),
+    `${year}-05-01`,
+    addDays(easterSunday, 39),
+    `${year}-06-06`,
+    midsummerEve,
+    allSaintsDay,
+    `${year}-12-24`,
+    `${year}-12-25`,
+    `${year}-12-26`,
+    `${year}-12-31`,
+  ]);
+};
+
+const isMarketClosedDay = (date) => {
+  if (isWeekend(date)) return true;
+  const holidayDateKeys = getHolidayDateKeys(date.getFullYear());
+  return holidayDateKeys.has(formatDateFromDate(date));
+};
+
 const nextTradingDay = (date) => {
   const cursor = new Date(date);
   cursor.setHours(12, 0, 0, 0);
 
   do {
     cursor.setDate(cursor.getDate() + 1);
-  } while (isWeekend(cursor));
+  } while (isMarketClosedDay(cursor));
 
   return cursor;
 };

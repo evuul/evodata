@@ -93,7 +93,7 @@ test("buildBuybackComplianceForecast projects the next trading days from the lat
   assert.equal(forecast.rows.length, 5);
   assert.deepEqual(
     forecast.rows.map((row) => row.date),
-    ["2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-19"]
+    ["2026-06-15", "2026-06-16", "2026-06-17", "2026-06-18", "2026-06-22"]
   );
   assert.equal(forecast.summary.currentAverageVolume20, 1_095);
   assert.equal(forecast.summary.currentMaxAllowedShares, 273);
