@@ -33,6 +33,7 @@ import { parseJsonResponse } from '@/lib/apiResponse';
 import {
   buildBuybackComplianceForecast,
   buildBuybackComplianceSeries,
+  trimLeadingPlaceholderComplianceRows,
   summarizeBuybackCompliance,
 } from '@/lib/buybackCompliance';
 import OwnershipView from './buybacks/OwnershipView';
@@ -406,7 +407,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       nearLimit: false,
       forecast: true,
     }));
-    return [...complianceSeries, ...forecastRows];
+    return trimLeadingPlaceholderComplianceRows([...complianceSeries, ...forecastRows]);
   }, [complianceForecast, complianceSeries]);
   const overviewXAxisInterval = useMemo(() => {
     const len = chartData.length;

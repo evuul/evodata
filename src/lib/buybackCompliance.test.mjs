@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildBuybackComplianceForecast,
   buildBuybackComplianceSeries,
+  trimLeadingPlaceholderComplianceRows,
   summarizeBuybackCompliance,
 } from "./buybackCompliance.js";
 
@@ -61,6 +62,20 @@ test("summarizeBuybackCompliance returns latest and utilization metrics", () => 
     maxUtilizationPct: 90,
     nearLimitDays: 1,
   });
+});
+
+test("trimLeadingPlaceholderComplianceRows removes only the leading zero-day placeholders", () => {
+  const rows = [
+    { date: "2026-05-18", actualShares: 0 },
+    { date: "2026-05-19", actualShares: 0 },
+    { date: "2026-05-20", actualShares: 125 },
+    { date: "2026-05-21", actualShares: null, forecast: true },
+  ];
+
+  assert.deepEqual(
+    trimLeadingPlaceholderComplianceRows(rows).map((row) => row.date),
+    ["2026-05-20", "2026-05-21"]
+  );
 });
 
 test("buildBuybackComplianceForecast projects the next trading days from the latest volume baseline", () => {

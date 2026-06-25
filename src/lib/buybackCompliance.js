@@ -282,6 +282,16 @@ export const buildBuybackComplianceForecast = (
   };
 };
 
+export const trimLeadingPlaceholderComplianceRows = (rows) => {
+  const list = Array.isArray(rows) ? rows : [];
+  const firstActualIndex = list.findIndex((row) => Number(row?.actualShares) > 0);
+  if (firstActualIndex <= 0) {
+    return list;
+  }
+
+  return list.slice(firstActualIndex);
+};
+
 export const summarizeBuybackCompliance = (series) => {
   const rows = Array.isArray(series) ? series : [];
   const measured = rows.filter(
