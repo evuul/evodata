@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   buildBuybackComplianceForecast,
   buildBuybackComplianceSeries,
+  buildBuybackWeeklyEstimate,
   trimLeadingPlaceholderComplianceRows,
   summarizeBuybackCompliance,
 } from "./buybackCompliance.js";
@@ -115,4 +116,42 @@ test("buildBuybackComplianceForecast projects the next trading days from the lat
   assert.equal(forecast.rows[0].maxAllowedShares, 273);
   assert.equal(forecast.rows[1].maxAllowedShares, 275);
   assert.equal(forecast.summary.projectedTotalMaxShares, 1_385);
+});
+
+test("buildBuybackWeeklyEstimate mixes reported days with the remaining week forecast", () => {
+  const complianceRows = [
+    { date: "2026-06-09", actualShares: 180, maxAllowedShares: 250, utilizationPct: 72 },
+  ];
+  const complianceForecast = {
+    rows: [
+      { date: "2026-06-22", label: "06-22", maxAllowedShares: 250 },
+      { date: "2026-06-23", label: "06-23", maxAllowedShares: 250 },
+      { date: "2026-06-24", label: "06-24", maxAllowedShares: 250 },
+      { date: "2026-06-25", label: "06-25", maxAllowedShares: 250 },
+      { date: "2026-06-26", label: "06-26", maxAllowedShares: 250 },
+    ],
+  };
+
+  const estimate = buildBuybackWeeklyEstimate(complianceRows, complianceForecast);
+
+  assert.ok(estimate);
+  assert.deepEqual(
+    estimate.rows.map((row) => ({
+      date: row.date,
+      estimatedShares: row.estimatedShares,
+      estimatedSource: row.estimatedSource,
+    })),
+    [
+      { date: "2026-06-22", estimatedShares: 180, estimatedSource: "forecast" },
+      { date: "2026-06-23", estimatedShares: 180, estimatedSource: "forecast" },
+      { date: "2026-06-24", estimatedShares: 180, estimatedSource: "forecast" },
+      { date: "2026-06-25", estimatedShares: 180, estimatedSource: "forecast" },
+      { date: "2026-06-26", estimatedShares: 180, estimatedSource: "forecast" },
+    ]
+  );
+  assert.equal(estimate.utilizationRate, 0.72);
+  assert.equal(estimate.reportedShares, 0);
+  assert.equal(estimate.forecastShares, 900);
+  assert.equal(estimate.estimatedShares, 900);
+  assert.equal(estimate.projectedRemainingShares, 900);
 });

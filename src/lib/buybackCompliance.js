@@ -292,6 +292,57 @@ export const trimLeadingPlaceholderComplianceRows = (rows) => {
   return list.slice(firstActualIndex);
 };
 
+export const buildBuybackWeeklyEstimate = (
+  complianceRows,
+  complianceForecast,
+  { utilizationWindow = 5 } = {}
+) => {
+  const forecastRows = Array.isArray(complianceForecast?.rows) ? complianceForecast.rows : [];
+  if (!forecastRows.length) {
+    return null;
+  }
+
+  const rows = Array.isArray(complianceRows) ? complianceRows : [];
+  const measured = rows
+    .filter((row) => Number.isFinite(row?.actualShares) && Number.isFinite(row?.maxAllowedShares) && row.maxAllowedShares > 0)
+    .filter((row) => Number(row.actualShares) > 0 && Number.isFinite(row.utilizationPct));
+  const recentMeasured = measured.slice(-Math.max(utilizationWindow, 1));
+  const utilizationRate =
+    recentMeasured.length > 0
+      ? Math.max(Math.min(average(recentMeasured.map((row) => Number(row.utilizationPct))) / 100, 1), 0)
+      : 1;
+
+  const weekRows = forecastRows.map((row) => {
+    const estimatedShares =
+      Number.isFinite(row?.maxAllowedShares) && row.maxAllowedShares > 0
+        ? Math.round(row.maxAllowedShares * utilizationRate)
+        : 0;
+    return {
+      date: row.date,
+      label: row.label,
+      maxAllowedShares: row.maxAllowedShares,
+      estimatedShares,
+      estimatedSource: "forecast",
+    };
+  });
+
+  const estimatedShares = weekRows.reduce((sum, row) => sum + (Number(row.estimatedShares) || 0), 0);
+  const periodStart = forecastRows[0]?.date ? new Date(`${forecastRows[0].date}T12:00:00`) : null;
+  const periodEnd = forecastRows.at(-1)?.date ? new Date(`${forecastRows.at(-1).date}T12:00:00`) : null;
+
+  return {
+    periodStart,
+    periodEnd,
+    tradingDays: weekRows.length,
+    utilizationRate,
+    reportedShares: 0,
+    forecastShares: estimatedShares,
+    estimatedShares,
+    projectedRemainingShares: estimatedShares,
+    rows: weekRows,
+  };
+};
+
 export const summarizeBuybackCompliance = (series) => {
   const rows = Array.isArray(series) ? series : [];
   const measured = rows.filter(

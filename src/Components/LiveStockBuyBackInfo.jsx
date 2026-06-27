@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
+  Button,
   Typography,
   Stack,
   Grid,
@@ -33,6 +34,7 @@ import { parseJsonResponse } from '@/lib/apiResponse';
 import {
   buildBuybackComplianceForecast,
   buildBuybackComplianceSeries,
+  buildBuybackWeeklyEstimate,
   trimLeadingPlaceholderComplianceRows,
   summarizeBuybackCompliance,
 } from '@/lib/buybackCompliance';
@@ -115,6 +117,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
   const [subView, setSubView] = useState('overview');
   const [viewMode, setViewMode] = useState('weekly');
+  const [showWeeklyEstimate, setShowWeeklyEstimate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [complianceLoading, setComplianceLoading] = useState(false);
@@ -392,6 +395,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const complianceForecast = useMemo(
     () => buildBuybackComplianceForecast(tradingVolumeByDate, { horizonTradingDays: 5 }),
     [tradingVolumeByDate]
+  );
+  const weeklyBuybackEstimate = useMemo(
+    () => buildBuybackWeeklyEstimate(complianceSeries, complianceForecast),
+    [complianceForecast, complianceSeries]
   );
   const complianceSeriesWithForecast = useMemo(() => {
     if (!complianceForecast?.rows?.length) return complianceSeries;
@@ -793,6 +800,75 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                       `${fmtNum(Math.round(avgDaily.averageDaily))} shares/day`
                     )}
                   </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setShowWeeklyEstimate((value) => !value)}
+                    sx={{
+                      mt: 0.8,
+                      alignSelf: { xs: 'flex-start', lg: 'center' },
+                      borderRadius: '999px',
+                      textTransform: 'none',
+                      px: 1.5,
+                      color: '#cbd5f5',
+                      borderColor: 'rgba(148,163,184,0.28)',
+                      backgroundColor: 'rgba(148,163,184,0.08)',
+                      '&:hover': {
+                        borderColor: 'rgba(96,165,250,0.42)',
+                        backgroundColor: 'rgba(96,165,250,0.12)',
+                      },
+                    }}
+                  >
+                    {translate(showWeeklyEstimate ? 'Dölj estimat' : 'Visa veckans estimat', showWeeklyEstimate ? 'Hide estimate' : 'Show weekly estimate')}
+                  </Button>
+                  {showWeeklyEstimate && (
+                    <Box
+                      sx={{
+                        mt: 1,
+                        pt: 1,
+                        borderTop: '1px solid rgba(148,163,184,0.12)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 0.3,
+                      }}
+                    >
+                      <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
+                        {translate('Uppskattning före nästa rapport', 'Estimate before next report')}
+                      </Typography>
+                      <Typography sx={{ fontWeight: 800, color: '#f8fafc' }}>
+                        {weeklyBuybackEstimate
+                          ? translate(
+                              `≈ ${fmtNum(Math.round(weeklyBuybackEstimate.estimatedShares))} aktier totalt`,
+                              `≈ ${fmtNum(Math.round(weeklyBuybackEstimate.estimatedShares))} shares total`
+                            )
+                          : translate('Ingen estimatdata', 'No estimate data')}
+                      </Typography>
+                      {weeklyBuybackEstimate && (
+                        <Stack spacing={0.15}>
+                          <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
+                            {weeklyBuybackEstimate.periodStart && weeklyBuybackEstimate.periodEnd
+                              ? translate(
+                                  `${weeklyBuybackEstimate.periodStart.toLocaleDateString('sv-SE')}–${weeklyBuybackEstimate.periodEnd.toLocaleDateString('sv-SE')}`,
+                                  `${weeklyBuybackEstimate.periodStart.toLocaleDateString('sv-SE')}–${weeklyBuybackEstimate.periodEnd.toLocaleDateString('sv-SE')}`
+                                )
+                              : '—'}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
+                            {translate(
+                              `Baserat på ${fmtNum(weeklyBuybackEstimate.tradingDays)} forecastade handelsdagar.`,
+                              `Based on ${fmtNum(weeklyBuybackEstimate.tradingDays)} forecast trading days.`
+                            )}
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
+                            {translate(
+                              `Antaget snittutnyttjande: ${fmtPercent(weeklyBuybackEstimate.utilizationRate * 100)}`,
+                              `Assumed average utilization: ${fmtPercent(weeklyBuybackEstimate.utilizationRate * 100)}`
+                            )}
+                          </Typography>
+                        </Stack>
+                      )}
+                    </Box>
+                  )}
                 </Stack>
               )}
             </Box>
