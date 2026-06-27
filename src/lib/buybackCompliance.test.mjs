@@ -118,23 +118,41 @@ test("buildBuybackComplianceForecast projects the next trading days from the lat
   assert.equal(forecast.summary.projectedTotalMaxShares, 1_385);
 });
 
-test("buildBuybackWeeklyEstimate mixes reported days with the remaining week forecast", () => {
+test("buildBuybackWeeklyEstimate estimates the current report week from the latest volume baseline", () => {
+  const volumeByDate = new Map(
+    [
+      "2026-05-25",
+      "2026-05-26",
+      "2026-05-27",
+      "2026-05-28",
+      "2026-05-29",
+      "2026-06-01",
+      "2026-06-02",
+      "2026-06-03",
+      "2026-06-04",
+      "2026-06-05",
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+    ].map((date) => [date, 1_000])
+  );
   const complianceRows = [
-    { date: "2026-06-09", actualShares: 180, maxAllowedShares: 250, utilizationPct: 72 },
+    { date: "2026-06-19", actualShares: 180, maxAllowedShares: 250, utilizationPct: 72 },
   ];
-  const complianceForecast = {
-    rows: [
-      { date: "2026-06-22", label: "06-22", maxAllowedShares: 250 },
-      { date: "2026-06-23", label: "06-23", maxAllowedShares: 250 },
-      { date: "2026-06-24", label: "06-24", maxAllowedShares: 250 },
-      { date: "2026-06-25", label: "06-25", maxAllowedShares: 250 },
-      { date: "2026-06-26", label: "06-26", maxAllowedShares: 250 },
-    ],
-  };
-
-  const estimate = buildBuybackWeeklyEstimate(complianceRows, complianceForecast);
+  const estimate = buildBuybackWeeklyEstimate(complianceRows, volumeByDate, {
+    referenceDate: new Date("2026-06-27T12:00:00"),
+  });
 
   assert.ok(estimate);
+  assert.equal(estimate.periodStart.toLocaleDateString("sv-SE"), "2026-06-22");
+  assert.equal(estimate.periodEnd.toLocaleDateString("sv-SE"), "2026-06-26");
   assert.deepEqual(
     estimate.rows.map((row) => ({
       date: row.date,

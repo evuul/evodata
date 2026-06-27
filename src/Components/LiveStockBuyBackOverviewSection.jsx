@@ -53,6 +53,16 @@ export default function LiveStockBuyBackOverviewSection({
   const formatPct = (value) => (Number.isFinite(value) ? `${value.toFixed(1)}%` : "–");
   const formatShares = (value) => (Number.isFinite(value) ? fmtNum(Math.round(value)) : "–");
   const latestCompliance = complianceSummary?.latest ?? null;
+  const measuredComplianceRows = Array.isArray(complianceSeries)
+    ? complianceSeries.filter(
+        (row) => Number.isFinite(row?.actualShares) && Number.isFinite(row?.utilizationPct) && Number(row.actualShares) > 0
+      )
+    : [];
+  const recentMeasuredComplianceRows = measuredComplianceRows.slice(-5);
+  const recentAverageUtilizationPct =
+    recentMeasuredComplianceRows.length > 0
+      ? recentMeasuredComplianceRows.reduce((sum, row) => sum + Number(row.utilizationPct), 0) / recentMeasuredComplianceRows.length
+      : null;
   const complianceXAxisInterval = Math.max(Math.ceil((complianceSeries?.length || 0) / (isMobile ? 5 : 10)) - 1, 0);
   const weekDirection = Number.isFinite(weekDeltaShares) && weekDeltaShares !== 0 ? (weekDeltaShares > 0 ? "up" : "down") : "flat";
   const weekDeltaTone = weekDirection === "up" ? "#34d399" : weekDirection === "down" ? "#f87171" : "#cbd5e1";
@@ -318,8 +328,8 @@ export default function LiveStockBuyBackOverviewSection({
               <Chip
                 size="small"
                 label={translate(
-                  `Snitt: ${formatPct(complianceSummary?.averageUtilizationPct)}`,
-                  `Avg: ${formatPct(complianceSummary?.averageUtilizationPct)}`
+                  `Senaste snitt: ${formatPct(recentAverageUtilizationPct)}`,
+                  `Recent avg: ${formatPct(recentAverageUtilizationPct)}`
                 )}
                 sx={{
                   backgroundColor: "rgba(16,185,129,0.12)",

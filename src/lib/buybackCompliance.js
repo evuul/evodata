@@ -116,6 +116,20 @@ const isMarketClosedDay = (date) => {
   return holidayDateKeys.has(formatDateFromDate(date));
 };
 
+const getBusinessWeekBounds = (dateLike) => {
+  const d = new Date(dateLike);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const monday = new Date(d);
+  const diffToMonday = (day + 6) % 7;
+  monday.setDate(d.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  friday.setHours(23, 59, 59, 999);
+  return { monday, friday };
+};
+
 const nextTradingDay = (date) => {
   const cursor = new Date(date);
   cursor.setHours(12, 0, 0, 0);
@@ -294,11 +308,11 @@ export const trimLeadingPlaceholderComplianceRows = (rows) => {
 
 export const buildBuybackWeeklyEstimate = (
   complianceRows,
-  complianceForecast,
-  { utilizationWindow = 5 } = {}
+  volumeByDate,
+  { referenceDate = new Date(), utilizationWindow = 5, rollingDays = ROLLING_VOLUME_DAYS, maxShare = MAX_DAILY_VOLUME_SHARE } = {}
 ) => {
-  const forecastRows = Array.isArray(complianceForecast?.rows) ? complianceForecast.rows : [];
-  if (!forecastRows.length) {
+  const volumeEntries = normalizeVolumeSource(volumeByDate);
+  if (volumeEntries.length < rollingDays) {
     return null;
   }
 
@@ -312,27 +326,61 @@ export const buildBuybackWeeklyEstimate = (
       ? Math.max(Math.min(average(recentMeasured.map((row) => Number(row.utilizationPct))) / 100, 1), 0)
       : 1;
 
-  const weekRows = forecastRows.map((row) => {
-    const estimatedShares =
-      Number.isFinite(row?.maxAllowedShares) && row.maxAllowedShares > 0
-        ? Math.round(row.maxAllowedShares * utilizationRate)
-        : 0;
-    return {
-      date: row.date,
-      label: row.label,
-      maxAllowedShares: row.maxAllowedShares,
-      estimatedShares,
-      estimatedSource: "forecast",
-    };
-  });
+  const historicalVolumes = volumeEntries.map(([, volume]) => volume);
+  const rollingWindow = historicalVolumes.slice(-rollingDays);
+  const currentAverageVolume20 = average(rollingWindow);
+  if (!Number.isFinite(currentAverageVolume20) || currentAverageVolume20 <= 0) {
+    return null;
+  }
+
+  const recentVolumes = historicalVolumes.slice(-Math.min(5, historicalVolumes.length));
+  const recentAverageVolume = average(recentVolumes);
+  const projectedVolume =
+    Number.isFinite(recentAverageVolume) && recentAverageVolume > 0 ? recentAverageVolume : currentAverageVolume20;
+  if (!Number.isFinite(projectedVolume) || projectedVolume <= 0) {
+    return null;
+  }
+
+  const { monday, friday } = getBusinessWeekBounds(referenceDate);
+  const weekRows = [];
+  const cursor = new Date(monday);
+  cursor.setHours(12, 0, 0, 0);
+
+  while (cursor <= friday) {
+    if (!isMarketClosedDay(cursor)) {
+      const date = formatDateFromDate(cursor);
+      const forecastAverageVolume20 = average(rollingWindow);
+      const maxAllowedShares =
+        Number.isFinite(forecastAverageVolume20) && Number.isFinite(maxShare) && maxShare > 0
+          ? Math.floor(forecastAverageVolume20 * maxShare)
+          : null;
+      const estimatedShares =
+        Number.isFinite(maxAllowedShares) && maxAllowedShares > 0
+          ? Math.round(maxAllowedShares * utilizationRate)
+          : 0;
+
+      weekRows.push({
+        date,
+        label: date.slice(5),
+        maxAllowedShares,
+        estimatedShares,
+        estimatedSource: "forecast",
+      });
+
+      rollingWindow.push(projectedVolume);
+      if (rollingWindow.length > rollingDays) {
+        rollingWindow.shift();
+      }
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
 
   const estimatedShares = weekRows.reduce((sum, row) => sum + (Number(row.estimatedShares) || 0), 0);
-  const periodStart = forecastRows[0]?.date ? new Date(`${forecastRows[0].date}T12:00:00`) : null;
-  const periodEnd = forecastRows.at(-1)?.date ? new Date(`${forecastRows.at(-1).date}T12:00:00`) : null;
 
   return {
-    periodStart,
-    periodEnd,
+    periodStart: monday,
+    periodEnd: friday,
     tradingDays: weekRows.length,
     utilizationRate,
     reportedShares: 0,

@@ -392,13 +392,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     [combinedBuybacks, tradingVolumeByDate]
   );
   const complianceSummary = useMemo(() => summarizeBuybackCompliance(complianceSeries), [complianceSeries]);
-  const complianceForecast = useMemo(
-    () => buildBuybackComplianceForecast(tradingVolumeByDate, { horizonTradingDays: 5 }),
-    [tradingVolumeByDate]
-  );
+  const complianceForecast = useMemo(() => buildBuybackComplianceForecast(tradingVolumeByDate, { horizonTradingDays: 5 }), [tradingVolumeByDate]);
   const weeklyBuybackEstimate = useMemo(
-    () => buildBuybackWeeklyEstimate(complianceSeries, complianceForecast),
-    [complianceForecast, complianceSeries]
+    () => buildBuybackWeeklyEstimate(complianceSeries, tradingVolumeByDate),
+    [complianceSeries, tradingVolumeByDate]
   );
   const complianceSeriesWithForecast = useMemo(() => {
     if (!complianceForecast?.rows?.length) return complianceSeries;
@@ -833,13 +830,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                       }}
                     >
                       <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
-                        {translate('Uppskattning före nästa rapport', 'Estimate before next report')}
+                        {translate('Prognos för denna rapportvecka', 'Forecast for this report week')}
                       </Typography>
                       <Typography sx={{ fontWeight: 800, color: '#f8fafc' }}>
                         {weeklyBuybackEstimate
                           ? translate(
-                              `≈ ${fmtNum(Math.round(weeklyBuybackEstimate.estimatedShares))} aktier totalt`,
-                              `≈ ${fmtNum(Math.round(weeklyBuybackEstimate.estimatedShares))} shares total`
+                              `≈ ${fmtNum(Math.round(weeklyBuybackEstimate.estimatedShares))} aktier enligt prognosen`,
+                              `≈ ${fmtNum(Math.round(weeklyBuybackEstimate.estimatedShares))} shares according to the forecast`
                             )
                           : translate('Ingen estimatdata', 'No estimate data')}
                       </Typography>
@@ -855,14 +852,14 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
                             {translate(
-                              `Baserat på ${fmtNum(weeklyBuybackEstimate.tradingDays)} forecastade handelsdagar.`,
-                              `Based on ${fmtNum(weeklyBuybackEstimate.tradingDays)} forecast trading days.`
+                              `Baserat på ${fmtNum(weeklyBuybackEstimate.tradingDays)} prognostiserade handelsdagar.`,
+                              `Based on ${fmtNum(weeklyBuybackEstimate.tradingDays)} projected trading days.`
                             )}
                           </Typography>
                           <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.85)' }}>
                             {translate(
-                              `Antaget snittutnyttjande: ${fmtPercent(weeklyBuybackEstimate.utilizationRate * 100)}`,
-                              `Assumed average utilization: ${fmtPercent(weeklyBuybackEstimate.utilizationRate * 100)}`
+                              `Antaget snittutnyttjande av 25%-taket, baserat på senaste mätta dagar: ${fmtPercent(weeklyBuybackEstimate.utilizationRate * 100)}`,
+                              `Assumed average utilization of the 25% cap, based on the latest measured days: ${fmtPercent(weeklyBuybackEstimate.utilizationRate * 100)}`
                             )}
                           </Typography>
                         </Stack>
