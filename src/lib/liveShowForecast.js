@@ -99,7 +99,7 @@ export function applyQuarterSnapshots(
 }
 
 export function resolvePlayersForEstimate(info, playerAdjustmentFactor, options = {}) {
-  const useAdjusted = options?.useAdjusted !== false;
+  const useAdjusted = options?.useAdjusted === true;
   const basePlayers = Math.round(Number(info?.avgPlayers) || 0);
   const adjustedPlayers = Number.isFinite(Number(info?.adjustedAvgPlayers))
     ? Math.round(Number(info.adjustedAvgPlayers))
@@ -140,6 +140,50 @@ export function pickMedianBaseline(candidates, targetPeriod, fallbackRevenuePerP
     source: "median",
     sampleSize: usable.length,
     samplePeriods: usable.map((candidate) => candidate.period),
+  };
+}
+
+export function pickRecentAverageBaseline(
+  candidates,
+  targetPeriod,
+  fallbackRevenuePerPlayer,
+  options = {}
+) {
+  const targetIndex = periodToIndex(targetPeriod);
+  const requestedSampleSize = Number(options?.sampleSize);
+  const sampleSize = Number.isFinite(requestedSampleSize)
+    ? Math.max(1, Math.floor(requestedSampleSize))
+    : 2;
+  const usable = (Array.isArray(candidates) ? candidates : [])
+    .filter((candidate) => (
+      Number.isFinite(candidate?.index) &&
+      Number.isFinite(candidate?.revenuePerPlayer) &&
+      candidate.revenuePerPlayer > 0 &&
+      (!Number.isFinite(targetIndex) || candidate.index < targetIndex)
+    ))
+    .sort((a, b) => b.index - a.index);
+
+  if (!usable.length) {
+    return {
+      period: null,
+      revenuePerPlayer: fallbackRevenuePerPlayer,
+      source: "fallback",
+      sampleSize: 0,
+      samplePeriods: [],
+    };
+  }
+
+  const sample = usable.slice(0, sampleSize);
+  const revenuePerPlayer =
+    sample.reduce((sum, candidate) => sum + candidate.revenuePerPlayer, 0) /
+    sample.length;
+
+  return {
+    period: sample[0]?.period ?? null,
+    revenuePerPlayer,
+    source: "recent-average",
+    sampleSize: sample.length,
+    samplePeriods: sample.map((candidate) => candidate.period),
   };
 }
 

@@ -7,6 +7,7 @@ import {
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
   pickMedianBaseline,
+  pickRecentAverageBaseline,
   resolveForecastPeriod,
   resolvePlayersForEstimate,
 } from "./liveShowForecast.js";
@@ -61,7 +62,7 @@ test("buildAllowedPlayerPeriods includes the two-quarters-back comparison period
   assert.deepEqual([...periods], ["2026 Q3", "2026 Q2", "2026 Q1"]);
 });
 
-test("resolvePlayersForEstimate uses adjusted players for forecast rows", () => {
+test("resolvePlayersForEstimate defaults to base players", () => {
   const result = resolvePlayersForEstimate(
     {
       avgPlayers: 65769,
@@ -72,22 +73,22 @@ test("resolvePlayersForEstimate uses adjusted players for forecast rows", () => 
 
   assert.equal(result.basePlayers, 65769);
   assert.equal(result.adjustedPlayers, 72346);
-  assert.equal(result.playersForEstimate, 72346);
+  assert.equal(result.playersForEstimate, 65769);
 });
 
-test("resolvePlayersForEstimate can keep reported historical rows on base players", () => {
+test("resolvePlayersForEstimate can explicitly use adjusted players", () => {
   const result = resolvePlayersForEstimate(
     {
       avgPlayers: 69664,
       adjustedAvgPlayers: 76630,
     },
     1.1,
-    { useAdjusted: false }
+    { useAdjusted: true }
   );
 
   assert.equal(result.basePlayers, 69664);
   assert.equal(result.adjustedPlayers, 76630);
-  assert.equal(result.playersForEstimate, 69664);
+  assert.equal(result.playersForEstimate, 76630);
 });
 
 test("getLatestReportedPeriod returns the newest reported quarter", () => {
@@ -136,6 +137,24 @@ test("pickMedianBaseline uses the median revenue per player before the target pe
   assert.equal(baseline.source, "median");
   assert.equal(baseline.sampleSize, 3);
   assert.equal(Math.round(66720 * baseline.revenuePerPlayer * 10) / 10, 444.4);
+});
+
+test("pickRecentAverageBaseline tracks the latest reported quarters", () => {
+  const baseline = pickRecentAverageBaseline(
+    [
+      { period: "2025 Q1", index: 8100, revenuePerPlayer: 448.7 / 69664 },
+      { period: "2025 Q4", index: 8103, revenuePerPlayer: 438.6 / 56310 },
+      { period: "2026 Q1", index: 8104, revenuePerPlayer: 434.9 / 61600 },
+    ],
+    "2026 Q2",
+    423.7 / 65769,
+    { sampleSize: 2 }
+  );
+
+  assert.equal(baseline.period, "2026 Q1");
+  assert.equal(baseline.source, "recent-average");
+  assert.deepEqual(baseline.samplePeriods, ["2026 Q1", "2025 Q4"]);
+  assert.equal(Math.round(60655 * baseline.revenuePerPlayer * 10) / 10, 450.3);
 });
 
 test("calculateMedianCalibrationFactor learns the median actual-to-estimate bias", () => {

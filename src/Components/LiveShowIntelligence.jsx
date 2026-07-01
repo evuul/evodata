@@ -36,6 +36,7 @@ import {
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
   pickMedianBaseline,
+  pickRecentAverageBaseline,
   resolveForecastPeriod,
   resolvePlayersForEstimate,
 } from "@/lib/liveShowForecast";
@@ -54,15 +55,7 @@ const QUARTERLY_PLAYER_SNAPSHOTS = {
     rawPlayers: 56310, // frozen snapshot so Q4 stays visible after rolling into Q1
   },
 };
-const TABLE_OVERRIDES = {
-  // Isolated override so only the historical Q4 2025 row is adjusted.
-  // This does not affect current-quarter estimates or other periods.
-  "2025 Q4": {
-    playersUsed: 67200,
-    estimated: 414.0,
-    actual: 438.6,
-  },
-};
+const TABLE_OVERRIDES = {};
 const BASELINE_WHITELIST = new Set(["2025 Q1", "2025 Q2", "2025 Q3"]); // historiska kvartal vi accepterar trots få datapunkter
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -382,15 +375,12 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   }, [financialReportList]);
 
   const baselineCandidates = useMemo(() => {
-    const list = Object.entries(quarterlyPlayersStatic)
+    const list = Object.entries(quarterlyPlayers)
       .map(([period, info]) => {
         const parts = periodKeyToParts(period);
         const revenue = revenueData[period];
         const isWhitelisted = BASELINE_WHITELIST.has(period);
-        const playersForBaseline =
-          Number.isFinite(info?.adjustedAvgPlayers) && info.adjustedAvgPlayers > 0
-            ? info.adjustedAvgPlayers
-            : info?.avgPlayers;
+        const playersForBaseline = info?.avgPlayers;
         if (
           !parts ||
           !Number.isFinite(revenue) ||
@@ -411,17 +401,23 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       })
       .filter(Boolean)
       .sort((a, b) => b.index - a.index);
-    const map = new Map(list.map((e) => [e.period, e]));
-    return { list, map };
-  }, [quarterlyPlayersStatic, revenueData]);
+    return { list };
+  }, [quarterlyPlayers, revenueData]);
 
   const pickBaseline = useCallback(
     (targetPeriod) => {
-      const direct = baselineCandidates.map.get(targetPeriod);
-      if (direct) return { ...direct, source: "direct", sampleSize: 1, samplePeriods: [targetPeriod] };
+      if (targetPeriod === forecastPeriod) {
+        return pickRecentAverageBaseline(
+          baselineCandidates.list,
+          targetPeriod,
+          DEFAULT_REVENUE_PER_PLAYER,
+          { sampleSize: 2 }
+        );
+      }
+
       return pickMedianBaseline(baselineCandidates.list, targetPeriod, DEFAULT_REVENUE_PER_PLAYER);
     },
-    [baselineCandidates]
+    [baselineCandidates, forecastPeriod]
   );
 
   const baselineComputed = useMemo(() => {
@@ -520,11 +516,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       .sort((a, b) => new Date(a.Datum) - new Date(b.Datum))
       .map((item) => {
         const rawPlayers = Number(item.Players) || 0;
-        const factor = getAdjustmentFactorForDate(new Date(item.Datum));
-        const adjustedPlayers = Math.round(rawPlayers * factor);
         return {
           date: item.Datum,
-          players: adjustedPlayers,
+          players: rawPlayers,
           rawPlayers,
         };
       });
@@ -543,29 +537,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return Math.round(sum / trimmed.length);
   }, [qData, todayYmd]);
 
-  const liveAveragePlayersAdjusted = useMemo(() => {
-    if (!qData.length) return null;
-    const trimmed = (() => {
-      const last = qData[qData.length - 1];
-      const lastYmd = normalizeYmd(last?.date);
-      if (lastYmd && lastYmd === todayYmd) return qData.slice(0, -1);
-      return qData;
-    })();
-    if (!trimmed.length) return null;
-    const sum = trimmed.reduce((acc, item) => acc + (Number(item.players) || 0), 0);
-    return Math.round(sum / trimmed.length);
-  }, [qData, todayYmd]);
-
   const forecastQuarterPlayersRaw = quarterlyPlayers[forecastPeriod]?.avgPlayers ?? null;
-  const forecastQuarterPlayersAdjusted =
-    quarterlyPlayers[forecastPeriod]?.adjustedAvgPlayers ??
-    (forecastQuarterPlayersRaw ? Math.round(forecastQuarterPlayersRaw * PLAYER_ADJUSTMENT_FACTOR) : null);
 
   const baseAveragePlayers = liveAveragePlayersRaw ?? forecastQuarterPlayersRaw ?? 0;
-  const adjustedAveragePlayers =
-    liveAveragePlayersAdjusted ??
-    forecastQuarterPlayersAdjusted ??
-    Math.round(baseAveragePlayers * PLAYER_ADJUSTMENT_FACTOR);
 
   const modelCalibration = useMemo(() => {
     const entries = quarterPlayersList
@@ -576,8 +550,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         const info = quarterlyPlayers[period] || { avgPlayers: 0, adjustedAvgPlayers: null };
         const { playersForEstimate } = resolvePlayersForEstimate(
           info,
-          PLAYER_ADJUSTMENT_FACTOR,
-          { useAdjusted: period === forecastPeriod }
+          PLAYER_ADJUSTMENT_FACTOR
         );
         const baseline = period === forecastPeriod
           ? baselineRevenuePerPlayer
@@ -600,9 +573,11 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     revenueData,
   ]);
   const calibrationFactor = modelCalibration.factor;
+  const forecastCalibrationFactor =
+    baselineComputed?.source === "recent-average" ? 1 : calibrationFactor;
 
   const estimatedRevenue = Number.isFinite(baselineRevenuePerPlayer)
-    ? Math.round(adjustedAveragePlayers * baselineRevenuePerPlayer * calibrationFactor * 10) / 10
+    ? Math.round(baseAveragePlayers * baselineRevenuePerPlayer * forecastCalibrationFactor * 10) / 10
     : null;
 
   const revenueSoFar = Number.isFinite(estimatedRevenue)
@@ -627,17 +602,16 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       .map((period) => {
         const info = quarterlyPlayers[period] || { avgPlayers: 0, adjustedAvgPlayers: null };
         const actualRevenue = Number.isFinite(revenueData[period]) ? revenueData[period] : null;
-        const useAdjustedPlayers = period === forecastPeriod || !Number.isFinite(actualRevenue);
         const { basePlayers, adjustedPlayers, playersForEstimate } = resolvePlayersForEstimate(
           info,
-          PLAYER_ADJUSTMENT_FACTOR,
-          { useAdjusted: useAdjustedPlayers }
+          PLAYER_ADJUSTMENT_FACTOR
         );
         const baselineForRow = period === forecastPeriod
           ? baselineRevenuePerPlayer
           : baselineForPeriod(period);
+        const rowCalibrationFactor = Number.isFinite(actualRevenue) ? 1 : forecastCalibrationFactor;
         const est = Number.isFinite(baselineForRow)
-          ? Math.round(playersForEstimate * baselineForRow * calibrationFactor * 10) / 10
+          ? Math.round(playersForEstimate * baselineForRow * rowCalibrationFactor * 10) / 10
           : null;
         const diff =
           Number.isFinite(actualRevenue) && Number.isFinite(est)
@@ -684,7 +658,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   }, [
     baselineForPeriod,
     baselineRevenuePerPlayer,
-    calibrationFactor,
+    forecastCalibrationFactor,
     forecastPeriod,
     quarterPlayersList,
     quarterlyPlayers,
@@ -771,13 +745,12 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const combinedForecastEstimate = useMemo(() => {
     if (!rngForecast || rngForecast.nextPeriod !== forecastPeriod) return null;
     const targetPlayers =
-      quarterlyPlayers[forecastPeriod]?.adjustedAvgPlayers ??
       quarterlyPlayers[forecastPeriod]?.avgPlayers ??
-      adjustedAveragePlayers;
+      baseAveragePlayers;
     const targetBaseline = baselineForPeriod(forecastPeriod);
     const liveValue =
       Number.isFinite(targetPlayers) && Number.isFinite(targetBaseline)
-        ? Math.round(targetPlayers * targetBaseline * calibrationFactor * 10) / 10
+        ? Math.round(targetPlayers * targetBaseline * forecastCalibrationFactor * 10) / 10
         : null;
     const rngValue = Number.isFinite(rngForecast.projectedRng) ? rngForecast.projectedRng : null;
     if (liveValue == null || rngValue == null) return null;
@@ -802,9 +775,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       deltaPct,
     };
   }, [
-    adjustedAveragePlayers,
+    baseAveragePlayers,
     baselineForPeriod,
-    calibrationFactor,
+    forecastCalibrationFactor,
     forecastPeriod,
     quarterlyPlayers,
     rngForecast,
@@ -1038,7 +1011,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               </Box>
             </Grid>
 
-            {/* Justerade spelare */}
+            {/* Spelare */}
             <Grid item xs={12} md={4}>
               <Box
                 sx={{
@@ -1051,10 +1024,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 }}
               >
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Justerade spelare", "Adjusted players")}
+                  {translate("Spelare", "Players")}
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, mt: 1, color: "#93c5fd" }}>
-                  {adjustedAveragePlayers.toLocaleString("sv-SE")}
+                  {baseAveragePlayers.toLocaleString("sv-SE")}
                 </Typography>
                 <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.95rem", mt: 0.5 }}>
                   {liveAveragePlayersRaw
@@ -1062,10 +1035,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                         `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`,
                         `Live avg ${liveAveragePlayersRaw.toLocaleString("sv-SE")} players`
                       )
-                    : forecastQuarterPlayersAdjusted ?? forecastQuarterPlayersRaw
+                    : forecastQuarterPlayersRaw
                     ? translate(
-                        `Kvartalssnitt ${(forecastQuarterPlayersAdjusted ?? forecastQuarterPlayersRaw)?.toLocaleString("sv-SE")} spelare`,
-                        `Quarter avg ${(forecastQuarterPlayersAdjusted ?? forecastQuarterPlayersRaw)?.toLocaleString("sv-SE")} players`
+                        `Kvartalssnitt ${forecastQuarterPlayersRaw?.toLocaleString("sv-SE")} spelare`,
+                        `Quarter avg ${forecastQuarterPlayersRaw?.toLocaleString("sv-SE")} players`
                       )
                     : translate("Inväntar kvartalsdata", "Waiting for quarterly data")}
                 </Typography>
@@ -1189,16 +1162,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                       }}
                       formatter={(value, _name, { payload }) => {
                         const base = Number(value).toLocaleString("sv-SE");
-                        const raw = Number(payload?.rawPlayers);
-                        const subtitle = Number.isFinite(raw)
-                          ? translate(
-                              `Justerat (live ${raw.toLocaleString("sv-SE")})`,
-                              `Adjusted (live ${raw.toLocaleString("sv-SE")})`
-                            )
-                          : translate("Justerade spelare", "Adjusted players");
                         return [
                           translate(`${base} spelare`, `${base} players`),
-                          subtitle,
+                          translate("Live-snitt", "Live average"),
                         ];
                       }}
                       labelStyle={{ color: "rgba(226,232,240,0.75)" }}
