@@ -834,8 +834,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             }}
           >
             {translate(
-              "Live-lobbyn översätts till en enkel prognos för nuvarande kvartal.",
-              "Live lobby data is translated into a simple current-quarter forecast."
+              "Live-lobbyn översätts till en prognos för senaste stängda kvartal utan faktiskt utfall.",
+              "Live lobby data is translated into a closed-quarter forecast awaiting actuals."
             )}
           </Typography>
         </Box>
@@ -983,7 +983,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 }}
               >
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Kvartalsfart", "Quarter pace")} · {labelFromPeriod(forecastPeriod)}
+                  {translate("Stängt kvartal väntar på utfall", "Closed quarter awaiting actuals")} · {labelFromPeriod(forecastPeriod)}
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
                   {translate(
