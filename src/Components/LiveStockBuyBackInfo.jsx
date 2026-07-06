@@ -56,8 +56,11 @@ import {
   calculateEvolutionOwnershipPerYear,
   calculateCancelledShares,
   calculateShareholderReturns,
+  formatBuybackAxisTick,
+  buildNiceYAxisConfig,
   totalSharesData,
 } from './buybacks/utils';
+import { combineBuybackSnapshots } from '@/lib/buybackSnapshots';
 import buybackDataDefault from "../app/data/buybackData.json";
 import oldBuybackDataDefault from "../app/data/oldBuybackData.json";
 
@@ -311,20 +314,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     latestTotalSharesCount > 0
       ? (remainingCash / (latestTotalSharesCount * currentSharePrice)) * 100
       : null;
-  const combinedBuybacks = useMemo(() => {
-    const normalized = new Map();
-    const pushRow = (row) => {
-      if (!row || !row.Datum) return;
-      const safeDate = row.Datum;
-      const existing = normalized.get(safeDate) || {};
-      normalized.set(safeDate, { ...existing, ...row });
-    };
-    (Array.isArray(oldData) ? oldData : []).forEach(pushRow);
-    (Array.isArray(curData) ? curData : []).forEach(pushRow);
-    return Array.from(normalized.values()).sort(
-      (a, b) => new Date(a.Datum) - new Date(b.Datum),
-    );
-  }, [oldData, curData]);
+  const combinedBuybacks = useMemo(
+    () => combineBuybackSnapshots(oldData, curData),
+    [oldData, curData]
+  );
 
   const historicalTotals = useMemo(() => {
     const positive = combinedBuybacks.filter((row) => Number(row?.Antal_aktier) > 0);
@@ -429,7 +422,10 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   }, [isMobile, viewMode]);
 
   // ---- Subview derived data ----
-  const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(oldData), [oldData]);
+  const evolutionOwnershipData = useMemo(
+    () => calculateEvolutionOwnershipPerYear(combinedBuybacks),
+    [combinedBuybacks]
+  );
   const cancelledShares = useMemo(() => calculateCancelledShares(oldData), [oldData]);
   const ownershipPercentageData = useMemo(
     () =>
@@ -464,36 +460,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const [chartTypeTotalShares, setChartTypeTotalShares] = useState('line');
   const [sortConfig, setSortConfig] = useState({ key: 'Datum', direction: 'desc' });
 
-  const getDynamicStep = (data, key, mode) => {
-    const values = (data || []).map((it) => Number(it[key] || 0));
-    const maxVal = Math.max(0, ...values);
-    if (mode === 'daily') return maxVal < 10000 ? 1000 : maxVal < 50000 ? 5000 : 10000;
-    if (mode === 'weekly') return maxVal < 50000 ? 5000 : maxVal < 200000 ? 20000 : 50000;
-    if (mode === 'monthly') return maxVal < 200000 ? 20000 : maxVal < 1000000 ? 100000 : 500000;
-    return maxVal < 1000000 ? 100000 : 500000;
-  };
   const getYDomain = (data, key) => {
-    if (!data || !data.length) return [0, 1000];
-    const vals = data.map((d) => Number(d[key] || 0));
-    const min = Math.min(0, ...vals);
-    const max = Math.max(...vals);
-    const step = getDynamicStep(data, key, viewMode);
-    const upper = Math.ceil((max * 1.1) / step) * step;
-    const lower = Math.floor(min / step) * step;
-    return [lower, upper];
+    return buildNiceYAxisConfig(data, key, viewMode).domain;
   };
   const getYTickValues = (data, key, mode) => {
-    const [min, max] = getYDomain(data, key);
-    const step = getDynamicStep(data, key, mode);
-    const ticks = [];
-    for (let i = min; i <= max; i += step) ticks.push(i);
-    return ticks;
+    return buildNiceYAxisConfig(data, key, mode).ticks;
   };
-  const formatYAxisTick = (value) => {
-    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(0)}M`;
-    if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k`;
-    return Number(value).toLocaleString('sv-SE');
-  };
+  const formatYAxisTick = formatBuybackAxisTick;
   const sortedHistoryData = useMemo(() => {
     const arr = Array.isArray(combinedBuybacks) ? [...combinedBuybacks] : [];
     const { key, direction } = sortConfig;

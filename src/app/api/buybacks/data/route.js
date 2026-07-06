@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 import { ensureRecentBuybackSync, readBuybackFiles } from '@/lib/buybacksSync';
+import { combineBuybackSnapshots } from '@/lib/buybackSnapshots';
 import buybackDataDefault from '../../../data/buybackData.json';
 import oldBuybackDataDefault from '../../../data/oldBuybackData.json';
 
@@ -32,10 +33,12 @@ export async function GET(request) {
 
   try {
     const { oldData, curData } = await readBuybackFiles();
+    const combined = combineBuybackSnapshots(oldData, curData);
     return new Response(
       JSON.stringify({
         old: oldData,
         current: curData,
+        combined,
         updatedAt: new Date().toISOString(),
         buybacksActive: BUYBACKS_ACTIVE,
         syncError,
@@ -50,6 +53,7 @@ export async function GET(request) {
       JSON.stringify({
         old: oldBuybackDataDefault,
         current: buybackDataDefault,
+        combined: combineBuybackSnapshots(oldBuybackDataDefault, buybackDataDefault),
         updatedAt: new Date().toISOString(),
         buybacksActive: BUYBACKS_ACTIVE,
         syncError: syncError || (err instanceof Error ? err.message : String(err)),

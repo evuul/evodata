@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { combineBuybackSnapshots } from "./buybackSnapshots.js";
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -78,4 +79,15 @@ test("new Evolution buyback block average price is computed from the latest week
 
   assert.equal(totalShares, 838171);
   assert.ok(Math.abs(averagePrice - 704.6032310948481) < 0.000001);
+});
+
+test("combined buyback snapshots keep each trading day only once", () => {
+  const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
+  const historical = readJson(new URL("../app/data/oldBuybackData.json", import.meta.url));
+  const combined = combineBuybackSnapshots(historical, current);
+  const julyRows = combined.filter((row) => row.Datum >= "2026-06-29" && row.Datum <= "2026-07-03");
+
+  assert.equal(julyRows.length, 5);
+  assert.equal(julyRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 1008937);
+  assert.equal(combined.filter((row) => row.Datum === "2026-07-03").length, 1);
 });

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Box, CircularProgress, Typography } from "@mui/material";
 import LiveHeader from "@/Components/LiveHeader";
 import { useAuth } from "@/context/AuthContext";
+import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
 
 const LiveLoggedOutPreview = dynamic(() => import("@/Components/LiveLoggedOutPreview"), {
   ssr: false,
@@ -36,10 +37,11 @@ async function readDefault(modulePromise) {
 }
 
 async function loadLiveHeaderData() {
-  const [financialReports, averagePlayersData, dividendData, buybackData, sharesData] = await Promise.all([
+  const [financialReports, averagePlayersData, dividendData, historicalBuybacks, currentBuybacks, sharesData] = await Promise.all([
     readDefault(import("@/app/data/financialReports.json")),
     readDefault(import("@/app/data/averagePlayers.json")),
     readDefault(import("@/app/data/dividendData.json")),
+    readDefault(import("@/app/data/oldBuybackData.json")),
     readDefault(import("@/app/data/buybackData.json")),
     readDefault(import("@/app/data/amountOfShares.json")),
   ]);
@@ -48,7 +50,7 @@ async function loadLiveHeaderData() {
     financialReports,
     averagePlayersData,
     dividendData,
-    buybackData,
+    buybackData: combineBuybackSnapshots(historicalBuybacks, currentBuybacks),
     sharesData,
   };
 }
@@ -58,7 +60,8 @@ async function loadLoggedOutPreviewData() {
     financialReports,
     averagePlayersData,
     dividendData,
-    buybackData,
+    historicalBuybacks,
+    currentBuybacks,
     gameShowsData,
     shortHistoryData,
     insiderTransactions,
@@ -67,6 +70,7 @@ async function loadLoggedOutPreviewData() {
     readDefault(import("@/app/data/financialReports.json")),
     readDefault(import("@/app/data/averagePlayers.json")),
     readDefault(import("@/app/data/dividendData.json")),
+    readDefault(import("@/app/data/oldBuybackData.json")),
     readDefault(import("@/app/data/buybackData.json")),
     readDefault(import("@/app/data/gameShows.json")),
     readDefault(import("@/app/data/shortHistory.json")),
@@ -78,7 +82,7 @@ async function loadLoggedOutPreviewData() {
     financialReports,
     averagePlayersData,
     dividendData,
-    buybackData,
+    buybackData: combineBuybackSnapshots(historicalBuybacks, currentBuybacks),
     gameShowsData,
     shortHistoryData,
     insiderTransactions,

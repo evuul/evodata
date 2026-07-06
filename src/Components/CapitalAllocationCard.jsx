@@ -93,7 +93,11 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
         const res = await fetch("/api/buybacks/data");
         if (!res.ok) return;
         const json = await res.json();
-        const source = Array.isArray(json?.old) ? json.old : null;
+        const source = Array.isArray(json?.combined)
+          ? json.combined
+          : Array.isArray(json?.old) && Array.isArray(json?.current)
+            ? [...json.old, ...json.current]
+            : null;
         if (!source) return;
         const ownership = calculateEvolutionOwnershipPerYear(source);
         const latest = ownership.length ? ownership[ownership.length - 1].shares : null;

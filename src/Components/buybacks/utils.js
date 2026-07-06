@@ -66,6 +66,52 @@ export const calculateShareholderReturns = (dividendData, buybackData) => {
   return { combinedData, total, totalDividends, totalBuybacks, latestYearReturns, latestYear };
 };
 
+export const formatBuybackAxisTick = (value) => {
+  if (!Number.isFinite(value)) return "–";
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000) {
+    const valueInMillions = value / 1_000_000;
+    const needsDecimal = Math.abs(valueInMillions % 1) > 0.001;
+    return `${valueInMillions.toLocaleString("sv-SE", {
+      maximumFractionDigits: needsDecimal ? 1 : 0,
+    })}M`;
+  }
+  if (abs >= 1_000) {
+    return `${(value / 1_000).toLocaleString("sv-SE", { maximumFractionDigits: 0 })}k`;
+  }
+  return value.toLocaleString("sv-SE");
+};
+
+const getYAxisStep = (maxVal, mode) => {
+  if (mode === "monthly") {
+    if (maxVal < 1_000_000) return 250_000;
+    if (maxVal < 2_500_000) return 500_000;
+    return 1_000_000;
+  }
+  if (mode === "yearly") {
+    if (maxVal < 1_000_000) return 100_000;
+    if (maxVal < 5_000_000) return 500_000;
+    return 1_000_000;
+  }
+  if (mode === "weekly") return maxVal < 50_000 ? 5_000 : maxVal < 200_000 ? 20_000 : 50_000;
+  return maxVal < 10_000 ? 1_000 : maxVal < 50_000 ? 5_000 : 10_000;
+};
+
+export const buildNiceYAxisConfig = (data, key, mode) => {
+  const values = (data || [])
+    .map((item) => Number(item?.[key] || 0))
+    .filter((value) => Number.isFinite(value));
+  const maxVal = values.length ? Math.max(0, ...values) : 0;
+  const step = getYAxisStep(maxVal, mode);
+  const upper = maxVal > 0 ? Math.ceil(maxVal / step) * step : step;
+  const domain = [0, upper];
+  const ticks = [];
+  for (let tick = domain[0]; tick <= domain[1]; tick += step) {
+    ticks.push(tick);
+  }
+  return { domain, ticks, step };
+};
+
 export const buybackDataForGraphDaily = (data) => (data || []).filter((item) => item.Antal_aktier > 0);
 
 export const buybackDataForGraphYearly = (data) => {

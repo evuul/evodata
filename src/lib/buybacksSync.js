@@ -247,7 +247,6 @@ export async function syncBuybacks({ url, maxCandidates = 5 } = {}) {
 
   const oldData = await readJson(OLDFILE).catch(() => []);
   const curData = await readJson(CURFILE).catch(() => []);
-  const existingDates = new Set(oldData.map((row) => row.Datum));
   const curByDate = new Map(curData.map((row) => [row.Datum, row]));
 
   const additions = [];
@@ -267,18 +266,17 @@ export async function syncBuybacks({ url, maxCandidates = 5 } = {}) {
       meta.processedUrls.push(candidate);
       for (const row of rows) {
         const normalized = normalizeRow(row);
+        const isNewCurrentRow = !curByDate.has(normalized.Datum);
         curByDate.set(normalized.Datum, normalized);
+        if (isNewCurrentRow) {
+          additions.push(normalized);
+        }
 
         const idx = oldData.findIndex((item) => item.Datum === normalized.Datum);
         if (idx >= 0) {
           oldData[idx] = { ...oldData[idx], ...normalized };
           meta.replaced = (meta.replaced || 0) + 1;
-          continue;
         }
-        if (existingDates.has(normalized.Datum)) continue;
-        existingDates.add(normalized.Datum);
-        oldData.push(normalized);
-        additions.push(normalized);
       }
     } catch (err) {
       meta.errors.push(`${candidate}: ${err.message}`);
