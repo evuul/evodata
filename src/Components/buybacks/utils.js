@@ -90,7 +90,7 @@ const getYAxisStep = (maxVal, mode) => {
   }
   if (mode === "yearly") {
     if (maxVal < 1_000_000) return 100_000;
-    if (maxVal < 5_000_000) return 500_000;
+    if (maxVal < 3_000_000) return 500_000;
     return 1_000_000;
   }
   if (mode === "weekly") return maxVal < 50_000 ? 5_000 : maxVal < 200_000 ? 20_000 : 50_000;

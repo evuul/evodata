@@ -40,3 +40,29 @@ test("buildNiceYAxisConfig uses round monthly ticks for million-scale buybacks",
   assert.deepEqual(config.domain, [0, 4_000_000]);
   assert.deepEqual(config.ticks, [0, 1_000_000, 2_000_000, 3_000_000, 4_000_000]);
 });
+
+test("buildNiceYAxisConfig uses round weekly ticks for mid-scale buybacks", () => {
+  const data = [
+    { Datum: "2026-V24", Antal_aktier: 42000 },
+    { Datum: "2026-V25", Antal_aktier: 98000 },
+    { Datum: "2026-V26", Antal_aktier: 176000 },
+  ];
+
+  const config = buildNiceYAxisConfig(data, "Antal_aktier", "weekly");
+
+  assert.deepEqual(config.domain, [0, 180_000]);
+  assert.deepEqual(config.ticks, [0, 20_000, 40_000, 60_000, 80_000, 100_000, 120_000, 140_000, 160_000, 180_000]);
+});
+
+test("buildNiceYAxisConfig uses round yearly ticks for large buybacks", () => {
+  const data = [
+    { Datum: "2024", Antal_aktier: 1_200_000 },
+    { Datum: "2025", Antal_aktier: 2_700_000 },
+    { Datum: "2026", Antal_aktier: 3_900_000 },
+  ];
+
+  const config = buildNiceYAxisConfig(data, "Antal_aktier", "yearly");
+
+  assert.deepEqual(config.domain, [0, 4_000_000]);
+  assert.deepEqual(config.ticks, [0, 1_000_000, 2_000_000, 3_000_000, 4_000_000]);
+});
