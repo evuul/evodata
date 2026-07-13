@@ -62,7 +62,12 @@ import {
   totalSharesData,
 } from './buybacks/utils';
 import { combineBuybackSnapshots } from '@/lib/buybackSnapshots';
-import { calculateIndicativeFreeFloat } from '@/lib/buybackFreeFloat';
+import {
+  calculateShareholderOverview,
+  FREE_FLOAT_PREVIOUS_OWNERS,
+  FREE_FLOAT_SNAPSHOT_DATE,
+  FREE_FLOAT_TREASURY_SHARES,
+} from '@/lib/buybackFreeFloat';
 import buybackDataDefault from "../app/data/buybackData.json";
 import oldBuybackDataDefault from "../app/data/oldBuybackData.json";
 
@@ -444,13 +449,14 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     return lastTot > 0 ? (latestEvolutionShares / lastTot) * 100 : 0;
   }, [latestEvolutionShares]);
 
-  const freeFloatSummary = useMemo(
+  const shareholderOverview = useMemo(
     () =>
-      calculateIndicativeFreeFloat({
+      calculateShareholderOverview({
         totalShares: latestTotalSharesCount,
-        companyTreasuryShares: latestEvolutionShares,
+        companyTreasuryShares: FREE_FLOAT_TREASURY_SHARES,
+        previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
       }),
-    [latestEvolutionShares, latestTotalSharesCount]
+    [latestTotalSharesCount]
   );
   const totalBuybackShares = useMemo(
     () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
@@ -960,7 +966,8 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       {subView === 'freeFloat' && (
         <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
           <FreeFloatView
-            freeFloatSummary={freeFloatSummary}
+            shareholderOverview={shareholderOverview}
+            snapshotDate={FREE_FLOAT_SNAPSHOT_DATE}
             currentMandateShares={stats.sharesBought}
             totalBuybackShares={totalBuybackShares}
           />
