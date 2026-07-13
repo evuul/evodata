@@ -91,3 +91,19 @@ test("combined buyback snapshots keep each trading day only once", () => {
   assert.equal(julyRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 1008937);
   assert.equal(combined.filter((row) => row.Datum === "2026-07-03").length, 1);
 });
+
+test("latest Evolution buyback week updates the cumulative program total", () => {
+  const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
+  const latestWeek = current.filter((row) => row.Datum >= "2026-07-06" && row.Datum <= "2026-07-10");
+  const programRows = current.filter((row) => row.Datum >= "2026-05-19" && row.Datum <= "2026-07-10");
+
+  assert.deepEqual(latestWeek.map((row) => row.Datum), [
+    "2026-07-06",
+    "2026-07-07",
+    "2026-07-08",
+    "2026-07-09",
+    "2026-07-10",
+  ]);
+  assert.equal(latestWeek.reduce((sum, row) => sum + row.Antal_aktier, 0), 994946);
+  assert.equal(programRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 6734358);
+});
