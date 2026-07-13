@@ -16,6 +16,7 @@ const ALL_GAMES = [
   { id: "lightning-baccarat", label: "Lightning Baccarat", apiSlug: "lightning-baccarat" },
   { id: "xxxtreme-lightning-roulette", label: "XXXtreme Lightning Roulette", apiSlug: "xxxtreme-lightning-roulette" },
   { id: "immersive-roulette", label: "Immersive Roulette", apiSlug: "immersive-roulette" },
+  { id: "monopoly-roulette", label: "Monopoly Roulette", apiSlug: "monopoly-roulette" },
   // Tillfälligt inaktiverad: har visat 0 länge och ska inte trackas just nu.
   { id: "cash-or-crash-live", label: "Cash or Crash", apiSlug: "cash-or-crash-live", enabled: false },
   { id: "lightning-storm", label: "Lightning Storm", apiSlug: "lightning-storm" },
@@ -35,6 +36,17 @@ const ALL_GAMES = [
   { id: "super-sic-bo", label: "Super Sic Bo", apiSlug: "super-sic-bo" },
   { id: "fortune-roulette", label: "Fortune Roulette", apiSlug: "fortune-roulette" },
   { id: "ice-fishing", label: "Ice Fishing", apiSlug: "ice-fishing" },
+  { id: "extra-chili-epic-spins", label: "Extra Chilli Epic Spins", apiSlug: "extra-chili-epic-spins" },
+  { id: "gold-bar-roulette", label: "Gold Bar Roulette", apiSlug: "gold-bar-roulette" },
+  { id: "gold-vault-roulette", label: "Gold Vault Roulette", apiSlug: "gold-vault-roulette" },
+  { id: "mega-roulette", label: "Mega Roulette", apiSlug: "mega-roulette" },
+  { id: "craps-live", label: "Craps Live", apiSlug: "craps-live" },
+  { id: "video-poker", label: "Video Poker", apiSlug: "video-poker" },
+  { id: "marble-race", label: "Marble Race", apiSlug: "marble-race" },
+  { id: "war-live", label: "War Live", apiSlug: "war-live" },
+  { id: "fireball-roulette", label: "Fireball Roulette", apiSlug: "fireball-roulette" },
+  { id: "super-color-game", label: "Super Color Game", apiSlug: "super-color-game" },
+  { id: "cs-roulette", label: "CS Roulette", apiSlug: "cs-roulette" },
 ];
 
 export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);
@@ -52,6 +64,7 @@ export const COLORS = {
   "lightning-baccarat": "#8E44AD",
   "xxxtreme-lightning-roulette": "#FF7043",
   "immersive-roulette": "#9CCC65",
+  "monopoly-roulette": "#FBC02D",
   "cash-or-crash-live": "#D4A017",
   "lightning-storm": "#1976D2", // Stark blå
   "red-door-roulette": "#EC407A",
@@ -70,6 +83,17 @@ export const COLORS = {
   "super-sic-bo": "#D81B60",
   "fortune-roulette": "#6D4C41",
   "ice-fishing": "#AB47BC",
+  "extra-chili-epic-spins": "#FF8F00",
+  "gold-bar-roulette": "#D4AF37",
+  "gold-vault-roulette": "#B8860B",
+  "mega-roulette": "#00ACC1",
+  "craps-live": "#6D4C41",
+  "video-poker": "#546E7A",
+  "marble-race": "#7E57C2",
+  "war-live": "#EF5350",
+  "fireball-roulette": "#F4511E",
+  "super-color-game": "#26A69A",
+  "cs-roulette": "#78909C",
 };
 
 /** Hur många som räknas som “Top N” i listor/header */

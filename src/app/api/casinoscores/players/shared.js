@@ -36,6 +36,7 @@ export const LOBBY_KEY_MAP = new Map([
   ["lightning-baccarat", "lightningBaccarat"],
   ["xxxtreme-lightning-roulette", "xxxtremeLightningRoulette"],
   ["immersive-roulette", "immersiveRoulette"],
+  ["monopoly-roulette", "monopolyroulette"],
   ["cash-or-crash-live", "cashOrCrashLive"],
   ["fan-tan-live", "fanTanLive"],
   ["mega-ball", "megaBall"],
@@ -54,6 +55,17 @@ export const LOBBY_KEY_MAP = new Map([
   ["super-sic-bo", "superSicBo"],
   ["fortune-roulette", "fortuneRoulette"],
   ["ice-fishing", "iceFishing"],
+  ["extra-chili-epic-spins", "extraChiliEpicSpins"],
+  ["gold-bar-roulette", "goldBarRoulette"],
+  ["gold-vault-roulette", "goldVaultRoulette"],
+  ["mega-roulette", "megaRoulette"],
+  ["craps-live", "crapsLive"],
+  ["video-poker", "videoPoker"],
+  ["marble-race", "marbleRace"],
+  ["war-live", "warLive"],
+  ["fireball-roulette", "fireballRoulette"],
+  ["super-color-game", "superColorGame"],
+  ["cs-roulette", "csRoulette"],
 ]);
 
 export function lobbyKeyFor(slug, variant = "default") {
