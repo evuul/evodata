@@ -22,6 +22,17 @@ const formatChange = (value, suffix = "") => {
 const changeColor = (value) => (value > 0 ? "#86efac" : value < 0 ? "#fca5a5" : COLORS.secondary);
 const trendSymbol = (direction) => (direction === "up" ? "↑" : direction === "down" ? "↓" : direction === "flat" ? "→" : "–");
 
+const translateCategory = (translate, category) => {
+  const labels = {
+    "Strategisk ägare": translate("Strategisk ägare", "Strategic owner"),
+    Fond: translate("Fond", "Fund"),
+    Pension: translate("Pension", "Pension"),
+    "Privat ägare": translate("Privat ägare", "Private owner"),
+    "VD / insider": translate("VD / insider", "CEO / insider"),
+  };
+  return labels[category] || category || "–";
+};
+
 export default function FreeFloatView({
   shareholderOverview,
   snapshotDate,
@@ -91,7 +102,7 @@ export default function FreeFloatView({
             {overview.rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell sx={{ color: COLORS.primary, borderColor: "rgba(148,163,184,0.1)", fontWeight: 600 }}>{row.name}</TableCell>
-                <TableCell sx={{ color: COLORS.secondary, borderColor: "rgba(148,163,184,0.1)" }}>{row.category || "–"}</TableCell>
+                <TableCell sx={{ color: COLORS.secondary, borderColor: "rgba(148,163,184,0.1)" }}>{translateCategory(translate, row.category)}</TableCell>
                 <TableCell sx={{ color: COLORS.primary, borderColor: "rgba(148,163,184,0.1)", whiteSpace: "nowrap" }}>{formatShares(row.shares)}</TableCell>
                 <TableCell sx={{ color: COLORS.primary, borderColor: "rgba(148,163,184,0.1)", whiteSpace: "nowrap" }}>{formatPct(row.ownershipPct)}</TableCell>
                 <TableCell sx={{ color: changeColor(row.changeShares), borderColor: "rgba(148,163,184,0.1)", whiteSpace: "nowrap" }}>
