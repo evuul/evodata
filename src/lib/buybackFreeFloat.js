@@ -28,6 +28,8 @@ export const FREE_FLOAT_OWNER_ASSUMPTIONS = Object.freeze([
 ]);
 
 export const FREE_FLOAT_SNAPSHOT_DATE = "2026-06-26";
+export const FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE = "2025-03-24";
+export const FREE_FLOAT_PREVIOUS_TOTAL_SHARES = 209_562_751;
 export const FREE_FLOAT_TREASURY_SHARES = 5_141_528;
 
 export const buildInsiderOwnershipTrend = (items, { person } = {}) => {
@@ -63,15 +65,16 @@ const toPositiveNumber = (value) => {
   return number != null && number > 0 ? number : 0;
 };
 
-export const buildShareholderRows = ({ owners = FREE_FLOAT_OWNER_ASSUMPTIONS, totalShares, previousOwners = [] } = {}) => {
+export const buildShareholderRows = ({ owners = FREE_FLOAT_OWNER_ASSUMPTIONS, totalShares, previousOwners = [], previousTotalShares = totalShares } = {}) => {
   const total = toPositiveNumber(totalShares);
+  const previousTotal = toPositiveNumber(previousTotalShares) || total;
   const previousById = new Map((Array.isArray(previousOwners) ? previousOwners : []).map((owner) => [owner?.id, owner]));
   return (Array.isArray(owners) ? owners : []).map((owner) => {
     const shares = toPositiveNumber(owner?.shares);
     const previousShares = toNumber(previousById.get(owner?.id)?.shares);
     const changeShares = previousShares != null ? shares - previousShares : null;
-    const changePctPoints = previousShares != null && total > 0
-      ? Number((((shares - previousShares) / total) * 100).toFixed(6))
+    const changePctPoints = previousShares != null && total > 0 && previousTotal > 0
+      ? Number(((shares / total - previousShares / previousTotal) * 100).toFixed(6))
       : null;
     return {
       ...owner,
@@ -112,8 +115,9 @@ export const calculateShareholderOverview = ({
   companyTreasuryShares = 0,
   owners = FREE_FLOAT_OWNER_ASSUMPTIONS,
   previousOwners = [],
+  previousTotalShares,
 } = {}) => {
-  const rows = buildShareholderRows({ owners, totalShares, previousOwners });
+  const rows = buildShareholderRows({ owners, totalShares, previousOwners, previousTotalShares });
   const total = toPositiveNumber(totalShares);
   const treasury = Math.min(toPositiveNumber(companyTreasuryShares), total);
   const namedShares = rows.reduce((sum, owner) => sum + owner.shares, 0);
@@ -131,7 +135,15 @@ export const calculateShareholderOverview = ({
  * new owner list is added, copy the current rows to previousOwners so changes
  * can be shown without guessing from rounded percentages.
  */
-export const FREE_FLOAT_PREVIOUS_OWNERS = Object.freeze([]);
+export const FREE_FLOAT_PREVIOUS_OWNERS = Object.freeze([
+  Object.freeze({ id: "dart", shares: 21_496_365 }),
+  Object.freeze({ id: "osterbahr", shares: 22_400_140 }),
+  Object.freeze({ id: "capital-group", shares: 33_220_860 }),
+  Object.freeze({ id: "blackrock", shares: 7_396_737 }),
+  Object.freeze({ id: "vanguard", shares: 7_444_652 }),
+  Object.freeze({ id: "richard-livingstone", shares: 4_056_678 }),
+  Object.freeze({ id: "avanza-pension", shares: 2_950_664 }),
+]);
 
 export const FREE_FLOAT_SOURCE_URL =
   "https://www.evolution.com/investors/share-information/shareholder-structure";

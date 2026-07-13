@@ -34,6 +34,7 @@ test("builds ownership changes from a previous snapshot", () => {
     totalShares: 100,
     owners: [{ id: "dart", name: "Dart", shares: 60 }],
     previousOwners: [{ id: "dart", shares: 55 }],
+    previousTotalShares: 100,
   });
 
   assert.equal(row.changeShares, 5);

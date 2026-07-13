@@ -25,6 +25,7 @@ const trendSymbol = (direction) => (direction === "up" ? "↑" : direction === "
 export default function FreeFloatView({
   shareholderOverview,
   snapshotDate,
+  previousSnapshotDate,
   currentMandateShares = 0,
   totalBuybackShares = 0,
 }) {
@@ -73,7 +74,7 @@ export default function FreeFloatView({
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={1}>
         <Typography variant="h6" sx={{ color: "#7dd3fc", fontWeight: 700 }}>{translate("Största registrerade ägare", "Largest registered owners")}</Typography>
         <Typography variant="body2" sx={{ color: COLORS.secondary }}>
-          {hasComparison ? translate("Förändring mot föregående snapshot", "Change versus previous snapshot") : translate("Första snapshot – förändring visas vid nästa uppdatering", "First snapshot – changes appear after the next update")}
+          {hasComparison ? translate(`Förändring mot ${previousSnapshotDate}`, `Change versus ${previousSnapshotDate}`) : translate("Första snapshot – förändring visas vid nästa uppdatering", "First snapshot – changes appear after the next update")}
         </Typography>
       </Stack>
 

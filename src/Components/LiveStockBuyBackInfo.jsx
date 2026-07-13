@@ -65,6 +65,8 @@ import { combineBuybackSnapshots } from '@/lib/buybackSnapshots';
 import {
   calculateShareholderOverview,
   FREE_FLOAT_PREVIOUS_OWNERS,
+  FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
+  FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE,
   FREE_FLOAT_SNAPSHOT_DATE,
   FREE_FLOAT_TREASURY_SHARES,
   FREE_FLOAT_OWNER_ASSUMPTIONS,
@@ -474,6 +476,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         companyTreasuryShares: FREE_FLOAT_TREASURY_SHARES,
         owners,
         previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
+        previousTotalShares: FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
       });
     },
     [latestTotalSharesCount]
@@ -988,6 +991,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           <FreeFloatView
             shareholderOverview={shareholderOverview}
             snapshotDate={FREE_FLOAT_SNAPSHOT_DATE}
+            previousSnapshotDate={FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE}
             currentMandateShares={stats.sharesBought}
             totalBuybackShares={totalBuybackShares}
           />
