@@ -6,6 +6,7 @@ import {
   calculateBuybackPctOfFreeFloat,
   calculateIndicativeFreeFloat,
   calculateShareholderOverview,
+  buildInsiderOwnershipTrend,
 } from "./buybackFreeFloat.js";
 
 test("calculates free float after treasury shares and excluded strategic owners", () => {
@@ -51,4 +52,18 @@ test("keeps non-strategic named owners in the adjusted share base", () => {
 
   assert.equal(result.freeFloat.freeFloatShares, 45);
   assert.equal(result.otherShares, 25);
+});
+
+test("builds insider trend from direct Evolution share transactions only", () => {
+  const result = buildInsiderOwnershipTrend([
+    { person: "Martin", direction: "buy", volume: 100, instrumentName: "Evolution AB" },
+    { person: "Martin", direction: "sell", volume: 25, instrumentName: "Evolution Gaming Group AB" },
+    { person: "Martin", direction: "buy", volume: 500, instrumentName: "Warrants 2025/2028" },
+  ], { person: "Martin" });
+
+  assert.equal(result.buyShares, 100);
+  assert.equal(result.sellShares, 25);
+  assert.equal(result.netShares, 75);
+  assert.equal(result.direction, "up");
+  assert.equal(result.transactionCount, 2);
 });

@@ -30,6 +30,29 @@ export const FREE_FLOAT_OWNER_ASSUMPTIONS = Object.freeze([
 export const FREE_FLOAT_SNAPSHOT_DATE = "2026-06-26";
 export const FREE_FLOAT_TREASURY_SHARES = 5_141_528;
 
+export const buildInsiderOwnershipTrend = (items, { person } = {}) => {
+  const matchingItems = (Array.isArray(items) ? items : []).filter((item) => {
+    const instrument = String(item?.instrumentName || "").toLowerCase();
+    return (
+      (!person || item?.person === person) &&
+      item?.direction &&
+      instrument.includes("evolution") &&
+      !instrument.includes("warrant") &&
+      !instrument.includes("option")
+    );
+  });
+  const buyShares = matchingItems.reduce((sum, item) => sum + (item.direction === "buy" ? toPositiveNumber(item.volume) : 0), 0);
+  const sellShares = matchingItems.reduce((sum, item) => sum + (item.direction === "sell" ? toPositiveNumber(item.volume) : 0), 0);
+  const netShares = buyShares - sellShares;
+  return {
+    buyShares,
+    sellShares,
+    netShares,
+    direction: netShares > 0 ? "up" : netShares < 0 ? "down" : "flat",
+    transactionCount: matchingItems.length,
+  };
+};
+
 const toNumber = (value) => {
   const number = Number(value);
   return Number.isFinite(number) ? number : null;

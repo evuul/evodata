@@ -67,9 +67,12 @@ import {
   FREE_FLOAT_PREVIOUS_OWNERS,
   FREE_FLOAT_SNAPSHOT_DATE,
   FREE_FLOAT_TREASURY_SHARES,
+  FREE_FLOAT_OWNER_ASSUMPTIONS,
+  buildInsiderOwnershipTrend,
 } from '@/lib/buybackFreeFloat';
 import buybackDataDefault from "../app/data/buybackData.json";
 import oldBuybackDataDefault from "../app/data/oldBuybackData.json";
+import insiderTransactionsDefault from "../app/data/insiderTransactions.json";
 
 const TIME_OPTIONS = [
   { value: 'weekly', labelSv: 'Veckor', labelEn: 'Weeks' },
@@ -450,12 +453,29 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   }, [latestEvolutionShares]);
 
   const shareholderOverview = useMemo(
-    () =>
-      calculateShareholderOverview({
+    () => {
+      const martinTrend = buildInsiderOwnershipTrend(insiderTransactionsDefault?.items, { person: 'Martin Carlesund' });
+      const owners = [
+        ...FREE_FLOAT_OWNER_ASSUMPTIONS,
+        {
+          id: 'martin-carlesund',
+          name: 'Martin Carlesund',
+          shares: 784_710,
+          holdingDate: '2026-06-26',
+          category: 'VD / insider',
+          excludeFromStrategicFloat: false,
+          trendDirection: martinTrend.direction,
+          trendShares: martinTrend.netShares,
+          trendTransactions: martinTrend.transactionCount,
+        },
+      ];
+      return calculateShareholderOverview({
         totalShares: latestTotalSharesCount,
         companyTreasuryShares: FREE_FLOAT_TREASURY_SHARES,
+        owners,
         previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
-      }),
+      });
+    },
     [latestTotalSharesCount]
   );
   const totalBuybackShares = useMemo(

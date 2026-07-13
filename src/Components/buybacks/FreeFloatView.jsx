@@ -20,6 +20,7 @@ const formatChange = (value, suffix = "") => {
 };
 
 const changeColor = (value) => (value > 0 ? "#86efac" : value < 0 ? "#fca5a5" : COLORS.secondary);
+const trendSymbol = (direction) => (direction === "up" ? "↑" : direction === "down" ? "↓" : direction === "flat" ? "→" : "–");
 
 export default function FreeFloatView({
   shareholderOverview,
@@ -80,7 +81,7 @@ export default function FreeFloatView({
         <Table size="small">
           <TableHead>
             <TableRow>
-              {[translate("Ägare", "Owner"), translate("Kategori", "Category"), translate("Aktier", "Shares"), translate("Andel", "Share"), translate("Förändring", "Change")].map((heading) => (
+              {[translate("Ägare", "Owner"), translate("Kategori", "Category"), translate("Aktier", "Shares"), translate("Andel", "Share"), translate("Förändring", "Change"), translate("Trend", "Trend")].map((heading) => (
                 <TableCell key={heading} sx={{ color: COLORS.secondary, borderColor: "rgba(148,163,184,0.14)", fontWeight: 700 }}>{heading}</TableCell>
               ))}
             </TableRow>
@@ -95,6 +96,10 @@ export default function FreeFloatView({
                 <TableCell sx={{ color: changeColor(row.changeShares), borderColor: "rgba(148,163,184,0.1)", whiteSpace: "nowrap" }}>
                   {Number.isFinite(row.changeShares) ? `${formatChange(row.changeShares)} (${formatChange(row.changePctPoints, " pp")})` : "–"}
                 </TableCell>
+                <TableCell sx={{ color: changeColor(row.trendShares ?? row.changeShares), borderColor: "rgba(148,163,184,0.1)", whiteSpace: "nowrap", fontWeight: 700 }}>
+                  {trendSymbol(row.trendDirection || (row.changeShares > 0 ? "up" : row.changeShares < 0 ? "down" : Number.isFinite(row.changeShares) ? "flat" : null))}
+                  {Number.isFinite(row.trendShares) ? ` ${formatChange(row.trendShares)} aktier` : ""}
+                </TableCell>
               </TableRow>
             ))}
             <TableRow>
@@ -102,6 +107,7 @@ export default function FreeFloatView({
               <TableCell sx={{ color: COLORS.secondary, borderColor: "rgba(148,163,184,0.1)" }}>–</TableCell>
               <TableCell sx={{ color: COLORS.primary, borderColor: "rgba(148,163,184,0.1)" }}>{formatShares(overview.otherShares)}</TableCell>
               <TableCell sx={{ color: COLORS.primary, borderColor: "rgba(148,163,184,0.1)" }}>{formatPct(overview.otherOwnershipPct)}</TableCell>
+              <TableCell sx={{ color: COLORS.secondary, borderColor: "rgba(148,163,184,0.1)" }}>–</TableCell>
               <TableCell sx={{ color: COLORS.secondary, borderColor: "rgba(148,163,184,0.1)" }}>–</TableCell>
             </TableRow>
           </TableBody>
