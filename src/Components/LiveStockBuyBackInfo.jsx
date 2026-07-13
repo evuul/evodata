@@ -42,6 +42,7 @@ import OwnershipView from './buybacks/OwnershipView';
 import TotalSharesView from './buybacks/TotalSharesView';
 import HistoryView from './buybacks/HistoryView';
 import ReturnsView from './buybacks/ReturnsView';
+import FreeFloatView from './buybacks/FreeFloatView';
 import LiveStockBuyBackOverviewSection from './LiveStockBuyBackOverviewSection';
 import {
   buybackDataForGraphDaily as buildDaily,
@@ -61,6 +62,7 @@ import {
   totalSharesData,
 } from './buybacks/utils';
 import { combineBuybackSnapshots } from '@/lib/buybackSnapshots';
+import { calculateIndicativeFreeFloat } from '@/lib/buybackFreeFloat';
 import buybackDataDefault from "../app/data/buybackData.json";
 import oldBuybackDataDefault from "../app/data/oldBuybackData.json";
 
@@ -74,6 +76,7 @@ const SUB_VIEWS = [
   { value: 'overview', labelSv: 'Översikt', labelEn: 'Overview' },
   { value: 'ownership', labelSv: 'Evolutions ägande', labelEn: "Evolution's ownership" },
   { value: 'total', labelSv: 'Totala aktier', labelEn: 'Total shares' },
+  { value: 'freeFloat', labelSv: 'Free float', labelEn: 'Free float' },
   { value: 'history', labelSv: 'Återköpshistorik', labelEn: 'Buyback history' },
   { value: 'returns', labelSv: 'Återinvestering', labelEn: 'Capital returns' },
 ];
@@ -440,6 +443,19 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     const lastTot = totalSharesData[totalSharesData.length - 1]?.totalShares || 0;
     return lastTot > 0 ? (latestEvolutionShares / lastTot) * 100 : 0;
   }, [latestEvolutionShares]);
+
+  const freeFloatSummary = useMemo(
+    () =>
+      calculateIndicativeFreeFloat({
+        totalShares: latestTotalSharesCount,
+        companyTreasuryShares: latestEvolutionShares,
+      }),
+    [latestEvolutionShares, latestTotalSharesCount]
+  );
+  const totalBuybackShares = useMemo(
+    () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
+    [combinedBuybacks]
+  );
 
   const returns = useMemo(() => calculateShareholderReturns(dividendData || {}, oldData || []), [dividendData, oldData]);
   const chartReturns = useMemo(
@@ -937,6 +953,16 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             yDomain={getYDomain(totalSharesData, 'totalShares')}
             yTicks={getYTickValues(totalSharesData, 'totalShares', 'yearly')}
           formatYAxisTick={formatYAxisTick}
+          />
+        </Box>
+      )}
+
+      {subView === 'freeFloat' && (
+        <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
+          <FreeFloatView
+            freeFloatSummary={freeFloatSummary}
+            currentMandateShares={stats.sharesBought}
+            totalBuybackShares={totalBuybackShares}
           />
         </Box>
       )}
