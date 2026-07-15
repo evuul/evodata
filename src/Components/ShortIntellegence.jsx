@@ -155,17 +155,19 @@ const ShortIntellegence = () => {
         color: "#f8fafc",
         padding: { xs: 3, md: 4 },
         width: "100%",
-        maxWidth: "1200px",
-        margin: "16px auto",
+        maxWidth: "1700px",
+        margin: "0 auto",
+        display: "flex",
+        flexDirection: "column",
+        gap: { xs: 2.5, md: 3 },
       }}
     >
       <Stack
-        direction={isMobile ? "column" : "row"}
-        spacing={isMobile ? 2 : 3}
-        alignItems={isMobile ? "flex-start" : "center"}
-        justifyContent="space-between"
+        spacing={1.2}
+        alignItems="center"
+        textAlign="center"
       >
-        <Box>
+        <Box sx={{ maxWidth: 680 }}>
           <Typography
             variant="overline"
             sx={{ letterSpacing: 1, color: "rgba(148,163,184,0.65)" }}
@@ -185,7 +187,7 @@ const ShortIntellegence = () => {
           </Typography>
         </Box>
 
-        <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+        <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" justifyContent="center">
           {blankingUpdatedAt && (
             <Chip
               label={translate(
@@ -251,7 +253,9 @@ const ShortIntellegence = () => {
 
       <Box
         sx={{
-          mt: { xs: 2.5, md: 3 },
+          maxWidth: 940,
+          width: "100%",
+          mx: "auto",
           p: { xs: 1.5, md: 2 },
           borderRadius: "16px",
           border: "1px solid rgba(148,163,184,0.18)",
@@ -333,6 +337,7 @@ const ShortIntellegence = () => {
           borderRadius: "999px",
           p: 0.5,
           flexWrap: "wrap",
+          alignSelf: "center",
         }}
       >
         {VIEW_OPTIONS.map((option) => (

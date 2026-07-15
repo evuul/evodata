@@ -17,6 +17,9 @@ import {
 import FinancialOverviewCardRegulatedSection from "./FinancialOverviewCardRegulatedSection";
 import CashPositionCard from "./CashPositionCard";
 
+const BUYBACK_CONTROL = "rgba(148,163,184,0.12)";
+const BUYBACK_ACTIVE_CONTROL = "rgba(56,189,248,0.28)";
+
 export default function FinancialOverviewCardWideSection({
   isMobile,
   translate,
@@ -334,16 +337,13 @@ export default function FinancialOverviewCardWideSection({
         mt: { xs: 3, md: 4 },
         width: "100vw",
         mx: "calc(50% - 50vw)",
-        background: "linear-gradient(135deg, #0b1220, #101a2e)",
-        borderTop: "1px solid rgba(148,163,184,0.18)",
-        borderBottom: "1px solid rgba(148,163,184,0.18)",
         px: { xs: 2, sm: 3, md: 4, lg: 6 },
         py: { xs: 3, md: 4 },
       }}
     >
-      <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
-        <Box>
-          <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.7)", letterSpacing: 1.2 }}>
+      <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%", maxWidth: 1700, mx: "auto" }}>
+        <Box sx={{ textAlign: "center" }}>
+            <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.7)", letterSpacing: 1.2 }}>
             {translate("Finansiell översikt", "Financial overview")}
           </Typography>
           <Typography variant={isMobile ? "h5" : "h4"} sx={{ fontWeight: 800, color: "#f8fafc" }}>
@@ -368,11 +368,11 @@ export default function FinancialOverviewCardWideSection({
             onChange={(_e, v) => v && setWideMetric(v)}
             size="small"
             sx={{
-              backgroundColor: "rgba(148,163,184,0.12)",
+              backgroundColor: BUYBACK_CONTROL,
               borderRadius: "999px",
               p: 0.5,
               flexWrap: { xs: "wrap", sm: "nowrap" },
-              alignSelf: "flex-start",
+              alignSelf: "center",
               width: { xs: "100%", sm: "auto" },
               maxWidth: "100%",
               overflowX: { xs: "visible", sm: "auto" },
@@ -392,7 +392,7 @@ export default function FinancialOverviewCardWideSection({
                   px: { xs: 1.5, md: 2.2 },
                   "&.Mui-selected": {
                     color: "#f8fafc",
-                    backgroundColor: `${metricConfigs[option.value]?.accent || "#60a5fa"}33`,
+                    backgroundColor: BUYBACK_ACTIVE_CONTROL,
                   },
                 }}
               >
@@ -405,7 +405,7 @@ export default function FinancialOverviewCardWideSection({
             direction="row"
             spacing={1}
             alignItems="center"
-            justifyContent="flex-end"
+            justifyContent="center"
             useFlexGap
             flexWrap="wrap"
           >
@@ -416,7 +416,7 @@ export default function FinancialOverviewCardWideSection({
                   alignItems: "center",
                   gap: 1.1,
                   minWidth: { xs: 190, md: 230 },
-                  mr: { md: "auto" },
+                  mr: 0,
                   background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08))",
                   borderRadius: "12px",
                   border: "1px solid rgba(34,197,94,0.35)",
@@ -465,7 +465,7 @@ export default function FinancialOverviewCardWideSection({
               onChange={(_e, v) => v && setWideRange(v)}
               size="small"
               aria-label={translate("Tidsperiod", "Time range")}
-              sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
+              sx={{ backgroundColor: BUYBACK_CONTROL, borderRadius: "999px", p: 0.5 }}
             >
               {chartRangeOptions.map((option) => (
                 <ToggleButton
@@ -479,7 +479,7 @@ export default function FinancialOverviewCardWideSection({
                     px: { xs: 1.25, md: 1.6 },
                     "&.Mui-selected": {
                       color: "#f8fafc",
-                      backgroundColor: "rgba(96,165,250,0.25)",
+                      backgroundColor: BUYBACK_ACTIVE_CONTROL,
                     },
                   }}
                 >
@@ -493,7 +493,7 @@ export default function FinancialOverviewCardWideSection({
               exclusive
               onChange={(_e, v) => v && setWideViewMode(v)}
               size="small"
-              sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
+              sx={{ backgroundColor: BUYBACK_CONTROL, borderRadius: "999px", p: 0.5 }}
             >
               {viewToggleOptions.map((option) => (
                 <ToggleButton
@@ -508,7 +508,7 @@ export default function FinancialOverviewCardWideSection({
                     px: { xs: 1.5, md: 2 },
                     "&.Mui-selected": {
                       color: "#f8fafc",
-                      backgroundColor: "rgba(96,165,250,0.25)",
+                      backgroundColor: BUYBACK_ACTIVE_CONTROL,
                     },
                   }}
                 >

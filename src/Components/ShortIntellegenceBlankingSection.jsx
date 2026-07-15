@@ -25,9 +25,9 @@ export default function ShortIntellegenceBlankingSection({
       sx={{
         background: "rgba(15,23,42,0.55)",
         border: "1px solid rgba(148,163,184,0.18)",
-        borderRadius: { xs: 0, md: "16px" },
-        mx: { xs: -2, sm: -3, md: -4 },
-        px: { xs: 2, sm: 3, md: 4 },
+        borderRadius: "16px",
+        mx: 0,
+        px: { xs: 2, sm: 2.5, md: 3 },
         py: { xs: 2, md: 3 },
         display: "flex",
         flexDirection: "column",
@@ -35,7 +35,7 @@ export default function ShortIntellegenceBlankingSection({
         overflow: "visible",
       }}
       >
-      <Box>
+      <Box sx={{ textAlign: "center" }}>
         <Typography variant="overline" sx={{ color: "rgba(148,163,184,0.78)", letterSpacing: 1.2 }}>
           {translate("Blankningsbrief", "Short interest brief")}
         </Typography>
@@ -47,7 +47,7 @@ export default function ShortIntellegenceBlankingSection({
         </Typography>
       </Box>
 
-      <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center">
+      <Stack direction="row" spacing={1} flexWrap="wrap" alignItems="center" justifyContent="center">
         {BLANKING_RANGES.map((value) => (
           <Chip
             key={value}

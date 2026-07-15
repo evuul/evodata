@@ -84,7 +84,7 @@ export default function CashPositionCard({ financialReports, embedded = false })
   return (
     <Card
       sx={{
-        background: "linear-gradient(135deg, #0f172a, #111c2f)",
+        background: "linear-gradient(135deg, #0f172a, #1f2937)",
         borderRadius: embedded ? "12px" : "16px",
         boxShadow: embedded ? "none" : "0 12px 30px rgba(0,0,0,0.35)",
         border: "1px solid rgba(148,163,184,0.16)",

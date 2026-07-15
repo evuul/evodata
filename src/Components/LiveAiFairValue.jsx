@@ -201,11 +201,9 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
           <Box sx={{ ...panelSx, p: 3 }}><Stack direction="row" spacing={1} alignItems="center"><WarningAmberRoundedIcon sx={{ color: '#fbbf24' }} /><Typography sx={{ color: '#e2e8f0' }}>{translate('Modellen kan inte beräknas. Kontrollera EUR/SEK och åtta sammanhängande kvartal.', 'The model cannot be calculated. Check EUR/SEK and eight consecutive quarters.')}</Typography></Stack></Box>
         ) : (
           <>
-            <Box sx={{ ...panelSx, px: { xs: 1.5, sm: 2 }, py: 0.5, bgcolor: 'rgba(2,6,23,0.45)', borderRadius: '999px' }}>
-              <ToggleButtonGroup value={scenarioId} exclusive onChange={handleScenarioChange} size="small" sx={{ width: '100%', justifyContent: 'center' }}>
-                {scenarioOptions.map((scenario) => <ToggleButton key={scenario.id} value={scenario.id} sx={{ border: 0, borderRadius: '999px !important', color: 'rgba(203,213,225,0.75)', textTransform: 'none', px: { xs: 1.8, sm: 3 }, '&.Mui-selected': { color: scenario.style.color, bgcolor: `${scenario.style.color}1f` } }}>{translate(scenario.style.sv, scenario.style.en)}</ToggleButton>)}
-              </ToggleButtonGroup>
-            </Box>
+            <ToggleButtonGroup value={scenarioId} exclusive onChange={handleScenarioChange} size="small" sx={{ alignSelf: 'center', display: 'flex', gap: 1, '& .MuiToggleButtonGroup-grouped': { border: '1px solid rgba(148,163,184,0.24) !important' } }}>
+              {scenarioOptions.map((scenario) => <ToggleButton key={scenario.id} value={scenario.id} sx={{ borderRadius: '999px !important', color: 'rgba(203,213,225,0.78)', bgcolor: 'rgba(15,23,42,0.5)', textTransform: 'none', px: { xs: 1.8, sm: 3 }, '&.Mui-selected': { color: scenario.style.color, bgcolor: `${scenario.style.color}1f`, borderColor: `${scenario.style.color}66 !important` } }}>{translate(scenario.style.sv, scenario.style.en)}</ToggleButton>)}
+            </ToggleButtonGroup>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 2, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
               <Box>
