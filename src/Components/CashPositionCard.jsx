@@ -23,7 +23,7 @@ const fmtCash = (value) =>
     ? `${value.toLocaleString("sv-SE", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} MEUR`
     : "–";
 
-export default function CashPositionCard({ financialReports }) {
+export default function CashPositionCard({ financialReports, embedded = false }) {
   const translate = useTranslate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -85,8 +85,8 @@ export default function CashPositionCard({ financialReports }) {
     <Card
       sx={{
         background: "linear-gradient(135deg, #0f172a, #111c2f)",
-        borderRadius: "16px",
-        boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+        borderRadius: embedded ? "12px" : "16px",
+        boxShadow: embedded ? "none" : "0 12px 30px rgba(0,0,0,0.35)",
         border: "1px solid rgba(148,163,184,0.16)",
         color: "#e2e8f0",
       }}

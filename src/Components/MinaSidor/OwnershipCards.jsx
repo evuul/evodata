@@ -220,8 +220,8 @@ export default function OwnershipCards({
           </Typography>
           <Typography sx={{ color: text.faint }}>
             {translate(
-              isMandateView ? "Andel av hela 2 md €-programmet" : "Andel av återköp 2025",
-              isMandateView ? "Your share of the full EUR 2bn program" : "Your share of 2025 buybacks"
+              isMandateView ? "Andel av hela 2 md €-programmet" : "Andel av genomförda återköp",
+              isMandateView ? "Your share of the full EUR 2bn program" : "Your share of completed buybacks"
             )}
           </Typography>
         </Paper>

@@ -354,6 +354,71 @@ const FaqPanel = () => {
             </Typography>
           </AccordionDetails>
         </Accordion>
+
+        {[
+          {
+            id: "faq-9",
+            question: ["Vad finns under Finansiell översikt?", "What is included in Financial overview?"],
+            answer: [
+              "Finansiell översikt samlar omsättning, marginal, EPS, utdelning, kassa, reglerad intäkt, geografisk översikt och Live vs RNG. Välj en flik och byt mellan kvartals- och årsdata där det är relevant.",
+              "Financial overview brings together revenue, margin, EPS, dividends, cash, regulated revenue, geographic overview, and Live vs RNG. Select a tab and switch between quarterly and annual data where relevant.",
+            ],
+          },
+          {
+            id: "faq-10",
+            question: ["Vad visar Kassa-fliken?", "What does the Cash tab show?"],
+            answer: [
+              "Kassa visar senaste rapporterade likvida medel, förändringen mot föregående kvartal och kassans utveckling per kvartal. Beloppen är hämtade från bolagets rapporterade cash end/cash and cash equivalents i MEUR.",
+              "Cash shows the latest reported cash balance, the change versus the previous quarter, and the quarterly cash trend. Values come from reported cash end/cash and cash equivalents in EUR millions.",
+            ],
+          },
+          {
+            id: "faq-11",
+            question: ["Vad betyder Reglerad intäkt?", "What does Regulated revenue mean?"],
+            answer: [
+              "Reglerad intäkt jämför total intäkt med intäkt från reglerade marknader. Grafen använder en separat y-axel för reglerad andel eftersom den visas i procent och total intäkt i MEUR.",
+              "Regulated revenue compares total revenue with revenue from regulated markets. The chart uses a separate axis for regulated share because it is shown as a percentage while total revenue is shown in EUR millions.",
+            ],
+          },
+          {
+            id: "faq-12",
+            question: ["Vad är Live Money och hur ska det tolkas?", "What is Live Money and how should it be interpreted?"],
+            answer: [
+              "Live Money är en simulerad vinsttakt baserad på senaste rapporterade justerade nettovinst. Den visar genomsnitt per sekund, minut, timme och dag – inte faktiska realtidsbetalningar eller kassaflöden.",
+              "Live Money is a simulated profit pace based on the latest reported adjusted net profit. It shows averages per second, minute, hour, and day—not actual real-time payments or cash flows.",
+            ],
+          },
+          {
+            id: "faq-13",
+            question: ["Varför kan svenska och engelska etiketter skilja sig?", "Why can Swedish and English labels differ?"],
+            answer: [
+              "Språket styrs av språkvalet i gränssnittet. Alla nya flikar och förklaringar använder separata svenska och engelska texter, medan bolagsnamn, valutor och etablerade förkortningar som EPS behålls oförändrade.",
+              "The interface language controls the labels. All new tabs and explanations use separate Swedish and English text, while company names, currencies, and established abbreviations such as EPS remain unchanged.",
+            ],
+          },
+        ].map(({ id, question, answer }) => (
+          <Accordion
+            key={id}
+            expanded={expanded === id}
+            onChange={handleChange(id)}
+            disableGutters
+            sx={{
+              borderRadius: "14px",
+              border: "1px solid rgba(56,189,248,0.28)",
+              background: "rgba(2,6,23,0.42)",
+              color: "#f8fafc",
+              boxShadow: "none",
+              "&:before": { display: "none" },
+            }}
+          >
+            <AccordionSummary expandIcon={<ExpandMoreRounded sx={{ color: "rgba(226,232,240,0.8)" }} />} sx={{ px: { xs: 2, md: 2.4 } }}>
+              <Typography sx={{ fontWeight: 700 }}>{translate(question[0], question[1])}</Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
+              <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>{translate(answer[0], answer[1])}</Typography>
+            </AccordionDetails>
+          </Accordion>
+        ))}
       </Stack>
     </Box>
   );

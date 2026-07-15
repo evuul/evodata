@@ -1,17 +1,51 @@
-// Shared valuation helpers for the AI fair value scenarios.
-const WINDOW_SMOOTH = 8;
-export const MAX_FWD_GROWTH = 0.25;
-export const MIN_FWD_GROWTH = -0.1;
-const MIN_PE = 10;
-const MAX_PE = 35;
-export const MIN_BBY = 0.0;
-export const MAX_BBY = 0.25;
+// Builds a validated, driver-based fair value range from quarterly fundamentals.
 
-export const DEFAULT_FAIR_VALUE_BUYBACK = Object.freeze({
-  base: 0.12,
-  bull: 0.15,
-  bear: 0.1,
-});
+import { summarizeBuybackExecution } from "./buybackMandate.js";
+
+const REQUIRED_QUARTERS = 8;
+const FORECAST_YEARS = 5;
+const CAPEX_HAIRCUT = 0.12;
+const LIQUIDITY_RESERVE_REVENUE_SHARE = 0.15;
+const DCF_WEIGHT = 0.55;
+const PE_WEIGHT = 0.45;
+const MIN_PE = 9;
+const MAX_PE = 28;
+
+export const MIN_FWD_GROWTH = -0.15;
+export const MAX_FWD_GROWTH = 0.22;
+
+const SCENARIO_CONFIG = Object.freeze([
+  {
+    id: "fair",
+    label: "Fair Value",
+    variant: "base",
+    growthDelta: 0,
+    marginDelta: 0,
+    peDelta: 0,
+    discountRate: 0.1,
+    terminalGrowth: 0.025,
+  },
+  {
+    id: "bull",
+    label: "Bull",
+    variant: "bull",
+    growthDelta: 0.05,
+    marginDelta: 2,
+    peDelta: 1,
+    discountRate: 0.09,
+    terminalGrowth: 0.03,
+  },
+  {
+    id: "bear",
+    label: "Bear",
+    variant: "bear",
+    growthDelta: -0.05,
+    marginDelta: -3,
+    peDelta: -1,
+    discountRate: 0.12,
+    terminalGrowth: 0.01,
+  },
+]);
 
 export const resolveFairValueReports = (liveReports, fallbackReports) =>
   Array.isArray(liveReports) && liveReports.length > 0
@@ -20,256 +54,348 @@ export const resolveFairValueReports = (liveReports, fallbackReports) =>
       ? fallbackReports
       : [];
 
-export const quarterToNumber = (q) =>
-  q === 'Q1' ? 1 : q === 'Q2' ? 2 : q === 'Q3' ? 3 : q === 'Q4' ? 4 : 0;
+export const quarterToNumber = (quarter) =>
+  quarter === "Q1" ? 1 : quarter === "Q2" ? 2 : quarter === "Q3" ? 3 : quarter === "Q4" ? 4 : 0;
 
 export const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const basePeFromFundamentals = (growthYoY, avgOpMargin) => {
-  const g = (growthYoY ?? 0) * 100;
+const toFiniteNumber = (value) => {
+  if (value == null || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
 
-  let pe =
-    g <= 0
-      ? 12
-      : g <= 5
-      ? 14
-      : g <= 10
-      ? 16
-      : g <= 15
-      ? 18
-      : g <= 20
-      ? 20
-      : 22;
+const average = (values) =>
+  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 
-  if (avgOpMargin != null) {
-    if (avgOpMargin >= 65) pe += 3;
-    else if (avgOpMargin >= 55) pe += 2;
-    else if (avgOpMargin >= 45) pe += 1;
-    else if (avgOpMargin < 35) pe -= 1;
+const sumField = (rows, field) =>
+  rows.reduce((sum, row) => sum + row[field], 0);
+
+const weightedAnnualizedAverage = (rows, field) => {
+  const weighted = rows.reduce(
+    (result, row, index) => {
+      const weight = index + 1;
+      return {
+        sum: result.sum + row[field] * weight,
+        weight: result.weight + weight,
+      };
+    },
+    { sum: 0, weight: 0 }
+  );
+  return weighted.weight ? (weighted.sum / weighted.weight) * 4 : null;
+};
+
+const reportPeriodIndex = (report) => report.year * 4 + quarterToNumber(report.quarter) - 1;
+
+const reportQuarterEndDate = (report) => {
+  const suffix = {
+    Q1: "03-31",
+    Q2: "06-30",
+    Q3: "09-30",
+    Q4: "12-31",
+  }[report?.quarter];
+  return suffix && Number.isInteger(report?.year) ? `${report.year}-${suffix}` : null;
+};
+
+export const normalizeFairValueReports = (reports = []) => {
+  if (!Array.isArray(reports)) {
+    return { reports: [], warnings: ["invalid_reports"] };
   }
 
-  return clamp(pe, MIN_PE, 30);
-};
+  const warnings = [];
+  const periods = new Map();
+  let invalidCount = 0;
+  let duplicateCount = 0;
 
-const ttmEps = (sortedReports, offsetFromEnd = 0) => {
-  const end = sortedReports.length - offsetFromEnd;
-  const start = Math.max(0, end - 4);
-  if (end - start < 4) return null;
-  return sortedReports
-    .slice(start, end)
-    .reduce((acc, r) => acc + (Number(r.adjustedEarningsPerShare) || 0), 0);
-};
+  reports.forEach((report) => {
+    const year = toFiniteNumber(report?.year);
+    const quarter = report?.quarter;
+    const normalized = {
+      ...report,
+      year,
+      quarter,
+      adjustedEarningsPerShare: toFiniteNumber(report?.adjustedEarningsPerShare),
+      adjustedOperatingMargin: toFiniteNumber(report?.adjustedOperatingMargin),
+      operatingRevenues: toFiniteNumber(report?.operatingRevenues),
+      ocfPerShare: toFiniteNumber(report?.ocfPerShare),
+      cashAndCashEquivalents: toFiniteNumber(report?.cashAndCashEquivalents),
+    };
+    const valid =
+      Number.isInteger(year) &&
+      quarterToNumber(quarter) > 0 &&
+      normalized.adjustedEarningsPerShare != null &&
+      normalized.adjustedOperatingMargin != null &&
+      normalized.operatingRevenues != null &&
+      normalized.operatingRevenues > 0 &&
+      normalized.ocfPerShare != null;
 
-const normalizedAnnualEps = (sortedReports, quarters = WINDOW_SMOOTH) => {
-  const take = Math.min(quarters, sortedReports.length);
-  if (take < 4) return null;
-  const window = sortedReports.slice(-take);
-  const sumEps = window.reduce(
-    (acc, r) => acc + (Number(r.adjustedEarningsPerShare) || 0),
-    0
+    if (!valid) {
+      invalidCount += 1;
+      return;
+    }
+
+    const key = `${year}-${quarter}`;
+    if (periods.has(key)) duplicateCount += 1;
+    periods.set(key, normalized);
+  });
+
+  if (invalidCount) warnings.push("invalid_reports");
+  if (duplicateCount) warnings.push("duplicate_periods");
+
+  const normalizedReports = [...periods.values()].sort(
+    (a, b) => reportPeriodIndex(a) - reportPeriodIndex(b)
   );
-  return (sumEps * 4) / take;
-};
-
-const avgOpMargin4Q = (sortedReports) => {
-  const last4 = sortedReports.slice(-4);
-  if (last4.length < 4) return null;
-  const sum = last4.reduce(
-    (acc, r) => acc + (Number(r.adjustedOperatingMargin) || 0),
-    0
+  const latestWindow = normalizedReports.slice(-REQUIRED_QUARTERS);
+  const consecutive = latestWindow.every(
+    (report, index) => index === 0 || reportPeriodIndex(report) === reportPeriodIndex(latestWindow[index - 1]) + 1
   );
-  return sum / 4;
+  if (latestWindow.length === REQUIRED_QUARTERS && !consecutive) {
+    warnings.push("non_consecutive_quarters");
+  }
+
+  return { reports: normalizedReports, warnings };
 };
 
-const ttmRevenue = (sortedReports) => {
-  const last4 = sortedReports.slice(-4);
-  if (last4.length < 4) return null;
-  return last4.reduce(
-    (acc, r) => acc + (Number(r.operatingRevenues) || 0),
-    0
-  );
+const smoothPeFromFundamentals = (growth, operatingMargin) => {
+  const growthContribution = clamp(growth, -0.1, 0.18) * 30;
+  const marginContribution = clamp((operatingMargin - 45) * 0.08, -1.5, 2);
+  return clamp(14 + growthContribution + marginContribution, MIN_PE, MAX_PE);
 };
 
-const epsBoostFromBuybacks = (yieldValue) => {
-  const y = clamp(Number(yieldValue) || 0, MIN_BBY, MAX_BBY);
-  return 1 / (1 - y) - 1;
+const projectOwnerEarningsValue = ({
+  ownerEarningsPerShareEur,
+  nearTermGrowth,
+  discountRate,
+  terminalGrowth,
+  excessCashPerShareEur,
+  fxRate,
+}) => {
+  if (
+    ownerEarningsPerShareEur <= 0 ||
+    discountRate <= terminalGrowth ||
+    fxRate <= 0
+  ) {
+    return null;
+  }
+
+  let ownerEarnings = ownerEarningsPerShareEur;
+  let presentValue = 0;
+  for (let year = 1; year <= FORECAST_YEARS; year += 1) {
+    const fade = (year - 1) / (FORECAST_YEARS - 1);
+    const growth = nearTermGrowth + (terminalGrowth - nearTermGrowth) * fade;
+    ownerEarnings *= 1 + growth;
+    presentValue += ownerEarnings / (1 + discountRate) ** year;
+  }
+
+  const terminalValue =
+    (ownerEarnings * (1 + terminalGrowth)) / (discountRate - terminalGrowth);
+  const discountedTerminal = terminalValue / (1 + discountRate) ** FORECAST_YEARS;
+  return (presentValue + discountedTerminal + excessCashPerShareEur) * fxRate;
 };
 
-const emptyResult = Object.freeze({
-  latestLabel: '',
+const buildEmptyResult = (warnings = []) => ({
+  latestLabel: "",
   annualEpsTTMSEK: null,
   annualEpsNormSEK: null,
   avgMargin: null,
   yoyGrowth: null,
+  revenueGrowth: null,
   revTtmMEUR: null,
+  ownerEarningsPerShareSEK: null,
   scenarios: [],
-  bbInfo: { base: 0, bull: 0, bear: 0, baseBoostPct: 0 },
-  raw: {
-    ttmEpsEUR: null,
-    normalizedEpsEUR: null,
-  },
-  growthRates: { fair: null, bull: null, bear: null },
-  fwdEpsEUR: { fair: null, bull: null, bear: null },
-  multiples: { fair: null, bull: null, bear: null },
+  valuationRange: { low: null, midpoint: null, high: null },
+  buybackInfo: null,
+  dataQuality: { status: "error", warnings, quarterCount: 0 },
+  sensitivity: null,
+  raw: { ttmEpsEUR: null, normalizedEpsEUR: null },
 });
+
+const buildSensitivity = ({
+  ownerEarningsPerShareEur,
+  nearTermGrowth,
+  excessCashPerShareEur,
+  fxRate,
+}) => {
+  const discountRates = [0.11, 0.1, 0.09];
+  const terminalGrowthRates = [0.015, 0.025, 0.035];
+  return {
+    discountRates,
+    terminalGrowthRates,
+    values: discountRates.map((discountRate) =>
+      terminalGrowthRates.map((terminalGrowth) =>
+        projectOwnerEarningsValue({
+          ownerEarningsPerShareEur,
+          nearTermGrowth,
+          discountRate,
+          terminalGrowth,
+          excessCashPerShareEur,
+          fxRate,
+        })
+      )
+    ),
+  };
+};
 
 export const computeFairValueInsights = ({
   reports,
-  buyback = DEFAULT_FAIR_VALUE_BUYBACK,
+  buybackData = [],
+  sharesData = [],
   fxRate,
   currentPriceSEK,
 } = {}) => {
-  if (!Array.isArray(reports) || reports.length === 0) {
-    return emptyResult;
+  const fx = toFiniteNumber(fxRate);
+  if (fx == null || fx <= 0) return buildEmptyResult(["invalid_fx"]);
+
+  const normalized = normalizeFairValueReports(reports);
+  const latestEight = normalized.reports.slice(-REQUIRED_QUARTERS);
+  const hasGap = normalized.warnings.includes("non_consecutive_quarters");
+  if (latestEight.length < REQUIRED_QUARTERS || hasGap) {
+    const warnings = latestEight.length < REQUIRED_QUARTERS
+      ? [...normalized.warnings, "not_enough_reports"]
+      : normalized.warnings;
+    return buildEmptyResult([...new Set(warnings)]);
   }
 
-  const fx = Number(fxRate);
-  if (!Number.isFinite(fx) || fx <= 0) {
-    return emptyResult;
-  }
+  const previousFour = latestEight.slice(0, 4);
+  const latestFour = latestEight.slice(4);
+  const latest = latestEight.at(-1);
+  const ttmEpsEur = sumField(latestFour, "adjustedEarningsPerShare");
+  const previousTtmEpsEur = sumField(previousFour, "adjustedEarningsPerShare");
+  const normalizedEpsEur = weightedAnnualizedAverage(latestEight, "adjustedEarningsPerShare");
+  const normalizedOcfEur = weightedAnnualizedAverage(latestEight, "ocfPerShare");
+  const ownerEarningsPerShareEur = normalizedOcfEur * (1 - CAPEX_HAIRCUT);
+  const revenueTtmEurM = sumField(latestFour, "operatingRevenues");
+  const previousRevenueTtmEurM = sumField(previousFour, "operatingRevenues");
+  const revenueTtmGrowth = previousRevenueTtmEurM > 0
+    ? revenueTtmEurM / previousRevenueTtmEurM - 1
+    : null;
+  const latestRevenueGrowth = latestEight.at(-5).operatingRevenues > 0
+    ? latest.operatingRevenues / latestEight.at(-5).operatingRevenues - 1
+    : null;
+  const baseRevenueGrowth = clamp(
+    (revenueTtmGrowth ?? 0) * 0.65 + (latestRevenueGrowth ?? revenueTtmGrowth ?? 0) * 0.35,
+    -0.1,
+    0.18
+  );
+  const currentMargin = average(latestFour.map((report) => report.adjustedOperatingMargin));
+  const epsGrowth = previousTtmEpsEur > 0 ? ttmEpsEur / previousTtmEpsEur - 1 : null;
 
-  const sorted = [...reports]
-    .map((report) => ({
-      ...report,
-      year: Number(report?.year),
-      quarter: report?.quarter,
-    }))
-    .filter((report) => Number.isFinite(report.year) && typeof report.quarter === 'string')
-    .sort((a, b) =>
-      a.year !== b.year
-        ? a.year - b.year
-        : quarterToNumber(a.quarter) - quarterToNumber(b.quarter)
+  const buybackInfo = summarizeBuybackExecution({
+    buybackData,
+    sharesData,
+    fxRate: fx,
+    cashSnapshotDate: reportQuarterEndDate(latest),
+  });
+  const warnings = [...normalized.warnings];
+  if (!buybackInfo.reportedShares) warnings.push("missing_shares");
+  if (!buybackInfo.validRowCount) warnings.push("missing_buyback_data");
+
+  const shareAdjustment = buybackInfo.executedEpsBoost > 0
+    ? 1 + buybackInfo.executedEpsBoost
+    : 1;
+  const cashAtLatestReportEurM = latest.cashAndCashEquivalents ?? 0;
+  const executedSpendEurM = buybackInfo.executedSpendAfterCashSnapshotSek / fx / 1_000_000;
+  const cashAfterObservedBuybacksEurM = Math.max(cashAtLatestReportEurM - executedSpendEurM, 0);
+  if (executedSpendEurM > cashAtLatestReportEurM) warnings.push("buybacks_exceed_reported_cash");
+
+  const liquidityReserveEurM = revenueTtmEurM * LIQUIDITY_RESERVE_REVENUE_SHARE;
+  const excessCashEurM = Math.max(cashAfterObservedBuybacksEurM - liquidityReserveEurM, 0);
+  const excessCashPerShareEur = buybackInfo.currentShares
+    ? (excessCashEurM * 1_000_000) / buybackInfo.currentShares
+    : 0;
+  const adjustedOwnerEarningsPerShareEur = ownerEarningsPerShareEur * shareAdjustment;
+  const price = toFiniteNumber(currentPriceSEK);
+
+  const scenarios = SCENARIO_CONFIG.map((config) => {
+    const growth = clamp(baseRevenueGrowth + config.growthDelta, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
+    const margin = clamp(currentMargin + config.marginDelta, 25, 75);
+    const marginAdjustment = currentMargin > 0 ? margin / currentMargin : 1;
+    const forwardEpsBeforeBuybackEur = normalizedEpsEur * (1 + growth) * marginAdjustment;
+    const forwardEpsEur = forwardEpsBeforeBuybackEur * shareAdjustment;
+    const pe = clamp(
+      smoothPeFromFundamentals(growth, margin) + config.peDelta,
+      MIN_PE,
+      MAX_PE
     );
+    const peValueSek = forwardEpsEur * pe * fx;
+    const dcfValueSek = projectOwnerEarningsValue({
+      ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
+      nearTermGrowth: growth,
+      discountRate: config.discountRate,
+      terminalGrowth: config.terminalGrowth,
+      excessCashPerShareEur,
+      fxRate: fx,
+    });
+    const impliedPriceSek = dcfValueSek == null
+      ? peValueSek
+      : dcfValueSek * DCF_WEIGHT + peValueSek * PE_WEIGHT;
 
-  if (sorted.length === 0) {
-    return emptyResult;
+    return {
+      id: config.id,
+      label: config.label,
+      variant: config.variant,
+      description: "Driverbaserad prognos med verifierade återköp.",
+      impliedPriceSEK: impliedPriceSek,
+      upsidePct: price && price > 0 ? ((impliedPriceSek - price) / price) * 100 : null,
+      growth,
+      margin,
+      pe,
+      discountRate: config.discountRate,
+      terminalGrowth: config.terminalGrowth,
+      forwardEpsBeforeBuybackEur,
+      fwdEpsEUR: forwardEpsEur,
+      fwdEpsSEK: forwardEpsEur * fx,
+      peValueSEK: peValueSek,
+      dcfValueSEK: dcfValueSek,
+      buybackRate: buybackInfo.executedShareReduction,
+    };
+  });
+
+  const fair = scenarios.find((scenario) => scenario.id === "fair");
+  const bull = scenarios.find((scenario) => scenario.id === "bull");
+  const bear = scenarios.find((scenario) => scenario.id === "bear");
+  if (!(bear.impliedPriceSEK <= fair.impliedPriceSEK && fair.impliedPriceSEK <= bull.impliedPriceSEK)) {
+    warnings.push("scenario_ordering");
   }
-
-  const ttmNow = ttmEps(sorted, 0);
-  const ttmPrev = ttmEps(sorted, 4);
-  const epsNorm = normalizedAnnualEps(sorted, WINDOW_SMOOTH);
-  if (ttmNow == null || epsNorm == null) {
-    return emptyResult;
-  }
-
-  const last = sorted.at(-1);
-  const latestLabel =
-    last && last.year && last.quarter ? `${last.year} ${last.quarter}` : '';
-
-  const yoy =
-    ttmPrev && ttmPrev > 0 ? (ttmNow - ttmPrev) / ttmPrev : 0;
-  const baseGrowth = clamp(yoy, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
-
-  const avgMargin = avgOpMargin4Q(sorted);
-  const revTtm = ttmRevenue(sorted);
-
-  const peBase = basePeFromFundamentals(baseGrowth, avgMargin);
-  const peBull = clamp(Math.round(peBase * 1.2), MIN_PE, MAX_PE);
-  const peBear = clamp(Math.round(peBase * 0.8), MIN_PE, MAX_PE);
-
-  const bullGrowth = clamp(baseGrowth + 0.05, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
-  const bearGrowth = clamp(baseGrowth - 0.05, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
-
-  const bbBase = clamp(buyback?.base ?? DEFAULT_FAIR_VALUE_BUYBACK.base, MIN_BBY, MAX_BBY);
-  const bbBull = clamp(
-    buyback?.bull ?? DEFAULT_FAIR_VALUE_BUYBACK.bull,
-    MIN_BBY,
-    MAX_BBY
-  );
-  const bbBear = clamp(
-    buyback?.bear ?? DEFAULT_FAIR_VALUE_BUYBACK.bear,
-    MIN_BBY,
-    MAX_BBY
-  );
-
-  const fwdEpsBaseEUR = (epsNorm * (1 + baseGrowth)) / (1 - bbBase);
-  const fwdEpsBullEUR = (epsNorm * (1 + bullGrowth)) / (1 - bbBull);
-  const fwdEpsBearEUR = (epsNorm * (1 + bearGrowth)) / (1 - bbBear);
-
-  const fairSEK = peBase * fwdEpsBaseEUR * fx;
-  const bullSEK = peBull * fwdEpsBullEUR * fx;
-  const bearSEK = peBear * fwdEpsBearEUR * fx;
-
-  const price = Number(currentPriceSEK);
-  const computeUpside = (target) =>
-    Number.isFinite(price) && price > 0
-      ? ((target - price) / price) * 100
-      : null;
-
-  const scenarios = [
-    {
-      id: 'fair',
-      label: 'Fair Value',
-      variant: 'base',
-      description: `Normaliserad vinst + ${Math.round(bbBase * 100)}% nettoåterköp.`,
-      pe: peBase,
-      impliedPriceSEK: fairSEK,
-      upsidePct: computeUpside(fairSEK),
-      buybackRate: bbBase,
-      growth: baseGrowth,
-      fwdEpsEUR: fwdEpsBaseEUR,
-      fwdEpsSEK: fwdEpsBaseEUR * fx,
-    },
-    {
-      id: 'bull',
-      label: 'Bull',
-      variant: 'bull',
-      description: `Starkare tillväxt + ${Math.round(bbBull * 100)}% nettoåterköp.`,
-      pe: peBull,
-      impliedPriceSEK: bullSEK,
-      upsidePct: computeUpside(bullSEK),
-      buybackRate: bbBull,
-      growth: bullGrowth,
-      fwdEpsEUR: fwdEpsBullEUR,
-      fwdEpsSEK: fwdEpsBullEUR * fx,
-    },
-    {
-      id: 'bear',
-      label: 'Bear',
-      variant: 'bear',
-      description: `Dämpad tillväxt + ${Math.round(bbBear * 100)}% nettoåterköp.`,
-      pe: peBear,
-      impliedPriceSEK: bearSEK,
-      upsidePct: computeUpside(bearSEK),
-      buybackRate: bbBear,
-      growth: bearGrowth,
-      fwdEpsEUR: fwdEpsBearEUR,
-      fwdEpsSEK: fwdEpsBearEUR * fx,
-    },
-  ];
 
   return {
-    latestLabel,
-    annualEpsTTMSEK: ttmNow * fx,
-    annualEpsNormSEK: epsNorm * fx,
-    avgMargin,
-    yoyGrowth: yoy,
-    revTtmMEUR: revTtm,
+    latestLabel: `${latest.year} ${latest.quarter}`,
+    annualEpsTTMSEK: ttmEpsEur * fx,
+    annualEpsNormSEK: normalizedEpsEur * fx,
+    avgMargin: currentMargin,
+    yoyGrowth: epsGrowth,
+    revenueGrowth: baseRevenueGrowth,
+    revTtmMEUR: revenueTtmEurM,
+    ownerEarningsPerShareSEK: adjustedOwnerEarningsPerShareEur * fx,
     scenarios,
-    bbInfo: {
-      base: bbBase,
-      bull: bbBull,
-      bear: bbBear,
-      baseBoostPct: epsBoostFromBuybacks(bbBase) * 100,
+    valuationRange: {
+      low: bear.impliedPriceSEK,
+      midpoint: fair.impliedPriceSEK,
+      high: bull.impliedPriceSEK,
     },
+    buybackInfo: {
+      ...buybackInfo,
+      shareAdjustment,
+      cashAfterObservedBuybacksEurM,
+      liquidityReserveEurM,
+      excessCashEurM,
+    },
+    dataQuality: {
+      status: warnings.length ? "caution" : "good",
+      warnings: [...new Set(warnings)],
+      quarterCount: latestEight.length,
+    },
+    sensitivity: buildSensitivity({
+      ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
+      nearTermGrowth: baseRevenueGrowth,
+      excessCashPerShareEur,
+      fxRate: fx,
+    }),
+    methodWeights: { dcf: DCF_WEIGHT, pe: PE_WEIGHT },
     raw: {
-      ttmEpsEUR: ttmNow,
-      normalizedEpsEUR: epsNorm,
-    },
-    growthRates: {
-      fair: baseGrowth,
-      bull: bullGrowth,
-      bear: bearGrowth,
-    },
-    fwdEpsEUR: {
-      fair: fwdEpsBaseEUR,
-      bull: fwdEpsBullEUR,
-      bear: fwdEpsBearEUR,
-    },
-    multiples: {
-      fair: peBase,
-      bull: peBull,
-      bear: peBear,
+      ttmEpsEUR: ttmEpsEur,
+      normalizedEpsEUR: normalizedEpsEur,
+      ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
     },
   };
 };

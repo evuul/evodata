@@ -8,7 +8,6 @@ const LIVE_HEADER_OVERVIEW_CARDS = 4;
 const PANEL_VALUE_LIST = [
   "live",
   "financial",
-  "cash",
   "gameshow",
   "fairvalue",
   "report",
@@ -28,7 +27,6 @@ export function useLiveHeaderNavigation({ isMobileMenu, translate }) {
     () => [
       { value: "live", label: translate("Gameshows", "Gameshows") },
       { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
-      { value: "cash", label: translate("Kassa", "Cash position") },
       { value: "gameshow", label: translate("Forecast Earnings", "Forecast earnings") },
       { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
       { value: "report", label: translate("Rapportanalys", "Report analysis") },

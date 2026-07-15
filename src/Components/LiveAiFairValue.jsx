@@ -1,821 +1,262 @@
 'use client';
 
-// Renders the live AI fair value panel with scenario-driven valuation cards.
+// Presents the driver-based fair value model in the compact Evolution dashboard layout.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
-  Typography,
-  Stack,
-  Grid,
   Chip,
+  Divider,
+  Grid,
+  LinearProgress,
+  Stack,
   ToggleButton,
   ToggleButtonGroup,
-  Divider,
-  LinearProgress,
+  Typography,
   useMediaQuery,
 } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CurrencyExchangeIcon from '@mui/icons-material/CurrencyExchange';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import InsightsIcon from '@mui/icons-material/Insights';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import { useTheme } from '@mui/material/styles';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
-import {
-  computeFairValueInsights,
-  DEFAULT_FAIR_VALUE_BUYBACK,
-  MIN_FWD_GROWTH,
-  MAX_FWD_GROWTH,
-  resolveFairValueReports,
-} from '@/lib/fairValueUtils';
-import { useTheme } from '@mui/material/styles';
+import { computeFairValueInsights, resolveFairValueReports } from '@/lib/fairValueUtils';
 
-const currency0 = new Intl.NumberFormat('sv-SE', {
-  style: 'currency',
-  currency: 'SEK',
-  maximumFractionDigits: 0,
-});
+const currency0 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 });
+const currency2 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const number1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
+const number2 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 2 });
 
-const currency2 = new Intl.NumberFormat('sv-SE', {
-  style: 'currency',
-  currency: 'SEK',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const pct1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
-const num1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
-const int0 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 0 });
-
-const SCENARIO_PALETTE_BASE = {
-  fair: { color: '#22c55e', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' },
-  bull: { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Bull', labelEn: 'Bull' },
-  bear: { color: '#ef4444', Icon: TrendingDownIcon, labelSv: 'Bear', labelEn: 'Bear' },
+const SCENARIO_STYLE = {
+  fair: { color: '#22c55e', Icon: InsightsIcon, sv: 'Bas', en: 'Base' },
+  bull: { color: '#38bdf8', Icon: TrendingUpIcon, sv: 'Bull', en: 'Bull' },
+  bear: { color: '#f87171', Icon: TrendingDownIcon, sv: 'Bear', en: 'Bear' },
 };
 
-const DEFAULT_SCENARIO_BASE = { color: '#38bdf8', Icon: TrendingUpIcon, labelSv: 'Rimlig', labelEn: 'Fair' };
-const METRIC_CARD_BASE_SX = {
+const WARNING_LABELS = {
+  invalid_reports: ['Ogiltiga rapportrader ignorerades', 'Invalid report rows were ignored'],
+  duplicate_periods: ['Dubbletter i kvartalsdata togs bort', 'Duplicate quarters were removed'],
+  non_consecutive_quarters: ['Kvartalsserien innehåller luckor', 'The quarterly series contains gaps'],
+  not_enough_reports: ['Minst åtta sammanhängande kvartal krävs', 'Eight consecutive quarters are required'],
+  invalid_fx: ['Giltig EUR/SEK-kurs saknas', 'A valid EUR/SEK rate is missing'],
+  missing_shares: ['Aktiesnapshot saknas; återköp påverkar inte EPS', 'Share snapshot missing; buybacks do not affect EPS'],
+  missing_buyback_data: ['Genomförda återköp saknas', 'Executed buybacks are missing'],
+  buybacks_exceed_reported_cash: ['Återköp efter rapporten överstiger rapporterad kassa', 'Post-report buybacks exceed reported cash'],
+  scenario_ordering: ['Scenarioordningen behöver granskas', 'Scenario ordering needs review'],
+};
+
+const panelSx = {
   borderRadius: '18px',
-  p: 2.8,
-  minHeight: { xs: 216, sm: 228, md: 242 },
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 1.4,
-  textAlign: 'center',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  flex: 1,
+  border: '1px solid rgba(148,163,184,0.18)',
+  background: 'rgba(15,23,42,0.58)',
 };
 
 const toPriceNumber = (value) => {
-  const raw = Number(value?.raw ?? value);
-  return Number.isFinite(raw) && raw > 0 ? raw : null;
+  const number = Number(value?.raw ?? value);
+  return Number.isFinite(number) && number > 0 ? number : null;
 };
 
-const formatTime = (date) => {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+const formatPercent = (value, digits = 1) =>
+  Number.isFinite(value)
+    ? `${value >= 0 ? '+' : ''}${value.toLocaleString('sv-SE', { maximumFractionDigits: digits })}%`
+    : '–';
+
+const formatTime = (value) => {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
   return new Intl.DateTimeFormat('sv-SE', { hour: '2-digit', minute: '2-digit' }).format(date);
 };
 
-const formatDateTime = (date) => {
-  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('sv-SE', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-};
+const formatMillions = (value, suffix) =>
+  Number.isFinite(value) ? `${number1.format(value / 1_000_000)} ${suffix}` : '–';
+const formatSek0 = (value) => Number.isFinite(value) ? currency0.format(value) : '–';
+const formatSek2 = (value) => Number.isFinite(value) ? currency2.format(value) : '–';
 
-export default function LiveAiFairValue({ reports = [], buyback, sharesData }) {
+function MetricCard({ label, value, helper, color = '#e2e8f0', sx = {} }) {
+  return (
+    <Box sx={{ ...panelSx, p: 2, height: '100%', ...sx }}>
+      <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.82)' }}>{label}</Typography>
+      <Typography variant="h6" sx={{ color, fontWeight: 800, mt: 0.35 }}>{value}</Typography>
+      {helper && <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.68)', display: 'block', mt: 0.45 }}>{helper}</Typography>}
+    </Box>
+  );
+}
+
+function ScenarioCard({ scenario, selected, onSelect, translate }) {
+  const style = SCENARIO_STYLE[scenario.id] ?? SCENARIO_STYLE.fair;
+  const Icon = style.Icon;
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={() => onSelect(scenario.id)}
+      aria-pressed={selected}
+      sx={{
+        ...panelSx,
+        width: '100%',
+        minHeight: 148,
+        p: { xs: 1.8, sm: 2.2 },
+        textAlign: 'left',
+        cursor: 'pointer',
+        color: 'inherit',
+        background: selected ? `linear-gradient(145deg, ${style.color}22, rgba(15,23,42,0.82))` : 'rgba(15,23,42,0.64)',
+        border: selected ? `1px solid ${style.color}66` : '1px solid rgba(148,163,184,0.18)',
+        transition: 'border-color 160ms ease, transform 160ms ease',
+        '&:hover': { borderColor: `${style.color}88`, transform: 'translateY(-1px)' },
+      }}
+    >
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Stack direction="row" spacing={0.7} alignItems="center">
+          <Icon sx={{ color: style.color, fontSize: 18 }} />
+          <Typography variant="subtitle2" sx={{ color: style.color, fontWeight: 750 }}>{translate(style.sv, style.en)}</Typography>
+        </Stack>
+        {selected && <Chip size="small" label={translate('Vald', 'Selected')} sx={{ height: 21, color: style.color, bgcolor: `${style.color}1c` }} />}
+      </Stack>
+      <Typography variant="h5" sx={{ color: '#f8fafc', fontWeight: 850, mt: 1.1 }}>{formatSek0(scenario.impliedPriceSEK)}</Typography>
+      <Typography variant="body2" sx={{ color: scenario.upsidePct >= 0 ? '#86efac' : '#fca5a5', fontWeight: 700, mt: 0.2 }}>{formatPercent(scenario.upsidePct)} {translate('mot kurs', 'vs price')}</Typography>
+      <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)', display: 'block', mt: 0.6 }}>{number2.format(scenario.pe)}x P/E · {number1.format(scenario.discountRate * 100)}% WACC</Typography>
+    </Box>
+  );
+}
+
+export default function LiveAiFairValue({ reports = [], buybackData = [], sharesData = [] }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const translate = useTranslate();
   const [liveReports, setLiveReports] = useState(reports);
+  const [liveBuybackData, setLiveBuybackData] = useState(buybackData);
   const [buybackMeta, setBuybackMeta] = useState(null);
-  const scenarioPalette = useMemo(() => {
-    const entries = {};
-    Object.entries(SCENARIO_PALETTE_BASE).forEach(([key, config]) => {
-      entries[key] = {
-        ...config,
-        label: translate(config.labelSv, config.labelEn),
-      };
-    });
-    return entries;
-  }, [translate]);
-  const defaultScenario = useMemo(
-    () => ({
-      ...DEFAULT_SCENARIO_BASE,
-      label: translate(DEFAULT_SCENARIO_BASE.labelSv, DEFAULT_SCENARIO_BASE.labelEn),
-    }),
-    [translate]
-  );
-  const {
-    rate: fxRate,
-    loading: fxLoading,
-    meta: fxMeta,
-    lastUpdated: fxUpdated,
-    error: fxError,
-  } = useFxRateContext();
-  const {
-    stockPrice,
-    loading: priceLoading,
-    lastUpdated: priceUpdated,
-    error: priceError,
-  } = useStockPriceContext();
+  const [scenarioId, setScenarioId] = useState('fair');
+  const { rate: fxRate, loading: fxLoading, meta: fxMeta, lastUpdated: fxUpdated, error: fxError } = useFxRateContext();
+  const { stockPrice, loading: priceLoading, lastUpdated: priceUpdated, error: priceError } = useStockPriceContext();
 
   const fx = Number(fxRate);
-  const fxPairLabel =
-    fxMeta?.base && fxMeta?.quote ? `${fxMeta.base}/${fxMeta.quote}` : 'EUR/SEK';
-  const fxFormatted = Number.isFinite(fx)
-    ? fx.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-    : '–';
-
   const currentPriceSEK = useMemo(() => {
-    const price = toPriceNumber(stockPrice?.price?.regularMarketPrice);
-    if (price != null) return price;
-    const close = toPriceNumber(stockPrice?.price?.regularMarketPreviousClose ?? stockPrice?.price?.previousClose);
-    return close;
+    const regular = toPriceNumber(stockPrice?.price?.regularMarketPrice);
+    return regular ?? toPriceNumber(stockPrice?.price?.regularMarketPreviousClose ?? stockPrice?.price?.previousClose);
   }, [stockPrice]);
-
-  const effectiveBuyback = buyback ?? DEFAULT_FAIR_VALUE_BUYBACK;
   const effectiveReports = resolveFairValueReports(liveReports, reports);
-
-  const fairValue = useMemo(
-    () =>
-      computeFairValueInsights({
-        reports: effectiveReports,
-        buyback: effectiveBuyback,
-        fxRate: fx,
-        currentPriceSEK,
-      }),
-    [effectiveReports, effectiveBuyback, fx, currentPriceSEK]
-  );
-
-  const [scenarioId, setScenarioId] = useState(() => fairValue.scenarios[0]?.id ?? 'fair');
+  const effectiveBuybacks = Array.isArray(liveBuybackData) && liveBuybackData.length ? liveBuybackData : buybackData;
+  const fairValue = useMemo(() => computeFairValueInsights({ reports: effectiveReports, buybackData: effectiveBuybacks, sharesData, fxRate: fx, currentPriceSEK }), [currentPriceSEK, effectiveBuybacks, effectiveReports, fx, sharesData]);
 
   useEffect(() => {
-    if (!fairValue.scenarios.length) return;
-    if (!fairValue.scenarios.some((scenario) => scenario.id === scenarioId)) {
-      setScenarioId(fairValue.scenarios[0].id);
-    }
+    if (!fairValue.scenarios.some((scenario) => scenario.id === scenarioId)) setScenarioId(fairValue.scenarios[0]?.id ?? 'fair');
   }, [fairValue.scenarios, scenarioId]);
-
-  const handleScenarioChange = useCallback((_, next) => {
-    if (next) setScenarioId(next);
-  }, []);
-
-  const activeScenario =
-    fairValue.scenarios.find((scenario) => scenario.id === scenarioId) ??
-    fairValue.scenarios[0] ??
-    null;
-
-  const scenarioInfo = activeScenario
-    ? scenarioPalette[activeScenario.id] ?? defaultScenario
-    : defaultScenario;
-
-  const impliedPriceLabel =
-    activeScenario && Number.isFinite(activeScenario.impliedPriceSEK)
-      ? currency0.format(activeScenario.impliedPriceSEK)
-      : '–';
-
-  const upsideValue =
-    activeScenario && Number.isFinite(activeScenario.upsidePct) ? activeScenario.upsidePct : null;
-  const upsideLabel =
-    upsideValue != null
-      ? `${upsideValue >= 0 ? '+' : ''}${pct1.format(upsideValue)}%`
-      : '–';
-  const upsideProgress =
-    upsideValue != null ? Math.max(Math.min(upsideValue + 50, 100), 0) : null;
-
-  const fwdEpsLabel =
-    activeScenario && Number.isFinite(activeScenario.fwdEpsSEK)
-      ? currency2.format(activeScenario.fwdEpsSEK)
-      : '–';
-
-  const growthLabel =
-    activeScenario && Number.isFinite(activeScenario.growth)
-      ? `${activeScenario.growth >= 0 ? '+' : ''}${pct1.format(activeScenario.growth * 100)}%`
-      : '–';
-
-  const buybackLabel =
-    activeScenario && Number.isFinite(activeScenario.buybackRate)
-      ? `${Math.round(activeScenario.buybackRate * 100)}%`
-      : '–';
-
-  const ttmEpsLabel = Number.isFinite(fairValue.annualEpsTTMSEK)
-    ? currency2.format(fairValue.annualEpsTTMSEK)
-    : '–';
-
-  const normEpsLabel = Number.isFinite(fairValue.annualEpsNormSEK)
-    ? currency2.format(fairValue.annualEpsNormSEK)
-    : '–';
-
-  const marginLabel =
-    fairValue.avgMargin != null ? `${num1.format(fairValue.avgMargin)}%` : '–';
-
-  const revenueLabel =
-    fairValue.revTtmMEUR != null && Number.isFinite(fairValue.revTtmMEUR) && Number.isFinite(fx)
-      ? `${int0.format(fairValue.revTtmMEUR * fx)} MSEK`
-      : '–';
-
-  const bbBoostLabel =
-    fairValue.bbInfo && Number.isFinite(fairValue.bbInfo.baseBoostPct)
-      ? `+${pct1.format(fairValue.bbInfo.baseBoostPct)}%`
-      : '–';
-
-  const scenarioOptions = fairValue.scenarios.map((scenario) => {
-    const palette = scenarioPalette[scenario.id] ?? defaultScenario;
-    return {
-      id: scenario.id,
-      label: palette.label ?? translate(scenario.label ?? scenario.id, scenario.label ?? scenario.id),
-      color: palette.color,
-    };
-  });
-
+  const handleScenarioChange = useCallback((_, value) => { if (value) setScenarioId(value); }, []);
+  const activeScenario = fairValue.scenarios.find((scenario) => scenario.id === scenarioId) ?? fairValue.scenarios[0] ?? null;
+  const activeStyle = SCENARIO_STYLE[activeScenario?.id] ?? SCENARIO_STYLE.fair;
+  const buyback = fairValue.buybackInfo;
   const dataUnavailable = fairValue.scenarios.length === 0;
-  const priceUpdatedTime = formatTime(priceUpdated) ?? translate('saknas', 'missing');
-  const fxUpdatedTime = formatTime(fxUpdated) ?? translate('saknas', 'missing');
-  const priceUpdatedDetailed = formatDateTime(priceUpdated) ?? translate('okänt', 'unknown');
-  const liveChipLabel = translate('Live', 'Live');
-  const errorChipLabel = translate('Fel', 'Error');
-  const updatedPrefix = translate('Uppdaterad', 'Updated');
-  const descriptionText = translate(
-    'Normaliserad AI-modell väger samman 8Q EPS, clampad tillväxt och det nya återköpsmandatet för att uppskatta värderingsspann. Välj scenario för att se antaganden och potentiell uppsida.',
-    'Normalized AI model blends 8Q EPS, clamped growth, and the new buyback mandate to estimate the valuation range. Pick a scenario to view assumptions and potential upside.'
-  );
-  const dataUnavailableText = translate(
-    'AI:n saknar tillräcklig kvartalsdata för att beräkna ett värde. Säkerställ att minst 8 kvartal med EPS finns i underlaget.',
-    'The AI lacks sufficient quarterly data to compute a value. Make sure at least 8 quarters of EPS are included.'
-  );
-  const clampMin = (MIN_FWD_GROWTH * 100).toFixed(0);
-  const clampMax = (MAX_FWD_GROWTH * 100).toFixed(0);
-  const clampRangeNote = translate(
-    `Modellen clampas mellan ${clampMin}% och ${clampMax}% tillväxt.`,
-    `The model clamps growth between ${clampMin}% and ${clampMax}% growth.`
-  );
-  const priceStatusText = priceError ? translate('fel vid hämtning', 'fetch error') : translate('OK', 'OK');
-  const fxStatusText = fxError ? translate('fel vid hämtning', 'fetch error') : translate('OK', 'OK');
-  const buybackStatusText = buybackMeta?.buybacksActive === false
-    ? translate('inaktivt program', 'inactive program')
-    : buybackMeta?.updatedAt
-    ? translate('OK', 'OK')
-    : translate('saknas', 'missing');
-
-  const fairValueHeadline = activeScenario && Number.isFinite(activeScenario.impliedPriceSEK)
-    ? currency0.format(activeScenario.impliedPriceSEK)
-    : '–';
-  const fairValueVsPrice = upsideValue != null
-    ? `${upsideValue >= 0 ? '+' : ''}${pct1.format(upsideValue)}%`
-    : '–';
-  const fairValueLabel = translate('AI Fair Value', 'AI Fair Value');
-  const fairValueInsight = activeScenario
-    ? translate(
-        `Scenario: ${scenarioInfo.label} · PE ${activeScenario.pe ?? '–'}x`,
-        `Scenario: ${scenarioInfo.label} · PE ${activeScenario.pe ?? '–'}x`
-      )
-    : translate('Saknar scenario', 'No scenario available');
 
   useEffect(() => {
     let active = true;
-    const fetchReports = async () => {
-      try {
-        const res = await fetch('/api/financial-reports', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
-        const nextReports = Array.isArray(data?.financialReports) ? data.financialReports : null;
-        if (active && nextReports && nextReports.length) {
-          setLiveReports(nextReports);
-        }
-      } catch (_err) {
-        // keep fallback reports
-      }
-    };
-    fetchReports();
-    return () => {
-      active = false;
-    };
+    fetch('/api/financial-reports', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => {
+      if (active && Array.isArray(data?.financialReports) && data.financialReports.length) setLiveReports(data.financialReports);
+    }).catch(() => {});
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
     let active = true;
-    const fetchBuybacks = async () => {
-      try {
-        const res = await fetch('/api/buybacks/data', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (!active) return;
-        setBuybackMeta(data);
-      } catch (_err) {
-        // keep fallback buyback
-      }
-    };
-    fetchBuybacks();
-    return () => {
-      active = false;
-    };
-  }, [sharesData]);
+    fetch('/api/buybacks/data', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => {
+      if (!active) return;
+      if (Array.isArray(data?.combined)) setLiveBuybackData(data.combined);
+      setBuybackMeta(data);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const rangeLabel = Number.isFinite(fairValue.valuationRange.low) ? `${formatSek0(fairValue.valuationRange.low)}–${formatSek0(fairValue.valuationRange.high)}` : '–';
+  const midpointLabel = formatSek0(fairValue.valuationRange.midpoint);
+  const fxPair = fxMeta?.base && fxMeta?.quote ? `${fxMeta.base}/${fxMeta.quote}` : 'EUR/SEK';
+  const warnings = fairValue.dataQuality?.warnings ?? [];
+  const scenarioOptions = fairValue.scenarios.map((scenario) => ({ ...scenario, style: SCENARIO_STYLE[scenario.id] ?? SCENARIO_STYLE.fair }));
 
   return (
-    <Box
-      sx={{
-        background: 'linear-gradient(140deg, rgba(15,23,42,0.95), rgba(12,20,35,0.92))',
-        borderRadius: '24px',
-        border: '1px solid rgba(148,163,184,0.18)',
-        boxShadow: '0 28px 60px rgba(15,23,42,0.55)',
-        px: { xs: 2.4, sm: 3, md: 3.6 },
-        py: { xs: 2.8, sm: 3.2, md: 3.4 },
-      }}
-    >
-      <Stack spacing={{ xs: 2.4, sm: 3 }} alignItems="center">
-        <Stack
-          direction="column"
-          spacing={{ xs: 1.4, sm: 2 }}
-          alignItems="center"
-          textAlign="center"
-          sx={{ width: '100%' }}
-        >
-          <Stack
-            direction="row"
-            spacing={1.2}
-            alignItems="center"
-            justifyContent="center"
-            flexWrap="wrap"
-          >
-            <Typography
-              variant={isMobile ? 'h5' : 'h4'}
-              sx={{ fontWeight: 700, color: '#f8fafc', textAlign: 'center' }}
-            >
-              {translate('Live AI Fair Value', 'Live AI Fair Value')}
-            </Typography>
-            <Chip
-              size="small"
-              icon={<AutoAwesomeIcon sx={{ color: '#fef9c3 !important' }} />}
-              label={translate('AI', 'AI')}
-              sx={{
-                backgroundColor: 'rgba(250,204,21,0.16)',
-                color: '#fde047',
-                borderRadius: '999px',
-                border: '1px solid rgba(250,204,21,0.35)',
-                fontWeight: 600,
-              }}
-            />
-            {fairValue.latestLabel && (
-              <Chip
-                size="small"
-                icon={<InfoOutlinedIcon sx={{ color: '#bae6fd !important' }} />}
-                label={translate(`Rapport: ${fairValue.latestLabel}`, `Report: ${fairValue.latestLabel}`)}
-                sx={{
-                  backgroundColor: 'rgba(56,189,248,0.12)',
-                  color: '#bae6fd',
-                  borderRadius: '999px',
-                  border: '1px solid rgba(56,189,248,0.38)',
-                  fontWeight: 600,
-                }}
-              />
-            )}
+    <Box sx={{ width: '100%', background: 'linear-gradient(140deg, rgba(15,23,42,0.96), rgba(12,20,35,0.94))', borderRadius: '24px', border: '1px solid rgba(148,163,184,0.18)', boxShadow: '0 28px 60px rgba(2,6,23,0.48)', px: { xs: 2, sm: 3, md: 3.6 }, py: { xs: 2.5, sm: 3.2 } }}>
+      <Stack spacing={{ xs: 2.2, sm: 2.8 }} sx={{ width: '100%', maxWidth: 1160, alignSelf: 'center', marginInline: 'auto' }}>
+        <Stack spacing={1.1} alignItems="center" textAlign="center">
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
+            <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ color: '#f8fafc', fontWeight: 800 }}>{translate('Fair value-modell', 'Fair value model')}</Typography>
+            <Chip size="small" icon={<InsightsIcon sx={{ color: '#bae6fd !important' }} />} label={translate('Modell v2', 'Model v2')} sx={{ color: '#bae6fd', bgcolor: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)' }} />
+            {fairValue.latestLabel && <Chip size="small" label={translate(`Rapport ${fairValue.latestLabel}`, `Report ${fairValue.latestLabel}`)} sx={{ color: '#cbd5e1', bgcolor: 'rgba(148,163,184,0.1)' }} />}
           </Stack>
-
-          <Stack
-            direction="row"
-            spacing={1.2}
-            flexWrap="wrap"
-            alignItems="center"
-            justifyContent="center"
-          >
-            <Chip
-              size="small"
-              icon={<CurrencyExchangeIcon sx={{ color: '#c4b5fd !important' }} />}
-              label={`${fxPairLabel} ${fxFormatted}`}
-              sx={{
-                backgroundColor: 'rgba(196,181,253,0.12)',
-                color: '#ddd6fe',
-                borderRadius: '10px',
-                border: '1px solid rgba(196,181,253,0.35)',
-              }}
-            />
-            <Chip
-              size="small"
-              icon={<AccessTimeIcon sx={{ color: '#fda4af !important' }} />}
-              label={translate(`Kurs uppd: ${priceUpdatedTime}`, `Price updated: ${priceUpdatedTime}`)}
-              sx={{
-                backgroundColor: 'rgba(244,114,182,0.12)',
-                color: '#fda4af',
-                borderRadius: '10px',
-                border: '1px solid rgba(244,114,182,0.35)',
-              }}
-            />
-            {buybackMeta?.updatedAt && (
-              <Chip
-                size="small"
-                icon={<AccessTimeIcon sx={{ color: '#a7f3d0 !important' }} />}
-                label={translate(
-                  `Återköp uppd: ${formatTime(new Date(buybackMeta.updatedAt)) ?? '–'}`,
-                  `Buybacks updated: ${formatTime(new Date(buybackMeta.updatedAt)) ?? '–'}`
-                )}
-                sx={{
-                  backgroundColor: 'rgba(34,197,94,0.12)',
-                  color: '#bbf7d0',
-                  borderRadius: '10px',
-                  border: '1px solid rgba(34,197,94,0.35)',
-                }}
-              />
-            )}
-            <Chip
-              size="small"
-              icon={<AccessTimeIcon sx={{ color: '#bfdbfe !important' }} />}
-              label={translate(`FX uppd: ${fxUpdatedTime}`, `FX updated: ${fxUpdatedTime}`)}
-              sx={{
-                backgroundColor: 'rgba(96,165,250,0.12)',
-                color: '#bfdbfe',
-                borderRadius: '10px',
-                border: '1px solid rgba(96,165,250,0.35)',
-              }}
-            />
-          </Stack>
-        </Stack>
-
-        <Stack
-          direction="column"
-          spacing={{ xs: 1.6, sm: 2.4 }}
-          alignItems="center"
-          textAlign="center"
-          sx={{ width: '100%' }}
-        >
-          <Typography
-            variant="body2"
-            sx={{ color: 'rgba(226,232,240,0.72)', maxWidth: 600, textAlign: 'center' }}
-          >
-            {descriptionText}
+          <Typography variant="body2" sx={{ color: 'rgba(203,213,225,0.72)', maxWidth: 680 }}>
+            {translate('Driverbaserad värdering med DCF, forward P/E och verifierade återköp.', 'Driver-based valuation using DCF, forward P/E, and verified buybacks.')}
           </Typography>
-          {scenarioOptions.length > 0 && (
-            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-              <ToggleButtonGroup
-                value={scenarioId}
-                exclusive
-                onChange={handleScenarioChange}
-                size="small"
-                sx={{
-                  backgroundColor: 'rgba(15,23,42,0.6)',
-                  borderRadius: '999px',
-                  p: '4px',
-                }}
-              >
-                {scenarioOptions.map((option) => (
-                  <ToggleButton
-                    key={option.id}
-                    value={option.id}
-                    sx={{
-                      px: 2.4,
-                      borderRadius: '999px !important',
-                      border: 'none',
-                      color: 'rgba(226,232,240,0.78)',
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      '&.Mui-selected': {
-                        color: option.color,
-                        backgroundColor: `${option.color}1A`,
-                        border: `1px solid ${option.color}44`,
-                      },
-                      '&:not(.Mui-selected)': {
-                        backgroundColor: 'transparent',
-                      },
-                    }}
-                  >
-                    {option.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Box>
-          )}
+          <Stack direction="row" spacing={0.8} flexWrap="wrap" justifyContent="center">
+            <Chip size="small" icon={<CurrencyExchangeIcon sx={{ color: '#c4b5fd !important' }} />} label={`${fxPair} ${Number.isFinite(fx) ? number2.format(fx) : '–'}`} sx={{ color: '#ddd6fe', bgcolor: 'rgba(139,92,246,0.12)' }} />
+            <Chip size="small" icon={<AccessTimeIcon sx={{ color: '#bfdbfe !important' }} />} label={translate(`Kurs ${formatTime(priceUpdated) ?? '–'}`, `Price ${formatTime(priceUpdated) ?? '–'}`)} sx={{ color: '#bfdbfe', bgcolor: 'rgba(59,130,246,0.11)' }} />
+            <Chip size="small" label={fairValue.dataQuality?.status === 'good' ? translate('Datakvalitet: god', 'Data quality: good') : translate('Datakvalitet: kontrollera', 'Data quality: review')} color={fairValue.dataQuality?.status === 'good' ? 'success' : 'warning'} variant="outlined" />
+          </Stack>
         </Stack>
-
-        <Divider sx={{ borderColor: 'rgba(148,163,184,0.18)' }} />
 
         {dataUnavailable ? (
-          <Box
-            sx={{
-              background: 'rgba(15,23,42,0.75)',
-              borderRadius: '18px',
-              border: '1px dashed rgba(148,163,184,0.35)',
-              p: 3,
-            }}
-          >
-            <Typography variant="body1" sx={{ color: 'rgba(226,232,240,0.82)', fontWeight: 500 }}>
-              {dataUnavailableText}
-            </Typography>
-          </Box>
+          <Box sx={{ ...panelSx, p: 3 }}><Stack direction="row" spacing={1} alignItems="center"><WarningAmberRoundedIcon sx={{ color: '#fbbf24' }} /><Typography sx={{ color: '#e2e8f0' }}>{translate('Modellen kan inte beräknas. Kontrollera EUR/SEK och åtta sammanhängande kvartal.', 'The model cannot be calculated. Check EUR/SEK and eight consecutive quarters.')}</Typography></Stack></Box>
         ) : (
-        <Stack spacing={{ xs: 2.4, sm: 3 }}>
-          <Box
-            sx={{
-              borderRadius: '20px',
-              border: '1px solid rgba(148,163,184,0.2)',
-              background: 'linear-gradient(135deg, rgba(15,23,42,0.72), rgba(30,41,59,0.72))',
-              p: { xs: 2, sm: 2.2, md: 2.4 },
-            }}
-          >
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1.5}
-              alignItems={{ xs: 'flex-start', md: 'center' }}
-              justifyContent="space-between"
-            >
+          <>
+            <Box sx={{ ...panelSx, px: { xs: 1.5, sm: 2 }, py: 0.5, bgcolor: 'rgba(2,6,23,0.45)', borderRadius: '999px' }}>
+              <ToggleButtonGroup value={scenarioId} exclusive onChange={handleScenarioChange} size="small" sx={{ width: '100%', justifyContent: 'center' }}>
+                {scenarioOptions.map((scenario) => <ToggleButton key={scenario.id} value={scenario.id} sx={{ border: 0, borderRadius: '999px !important', color: 'rgba(203,213,225,0.75)', textTransform: 'none', px: { xs: 1.8, sm: 3 }, '&.Mui-selected': { color: scenario.style.color, bgcolor: `${scenario.style.color}1f` } }}>{translate(scenario.style.sv, scenario.style.en)}</ToggleButton>)}
+              </ToggleButtonGroup>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' }, gap: 2, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
               <Box>
-                <Typography variant="overline" sx={{ color: 'rgba(148,163,184,0.78)', letterSpacing: 1.1 }}>
-                  {translate('Sammanfattning', 'Summary')}
-                </Typography>
-                <Typography variant="h5" sx={{ color: '#f8fafc', fontWeight: 800, mt: 0.3 }}>
-                  {fairValueLabel}
-                </Typography>
-                <Typography sx={{ color: 'rgba(226,232,240,0.72)', mt: 0.4 }}>
-                  {fairValueInsight}
-                </Typography>
+                <MetricCard label={translate('Aktuell kurs', 'Current price')} value={formatSek2(currentPriceSEK)} helper={translate(`Uppdaterad ${formatTime(priceUpdated) ?? '–'}`, `Updated ${formatTime(priceUpdated) ?? '–'}`)} />
               </Box>
-              <Stack
-                direction="row"
-                spacing={1}
-                flexWrap="wrap"
-                justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
-              >
-                <Chip
-                  label={translate(`Aktuell kurs ${currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}`, `Current price ${currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}`)}
-                  sx={{
-                    backgroundColor: 'rgba(96,165,250,0.12)',
-                    color: '#bfdbfe',
-                    border: '1px solid rgba(96,165,250,0.28)',
-                    fontWeight: 600,
-                  }}
-                />
-                <Chip
-                  label={translate(`Fair value ${fairValueHeadline}`, `Fair value ${fairValueHeadline}`)}
-                  sx={{
-                    backgroundColor: 'rgba(34,197,94,0.12)',
-                    color: '#bbf7d0',
-                    border: '1px solid rgba(34,197,94,0.28)',
-                    fontWeight: 600,
-                  }}
-                />
-                <Chip
-                  label={translate(`Uppsida ${fairValueVsPrice}`, `Upside ${fairValueVsPrice}`)}
-                  sx={{
-                    backgroundColor: upsideValue != null && upsideValue >= 0
-                      ? 'rgba(34,197,94,0.12)'
-                      : 'rgba(248,113,113,0.12)',
-                    color: upsideValue != null && upsideValue >= 0 ? '#bbf7d0' : '#fecaca',
-                    border: `1px solid ${upsideValue != null && upsideValue >= 0 ? 'rgba(34,197,94,0.28)' : 'rgba(248,113,113,0.28)'}`,
-                    fontWeight: 600,
-                  }}
-                />
+              <Box>
+                <Box sx={{ ...panelSx, p: 2.2, height: '100%', textAlign: 'center', background: `linear-gradient(145deg, ${activeStyle.color}20, rgba(15,23,42,0.78))`, borderColor: `${activeStyle.color}55` }}>
+                  <Stack direction="row" spacing={0.7} justifyContent="center" alignItems="center"><activeStyle.Icon sx={{ color: activeStyle.color }} /><Typography variant="subtitle2" sx={{ color: activeStyle.color, fontWeight: 750 }}>{translate(activeStyle.sv, activeStyle.en)} · Fair value</Typography></Stack>
+                  <Typography variant="h3" sx={{ color: '#f8fafc', fontWeight: 850, mt: 0.55 }}>{formatSek0(activeScenario?.impliedPriceSEK)}</Typography>
+                  <Typography sx={{ color: activeScenario?.upsidePct >= 0 ? '#86efac' : '#fca5a5', fontWeight: 750 }}>{formatPercent(activeScenario?.upsidePct)} {translate('mot kurs', 'vs price')}</Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)', display: 'block', mt: 0.55 }}>{translate(`Intervall ${rangeLabel}`, `Range ${rangeLabel}`)}</Typography>
+                </Box>
+              </Box>
+              <Box>
+                <MetricCard label={translate('Antaganden', 'Assumptions')} value={`${formatPercent(activeScenario?.growth * 100)} tillväxt`} helper={`${number1.format(activeScenario?.margin)}% marginal · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% WACC`} />
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
+              {scenarioOptions.map((scenario) => <ScenarioCard key={scenario.id} scenario={scenario} selected={scenario.id === scenarioId} onSelect={setScenarioId} translate={translate} />)}
+            </Box>
+
+            <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto', background: 'rgba(15,23,42,0.42)' }}>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}>
+                <Box><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('Värderingsbrygga', 'Valuation bridge')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)' }}>{translate('Två metoder, ett tydligt sammanvägt värde', 'Two methods, one transparent blended value')}</Typography></Box>
+                <Typography variant="h6" sx={{ color: activeStyle.color, fontWeight: 800 }}>{midpointLabel}</Typography>
               </Stack>
-            </Stack>
-          </Box>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mt: 0.2, maxWidth: 760, mx: 'auto' }}>
+                <MetricCard label="Owner earnings-DCF" value={formatSek0(activeScenario?.dcfValueSEK)} helper={`${number1.format(activeScenario?.discountRate * 100)}% WACC · ${number1.format(activeScenario?.terminalGrowth * 100)}% terminal`} color="#a7f3d0" />
+                <MetricCard label="Forward P/E" value={formatSek0(activeScenario?.peValueSEK)} helper={`${number2.format(activeScenario?.pe)}x · EPS ${formatSek2(activeScenario?.fwdEpsSEK)}`} color="#bae6fd" />
+                <MetricCard label={translate('Sammanvägt', 'Blended')} value={formatSek0(activeScenario?.impliedPriceSEK)} helper={translate('55% DCF · 45% P/E', '55% DCF · 45% P/E')} color={activeStyle.color} />
+              </Box>
+            </Box>
 
-          <Grid container spacing={2.4} justifyContent="center" alignItems="stretch">
-            <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
-              <Box
-                sx={{
-                    ...METRIC_CARD_BASE_SX,
-                    background: 'rgba(15,23,42,0.7)',
-                    border: '1px solid rgba(148,163,184,0.25)',
-                  }}
-                >
-                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
-                    <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.8)', textAlign: 'center' }}>
-                      {translate('Aktuell kurs', 'Current price')}
-                    </Typography>
-                    {(priceLoading || priceError) && (
-                      <Chip
-                        size="small"
-                        label={priceLoading ? liveChipLabel : errorChipLabel}
-                        sx={{
-                          height: 22,
-                          backgroundColor: priceError
-                            ? 'rgba(248,113,113,0.15)'
-                            : 'rgba(129,140,248,0.2)',
-                          color: priceError ? '#fca5a5' : '#c4b5fd',
-                          borderRadius: '999px',
-                        }}
-                      />
-                    )}
-                  </Stack>
-                  <Typography variant="h4" sx={{ fontWeight: 700, color: '#f8fafc' }}>
-                    {currentPriceSEK != null ? currency2.format(currentPriceSEK) : '–'}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', textAlign: 'center' }}>
-                    {updatedPrefix} {priceUpdatedDetailed}
-                  </Typography>
-                </Box>
-              </Grid>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
+              <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}><Stack direction="row" justifyContent="space-between" alignItems="center"><Box><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('Verifierade återköp', 'Verified buybacks')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>{translate(`Sedan ${buyback?.snapshotDate ?? '–'}`, `Since ${buyback?.snapshotDate ?? '–'}`)}</Typography></Box><Chip size="small" label={translate('Faktiskt utfall', 'Observed')} sx={{ color: '#a7f3d0', bgcolor: 'rgba(34,197,94,0.11)' }} /></Stack><Grid container spacing={1} sx={{ mt: 0.7 }}><Grid item xs={6} sm={3}><MetricCard label={translate('Aktier', 'Shares')} value={formatMillions(buyback?.executedSharesAfterSnapshot, 'M')} /></Grid><Grid item xs={6} sm={3}><MetricCard label={translate('Kassa', 'Cash')} value={Number.isFinite(buyback?.executedSpendAfterSnapshotSek) ? `${number1.format(buyback.executedSpendAfterSnapshotSek / 1_000_000_000)} md` : '–'} /></Grid><Grid item xs={6} sm={3}><MetricCard label={translate('Aktier nu', 'Shares now')} value={formatMillions(buyback?.currentShares, 'M')} /></Grid><Grid item xs={6} sm={3}><MetricCard label="EPS" value={formatPercent((buyback?.executedEpsBoost ?? 0) * 100)} /></Grid></Grid><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', display: 'block', mt: 1 }}>{translate(`Kvarvarande mandat ${Number.isFinite(buyback?.remainingMandateSek) ? `${number1.format(buyback.remainingMandateSek / 1_000_000_000)} md SEK` : '–'} · outnyttjat mandat räknas inte in.`, `Remaining authorization ${Number.isFinite(buyback?.remainingMandateSek) ? `${number1.format(buyback.remainingMandateSek / 1_000_000_000)}bn SEK` : '–'} · unused authorization is excluded.`)}</Typography></Box>
+              <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('DCF-känslighet', 'DCF sensitivity')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>{translate('WACC rader · terminal tillväxt kolumner', 'WACC rows · terminal growth columns')}</Typography><Box sx={{ display: 'grid', gridTemplateColumns: '54px repeat(3, 1fr)', gap: 0.5, mt: 1.2 }}><Box />{fairValue.sensitivity.terminalGrowthRates.map((rate) => <Typography key={rate} variant="caption" sx={{ textAlign: 'center', color: '#94a3b8' }}>{number1.format(rate * 100)}%</Typography>)}{fairValue.sensitivity.discountRates.flatMap((rate, rowIndex) => [<Typography key={`r-${rate}`} variant="caption" sx={{ color: '#94a3b8', alignSelf: 'center' }}>{number1.format(rate * 100)}%</Typography>, ...fairValue.sensitivity.values[rowIndex].map((value, columnIndex) => <Box key={`${rate}-${columnIndex}`} sx={{ py: 0.7, textAlign: 'center', borderRadius: '8px', bgcolor: rate === 0.1 && columnIndex === 1 ? 'rgba(34,197,94,0.16)' : 'rgba(30,41,59,0.7)' }}><Typography variant="caption" sx={{ color: '#e2e8f0', fontWeight: 700 }}>{formatSek0(value)}</Typography></Box>),])}</Box></Box>
+            </Box>
 
-              <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
-                <Box
-                  sx={{
-                    ...METRIC_CARD_BASE_SX,
-                    background: `${scenarioInfo.color}12`,
-                    border: `1px solid ${scenarioInfo.color}40`,
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: `radial-gradient(circle at 20% 0%, ${scenarioInfo.color}22, transparent 60%)`,
-                      pointerEvents: 'none',
-                    }}
-                  />
-                  <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                    <scenarioInfo.Icon sx={{ color: scenarioInfo.color }} />
-                    <Typography variant="subtitle2" sx={{ color: scenarioInfo.color, fontWeight: 600 }}>
-                      {translate('AI', 'AI')} {scenarioInfo.label}
-                    </Typography>
-                  </Stack>
-                  <Typography variant="h3" sx={{ fontWeight: 800, color: '#f8fafc' }}>
-                    {impliedPriceLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      color: upsideValue != null && upsideValue < 0 ? '#f87171' : '#34d399',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {upsideLabel} {translate('mot aktuell kurs', 'vs current price')}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                    PE {activeScenario?.pe ?? '–'}x • 1Y fwd EPS {fwdEpsLabel}
-                  </Typography>
-                  <Box sx={{ width: '100%' }}>
-                    <LinearProgress
-                      variant={upsideProgress != null ? 'determinate' : 'indeterminate'}
-                      value={upsideProgress ?? 0}
-                      sx={{
-                        height: 6,
-                        borderRadius: 999,
-                        backgroundColor: 'rgba(15,23,42,0.5)',
-                        '& .MuiLinearProgress-bar': {
-                          borderRadius: 999,
-                          backgroundColor: scenarioInfo.color,
-                        },
-                      }}
-                    />
-                  </Box>
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} md={4} sx={{ display: 'flex' }}>
-                <Box
-                  sx={{
-                    ...METRIC_CARD_BASE_SX,
-                    background: 'rgba(15,23,42,0.7)',
-                    border: '1px solid rgba(148,163,184,0.25)',
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {translate('Antaganden (scenario)', 'Assumptions (scenario)')}
-                  </Typography>
-                  <Stack spacing={0.3} alignItems="center">
-                    <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                      {translate('Tillväxt (1Y)', 'Growth (1Y)')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
-                      {growthLabel}
-                    </Typography>
-                  </Stack>
-                  <Stack spacing={0.3} alignItems="center">
-                    <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                      {translate('Nettoåterköp', 'Net buybacks')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
-                      {buybackLabel}
-                    </Typography>
-                  </Stack>
-                  <Stack spacing={0.3} alignItems="center">
-                    <Typography variant="body2" sx={{ color: 'rgba(226,232,240,0.75)' }}>
-                      {translate('EPS-boost (base)', 'EPS boost (base)')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#f8fafc', fontWeight: 600 }}>
-                      {bbBoostLabel}
-                    </Typography>
-                  </Stack>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', textAlign: 'center' }}>
-                    {clampRangeNote}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-
-            <Grid container spacing={2.4} justifyContent="center">
-              <Grid item xs={12} sm={6} md={3}>
-                <Box
-                  sx={{
-                    background: 'rgba(56,189,248,0.1)',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(56,189,248,0.3)',
-                    p: 2,
-                    textAlign: 'center',
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {translate('EPS (TTM, SEK)', 'EPS (TTM, SEK)')}
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
-                    {ttmEpsLabel}
-                  </Typography>
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Box
-                  sx={{
-                    background: 'rgba(34,197,94,0.1)',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(34,197,94,0.3)',
-                    p: 2,
-                    textAlign: 'center',
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {translate('EPS (Normaliserad)', 'EPS (Normalized)')}
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
-                    {normEpsLabel}
-                  </Typography>
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Box
-                  sx={{
-                    background: 'rgba(139,92,246,0.1)',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(139,92,246,0.3)',
-                    p: 2,
-                    textAlign: 'center',
-                  }}
-                >
-                  <Typography variant="subtitle2" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-                    {translate('Rörelsemarginal (4Q snitt)', 'Operating margin (4Q avg)')}
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: '#f8fafc', fontWeight: 700 }}>
-                    {marginLabel}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
-          </Stack>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.2, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}><MetricCard label="TTM EPS" value={formatSek2(fairValue.annualEpsTTMSEK)} /><MetricCard label={translate('Normaliserad EPS', 'Normalized EPS')} value={formatSek2(fairValue.annualEpsNormSEK)} helper="8Q" /><MetricCard label={translate('Owner earnings/aktie', 'Owner earnings/share')} value={formatSek2(fairValue.ownerEarningsPerShareSEK)} helper="OCF − 12% capex" /><MetricCard label={translate('Bas: omsättning', 'Base: revenue')} value={formatPercent(fairValue.revenueGrowth * 100)} helper="65% TTM · 35% senaste kvartal" /></Box>
+          </>
         )}
 
-        <Divider sx={{ borderColor: 'rgba(148,163,184,0.18)' }} />
+        {warnings.length > 0 && <Box sx={{ ...panelSx, p: 1.7, borderColor: 'rgba(245,158,11,0.3)', bgcolor: 'rgba(120,53,15,0.12)' }}><Stack direction="row" spacing={1} alignItems="flex-start"><WarningAmberRoundedIcon sx={{ color: '#fbbf24', fontSize: 19 }} /><Box><Typography variant="subtitle2" sx={{ color: '#fde68a' }}>{translate('Datakontroll', 'Data review')}</Typography>{warnings.map((warning) => { const label = WARNING_LABELS[warning] ?? [warning, warning]; return <Typography key={warning} variant="caption" sx={{ display: 'block', color: 'rgba(254,243,199,0.78)' }}>• {translate(label[0], label[1])}</Typography>; })}</Box></Stack></Box>}
 
-        <Stack spacing={1.4}>
-          <Stack direction="row" spacing={0.8} alignItems="center">
-            <InfoOutlinedIcon sx={{ fontSize: 18, color: '#93c5fd' }} />
-            <Typography variant="subtitle2" sx={{ color: '#cbd5f5', fontWeight: 600 }}>
-              {translate('Metod & begränsningar', 'Method & limitations')}
-            </Typography>
-          </Stack>
-          <Typography variant="body2" sx={{ color: 'rgba(203,213,225,0.8)' }}>
-            {translate(
-              '• AI-normaliserad EPS baseras på 8 kvartal och förlängs 12 månader framåt.',
-              '• AI-normalized EPS uses 8 quarters and projects 12 months forward.'
-            )}
-            <br />
-            {translate(
-              `• Tillväxt clampas mellan ${(MIN_FWD_GROWTH * 100).toFixed(0)}% och ${(MAX_FWD_GROWTH * 100).toFixed(0)}%, multipeln justeras efter marginalkvalitet.`,
-              `• Growth is clamped between ${(MIN_FWD_GROWTH * 100).toFixed(0)}% and ${(MAX_FWD_GROWTH * 100).toFixed(0)}%, with multiples adjusted for margin quality.`
-            )}
-            <br />
-            {translate(
-              '• Nettoåterköp modelleras med 10%/12%/15% i bear/fair/bull enligt programramen och höjer EPS via 1/(1−y); scenarier varierar både multipel och antagande.',
-              '• Net buybacks are modelled at 10%/12%/15% in bear/fair/bull according to the program framework and lift EPS via 1/(1−y); scenarios vary both multiples and assumptions.'
-            )}
-          </Typography>
-          <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-            {translate(
-              `Datahämtning live: aktiekurs ${priceStatusText}, FX ${fxStatusText}, återköp ${buybackStatusText}, omsättning ${revenueLabel}.`,
-              `Live data: stock price ${priceStatusText}, FX ${fxStatusText}, buybacks ${buybackStatusText}, revenue ${revenueLabel}.`
-            )}
-          </Typography>
+        <Divider sx={{ borderColor: 'rgba(148,163,184,0.16)' }} />
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+          <Stack direction="row" spacing={0.7} alignItems="flex-start"><InfoOutlinedIcon sx={{ color: '#93c5fd', fontSize: 18, mt: 0.1 }} /><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)' }}>{translate('Transparent modell: DCF med fem års avtagande tillväxt, 15% likviditetsreserv och explicit WACC. Återköp räknas först när de är verifierade.', 'Transparent model: DCF with five years of fading growth, 15% liquidity reserve, and explicit WACC. Buybacks are included only after verification.')}</Typography></Stack>
+          <Typography variant="caption" sx={{ color: 'rgba(100,116,139,0.8)', whiteSpace: { md: 'nowrap' } }}>{translate(`Kurs ${priceError ? 'fel' : 'OK'} · FX ${fxError ? 'fel' : 'OK'} · återköp ${buybackMeta?.updatedAt ? formatTime(buybackMeta.updatedAt) : 'fallback'} · FX ${formatTime(fxUpdated) ?? '–'}`, `Price ${priceError ? 'error' : 'OK'} · FX ${fxError ? 'error' : 'OK'} · buybacks ${buybackMeta?.updatedAt ? formatTime(buybackMeta.updatedAt) : 'fallback'} · FX ${formatTime(fxUpdated) ?? '–'}`)}</Typography>
         </Stack>
-
-        {(fxLoading || priceLoading) && (
-          <LinearProgress
-            sx={{
-              mt: 1,
-              height: 4,
-              borderRadius: 999,
-              backgroundColor: 'rgba(15,23,42,0.4)',
-              '& .MuiLinearProgress-bar': { borderRadius: 999, backgroundColor: '#38bdf8' },
-            }}
-          />
-        )}
+        {(fxLoading || priceLoading) && <LinearProgress sx={{ height: 4, borderRadius: 999, bgcolor: 'rgba(30,41,59,0.7)', '& .MuiLinearProgress-bar': { bgcolor: '#38bdf8', borderRadius: 999 } }} />}
       </Stack>
     </Box>
   );

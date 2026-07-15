@@ -32,7 +32,6 @@ export default function LiveHeaderPanelContent({
     return (
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
         <panels.FinancialOverviewPanel financialReports={financialReports} dividendData={dividendData} />
-        <panels.CashPositionPanel financialReports={financialReports} />
       </Box>
     );
   }
@@ -46,7 +45,13 @@ export default function LiveHeaderPanelContent({
         </Box>
       );
     }
-    return <panels.LiveAiFairValuePanel reports={reports} buybackData={buybackData} sharesData={sharesData} />;
+    return (
+      <panels.LiveAiFairValuePanel
+        reports={reports}
+        buybackData={buybackData}
+        sharesData={sharesData}
+      />
+    );
   }
 
   if (activePanel === "cash") {

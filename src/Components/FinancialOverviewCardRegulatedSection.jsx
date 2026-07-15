@@ -30,6 +30,7 @@ export default function FinancialOverviewCardRegulatedSection({
   onChangeRegulatedChartType,
   regulatedXAxisKey,
   regulatedXAxisTicks,
+  embedded = false,
 }) {
   const formatTooltipValue = (value, dataKey) => {
     if (dataKey === "regulatedShare") {
@@ -41,15 +42,14 @@ export default function FinancialOverviewCardRegulatedSection({
   return (
     <Box
       sx={{
-        mt: { xs: 2.5, md: 3 },
-        width: "100vw",
-        mx: "calc(50% - 50vw)",
+        mt: embedded ? 0 : { xs: 2.5, md: 3 },
+        width: "100%",
+        mx: 0,
         background: "rgba(15,23,42,0.55)",
-        borderRadius: 0,
-        borderTop: "1px solid rgba(148,163,184,0.18)",
-        borderBottom: "1px solid rgba(148,163,184,0.18)",
-        px: { xs: 2, sm: 3, md: 4, lg: 6 },
-        py: { xs: 2.5, md: 3 },
+        borderRadius: embedded ? "12px" : 0,
+        border: embedded ? "1px solid rgba(148,163,184,0.18)" : 0,
+        px: embedded ? { xs: 1.5, md: 2 } : { xs: 2, sm: 3, md: 4, lg: 6 },
+        py: embedded ? { xs: 1.5, md: 2 } : { xs: 2.5, md: 3 },
       }}
     >
       <Stack
@@ -143,7 +143,7 @@ export default function FinancialOverviewCardRegulatedSection({
         </Stack>
       </Stack>
 
-      <Box sx={{ height: isMobile ? 240 : 300, mx: { xs: -1, md: 0 } }}>
+      <Box sx={{ height: isMobile ? 230 : 290, mx: { xs: -1, md: 0 } }}>
         <ResponsiveContainer width="100%" height="100%">
           {regulatedChartType === "line" ? (
             <LineChart

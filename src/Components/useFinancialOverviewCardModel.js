@@ -21,6 +21,11 @@ import {
   REGION_OPTIONS,
   VIEW_TOGGLE_OPTIONS,
   computeChangeValue,
+  CHART_RANGE_OPTIONS,
+  buildFinancialXAxisTicks,
+  buildNiceAxisScale,
+  filterFinancialSeriesByRange,
+  formatFinancialXAxisTick,
   formatMetricValue,
   formatQuarterAxisLabel,
   formatChangeValue,
@@ -35,6 +40,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
   const [viewMode, setViewMode] = useState("quarterly");
   const [wideMetric, setWideMetric] = useState("revenue");
   const [wideViewMode, setWideViewMode] = useState("quarterly");
+  const [wideRange, setWideRange] = useState("5y");
   const [regulatedView, setRegulatedView] = useState("annual");
   const [regulatedChartType, setRegulatedChartType] = useState("line");
 
@@ -61,6 +67,15 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
   const viewToggleOptions = useMemo(
     () =>
       VIEW_TOGGLE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: translate(option.labelSv, option.labelEn),
+      })),
+    [translate]
+  );
+
+  const chartRangeOptions = useMemo(
+    () =>
+      CHART_RANGE_OPTIONS.map((option) => ({
         value: option.value,
         label: translate(option.labelSv, option.labelEn),
       })),
@@ -129,7 +144,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     return source.map((item) => ({ ...item, xLabel: item.xLabel || item.period }));
   }, [metric, viewMode, dividendSeries, annualSeries, quarterlySeries, metricConfigs]);
 
-  const wideSelectedSeries = useMemo(() => {
+  const wideFullSeries = useMemo(() => {
     const config = metricConfigs[wideMetric];
     if (!config || config.custom || !config.valueKey) return [];
     const source =
@@ -141,15 +156,27 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     return source.map((item) => ({ ...item, xLabel: item.xLabel || item.period }));
   }, [wideMetric, wideViewMode, dividendSeries, annualSeries, quarterlySeries, metricConfigs]);
 
-  const wideRangeValue = useMemo(() => {
+  const wideSelectedSeries = useMemo(
+    () => filterFinancialSeriesByRange(wideFullSeries, wideRange, wideViewMode),
+    [wideFullSeries, wideRange, wideViewMode]
+  );
+
+  const widePeak = useMemo(() => {
     if (!wideSelectedSeries.length || !metricConfigs[wideMetric]?.valueKey) return null;
-    const first = wideSelectedSeries[0]?.[metricConfigs[wideMetric]?.valueKey];
-    const last = wideSelectedSeries[wideSelectedSeries.length - 1]?.[metricConfigs[wideMetric]?.valueKey];
+    const key = metricConfigs[wideMetric].valueKey;
+    const peak = wideSelectedSeries.reduce((best, item) =>
+      Number(item[key]) > Number(best?.[key]) ? item : best
+    );
+    const latest = wideSelectedSeries.at(-1);
+    const peakValue = Number(peak?.[key]);
+    const latestValue = Number(latest?.[key]);
     return {
-      firstValue: Number.isFinite(first) ? first : null,
-      lastValue: Number.isFinite(last) ? last : null,
-      firstLabel: wideSelectedSeries[0]?.period,
-      lastLabel: wideSelectedSeries[wideSelectedSeries.length - 1]?.period,
+      value: Number.isFinite(peakValue) ? peakValue : null,
+      period: peak?.period || null,
+      distance:
+        Number.isFinite(peakValue) && Number.isFinite(latestValue)
+          ? computeChangeValue(metricConfigs, wideMetric, latestValue, peakValue)
+          : null,
     };
   }, [wideSelectedSeries, wideMetric, metricConfigs]);
 
@@ -183,59 +210,67 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     return [min, max];
   }, [metric, selectedSeries, metricConfigs]);
 
-  const wideChartDomain = useMemo(() => {
+  const wideAxisScale = useMemo(() => {
     const config = metricConfigs[wideMetric];
-    if (!config || config.custom || !config.valueKey || !wideSelectedSeries.length) return [0, 1];
+    if (!config || config.custom || !config.valueKey || !wideSelectedSeries.length) {
+      return { domain: [0, 1], ticks: [0, 1] };
+    }
     const values = wideSelectedSeries
       .map((item) => Number(item[config.valueKey]))
       .filter((value) => Number.isFinite(value));
-    if (!values.length) return [0, 1];
-    let min = Math.min(...values);
-    let max = Math.max(...values);
+    if (!values.length) return { domain: [0, 1], ticks: [0, 1] };
     if (wideMetric === "margin") {
-      const padding = 3;
-      min = Math.max(0, Math.floor(min - padding));
-      max = Math.min(100, Math.ceil(max + padding));
-      if (min === max) {
-        min = Math.max(0, min - 5);
-        max = Math.min(100, max + 5);
-      }
-    } else {
-      const range = max - min;
-      const padding = range > 0 ? range * 0.1 : max * 0.1 || 1;
-      min = Math.max(0, min - padding);
-      max = max + padding;
-      if (min === max) {
-        min = Math.max(0, min - 1);
-        max = max + 1;
-      }
+      return buildNiceAxisScale(values, { targetIntervals: 5, minLimit: 0, maxLimit: 100 });
     }
-    return [min, max];
-  }, [wideMetric, wideSelectedSeries, metricConfigs]);
+    return buildNiceAxisScale(values, {
+      includeZero: wideRange === "max",
+      targetIntervals: isMobile ? 4 : 5,
+      minLimit: 0,
+    });
+  }, [wideMetric, wideSelectedSeries, metricConfigs, wideRange, isMobile]);
+
+  const wideXAxisTicks = useMemo(
+    () => buildFinancialXAxisTicks(wideSelectedSeries, wideViewMode, isMobile ? 4 : 8),
+    [wideSelectedSeries, wideViewMode, isMobile]
+  );
+
+  const formatWideXAxisTick = (value) => formatFinancialXAxisTick(value, wideSelectedSeries, wideViewMode);
 
   const wideSummary = useMemo(() => {
     const config = metricConfigs[wideMetric];
     if (!config || config.custom || !config.valueKey || !wideSelectedSeries.length) {
-      return { latest: null, qoq: null, yoy: null, latestLabel: null, yoyLabel: null };
+      return { latest: null, qoq: null, yoy: null, latestLabel: null, previousLabel: null, yoyLabel: null };
     }
     const key = config.valueKey;
     const latestIndex = wideSelectedSeries.length - 1;
     const latest = wideSelectedSeries[latestIndex];
     const previous = latestIndex > 0 ? wideSelectedSeries[latestIndex - 1] : null;
+    const usesAnnualComparison = wideMetric === "dividend" || wideViewMode === "annual";
     const yoyRef =
-      wideMetric === "dividend" || wideViewMode === "annual"
-        ? previous
+      usesAnnualComparison
+        ? latestIndex - 3 >= 0
+          ? wideSelectedSeries[latestIndex - 3]
+          : null
         : latestIndex - 4 >= 0
         ? wideSelectedSeries[latestIndex - 4]
         : null;
     const latestValue = Number.isFinite(latest[key]) ? latest[key] : null;
     const previousValue = previous && Number.isFinite(previous[key]) ? previous[key] : null;
     const yoyValue = yoyRef && Number.isFinite(yoyRef[key]) ? yoyRef[key] : null;
+    const longTermChange =
+      usesAnnualComparison &&
+      config.changeMode !== "points" &&
+      Number.isFinite(latestValue) &&
+      Number.isFinite(yoyValue) &&
+      yoyValue > 0
+        ? ((latestValue / yoyValue) ** (1 / 3) - 1) * 100
+        : computeChangeValue(metricConfigs, wideMetric, latestValue, yoyValue);
     return {
       latest: latestValue,
       qoq: computeChangeValue(metricConfigs, wideMetric, latestValue, previousValue),
-      yoy: computeChangeValue(metricConfigs, wideMetric, latestValue, yoyValue),
+      yoy: longTermChange,
       latestLabel: latest?.period || null,
+      previousLabel: previous?.period || null,
       yoyLabel: yoyRef?.period || null,
     };
   }, [wideMetric, wideViewMode, wideSelectedSeries, metricConfigs]);
@@ -441,41 +476,6 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
       });
   }, [metric, quarterlySeries, dividendSeries, metricConfigs, translate, metricToggleOptions]);
 
-  const wideSummaryCards = useMemo(() => {
-    const keys = ["revenue", "margin", "eps", "dividend"];
-    return keys.map((key) => {
-      const config = metricConfigs[key];
-      const source = key === "dividend" ? dividendSeries : quarterlySeries;
-      const filtered = source.filter((item) => Number.isFinite(item[config.valueKey]));
-      if (!filtered.length) {
-        return {
-          metric: key,
-          label: config.label,
-          valueLabel: "–",
-          changeText: translate("Δ saknas", "Δ missing"),
-          periodLabel: null,
-          accent: config.accent,
-          background: config.background,
-          border: config.border,
-        };
-      }
-      const latest = filtered[filtered.length - 1];
-      const previous = filtered.length > 1 ? filtered[filtered.length - 2] : null;
-      const change = computeChangeValue(metricConfigs, key, latest[config.valueKey], previous?.[config.valueKey]);
-      const changeLabel = key === "dividend" ? "YoY" : "QoQ";
-      return {
-        metric: key,
-        label: config.label,
-        valueLabel: formatMetricValue(metricConfigs, key, latest[config.valueKey]),
-        changeText: formatChangeValue(metricConfigs, key, change, changeLabel, translate),
-        periodLabel: latest.period,
-        accent: config.accent,
-        background: config.background,
-        border: config.border,
-      };
-    });
-  }, [dividendSeries, quarterlySeries, metricConfigs, translate]);
-
   const geoQuarterlySeries = useMemo(
     () => buildGeoQuarterlySeries(reportsAscending, REGION_OPTIONS, formatQuarterAxisLabel),
     [reportsAscending]
@@ -528,12 +528,22 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     };
   }, [productMixAnnualSeries, productMixQuarterlySeries, viewMode]);
   const wideGeoSeries = useMemo(
-    () => (wideViewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries),
-    [wideViewMode, geoAnnualSeries, geoQuarterlySeries]
+    () =>
+      filterFinancialSeriesByRange(
+        wideViewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries,
+        wideRange,
+        wideViewMode
+      ),
+    [wideViewMode, wideRange, geoAnnualSeries, geoQuarterlySeries]
   );
   const wideProductMixSeries = useMemo(
-    () => (wideViewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries),
-    [wideViewMode, productMixAnnualSeries, productMixQuarterlySeries]
+    () =>
+      filterFinancialSeriesByRange(
+        wideViewMode === "annual" ? productMixAnnualSeries : productMixQuarterlySeries,
+        wideRange,
+        wideViewMode
+      ),
+    [wideViewMode, wideRange, productMixAnnualSeries, productMixQuarterlySeries]
   );
   const wideGeoSnapshot = useMemo(() => {
     const dataset = wideViewMode === "annual" ? geoAnnualSeries : geoQuarterlySeries;
@@ -609,6 +619,8 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     setWideMetric,
     wideViewMode,
     setWideViewMode,
+    wideRange,
+    setWideRange,
     regulatedView,
     setRegulatedView,
     regulatedChartType,
@@ -616,6 +628,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     metricConfigs,
     metricToggleOptions,
     viewToggleOptions,
+    chartRangeOptions,
     reports,
     reportsAscending,
     latestReport,
@@ -629,9 +642,12 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     dividendSeries,
     selectedSeries,
     wideSelectedSeries,
-    wideRangeValue,
+    widePeak,
     chartDomain,
-    wideChartDomain,
+    wideChartDomain: wideAxisScale.domain,
+    wideChartTicks: wideAxisScale.ticks,
+    wideXAxisTicks,
+    formatWideXAxisTick,
     wideSummary,
     wideTrendText,
     selectedSeriesTicks,
@@ -639,7 +655,6 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     regulatedXAxisTicks,
     selectedSummary,
     metricSummaries,
-    wideSummaryCards,
     geoQuarterlySeries,
     geoAnnualSeries,
     productMixQuarterlySeries,

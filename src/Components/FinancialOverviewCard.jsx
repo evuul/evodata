@@ -6,7 +6,6 @@ import { useTheme } from "@mui/material";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { useTranslate } from "@/context/LocaleContext";
 import { formatMillion, formatMetricValue, formatChangeValue } from "@/lib/financialOverviewCard";
-import FinancialOverviewCardRegulatedSection from "./FinancialOverviewCardRegulatedSection";
 import FinancialOverviewCardWideSection from "./FinancialOverviewCardWideSection";
 import { useFinancialOverviewCardModel } from "./useFinancialOverviewCardModel";
 
@@ -19,22 +18,28 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     metricConfigs,
     metricToggleOptions,
     viewToggleOptions,
+    chartRangeOptions,
     currentYearProfit,
+    latestReport,
     wideMetric,
     setWideMetric,
     wideViewMode,
     setWideViewMode,
+    wideRange,
+    setWideRange,
     isWideStandardMetric,
     wideSelectedSeries,
     wideChartDomain,
+    wideChartTicks,
+    wideXAxisTicks,
+    formatWideXAxisTick,
     wideGeoSeries,
     wideGeoSnapshot,
     wideProductMixSeries,
     wideProductMixSnapshot,
     wideSummary,
-    wideRangeValue,
+    widePeak,
     wideTrendText,
-    wideSummaryCards,
     regulatedSeries,
     regulatedView,
     setRegulatedView,
@@ -64,38 +69,38 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         metricConfigs={metricConfigs}
         metricToggleOptions={metricToggleOptions}
         viewToggleOptions={viewToggleOptions}
+        chartRangeOptions={chartRangeOptions}
         wideMetric={wideMetric}
         setWideMetric={setWideMetric}
         wideViewMode={wideViewMode}
         setWideViewMode={setWideViewMode}
+        wideRange={wideRange}
+        setWideRange={setWideRange}
         currentYearProfit={currentYearProfit}
+        latestReport={latestReport}
         isWideStandardMetric={isWideStandardMetric}
         wideSelectedSeries={wideSelectedSeries}
         wideChartDomain={wideChartDomain}
+        wideChartTicks={wideChartTicks}
+        wideXAxisTicks={wideXAxisTicks}
+        formatWideXAxisTick={formatWideXAxisTick}
         wideGeoSeries={wideGeoSeries}
         wideGeoSnapshot={wideGeoSnapshot}
         wideProductMixSeries={wideProductMixSeries}
         wideProductMixSnapshot={wideProductMixSnapshot}
         wideSummary={wideSummary}
-        wideRangeValue={wideRangeValue}
+        widePeak={widePeak}
         wideTrendText={wideTrendText}
-        wideSummaryCards={wideSummaryCards}
+        financialReports={financialReports}
+        regulatedSeries={regulatedSeries}
+        regulatedView={regulatedView}
+        onChangeRegulatedView={setRegulatedView}
+        regulatedChartType={regulatedChartType}
+        onChangeRegulatedChartType={setRegulatedChartType}
+        regulatedXAxisKey={regulatedXAxisKey}
+        regulatedXAxisTicks={regulatedXAxisTicks}
       />
 
-      {regulatedSeries.length > 0 && (
-        <FinancialOverviewCardRegulatedSection
-          isMobile={isMobile}
-          translate={translate}
-          formatMillion={formatMillion}
-          regulatedSeries={regulatedSeries}
-          regulatedView={regulatedView}
-          onChangeRegulatedView={setRegulatedView}
-          regulatedChartType={regulatedChartType}
-          onChangeRegulatedChartType={setRegulatedChartType}
-          regulatedXAxisKey={regulatedXAxisKey}
-          regulatedXAxisTicks={regulatedXAxisTicks}
-        />
-      )}
     </>
   );
 };

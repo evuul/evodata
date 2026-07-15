@@ -12,10 +12,10 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
+  ReferenceDot,
 } from "recharts";
-import FinancialOverviewCardWideSummaryColumn from "./FinancialOverviewCardWideSummaryColumn";
-
-const formatCompactAxisLabel = (value) => value;
+import FinancialOverviewCardRegulatedSection from "./FinancialOverviewCardRegulatedSection";
+import CashPositionCard from "./CashPositionCard";
 
 export default function FinancialOverviewCardWideSection({
   isMobile,
@@ -28,84 +28,146 @@ export default function FinancialOverviewCardWideSection({
   metricConfigs,
   metricToggleOptions,
   viewToggleOptions,
+  chartRangeOptions,
   wideMetric,
   setWideMetric,
   wideViewMode,
   setWideViewMode,
+  wideRange,
+  setWideRange,
   currentYearProfit,
+  latestReport,
   isWideStandardMetric,
   wideSelectedSeries,
   wideChartDomain,
+  wideChartTicks,
+  wideXAxisTicks,
+  formatWideXAxisTick,
   wideGeoSeries,
   wideGeoSnapshot,
   wideProductMixSeries,
   wideProductMixSnapshot,
   wideSummary,
-  wideRangeValue,
+  widePeak,
   wideTrendText,
-  wideSummaryCards,
+  regulatedSeries,
+  regulatedView,
+  onChangeRegulatedView,
+  regulatedChartType,
+  onChangeRegulatedChartType,
+  regulatedXAxisKey,
+  regulatedXAxisTicks,
+  financialReports,
 }) {
   const wideGradientId = "wideGradient";
 
   const renderMetricChart = () => {
-    if (isWideStandardMetric && wideSelectedSeries.length) {
+    if (wideMetric === "regulated") {
       return (
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={wideSelectedSeries} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id={wideGradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop
-                  offset="5%"
-                  stopColor={metricConfigs[wideMetric]?.accent || "#60a5fa"}
-                  stopOpacity={0.6}
+        <FinancialOverviewCardRegulatedSection
+          embedded
+          isMobile={isMobile}
+          translate={translate}
+          formatMillion={formatMillion}
+          regulatedSeries={regulatedSeries}
+          regulatedView={regulatedView}
+          onChangeRegulatedView={onChangeRegulatedView}
+          regulatedChartType={regulatedChartType}
+          onChangeRegulatedChartType={onChangeRegulatedChartType}
+          regulatedXAxisKey={regulatedXAxisKey}
+          regulatedXAxisTicks={regulatedXAxisTicks}
+        />
+      );
+    }
+
+    if (wideMetric === "cash") {
+      return <CashPositionCard embedded financialReports={financialReports} />;
+    }
+
+    if (isWideStandardMetric && wideSelectedSeries.length) {
+      const config = metricConfigs[wideMetric];
+      const latestPoint = wideSelectedSeries.at(-1);
+      return (
+        <Box sx={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ px: 0.5, mb: 0.5 }}>
+            <Typography sx={{ color: "rgba(226,232,240,0.82)", fontWeight: 650, fontSize: "0.9rem" }}>
+              {config?.label}
+            </Typography>
+            <Typography sx={{ color: "rgba(148,163,184,0.78)", fontSize: "0.75rem", letterSpacing: 0.5 }}>
+              {config?.unit === "€M" ? "MEUR" : config?.unit}
+            </Typography>
+          </Stack>
+          <Box sx={{ flex: 1, minHeight: 0 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={wideSelectedSeries} margin={{ top: 12, right: 14, left: 4, bottom: 4 }}>
+                <defs>
+                  <linearGradient id={wideGradientId} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={config?.accent || "#60a5fa"} stopOpacity={0.52} />
+                    <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 4" />
+                <XAxis
+                  dataKey="xLabel"
+                  ticks={wideXAxisTicks}
+                  interval={0}
+                  tickFormatter={formatWideXAxisTick}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(203,213,225,0.72)" }}
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                 />
-                <stop offset="95%" stopColor="#0f172a" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
-            <XAxis
-              dataKey="xLabel"
-              tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
-              tickLine={false}
-              axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-              interval={wideViewMode === "quarterly" ? (isMobile ? 4 : 2) : 0}
-            />
-            <YAxis
-              tick={{ fontSize: isMobile ? 11 : 12, fill: "rgba(148,163,184,0.75)" }}
-              tickLine={false}
-              axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-              domain={wideChartDomain}
-              tickFormatter={(value) => {
-                const numeric = Number(value);
-                if (!Number.isFinite(numeric)) return "";
-                if (wideMetric === "margin") return `${numeric.toFixed(0)}%`;
-                if (wideMetric === "revenue") return formatMillion(numeric, numeric >= 100 ? 0 : 1);
-                return numeric.toFixed(metricConfigs[wideMetric]?.decimals || 1);
-              }}
-            />
-            <RechartsTooltip
-              contentStyle={{
-                background: "rgba(15,23,42,0.92)",
-                border: "1px solid rgba(96,165,250,0.25)",
-                borderRadius: 12,
-                color: "#f8fafc",
-              }}
-              formatter={(value) => [
-                formatMetricValue(metricConfigs, wideMetric, Number(value)),
-                metricConfigs[wideMetric]?.label,
-              ]}
-            />
-            <Area
-              type="monotone"
-              dataKey={metricConfigs[wideMetric]?.valueKey}
-              stroke={metricConfigs[wideMetric]?.accent || "#60a5fa"}
-              strokeWidth={2.5}
-              fill={`url(#${wideGradientId})`}
-              fillOpacity={1}
-              dot={false}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+                <YAxis
+                  ticks={wideChartTicks}
+                  tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(203,213,225,0.72)" }}
+                  tickLine={false}
+                  tickMargin={8}
+                  width={isMobile ? 42 : 56}
+                  axisLine={false}
+                  domain={wideChartDomain}
+                  tickFormatter={(value) => {
+                    const numeric = Number(value);
+                    if (!Number.isFinite(numeric)) return "";
+                    if (wideMetric === "margin") return `${numeric.toFixed(0)}%`;
+                    if (wideMetric === "revenue") return formatMillion(numeric, numeric >= 100 ? 0 : 1);
+                    return numeric.toFixed(config?.decimals || 1);
+                  }}
+                />
+                <RechartsTooltip
+                  cursor={{ stroke: "rgba(148,163,184,0.38)", strokeDasharray: "4 4" }}
+                  contentStyle={{
+                    background: "rgba(15,23,42,0.96)",
+                    border: `1px solid ${config?.border || "rgba(96,165,250,0.25)"}`,
+                    borderRadius: 12,
+                    color: "#f8fafc",
+                  }}
+                  labelFormatter={(_label, payload) => payload?.[0]?.payload?.period || "–"}
+                  formatter={(value) => [formatMetricValue(metricConfigs, wideMetric, Number(value)), config?.label]}
+                />
+                <Area
+                  type="linear"
+                  dataKey={config?.valueKey}
+                  stroke={config?.accent || "#60a5fa"}
+                  strokeWidth={2.5}
+                  fill={wideRange === "max" && wideMetric === "revenue" ? `url(#${wideGradientId})` : "transparent"}
+                  fillOpacity={1}
+                  dot={false}
+                  activeDot={{ r: 5, strokeWidth: 2, fill: "#0f172a" }}
+                />
+                {latestPoint && Number.isFinite(latestPoint[config?.valueKey]) && (
+                  <ReferenceDot
+                    x={latestPoint.xLabel}
+                    y={latestPoint[config.valueKey]}
+                    r={4.5}
+                    fill={config?.accent || "#60a5fa"}
+                    stroke="#dbeafe"
+                    strokeWidth={2}
+                  />
+                )}
+              </AreaChart>
+            </ResponsiveContainer>
+          </Box>
+        </Box>
       );
     }
 
@@ -289,17 +351,16 @@ export default function FinancialOverviewCardWideSection({
           </Typography>
           <Typography sx={{ color: "rgba(226,232,240,0.7)" }}>
             {translate(
-              "Ny vy med full bredd för att snabbt jämföra nyckeltal.",
-              "A full-width view to compare key metrics quickly."
+              "Följ tillväxt, lönsamhet och intäktsmix från rapport till rapport.",
+              "Track growth, profitability, and revenue mix from report to report."
             )}
           </Typography>
         </Box>
 
         <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={{ xs: 1.2, md: 2 }}
-          alignItems={{ xs: "flex-start", md: "center" }}
-          justifyContent="space-between"
+          direction="column"
+          spacing={{ xs: 1.2, md: 1.5 }}
+          alignItems="stretch"
         >
           <ToggleButtonGroup
             value={wideMetric}
@@ -310,7 +371,13 @@ export default function FinancialOverviewCardWideSection({
               backgroundColor: "rgba(148,163,184,0.12)",
               borderRadius: "999px",
               p: 0.5,
-              flexWrap: "wrap",
+              flexWrap: { xs: "wrap", sm: "nowrap" },
+              alignSelf: "flex-start",
+              width: { xs: "100%", sm: "auto" },
+              maxWidth: "100%",
+              overflowX: { xs: "visible", sm: "auto" },
+              scrollbarWidth: "none",
+              "&::-webkit-scrollbar": { display: "none" },
             }}
           >
             {metricToggleOptions.map((option) => (
@@ -334,7 +401,14 @@ export default function FinancialOverviewCardWideSection({
             ))}
           </ToggleButtonGroup>
 
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="center"
+            justifyContent="flex-end"
+            useFlexGap
+            flexWrap="wrap"
+          >
             {Number.isFinite(currentYearProfit) && (
               <Box
                 sx={{
@@ -342,6 +416,7 @@ export default function FinancialOverviewCardWideSection({
                   alignItems: "center",
                   gap: 1.1,
                   minWidth: { xs: 190, md: 230 },
+                  mr: { md: "auto" },
                   background: "linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08))",
                   borderRadius: "12px",
                   border: "1px solid rgba(34,197,94,0.35)",
@@ -367,14 +442,51 @@ export default function FinancialOverviewCardWideSection({
                       textTransform: "uppercase",
                     }}
                   >
-                    {translate("Årets vinst", "Year profit")}
+                    {translate(
+                      `Ack. vinst ${latestReport?.year || ""}`,
+                      `YTD profit ${latestReport?.year || ""}`
+                    )}
                   </Typography>
                   <Typography sx={{ fontWeight: 700, color: "#f8fafc", fontSize: "1rem" }}>
                     {`${formatMillion(currentYearProfit, 1)} €M`}
                   </Typography>
+                  {latestReport?.quarter && (
+                    <Typography sx={{ color: "rgba(148,163,184,0.72)", fontSize: "0.68rem" }}>
+                      {translate(`T.o.m. ${latestReport.quarter}`, `Through ${latestReport.quarter}`)}
+                    </Typography>
+                  )}
                 </Box>
               </Box>
             )}
+
+            <ToggleButtonGroup
+              value={wideRange}
+              exclusive
+              onChange={(_e, v) => v && setWideRange(v)}
+              size="small"
+              aria-label={translate("Tidsperiod", "Time range")}
+              sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
+            >
+              {chartRangeOptions.map((option) => (
+                <ToggleButton
+                  key={`wide-range-${option.value}`}
+                  value={option.value}
+                  sx={{
+                    textTransform: "none",
+                    color: "rgba(226,232,240,0.75)",
+                    border: 0,
+                    borderRadius: "999px!important",
+                    px: { xs: 1.25, md: 1.6 },
+                    "&.Mui-selected": {
+                      color: "#f8fafc",
+                      backgroundColor: "rgba(96,165,250,0.25)",
+                    },
+                  }}
+                >
+                  {option.label}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
 
             <ToggleButtonGroup
               value={wideViewMode}
@@ -409,12 +521,7 @@ export default function FinancialOverviewCardWideSection({
 
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "2.2fr 1fr" },
-            gap: { xs: 1.5, md: 2.5 },
-            alignItems: "stretch",
             width: "100%",
-            minHeight: { xs: "auto", lg: 560 },
           }}
         >
           <Box
@@ -425,13 +532,15 @@ export default function FinancialOverviewCardWideSection({
               p: { xs: 2, md: 2.5 },
               height: { xs: "auto", lg: "100%" },
               width: "100%",
-              minHeight: { xs: 320, lg: 560 },
+              minHeight: { xs: 390, lg: 590 },
               position: "relative",
               display: "flex",
               flexDirection: "column",
             }}
           >
-            <Box sx={{ flex: 1, minHeight: 0 }}>{renderMetricChart()}</Box>
+            <Box sx={{ height: { xs: 280, md: 370 }, minHeight: { xs: 280, md: 370 } }}>
+              {renderMetricChart()}
+            </Box>
 
             {wideMetric === "geo" && wideGeoSnapshot?.regions?.length ? (
               <Box sx={{ mt: { xs: 1.5, md: 2 } }}>
@@ -538,13 +647,13 @@ export default function FinancialOverviewCardWideSection({
                 <Box
                   sx={{
                     display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "repeat(4, minmax(0, 1fr))" },
+                    gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(4, minmax(0, 1fr))" },
                     gap: { xs: 1, md: 1.5 },
                   }}
                 >
                   <Box
                     sx={{
-                      background: "rgba(59,130,246,0.1)",
+                      background: "rgba(15,23,42,0.72)",
                       borderRadius: "14px",
                       border: "1px solid rgba(96,165,250,0.25)",
                       p: 1.6,
@@ -560,20 +669,22 @@ export default function FinancialOverviewCardWideSection({
                     </Typography>
                     {wideSummary.latestLabel && (
                       <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
-                        QoQ • {translate("Senast", "Latest")}: {wideSummary.latestLabel}
+                        {wideSummary.latestLabel}
                       </Typography>
                     )}
                   </Box>
                   <Box
                     sx={{
-                      background: "rgba(16,185,129,0.1)",
+                      background: "rgba(15,23,42,0.72)",
                       borderRadius: "14px",
-                      border: "1px solid rgba(16,185,129,0.25)",
+                      border: `1px solid ${formatChangeColor(wideSummary.qoq)}55`,
                       p: 1.6,
                     }}
                   >
                     <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
-                      QoQ
+                      {wideViewMode === "quarterly" && wideMetric !== "dividend"
+                        ? "QoQ"
+                        : translate("Förändring", "Change")}
                     </Typography>
                     <Typography
                       variant="h6"
@@ -583,22 +694,26 @@ export default function FinancialOverviewCardWideSection({
                         ? formatChangeValue(metricConfigs, wideMetric, wideSummary.qoq, "", translate).replace(/\s$/, "")
                         : "—"}
                     </Typography>
-                    {wideSummary.latestLabel && (
+                    {wideSummary.previousLabel && (
                       <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
-                        {translate("Senast", "Latest")}: {wideSummary.latestLabel}
+                        {translate("Mot", "vs")}: {wideSummary.previousLabel}
                       </Typography>
                     )}
                   </Box>
                   <Box
                     sx={{
-                      background: "rgba(244,63,94,0.1)",
+                      background: "rgba(15,23,42,0.72)",
                       borderRadius: "14px",
-                      border: "1px solid rgba(244,63,94,0.25)",
+                      border: `1px solid ${formatChangeColor(wideSummary.yoy)}55`,
                       p: 1.6,
                     }}
                   >
                     <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
-                      YoY
+                      {wideViewMode === "quarterly" && wideMetric !== "dividend"
+                        ? "YoY"
+                        : metricConfigs[wideMetric]?.changeMode === "points"
+                        ? translate("3 år", "3 years")
+                        : translate("3 år CAGR", "3Y CAGR")}
                     </Typography>
                     <Typography
                       variant="h6"
@@ -610,34 +725,37 @@ export default function FinancialOverviewCardWideSection({
                     </Typography>
                     {wideSummary.yoyLabel && (
                       <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
-                        YoY • {translate("Jämfört", "Compared")}: {wideSummary.yoyLabel}
+                        {translate("Mot", "vs")}: {wideSummary.yoyLabel}
                       </Typography>
                     )}
                   </Box>
                   <Box
                     sx={{
-                      background: "rgba(59,130,246,0.08)",
+                      background: "rgba(15,23,42,0.72)",
                       borderRadius: "14px",
                       border: "1px solid rgba(96,165,250,0.25)",
                       p: 1.6,
                     }}
                   >
                     <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: 0.6 }}>
-                      {translate("Spann", "Range")}
+                      {translate("Högsta", "High")}
                     </Typography>
                     <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                      {wideRangeValue?.firstValue != null && wideRangeValue?.lastValue != null
-                        ? `${formatMetricValue(metricConfigs, wideMetric, wideRangeValue.firstValue)} → ${formatMetricValue(
-                            metricConfigs,
-                            wideMetric,
-                            wideRangeValue.lastValue
-                          )}`
+                      {widePeak?.value != null
+                        ? formatMetricValue(metricConfigs, wideMetric, widePeak.value)
                         : "—"}
                     </Typography>
                     <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.8rem" }}>
-                      {wideRangeValue?.firstLabel && wideRangeValue?.lastLabel
-                        ? `${wideRangeValue.firstLabel} • ${wideRangeValue.lastLabel}`
-                        : translate("Första → senaste", "First → latest")}
+                      {widePeak?.period
+                        ? `${widePeak.period}${
+                            widePeak.distance != null
+                              ? ` • ${formatChangeValue(metricConfigs, wideMetric, widePeak.distance, "", translate)} ${translate(
+                                  "från toppen",
+                                  "from high"
+                                )}`
+                              : ""
+                          }`
+                        : "—"}
                     </Typography>
                   </Box>
                 </Box>
@@ -648,11 +766,6 @@ export default function FinancialOverviewCardWideSection({
             ) : null}
           </Box>
 
-          <FinancialOverviewCardWideSummaryColumn
-            translate={translate}
-            wideMetric={wideMetric}
-            wideSummaryCards={wideSummaryCards}
-          />
         </Box>
       </Stack>
     </Box>

@@ -19,6 +19,102 @@ const formatPercent = (value, fractionDigits = 1) =>
 
 const safeList = (value) => (Array.isArray(value) ? value : []);
 
+const CHART_RANGE_OPTIONS = [
+  { value: "3y", years: 3, labelSv: "3 år", labelEn: "3 years" },
+  { value: "5y", years: 5, labelSv: "5 år", labelEn: "5 years" },
+  { value: "max", years: null, labelSv: "Max", labelEn: "Max" },
+];
+
+const filterFinancialSeriesByRange = (series, rangeValue, viewMode) => {
+  const rows = safeList(series);
+  const option = CHART_RANGE_OPTIONS.find(({ value }) => value === rangeValue);
+  if (!option?.years) return rows;
+
+  const periodsPerYear = viewMode === "quarterly" ? 4 : 1;
+  return rows.slice(-(option.years * periodsPerYear));
+};
+
+const roundAxisValue = (value, step) => {
+  const decimals = Math.max(0, Math.min(8, -Math.floor(Math.log10(Math.abs(step))) + 1));
+  return Number(value.toFixed(decimals));
+};
+
+const getNiceStep = (rawStep) => {
+  if (!Number.isFinite(rawStep) || rawStep <= 0) return 1;
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const normalized = rawStep / magnitude;
+  const preferredSteps = [1, 2, 2.5, 5, 10];
+  const closest = preferredSteps.reduce((best, candidate) =>
+    Math.abs(candidate - normalized) < Math.abs(best - normalized) ? candidate : best
+  );
+  return closest * magnitude;
+};
+
+const buildNiceAxisScale = (
+  values,
+  { includeZero = false, targetIntervals = 5, minLimit = null, maxLimit = null } = {}
+) => {
+  const finiteValues = safeList(values).map(Number).filter(Number.isFinite);
+  if (!finiteValues.length) return { domain: [0, 1], ticks: [0, 1] };
+
+  let min = Math.min(...finiteValues);
+  let max = Math.max(...finiteValues);
+  if (includeZero) {
+    min = Math.min(0, min);
+    max = Math.max(0, max);
+  }
+  if (min === max) {
+    const fallbackPadding = Math.abs(min) * 0.1 || 1;
+    min -= fallbackPadding;
+    max += fallbackPadding;
+  }
+
+  const step = getNiceStep((max - min) / Math.max(1, targetIntervals));
+  let niceMin = Math.floor(min / step) * step;
+  let niceMax = Math.ceil(max / step) * step;
+  if (includeZero && min >= 0) niceMin = 0;
+  if (Number.isFinite(minLimit)) niceMin = Math.max(minLimit, niceMin);
+  if (Number.isFinite(maxLimit)) niceMax = Math.min(maxLimit, niceMax);
+  if (niceMin === niceMax) niceMax = niceMin + step;
+
+  const ticks = [];
+  for (let value = niceMin; value <= niceMax + step / 2; value += step) {
+    ticks.push(roundAxisValue(value, step));
+  }
+
+  return {
+    domain: [roundAxisValue(niceMin, step), roundAxisValue(niceMax, step)],
+    ticks,
+  };
+};
+
+const buildFinancialXAxisTicks = (series, viewMode, maxTicks = 8) => {
+  const rows = safeList(series);
+  if (!rows.length) return [];
+  if (viewMode !== "quarterly") {
+    if (rows.length <= maxTicks) return rows.map((row) => row.xLabel);
+    const step = Math.ceil((rows.length - 1) / Math.max(1, maxTicks - 1));
+    const ticks = rows.filter((_row, index) => index % step === 0).map((row) => row.xLabel);
+    const last = rows.at(-1)?.xLabel;
+    if (last && ticks.at(-1) !== last) ticks.push(last);
+    return ticks;
+  }
+
+  const annualRows = rows.filter((row) => row.quarter === "Q1");
+  const candidates = annualRows.length ? annualRows : rows;
+  const step = Math.max(1, Math.ceil(candidates.length / maxTicks));
+  const ticks = candidates.filter((_row, index) => index % step === 0).map((row) => row.xLabel);
+  const last = rows.at(-1)?.xLabel;
+  if (last && ticks.at(-1) !== last) ticks.push(last);
+  return ticks;
+};
+
+const formatFinancialXAxisTick = (value, series, viewMode) => {
+  const row = safeList(series).find((item) => item.xLabel === value);
+  if (!row) return value;
+  return viewMode === "quarterly" && Number.isFinite(row.year) ? String(row.year) : value;
+};
+
 const computeDeltaPercent = (current, reference) => {
   if (!Number.isFinite(current) || !Number.isFinite(reference) || reference === 0) {
     return null;
@@ -76,9 +172,11 @@ const buildAnnualFinancialSeries = (quarterlySeries) => {
         marginCount: 0,
         eps: 0,
         epsCount: 0,
+        quarters: new Set(),
       });
     }
     const entry = map.get(item.year);
+    if (QUARTERS.includes(item.quarter)) entry.quarters.add(item.quarter);
     if (Number.isFinite(item.revenue)) entry.revenue += item.revenue;
     if (Number.isFinite(item.margin)) {
       entry.marginSum += item.margin;
@@ -91,6 +189,7 @@ const buildAnnualFinancialSeries = (quarterlySeries) => {
   });
 
   return Array.from(map.values())
+    .filter((entry) => entry.quarters.size === QUARTERS.length)
     .map((entry) => ({
       period: `${entry.year}`,
       xLabel: `${entry.year}`,
@@ -120,9 +219,10 @@ const buildRegulatedAnnualSeries = (reportsAscending) => {
     const year = Number(report?.year);
     if (!Number.isFinite(year)) return;
     if (!map.has(year)) {
-      map.set(year, { year, totalRevenue: 0, regulatedRevenue: 0 });
+      map.set(year, { year, totalRevenue: 0, regulatedRevenue: 0, quarters: new Set() });
     }
     const entry = map.get(year);
+    if (QUARTERS.includes(report.quarter)) entry.quarters.add(report.quarter);
     const total = Number(report.operatingRevenues);
     const regulatedPct = Number(report.regulatedMarket);
     if (Number.isFinite(total)) entry.totalRevenue += total;
@@ -132,6 +232,7 @@ const buildRegulatedAnnualSeries = (reportsAscending) => {
   });
 
   return Array.from(map.values())
+    .filter((entry) => entry.quarters.size === QUARTERS.length)
     .map((entry) => ({
       year: entry.year,
       totalRevenue: entry.totalRevenue,
@@ -214,9 +315,11 @@ const buildGeoAnnualSeries = (geoQuarterlySeries, regionOptions) => {
         latAm: 0,
         other: 0,
         total: 0,
+        quarters: new Set(),
       });
     }
     const target = map.get(entry.year);
+    if (QUARTERS.includes(entry.quarter)) target.quarters.add(entry.quarter);
     safeList(regionOptions).forEach(({ key }) => {
       const value = Number(entry[key]);
       if (Number.isFinite(value)) {
@@ -226,7 +329,18 @@ const buildGeoAnnualSeries = (geoQuarterlySeries, regionOptions) => {
     });
   });
   return Array.from(map.values())
-    .filter((entry) => entry.total > 0)
+    .filter((entry) => entry.total > 0 && entry.quarters.size === QUARTERS.length)
+    .map((entry) => ({
+      year: entry.year,
+      xLabel: entry.xLabel,
+      period: entry.period,
+      europe: entry.europe,
+      asia: entry.asia,
+      northAmerica: entry.northAmerica,
+      latAm: entry.latAm,
+      other: entry.other,
+      total: entry.total,
+    }))
     .sort((a, b) => a.year - b.year);
 };
 
@@ -260,9 +374,11 @@ const buildProductMixAnnualSeries = (productMixQuarterlySeries) => {
         liveCasino: 0,
         rng: 0,
         total: 0,
+        quarters: new Set(),
       });
     }
     const target = map.get(entry.year);
+    if (QUARTERS.includes(entry.quarter)) target.quarters.add(entry.quarter);
     const live = Number(entry.liveCasino);
     const rng = Number(entry.rng);
     if (Number.isFinite(live)) {
@@ -275,7 +391,15 @@ const buildProductMixAnnualSeries = (productMixQuarterlySeries) => {
     }
   });
   return Array.from(map.values())
-    .filter((entry) => entry.total > 0)
+    .filter((entry) => entry.total > 0 && entry.quarters.size === QUARTERS.length)
+    .map((entry) => ({
+      year: entry.year,
+      xLabel: entry.xLabel,
+      period: entry.period,
+      liveCasino: entry.liveCasino,
+      rng: entry.rng,
+      total: entry.total,
+    }))
     .sort((a, b) => a.year - b.year);
 };
 
@@ -333,6 +457,30 @@ const BASE_METRIC_CONFIGS = {
     accent: "#c4b5fd",
     background: "rgba(167,139,250,0.12)",
     border: "rgba(196,181,253,0.25)",
+  },
+  regulated: {
+    labelSv: "Reglerad intäkt",
+    labelEn: "Regulated revenue",
+    valueKey: null,
+    decimals: 1,
+    unit: "€M",
+    changeMode: "percent",
+    accent: "#34d399",
+    background: "rgba(52,211,153,0.08)",
+    border: "rgba(52,211,153,0.25)",
+    custom: true,
+  },
+  cash: {
+    labelSv: "Kassa",
+    labelEn: "Cash",
+    valueKey: null,
+    decimals: 1,
+    unit: "€M",
+    changeMode: "percent",
+    accent: "#38bdf8",
+    background: "rgba(56,189,248,0.08)",
+    border: "rgba(56,189,248,0.25)",
+    custom: true,
   },
   freeCashFlow: {
     labelSv: "Fritt kassaflöde",
@@ -411,6 +559,8 @@ const METRIC_TOGGLE_OPTIONS = [
   { value: "margin", labelSv: "Marginal", labelEn: "Margin" },
   { value: "eps", labelSv: "EPS", labelEn: "EPS" },
   { value: "dividend", labelSv: "Utdelning", labelEn: "Dividend" },
+  { value: "regulated", labelSv: "Reglerad intäkt", labelEn: "Regulated revenue" },
+  { value: "cash", labelSv: "Kassa", labelEn: "Cash" },
   { value: "geo", labelSv: "Geografisk översikt", labelEn: "Geographic overview" },
   { value: "productMix", labelSv: "Live vs RNG", labelEn: "Live vs RNG" },
 ];
@@ -456,4 +606,9 @@ export {
   METRIC_TOGGLE_OPTIONS,
   VIEW_TOGGLE_OPTIONS,
   REGION_OPTIONS,
+  CHART_RANGE_OPTIONS,
+  filterFinancialSeriesByRange,
+  buildNiceAxisScale,
+  buildFinancialXAxisTicks,
+  formatFinancialXAxisTick,
 };
