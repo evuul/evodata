@@ -62,6 +62,7 @@ test("personal summary only includes executions in the current program", () => {
   assert.equal(result.benefitedShares, 1_000);
   assert.ok(Math.abs(result.ownershipLiftPct - (200 / 198 - 1) * 100) < 1e-9);
   assert.ok(Math.abs(result.equivalentExtraShares - 1_000 * (200 / 198 - 1)) < 1e-9);
+  assert.ok(Math.abs(result.personalBuybackValueSek - (500 + 100_000_000 * (1_000 / 199_000_000))) < 1e-9);
 });
 
 test("personal summary applies buybacks after each current lot purchase", () => {
@@ -81,11 +82,15 @@ test("personal summary applies buybacks after each current lot purchase", () => 
   const expectedEquivalentShares =
     600 * (200 / 198 - 1) +
     400 * (199 / 198 - 1);
+  const expectedBuybackValueSek =
+    100_000_000 * (600 / 200_000_000) +
+    100_000_000 * (1_000 / 199_000_000);
   assert.ok(result);
   assert.equal(result.traceableShares, 1_000);
   assert.equal(result.benefitedShares, 1_000);
   assert.ok(Math.abs(result.equivalentExtraShares - expectedEquivalentShares) < 1e-9);
   assert.ok(Math.abs(result.ownershipLiftPct - (expectedEquivalentShares / 1_000) * 100) < 1e-9);
+  assert.ok(Math.abs(result.personalBuybackValueSek - expectedBuybackValueSek) < 1e-9);
 });
 
 test("personal summary does not invent an effect without purchase dates", () => {
@@ -102,6 +107,7 @@ test("personal summary does not invent an effect without purchase dates", () => 
   assert.equal(result.benefitedShares, 0);
   assert.equal(result.ownershipLiftPct, null);
   assert.equal(result.equivalentExtraShares, null);
+  assert.equal(result.personalBuybackValueSek, null);
 });
 
 test("personal summary excludes buybacks made on the same day as a purchase", () => {
@@ -118,6 +124,7 @@ test("personal summary excludes buybacks made on the same day as a purchase", ()
   assert.equal(result.benefitedShares, 0);
   assert.equal(result.ownershipLiftPct, 0);
   assert.equal(result.equivalentExtraShares, 0);
+  assert.equal(result.personalBuybackValueSek, 0);
 });
 
 test("full mandate scenario subtracts completed spend before projecting the remainder", () => {
@@ -146,4 +153,8 @@ test("full mandate scenario subtracts completed spend before projecting the rema
   assert.equal(result.repurchasedShares, 20_000_000);
   assert.equal(result.postBuybackOutstanding, 180_000_000);
   assert.ok(Math.abs(result.ownershipLiftPct - (200 / 180 - 1) * 100) < 1e-9);
+  const expectedPersonalBuybackValueSek =
+    actual.personalBuybackValueSek +
+    1_900_000_000 * (1_000 / 199_000_000);
+  assert.ok(Math.abs(result.personalBuybackValueSek - expectedPersonalBuybackValueSek) < 1e-9);
 });

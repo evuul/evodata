@@ -111,6 +111,13 @@ export const computeFullBuybackMandateSummary = ({
     ? (repurchasedShares / programStartOutstanding) * 100
     : null;
   const equivalentExtraShares = ownershipLiftPct != null ? shares * (ownershipLiftPct / 100) : null;
+  const completedPersonalBuybackValueSek = Number(personalActualSummary?.personalBuybackValueSek);
+  const futurePersonalBuybackValueSek = hasHoldings
+    ? remainingMandateSek * (shares / currentOutstanding)
+    : null;
+  const personalBuybackValueSek = hasHoldings && futurePersonalBuybackValueSek != null
+    ? (Number.isFinite(completedPersonalBuybackValueSek) ? completedPersonalBuybackValueSek : 0) + futurePersonalBuybackValueSek
+    : null;
 
   return {
     ownershipBefore,
@@ -127,6 +134,8 @@ export const computeFullBuybackMandateSummary = ({
     repurchasedShares,
     futureRepurchasedShares,
     equivalentExtraShares,
+    personalBuybackValueSek,
+    futurePersonalBuybackValueSek,
     currentOutstanding,
     postBuybackOutstanding,
     programStartDate,
@@ -160,8 +169,22 @@ export const computePersonalCurrentProgramSummary = ({
     .filter((row) => row.date >= normalizedStartDate);
   const holdingLots = normalizeHoldingLots({ profileShares: shares, lots, acquisitionDate });
   const traceableShares = holdingLots.reduce((sum, lot) => sum + lot.shares, 0);
+  const programStartOutstanding = currentOutstanding + execution.executedSharesInMandate;
   let benefitedShares = 0;
   let equivalentExtraShares = 0;
+  let personalBuybackValueSek = 0;
+  let outstandingBeforeExecution = programStartOutstanding;
+
+  for (const row of programRows) {
+    const eligibleShares = holdingLots.reduce((sum, lot) => {
+      const lotPredatesProgram = lot.date < normalizedStartDate;
+      return lotPredatesProgram || row.date > lot.date ? sum + lot.shares : sum;
+    }, 0);
+    if (eligibleShares > 0 && outstandingBeforeExecution > 0) {
+      personalBuybackValueSek += row.spendSek * (eligibleShares / outstandingBeforeExecution);
+    }
+    outstandingBeforeExecution = Math.max(outstandingBeforeExecution - row.shares, 1);
+  }
 
   for (const lot of holdingLots) {
     const repurchasedAfterPurchase = programRows.reduce((sum, row) => {
@@ -184,13 +207,13 @@ export const computePersonalCurrentProgramSummary = ({
   const ownershipBefore = ownershipAfter && ownershipLiftPct != null
     ? ownershipAfter / (1 + ownershipLiftPct / 100)
     : null;
-  const programStartOutstanding = currentOutstanding + execution.executedSharesInMandate;
 
   return {
     ownershipBefore,
     ownershipAfter,
     ownershipLiftPct,
     equivalentExtraShares: hasTraceableHoldings ? equivalentExtraShares : null,
+    personalBuybackValueSek: hasTraceableHoldings ? personalBuybackValueSek : null,
     buybackYieldPct: programStartOutstanding > 0
       ? (execution.executedSharesInMandate / programStartOutstanding) * 100
       : null,

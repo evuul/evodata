@@ -4,7 +4,7 @@
 
 import { useState } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
-import { formatOwnershipPercent, formatPercent } from "./utils";
+import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
 import { cardBase, equalHeightCard, ownershipChipColors, statusColors, text } from "./styles";
 import { buildOwnershipImpact } from "@/lib/portfolioDashboard";
 
@@ -27,9 +27,9 @@ export default function OwnershipCards({
   const equivalentExtraShares = Number.isFinite(selectedSummary?.equivalentExtraShares)
     ? selectedSummary.equivalentExtraShares
     : fallbackOwnershipImpact.equivalentExtraShares;
-  const benefitedShares = Number.isFinite(selectedSummary?.benefitedShares)
-    ? selectedSummary.benefitedShares
-    : 0;
+  const personalBuybackValueSek = Number.isFinite(selectedSummary?.personalBuybackValueSek)
+    ? selectedSummary.personalBuybackValueSek
+    : null;
   const cardSx = {
     p: { xs: 2, md: 2.2 },
     ...cardBase,
@@ -226,25 +226,23 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {translate(
-              isMandateView ? "Dina aktier i scenariot" : "Dina aktier med beräknad effekt",
-              isMandateView ? "Your shares in the scenario" : "Your shares with calculated impact"
+              isMandateView ? "Möjlig andel av hela programmet" : "Din andel av genomförda återköp",
+              isMandateView ? "Possible share of the full program" : "Your share of completed buybacks"
             )}
           </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {Number.isFinite(isMandateView ? profileShares : benefitedShares)
-              ? (isMandateView ? profileShares : benefitedShares).toLocaleString("sv-SE", { maximumFractionDigits: 0 })
-              : "–"}
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#86efac" }}>
+            {personalBuybackValueSek != null ? formatSek(personalBuybackValueSek) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
             {isMandateView
               ? translate(
-                  "Ditt nuvarande innehav får effekt av framtida återköp i programmet.",
-                  "Your current holding benefits from future buybacks in the program."
+                  "Genomförd andel plus uppskattad andel av återstående mandat. Det är inte en utbetalning.",
+                  "Completed share plus an estimated share of the remaining mandate. This is not a payout."
                 )
               : selectedSummary?.traceableShares > 0
                 ? translate(
-                    `Av ${Number(profileShares || 0).toLocaleString("sv-SE")} aktier. Varje post räknas först efter sitt köpdatum.`,
-                    `Of ${Number(profileShares || 0).toLocaleString("sv-SE")} shares. Each lot is counted only after its purchase date.`
+                    "Din proportionella andel av kapitalet Evolution använt efter respektive köpdatum. Det är inte en utbetalning.",
+                    "Your proportional share of the capital Evolution has used after each purchase date. This is not a payout."
                   )
                 : translate(
                     "Lägg in köpdatum för att beräkna den personliga effekten.",
