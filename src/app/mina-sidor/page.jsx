@@ -25,7 +25,6 @@ import SupportModal from "@/Components/MinaSidor/SupportModal";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 
 import dividendData from "@/app/data/dividendData.json";
-import outstandingShares from "@/app/data/amountOfShares.json";
 import financialCalendarEvents from "@/app/data/financialCalendar";
 import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
 
@@ -474,11 +473,6 @@ export default function MinaSidorPage() {
               buybackSummary={buybackSummary}
               buybackMandateSummary={buybackMandateSummary}
               profileShares={profile.shares}
-              currentPrice={currentPrice}
-              fxRate={fxRate}
-              sharesData={outstandingShares}
-              dividendsReceivedSafe={dividendsReceivedSafe}
-              totalValue={totalValue}
               ownershipView={ownershipView}
               onChangeView={setOwnershipView}
             />

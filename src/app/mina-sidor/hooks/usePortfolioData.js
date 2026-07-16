@@ -7,7 +7,10 @@ import buybackDataStatic from "@/app/data/buybackData.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeTraderPnl } from "@/Components/MinaSidor/pnl";
 import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendEligibility";
-import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
+import {
+    computeFullBuybackMandateSummary,
+    computePersonalCurrentProgramSummary,
+} from "@/lib/buybackOwnership";
 import { fetchAuthJson } from "@/lib/clientApi";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { buildLiveHeaderPlayerMetrics } from "@/lib/liveHeaderPlayers";
@@ -419,28 +422,14 @@ export function usePortfolioData({
             : null;
 
     const buybackSummary = useMemo(() => {
-        const latestShares = amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding;
-        const currentOutstanding = Number.isFinite(latestShares) ? latestShares * 1_000_000 : null;
-        const totalBuybackShares = Array.isArray(buybackData)
-            ? buybackData.reduce((sum, row) => sum + (Number(row["Antal_aktier"]) || 0), 0)
-            : 0;
-        const totalBuybackSpend = Array.isArray(buybackData)
-            ? buybackData.reduce((sum, row) => sum + (Number(row["Transaktionsvärde"]) || 0), 0)
-            : 0;
-
-        if (!Number.isFinite(currentOutstanding) || currentOutstanding <= 0) {
-            return null;
-        }
-
-        const preBuybackOutstanding = currentOutstanding + totalBuybackShares;
-        const ownershipBefore = preBuybackOutstanding > 0 ? profile.shares / preBuybackOutstanding : 0;
-        const ownershipAfter = profile.shares / currentOutstanding;
-        const ownershipLiftPct =
-            ownershipBefore > 0 ? ((ownershipAfter / ownershipBefore) - 1) * 100 : null;
-        const illustrativeBuybackAllocation = ownershipBefore > 0 ? totalBuybackSpend * ownershipBefore : 0;
-        const buybackYieldPct = preBuybackOutstanding > 0
-            ? (totalBuybackShares / preBuybackOutstanding) * 100
-            : null;
+        const personalSummary = computePersonalCurrentProgramSummary({
+            profileShares: profile.shares,
+            lots: profile.lots,
+            acquisitionDate: profile.acquisitionDate,
+            buybackData,
+            sharesData: amountOfShares,
+        });
+        if (!personalSummary) return null;
 
         const dividendIncome =
             Number.isFinite(dividendsReceivedSafe) && dividendsReceivedSafe > 0
@@ -449,16 +438,7 @@ export function usePortfolioData({
         const dividendIncomePct = totalValue > 0 ? (dividendIncome / totalValue) * 100 : null;
 
         return {
-            ownershipBefore,
-            ownershipAfter,
-            ownershipLiftPct,
-            illustrativeBuybackAllocation,
-            buybackYieldPct,
-            repurchasedShares: totalBuybackShares,
-            currentOutstanding,
-            preBuybackOutstanding,
-            buybackSpendSek: totalBuybackSpend,
-            hasHoldings: profile.shares > 0,
+            ...personalSummary,
             dividendIncome,
             dividendIncomePct,
             dividendCountedExDates: estimatedDividendsFromTransactionsMeta?.counted ?? null,
@@ -466,18 +446,28 @@ export function usePortfolioData({
             dividendExDateTo: estimatedDividendsFromTransactionsMeta?.lastIncludedExDate ?? null,
             latestSharesDate: amountOfShares?.[amountOfShares.length - 1]?.date,
         };
-    }, [buybackData, dividendsReceivedSafe, estimatedDividendsFromTransactionsMeta, profile.shares, totalValue]);
+    }, [
+        buybackData,
+        dividendsReceivedSafe,
+        estimatedDividendsFromTransactionsMeta,
+        profile.acquisitionDate,
+        profile.lots,
+        profile.shares,
+        totalValue,
+    ]);
 
     const buybackMandateSummary = useMemo(() => {
         return computeFullBuybackMandateSummary({
             profileShares: profile.shares,
-            currentPrice,
+            currentPriceSEK: currentPrice,
             fxRate,
             sharesData: amountOfShares,
+            buybackData,
+            personalActualSummary: buybackSummary,
             dividendsReceived: dividendsReceivedSafe,
             totalValue,
         });
-    }, [currentPrice, dividendsReceivedSafe, fxRate, profile.shares, totalValue]);
+    }, [buybackData, buybackSummary, currentPrice, dividendsReceivedSafe, fxRate, profile.shares, totalValue]);
 
     const greetingName = useMemo(() => {
         const first = String(user?.firstName || profileIdentity.firstName || "").trim();

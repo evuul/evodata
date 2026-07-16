@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react";
 import { Box, Paper, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import TrendingUpRounded from "@mui/icons-material/TrendingUpRounded";
-import { buildReturnBreakdown } from "@/lib/portfolioDashboard";
+import { buildReturnBreakdown, calculateReturnBarWidthPct } from "@/lib/portfolioDashboard";
 import { cardBase, statusColors, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
 
@@ -34,7 +34,6 @@ export default function ReturnBreakdownCard({ translate, totalCost, totalValue, 
       color: "#38bdf8",
     },
   ];
-  const largest = Math.max(1, ...rows.map((row) => Math.abs(row.value)));
   const formatValue = (row) => displayMode === "sek" ? signedSek(row.value) : formatPercent(row.pct);
 
   return (
@@ -69,18 +68,51 @@ export default function ReturnBreakdownCard({ translate, totalCost, totalValue, 
           <Typography sx={{ color: text.heading, fontWeight: 800 }}>{formatSek(breakdown.investedCapital)}</Typography>
         </Stack>
         <Stack spacing={1.8}>
-          {rows.map((row) => (
-            <Box key={row.id}>
-              <Stack direction="row" justifyContent="space-between" gap={2}>
-                <Typography sx={{ color: text.subtle }}>{row.label}</Typography>
-                <Typography sx={{ color: row.color, fontWeight: 850 }}>{formatValue(row)}</Typography>
-              </Stack>
-              <Box sx={{ height: 7, background: "rgba(148,163,184,0.12)", borderRadius: 999, mt: 0.65, overflow: "hidden" }}>
-                <Box sx={{ height: "100%", width: `${Math.max(3, Math.abs(row.value) / largest * 100)}%`, background: row.color, borderRadius: 999 }} />
+          {rows.map((row) => {
+            const widthPct = calculateReturnBarWidthPct({
+              value: row.value,
+              investedCapital: breakdown.investedCapital,
+            });
+            return (
+              <Box key={row.id}>
+                <Stack direction="row" justifyContent="space-between" gap={2}>
+                  <Typography sx={{ color: text.subtle }}>{row.label}</Typography>
+                  <Typography sx={{ color: row.color, fontWeight: 850 }}>{formatValue(row)}</Typography>
+                </Stack>
+                <Box
+                  role="progressbar"
+                  aria-label={row.label}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={Number(widthPct.toFixed(1))}
+                  sx={{
+                    height: 7,
+                    background: "rgba(148,163,184,0.12)",
+                    borderRadius: 999,
+                    mt: 0.65,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Box
+                    sx={{
+                      height: "100%",
+                      width: `${widthPct}%`,
+                      minWidth: widthPct > 0 ? 3 : 0,
+                      background: row.color,
+                      borderRadius: 999,
+                    }}
+                  />
+                </Box>
               </Box>
-            </Box>
-          ))}
+            );
+          })}
         </Stack>
+        <Typography sx={{ color: text.muted, fontSize: "0.75rem", mt: 1.2 }}>
+          {translate(
+            "Stapellängden visar beloppets andel av investerat kapital.",
+            "Bar length shows the amount as a share of invested capital."
+          )}
+        </Typography>
       </Box>
 
       <Stack

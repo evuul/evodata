@@ -1,12 +1,11 @@
 "use client";
 
-// Compares ownership effects from completed and hypothetical share buybacks.
+// Shows the personal ownership effect of the current buyback program.
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { formatOwnershipPercent, formatPercent } from "./utils";
 import { cardBase, equalHeightCard, ownershipChipColors, statusColors, text } from "./styles";
-import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
 import { buildOwnershipImpact } from "@/lib/portfolioDashboard";
 
 export default function OwnershipCards({
@@ -14,37 +13,23 @@ export default function OwnershipCards({
   buybackSummary,
   buybackMandateSummary,
   profileShares,
-  currentPrice,
-  fxRate,
-  sharesData,
-  dividendsReceivedSafe,
-  totalValue,
   ownershipView,
   onChangeView,
 }) {
   const [scenarioView, setScenarioView] = useState("actual");
-  const computedMandateSummary = useMemo(
-    () =>
-      computeFullBuybackMandateSummary({
-        profileShares,
-        currentPriceSEK: currentPrice,
-        fxRate,
-        sharesData,
-        dividendsReceived: dividendsReceivedSafe,
-        totalValue,
-      }),
-    [currentPrice, dividendsReceivedSafe, fxRate, profileShares, sharesData, totalValue]
-  );
   const selectedSummary =
-    scenarioView === "mandate" ? buybackMandateSummary ?? computedMandateSummary : buybackSummary;
+    scenarioView === "mandate" ? buybackMandateSummary : buybackSummary;
   const isMandateView = scenarioView === "mandate";
-  const programBuybackPct = selectedSummary?.buybackYieldPct != null
-    ? `${selectedSummary.buybackYieldPct.toFixed(1)}%`
-    : "–";
-  const ownershipImpact = buildOwnershipImpact({
+  const fallbackOwnershipImpact = buildOwnershipImpact({
     shares: profileShares,
     ownershipLiftPct: selectedSummary?.ownershipLiftPct,
   });
+  const equivalentExtraShares = Number.isFinite(selectedSummary?.equivalentExtraShares)
+    ? selectedSummary.equivalentExtraShares
+    : fallbackOwnershipImpact.equivalentExtraShares;
+  const benefitedShares = Number.isFinite(selectedSummary?.benefitedShares)
+    ? selectedSummary.benefitedShares
+    : 0;
   const cardSx = {
     p: { xs: 2, md: 2.2 },
     ...cardBase,
@@ -68,15 +53,15 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {isMandateView
-              ? translate("Scenario: hela återköpsprogrammet", "Scenario: full buyback program")
-              : translate("Scenario: riktiga återköp", "Scenario: actual buybacks")}
+              ? translate("Nuvarande program: hela mandatet", "Current program: full mandate")
+              : translate("Nuvarande program: genomfört", "Current program: completed")}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 0.8 }} flexWrap="wrap">
             <Chip
               size="small"
               clickable
               onClick={() => setScenarioView("actual")}
-              label={translate("Riktiga återköp", "Actual buybacks")}
+              label={translate("Genomfört", "Completed")}
               sx={{
                 backgroundColor:
                   scenarioView === "actual"
@@ -104,12 +89,12 @@ export default function OwnershipCards({
           <Typography sx={{ color: text.faint, mt: 1 }}>
             {isMandateView
               ? translate(
-                  "Antagande: hela programmet återköps på nuvarande kurs.",
-                  "Assumption: the full program is bought back at the current price."
+                  "Genomfört plus återstående mandat. Framtida återköp beräknas till dagens kurs.",
+                  "Completed execution plus the remaining mandate. Future buybacks use today's price."
                 )
               : translate(
-                  "Antagande: faktiska historiska återköp som redan genomförts.",
-                  "Assumption: actual historical buybacks already completed."
+                  "Faktiska återköp sedan 19 maj 2026, justerat efter köpdatum för dina nuvarande aktieposter.",
+                  "Actual buybacks since May 19, 2026, adjusted for the purchase dates of your current lots."
                 )}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
@@ -124,11 +109,11 @@ export default function OwnershipCards({
           <Typography sx={{ color: text.faint, fontSize: "0.82rem" }}>
             {translate(
               isMandateView
-                ? `Programmet återköper cirka ${programBuybackPct} av nuvarande aktiestock.`
-                : "Visar faktiska historiska återköp.",
+                ? "Visar möjlig effekt på ditt nuvarande innehav om mandatet används fullt ut."
+                : "Visar endast den del av programmet som berör dina aktier.",
               isMandateView
-                ? `The program repurchases about ${programBuybackPct} of the current share base.`
-                : "Shows actual historical buybacks."
+                ? "Shows the possible effect on your current holding if the mandate is fully used."
+                : "Shows only the part of the program that affects your shares."
             )}
           </Typography>
           <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
@@ -137,8 +122,8 @@ export default function OwnershipCards({
               clickable
               onClick={() => onChangeView("before")}
               label={translate(
-                isMandateView ? "Före program" : "Före återköp",
-                isMandateView ? "Pre-program" : "Pre-buyback"
+                isMandateView ? "Före program" : "Före effekt",
+                isMandateView ? "Pre-program" : "Before impact"
               )}
               sx={{
                 backgroundColor:
@@ -154,8 +139,8 @@ export default function OwnershipCards({
               clickable
               onClick={() => onChangeView("after")}
               label={translate(
-                isMandateView ? "Efter program" : "Efter återköp",
-                isMandateView ? "Post-program" : "Post-buyback"
+                isMandateView ? "Efter program" : "Nu",
+                isMandateView ? "Post-program" : "Now"
               )}
               sx={{
                 backgroundColor:
@@ -173,8 +158,8 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {translate(
-              isMandateView ? "Ägarlyft från hela programmet" : "Ägarlyft från återköp",
-              isMandateView ? "Ownership lift from full program" : "Ownership lift from buybacks"
+              isMandateView ? "Möjligt ägarlyft från hela programmet" : "Ditt ägarlyft hittills",
+              isMandateView ? "Possible ownership lift from full program" : "Your ownership lift so far"
             )}
           </Typography>
           <Typography
@@ -205,12 +190,12 @@ export default function OwnershipCards({
           <Stack direction="row" spacing={1} sx={{ mt: 0.4 }} flexWrap="wrap">
             <Chip
               size="small"
-              label={translate("Före återköp", "Pre-buyback")}
+              label={translate(isMandateView ? "Före program" : "Före effekt", isMandateView ? "Pre-program" : "Before impact")}
               sx={{ backgroundColor: ownershipChipColors.pre.inactiveBg, color: ownershipChipColors.pre.color }}
             />
             <Chip
               size="small"
-              label={translate("Efter återköp", "Post-buyback")}
+              label={translate(isMandateView ? "Efter program" : "Nu", isMandateView ? "Post-program" : "Now")}
               sx={{ backgroundColor: ownershipChipColors.post.inactiveBg, color: ownershipChipColors.post.color }}
             />
           </Stack>
@@ -225,8 +210,8 @@ export default function OwnershipCards({
             )}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: "#86efac" }}>
-            {Number.isFinite(ownershipImpact.equivalentExtraShares)
-              ? `+${ownershipImpact.equivalentExtraShares.toLocaleString("sv-SE", { maximumFractionDigits: 1 })}`
+            {Number.isFinite(equivalentExtraShares)
+              ? `+${equivalentExtraShares.toLocaleString("sv-SE", { maximumFractionDigits: 1 })}`
               : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
@@ -241,20 +226,30 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {translate(
-              isMandateView ? "Teoretiskt återköpt aktiestock" : "Faktiskt återköpt aktiestock",
-              isMandateView ? "Theoretical shares repurchased" : "Actual shares repurchased"
+              isMandateView ? "Dina aktier i scenariot" : "Dina aktier med beräknad effekt",
+              isMandateView ? "Your shares in the scenario" : "Your shares with calculated impact"
             )}
           </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {Number.isFinite(selectedSummary?.repurchasedShares)
-              ? selectedSummary.repurchasedShares.toLocaleString("sv-SE", { maximumFractionDigits: 0 })
+            {Number.isFinite(isMandateView ? profileShares : benefitedShares)
+              ? (isMandateView ? profileShares : benefitedShares).toLocaleString("sv-SE", { maximumFractionDigits: 0 })
               : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
-            {translate(
-              `${programBuybackPct} av aktiestocken i valt scenario.`,
-              `${programBuybackPct} of the share base in the selected scenario.`
-            )}
+            {isMandateView
+              ? translate(
+                  "Ditt nuvarande innehav får effekt av framtida återköp i programmet.",
+                  "Your current holding benefits from future buybacks in the program."
+                )
+              : selectedSummary?.traceableShares > 0
+                ? translate(
+                    `Av ${Number(profileShares || 0).toLocaleString("sv-SE")} aktier. Varje post räknas först efter sitt köpdatum.`,
+                    `Of ${Number(profileShares || 0).toLocaleString("sv-SE")} shares. Each lot is counted only after its purchase date.`
+                  )
+                : translate(
+                    "Lägg in köpdatum för att beräkna den personliga effekten.",
+                    "Add purchase dates to calculate the personal impact."
+                  )}
           </Typography>
         </Paper>
       </Box>

@@ -7,6 +7,7 @@ import {
   buildOwnershipImpact,
   buildPortfolioTimeline,
   buildReturnBreakdown,
+  calculateReturnBarWidthPct,
 } from "./portfolioDashboard.js";
 
 test("buildReturnBreakdown separates price return and dividends", () => {
@@ -25,6 +26,17 @@ test("buildReturnBreakdown handles an empty portfolio safely", () => {
   const result = buildReturnBreakdown({ totalCost: 0, totalValue: 0, dividendsReceived: -20 });
   assert.equal(result.totalReturn, 0);
   assert.equal(result.totalReturnPct, null);
+});
+
+test("calculateReturnBarWidthPct scales contributions against invested capital", () => {
+  assert.ok(Math.abs(calculateReturnBarWidthPct({ value: -337_586, investedCapital: 1_320_266 }) - 25.5695) < 0.0001);
+  assert.ok(Math.abs(calculateReturnBarWidthPct({ value: 73_118, investedCapital: 1_320_266 }) - 5.5381) < 0.0001);
+});
+
+test("calculateReturnBarWidthPct handles empty and above-capital values safely", () => {
+  assert.equal(calculateReturnBarWidthPct({ value: 100, investedCapital: 0 }), 0);
+  assert.equal(calculateReturnBarWidthPct({ value: 250, investedCapital: 100 }), 100);
+  assert.equal(calculateReturnBarWidthPct({ value: null, investedCapital: 100 }), 0);
 });
 
 test("buildDividendScenarios uses transparent fractions of the last paid dividend", () => {

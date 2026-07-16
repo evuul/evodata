@@ -2,6 +2,7 @@
 
 export const DEFAULT_BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 export const CURRENT_BUYBACK_MANDATE_START_DATE = "2026-05-18";
+export const CURRENT_BUYBACK_EXECUTION_START_DATE = "2026-05-19";
 
 const toFiniteNumber = (value) => {
   if (value == null || value === "") return null;
@@ -34,7 +35,7 @@ const latestShareSnapshot = (sharesData = []) => {
     .at(-1) ?? null;
 };
 
-const normalizeBuybackRows = (buybackData = []) => {
+export const normalizeBuybackExecutions = (buybackData = []) => {
   if (!Array.isArray(buybackData)) return [];
 
   const uniqueRows = new Map();
@@ -69,7 +70,7 @@ export const summarizeBuybackExecution = ({
   mandateStartDate = CURRENT_BUYBACK_MANDATE_START_DATE,
 } = {}) => {
   const snapshot = latestShareSnapshot(sharesData);
-  const rows = normalizeBuybackRows(buybackData);
+  const rows = normalizeBuybackExecutions(buybackData);
   const fx = toFiniteNumber(fxRate);
   const mandateEur = toFiniteNumber(mandateCashEur);
 

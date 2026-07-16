@@ -33,6 +33,13 @@ export const buildReturnBreakdown = ({ totalCost, totalValue, dividendsReceived 
   };
 };
 
+export const calculateReturnBarWidthPct = ({ value, investedCapital } = {}) => {
+  const amount = Math.abs(toFinite(value) ?? 0);
+  const capital = toFinite(investedCapital);
+  if (!(capital > 0) || amount <= 0) return 0;
+  return Math.min((amount / capital) * 100, 100);
+};
+
 const DIVIDEND_SCENARIOS = [
   { id: "low", factor: 0.5, labelSv: "Låg", labelEn: "Low" },
   { id: "base", factor: 0.75, labelSv: "Bas", labelEn: "Base" },
