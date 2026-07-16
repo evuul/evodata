@@ -34,10 +34,6 @@ const LivePlayersControlPanel = () => {
     setShowAllLive,
     showAllAth,
     setShowAllAth,
-    trendBoostOn,
-    setTrendBoostOn,
-    lobbyBoostOn,
-    toggleLobbyBoost,
     trendMaOn,
     setTrendMaOn,
     gameTrendMaOn,
@@ -50,7 +46,7 @@ const LivePlayersControlPanel = () => {
     setAsiaTrendMaWindowDays,
     trendSummary: trendSummaryForView,
     trendUpdatedLabel,
-    trendChartData: boostedTrendChartData,
+    trendChartData,
     athRows,
     rankingRows,
     topGrowthUseMa,
@@ -135,8 +131,6 @@ const LivePlayersControlPanel = () => {
             totalLiveDisplayValue={totalLiveDisplayValue}
             playersUpdatedText={playersUpdatedText}
             hourlyComparisonMeta={hourlyComparisonMeta}
-            lobbyBoostOn={lobbyBoostOn}
-            onToggleLobbyBoost={toggleLobbyBoost}
             overviewLoading={overviewLoading}
             todayPeakDisplayValue={todayPeakDisplayValue}
             todayPeakMetaText={todayPeakMetaText}
@@ -249,13 +243,11 @@ const LivePlayersControlPanel = () => {
           <TrendSection
             overviewLoading={overviewLoading}
             overviewError={overviewError}
-            trendChartData={boostedTrendChartData}
+            trendChartData={trendChartData}
             trendSummary={trendSummaryForView}
             trendDays={trendDays}
             trendUpdatedLabel={trendUpdatedLabel}
             onChangeDays={setTrendDays}
-            boostOn={trendBoostOn}
-            onToggleBoost={() => setTrendBoostOn((v) => !v)}
             movingAverageOn={trendMaOn}
             onToggleMovingAverage={() => setTrendMaOn((v) => !v)}
             movingAverageDays={trendMaWindowDays}

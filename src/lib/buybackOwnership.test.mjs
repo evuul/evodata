@@ -18,6 +18,10 @@ test("full mandate summary increases ownership using current price and shares", 
   assert.equal(result.currentOutstanding, 200_000_000);
   assert.equal(result.repurchasedShares, 20_000_000);
   assert.equal(result.postBuybackOutstanding, 180_000_000);
+  assert.equal(result.illustrativeBuybackAllocation, 10_000);
+  assert.equal(result.dividendIncome, 250);
+  assert.equal(result.dividendIncomePct, 0.05);
+  assert.equal("totalShareholderReturn" in result, false);
 });
 
 test("full mandate summary still returns program metrics without holdings", () => {

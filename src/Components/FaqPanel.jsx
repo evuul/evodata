@@ -1,5 +1,7 @@
 "use client";
 
+// Explains the dashboard's data sources, methodology and important limitations.
+
 import React from "react";
 import {
   Accordion,
@@ -102,16 +104,16 @@ const FaqPanel = () => {
           >
             <Typography sx={{ fontWeight: 700 }}>
               {translate(
-                "Vad betyder “Simulera lobby (+10%)”?",
-                "What does “Simulate lobby (+10%)” mean?"
+                "Varför kan live-siffran avvika från Evolutions lobby?",
+                "Why can the live figure differ from Evolution's lobby?"
               )}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                "Knappen lägger på cirka 10% ovanpå trackade gameshows för att approximera spelandet i övriga spel som inte trackas. Det är en förenklad uppskattning, inte ett officiellt totalvärde.",
-                "The button adds roughly 10% on top of tracked gameshows to approximate play in other games that are not tracked. It is a simplified estimate, not an official total."
+                "Live-siffran summerar endast de gameshows som har aktiv spårning och döljer spel med fastnad data. Den innehåller inget uppskattat påslag och kan därför vara lägre än Evolutions fullständiga lobby.",
+                "The live figure only sums gameshows with active tracking and excludes games with stuck data. It contains no estimated uplift and can therefore be lower than Evolution's full lobby."
               )}
             </Typography>
           </AccordionDetails>
@@ -136,16 +138,16 @@ const FaqPanel = () => {
           >
             <Typography sx={{ fontWeight: 700 }}>
               {translate(
-                "Hur funkar forecasten och vad betyder “adjusted”?",
-                "How does the forecast work and what does “adjusted” mean?"
+                "Hur fungerar omsättningsprognosen?",
+                "How does the revenue forecast work?"
               )}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                "Forecast Earnings bygger på historisk omsättning per spelare och aktuell lobbytrend. “Adjusted players” är ett justerat spelarantal med +10% påslag mot rådata för att bättre matcha Evolutions totala lobby. Exempel: raw 61 100 spelare blir adjusted 67 200 spelare.",
-                "Forecast Earnings is based on historical revenue per player and the current lobby trend. “Adjusted players” is a normalized player count with a +10% uplift versus raw data to better match Evolution's total lobby. Example: raw 61,100 players becomes adjusted 67,200 players."
+                "Omsättningsprognosen bygger på historisk omsättning per trackad spelare, aktuell lobbytrend och modellens historiska kalibrering. Spelarantalet visas utan uppskattat påslag för spel som inte trackas.",
+                "The revenue forecast is based on historical revenue per tracked player, the current lobby trend and the model's historical calibration. Player counts are shown without an estimated uplift for games that are not tracked."
               )}
             </Typography>
           </AccordionDetails>
@@ -170,16 +172,16 @@ const FaqPanel = () => {
           >
             <Typography sx={{ fontWeight: 700 }}>
               {translate(
-                "Hur fungerar AI Fair Value?",
-                "How does AI Fair Value work?"
+                "Hur fungerar Modellvärde?",
+                "How does Model value work?"
               )}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                "AI Fair Value är en modelluppskattning, inte ett prisfacit. Modellen väger in rapportdata (t.ex. omsättning, marginal, EPS), tillväxtantaganden och kapitalallokering som återköp/utdelning. Fair value uppdateras när nya kvartalssiffror kommer in, så nivåerna kan ändras mellan rapporter beroende på utfallet.",
-                "AI Fair Value is a model estimate, not a price truth. The model weighs reported data (for example revenue, margin, EPS), growth assumptions, and capital allocation such as buybacks/dividends. Fair value updates when new quarterly data arrives, so levels can change between reports based on results."
+                "Modellvärde är en uppskattning, inte ett prisfacit eller en rekommendation. Modellen väger in rapportdata som omsättning, marginal och EPS samt tillväxtantaganden och kapitalallokering. Värdet uppdateras när nya kvartalssiffror kommer in och kan därför ändras mellan rapporter.",
+                "Model value is an estimate, not a price target or recommendation. It weighs reported data such as revenue, margin and EPS together with growth assumptions and capital allocation. The value updates when new quarterly figures arrive and can therefore change between reports."
               )}
             </Typography>
           </AccordionDetails>
@@ -212,8 +214,8 @@ const FaqPanel = () => {
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                "Blankningssiffran hämtas från Finansinspektionen enligt EU:s blankningsregler. Netto-blankning rapporteras vid 0,2% (till FI) och blir offentlig vid 0,5%. Alla förändringar om plus/minus 0,1 procentenheter ska rapporteras senast 15:30 nästa handelsdag. Siffran visar rapporterade nettopositioner, inte all handel. Positioner under 0,5% och intradagshandel syns inte, så datan är alltid fördröjd och ofullständig: den visar lägsta kända blankning, inte hela bilden.",
-                "The short-interest figure is sourced from Finansinspektionen under EU short-selling rules. Net short positions must be reported at 0.2% (to FI) and become public at 0.5%. Any change of plus/minus 0.1 percentage points must be reported by 15:30 on the next trading day. The figure shows reported net positions, not all trading. Positions below 0.5% and intraday trading are not visible, so the data is always delayed and incomplete: it reflects the minimum known short interest, not the full picture."
+                "Blankningssiffran hämtas från Finansinspektionens blankningsregister. Registrets summerade nivå omfattar anmälda nettopositioner från 0,1% av aktiekapitalet, medan innehavarens namn och enskilda position blir offentlig från 0,5%. Positioner under 0,1% och intradagshandel ingår inte. Datan är därför fördröjd och visar den lägsta kända blankningen, inte hela bilden.",
+                "The short-interest figure comes from Finansinspektionen's short-selling register. Its aggregate includes notified net positions from 0.1% of share capital, while the holder's name and individual position become public from 0.5%. Positions below 0.1% and intraday trading are not included. The data is therefore delayed and represents the minimum known short interest, not the full picture."
               )}
             </Typography>
           </AccordionDetails>

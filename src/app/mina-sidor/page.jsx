@@ -1,7 +1,9 @@
 "use client";
 
+// Renders the authenticated portfolio dashboard and coordinates its feature sections.
+
 import { useCallback, useEffect, useState } from "react";
-import { Box, Button, Checkbox, Divider, FormControlLabel, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, Divider, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -9,8 +11,10 @@ import { useStockPriceContext } from "@/context/StockPriceContext";
 import { useFxRateContext } from "@/context/FxRateContext";
 import { usePlayersLive } from "@/context/PlayersLiveContext";
 import MinaSidorHeader from "@/Components/MinaSidor/MinaSidorHeader";
-import HoldingsChips from "@/Components/MinaSidor/HoldingsChips";
-import HoldingsKpiRow from "@/Components/MinaSidor/HoldingsKpiRow";
+import PortfolioHeroCard from "@/Components/MinaSidor/PortfolioHeroCard";
+import ReturnBreakdownCard from "@/Components/MinaSidor/ReturnBreakdownCard";
+import DividendCenterCard from "@/Components/MinaSidor/DividendCenterCard";
+import PortfolioTimelineCard from "@/Components/MinaSidor/PortfolioTimelineCard";
 import BuyImpactSimulatorCard from "@/Components/MinaSidor/BuyImpactSimulatorCard";
 import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
@@ -19,10 +23,11 @@ import HoldingsHistoryChart from "@/Components/MinaSidor/HoldingsHistoryChart";
 import ValuationSignalCard from "@/Components/MinaSidor/ValuationSignalCard";
 import SupportModal from "@/Components/MinaSidor/SupportModal";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
-import { formatSek } from "@/Components/MinaSidor/utils";
 
 import dividendData from "@/app/data/dividendData.json";
 import outstandingShares from "@/app/data/amountOfShares.json";
+import financialCalendarEvents from "@/app/data/financialCalendar";
+import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
 
 import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
 import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions";
@@ -41,7 +46,12 @@ export default function MinaSidorPage() {
   const { token, isAuthenticated, initialized, user, changePassword, logout } = useAuth();
   const { stockPrice } = useStockPriceContext();
   const { rate: fxRate } = useFxRateContext();
-  const { data: playersLive, lobbyStats } = usePlayersLive();
+  const {
+    data: playersLive,
+    lobbyStats,
+    GAMES: playerGames,
+    lastUpdated: playersLastUpdated,
+  } = usePlayersLive();
 
   // --- Portfolio Data Hook ---
   const {
@@ -62,10 +72,6 @@ export default function MinaSidorPage() {
     lastDividend,
     totalValue,
     totalCost,
-    gain,
-    gainPercent,
-    expectedDividendCash,
-    dividendYield,
     todaysChangePercent,
     todaysHoldingChangeSek,
     estimatedDividendsFromDate,
@@ -79,8 +85,19 @@ export default function MinaSidorPage() {
     buybackSummary,
     buybackMandateSummary,
     greetingName,
-    totalLivePlayers
-  } = usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive, fxRate });
+    totalLivePlayers,
+    livePlayersMeta,
+  } = usePortfolioData({
+    token,
+    user,
+    isAuthenticated,
+    initialized,
+    stockPrice,
+    playersLive,
+    playerGames,
+    playersLastUpdated,
+    fxRate,
+  });
 
   // --- Portfolio Actions Hook ---
   const {
@@ -272,6 +289,8 @@ export default function MinaSidorPage() {
 
   // --- UI Constants ---
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
+  const dashboardTodayYmd = getStockholmTodayYmd();
+  const dividendScenarioYear = Number(dashboardTodayYmd.slice(0, 4)) + 1;
 
   return (
     <Box
@@ -297,7 +316,7 @@ export default function MinaSidorPage() {
             <MinaSidorHeader
               translate={translate}
               totalLivePlayers={totalLivePlayers}
-              onManageHoldings={handleOpenManage}
+              livePlayersMeta={livePlayersMeta}
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenSupport={handleOpenSupport}
               supportIndicator={supportIndicator}
@@ -397,59 +416,22 @@ export default function MinaSidorPage() {
               </Typography>
             ) : null}
 
-            {/* Merged "Today Holding" Stat to reduce gap */}
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "center",
-                textAlign: "center",
-                mt: { xs: 0, md: 0 }, // Removed mt because Header has some mb
-              }}
-            >
-              <Stack spacing={0.2} sx={{ alignItems: "center" }}>
-                <Typography sx={{ color: "rgba(226,232,240,0.68)", fontWeight: 700, fontSize: { xs: "0.95rem", md: "0.85rem" } }}>
-                  {translate("Dagens rörelse (ditt innehav)", "Today (your holding)")}
-                </Typography>
-                <Typography
-                  sx={{
-                    fontWeight: 900,
-                    letterSpacing: 0.2,
-                    fontSize: { xs: "1.55rem", md: "1.35rem" },
-                    color:
-                      Number.isFinite(todaysHoldingChangeSek) && todaysHoldingChangeSek < 0
-                        ? "#fecaca"
-                        : "#86efac",
-                    textShadow:
-                      Number.isFinite(todaysHoldingChangeSek) && todaysHoldingChangeSek < 0
-                        ? "0 0 18px rgba(248,113,113,0.12)"
-                        : "0 0 18px rgba(34,197,94,0.14)",
-                  }}
-                >
-                  {Number.isFinite(todaysHoldingChangeSek)
-                    ? `${todaysHoldingChangeSek >= 0 ? "+" : ""}${formatSek(todaysHoldingChangeSek)}`
-                    : "–"}
-                </Typography>
-              </Stack>
-            </Box>
           </Box>
 
           <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Översikt", "Overview")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
-
-          <Box sx={{ ...contentWrapSx, display: "flex", justifyContent: "center" }}>
-            <HoldingsChips
+            <PortfolioHeroCard
               translate={translate}
-              profile={profile}
-              dividendYield={dividendYield}
-              dividendsReceivedSafe={dividendsReceivedSafe}
-              gainPercent={gainPercent}
-              totalReturnWithDividends={totalReturnWithDividends}
-              totalReturnPctWithDividends={totalReturnPctWithDividends}
+              totalValue={totalValue}
+              totalCost={totalCost}
+              totalReturn={totalReturnWithDividends}
+              totalReturnPct={totalReturnPctWithDividends}
+              todaysHoldingChangeSek={todaysHoldingChangeSek}
+              todaysChangePercent={todaysChangePercent}
+              shares={profile.shares}
+              avgCost={profile.avgCost}
+              currentPrice={currentPrice}
+              dividendsReceived={dividendsReceivedSafe}
+              onManage={handleOpenManage}
             />
           </Box>
 
@@ -458,31 +440,17 @@ export default function MinaSidorPage() {
           <Box sx={contentWrapSx}>
             <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
               <Box sx={sectionRule} />
-              {translate("Nyckeltal", "Key metrics")}
+              {translate("Din avkastning", "Your return")}
               <Box sx={sectionRule} />
             </Box>
           </Box>
 
           <Box sx={contentWrapSx}>
-            <HoldingsKpiRow
+            <ReturnBreakdownCard
               translate={translate}
-              totalValue={totalValue}
               totalCost={totalCost}
-              gain={gain}
-              gainPercent={gainPercent}
-              expectedDividendCash={expectedDividendCash}
-              upcomingDividend={upcomingDividend}
-              lastDividend={lastDividend}
-            />
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <BuyImpactSimulatorCard
-              translate={translate}
-              profile={profile}
-              currentPrice={currentPrice}
-              upcomingDividend={upcomingDividend}
-              lastDividend={lastDividend}
+              totalValue={totalValue}
+              dividendsReceived={dividendsReceivedSafe}
             />
           </Box>
 
@@ -495,7 +463,7 @@ export default function MinaSidorPage() {
           <Box sx={contentWrapSx}>
             <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
               <Box sx={sectionRule} />
-              {translate("Återköp & Ägarandel", "Buybacks & Ownership")}
+              {translate("Återköp & ditt ägande", "Buybacks & your ownership")}
               <Box sx={sectionRule} />
             </Box>
           </Box>
@@ -519,9 +487,44 @@ export default function MinaSidorPage() {
           <Box sx={contentWrapSx}>
             <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
               <Box sx={sectionRule} />
-              {translate("Utdelning & Innehav", "Dividends & Holdings")}
+              {translate("Utdelning", "Dividends")}
               <Box sx={sectionRule} />
             </Box>
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <DividendCenterCard
+              translate={translate}
+              shares={profile.shares}
+              avgCost={profile.avgCost}
+              currentPrice={currentPrice}
+              dividendsReceived={dividendsReceivedSafe}
+              upcomingDividend={upcomingDividend}
+              lastDividend={lastDividend}
+              targetYear={dividendScenarioYear}
+            />
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
+              <Box sx={sectionRule} />
+              {translate("Historik & nästa händelser", "History & next events")}
+              <Box sx={sectionRule} />
+            </Box>
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <PortfolioTimelineCard
+              translate={translate}
+              locale={locale}
+              profile={profile}
+              historicalDividends={
+                Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
+              }
+              calendarEvents={financialCalendarEvents}
+              todayYmd={dashboardTodayYmd}
+              onManage={handleOpenManage}
+            />
           </Box>
 
           <Box sx={contentWrapSx}>
@@ -531,6 +534,24 @@ export default function MinaSidorPage() {
               historicalDividends={
                 Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
               }
+            />
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
+              <Box sx={sectionRule} />
+              {translate("Verktyg", "Tools")}
+              <Box sx={sectionRule} />
+            </Box>
+          </Box>
+
+          <Box sx={contentWrapSx}>
+            <BuyImpactSimulatorCard
+              translate={translate}
+              profile={profile}
+              currentPrice={currentPrice}
+              upcomingDividend={upcomingDividend}
+              lastDividend={lastDividend}
             />
           </Box>
 
@@ -618,8 +639,6 @@ export default function MinaSidorPage() {
               </Box>
             </>
           ) : null}
-
-          <Divider sx={sectionDivider} />
 
           <Divider sx={sectionDivider} />
         </Stack>

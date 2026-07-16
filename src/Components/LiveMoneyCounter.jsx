@@ -35,7 +35,7 @@ const LiveMoneyCounter = () => {
   const summaryCards = [
     [translate('Kvartal totalt', 'Quarter total'), formatMoney(model.quarterProfitSEK), `${model.profitMEUR.toFixed(2)} M€`],
     [translate('Årets justerade vinst', 'Adjusted profit YTD'), model.ytdProfitMEUR == null ? '–' : `${model.ytdProfitMEUR.toFixed(1)} M€`, translate(`${model.reportedQuarters}/${model.totalQuarters} kvartal rapporterade`, `${model.reportedQuarters}/${model.totalQuarters} quarters reported`)],
-    [translate('Rapporterad EPS', 'Reported EPS'), model.eps == null ? '–' : `${formatSEK(model.eps, 2)} SEK`, translate('Justerad EPS från rapport', 'Adjusted EPS from report')],
+    [translate('Rapporterad EPS', 'Reported EPS'), model.eps == null ? '–' : `${formatSEK(model.eps, 2)} EUR`, translate('Justerad EPS i rapportens valuta', 'Adjusted EPS in the report currency')],
     [translate('Referensperiod', 'Reference period'), reportLabel, `FX EUR/SEK ${model.fx.toFixed(2)}`],
   ];
 

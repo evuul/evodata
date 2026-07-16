@@ -3,7 +3,7 @@
 // Overview cards and hourly baseline section for the live players control panel.
 
 import React from "react";
-import { Box, Chip, CircularProgress, Grid, Stack, Typography } from "@mui/material";
+import { Box, CircularProgress, Grid, Stack, Typography } from "@mui/material";
 
 export default function LivePlayersControlPanelOverviewSection({
   translate,
@@ -13,8 +13,6 @@ export default function LivePlayersControlPanelOverviewSection({
   totalLiveDisplayValue,
   playersUpdatedText,
   hourlyComparisonMeta,
-  lobbyBoostOn,
-  onToggleLobbyBoost,
   overviewLoading,
   todayPeakDisplayValue,
   todayPeakMetaText,
@@ -102,26 +100,6 @@ export default function LivePlayersControlPanelOverviewSection({
                       )}
                     </Typography>
                   ) : null}
-                  {lobbyBoostOn && (
-                    <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)" }}>
-                      {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
-                    </Typography>
-                  )}
-                  <Chip
-                    size="small"
-                    label={lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")}
-                    onClick={onToggleLobbyBoost}
-                    clickable
-                    sx={{
-                      borderRadius: "999px",
-                      mt: 0.5,
-                      alignSelf: "center",
-                      backgroundColor: lobbyBoostOn ? "rgba(52,211,153,0.18)" : "rgba(15,23,42,0.6)",
-                      color: lobbyBoostOn ? "#34d399" : "rgba(248,250,252,0.85)",
-                      border: lobbyBoostOn ? "1px solid rgba(52,211,153,0.45)" : "1px solid rgba(148,163,184,0.35)",
-                      fontWeight: 600,
-                    }}
-                  />
                 </>
               )}
             </Box>
@@ -166,26 +144,6 @@ export default function LivePlayersControlPanelOverviewSection({
                   <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
                     {todayPeakMetaText}
                   </Typography>
-                  {lobbyBoostOn && (
-                    <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                      {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
-                    </Typography>
-                  )}
-                  <Chip
-                    size="small"
-                    label={lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")}
-                    onClick={onToggleLobbyBoost}
-                    clickable
-                    sx={{
-                      borderRadius: "999px",
-                      mt: 0.5,
-                      alignSelf: "center",
-                      backgroundColor: lobbyBoostOn ? "rgba(251,113,133,0.18)" : "rgba(15,23,42,0.6)",
-                      color: lobbyBoostOn ? "#fb7185" : "rgba(248,250,252,0.85)",
-                      border: lobbyBoostOn ? "1px solid rgba(251,113,133,0.4)" : "1px solid rgba(148,163,184,0.35)",
-                      fontWeight: 600,
-                    }}
-                  />
                 </>
               ) : (
                 <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
@@ -235,26 +193,6 @@ export default function LivePlayersControlPanelOverviewSection({
                     <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
                       {yesterdayPeakMetaText}
                     </Typography>
-                    {lobbyBoostOn && (
-                      <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                        {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
-                      </Typography>
-                    )}
-                    <Chip
-                      size="small"
-                      label={lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")}
-                      onClick={onToggleLobbyBoost}
-                      clickable
-                      sx={{
-                        borderRadius: "999px",
-                        mt: 0.5,
-                        alignSelf: "center",
-                        backgroundColor: lobbyBoostOn ? "rgba(251,191,36,0.18)" : "rgba(15,23,42,0.6)",
-                        color: lobbyBoostOn ? "#fbbf24" : "rgba(248,250,252,0.85)",
-                        border: lobbyBoostOn ? "1px solid rgba(251,191,36,0.4)" : "1px solid rgba(148,163,184,0.35)",
-                        fontWeight: 600,
-                      }}
-                    />
                   </>
                 ) : (
                   <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
@@ -310,26 +248,6 @@ export default function LivePlayersControlPanelOverviewSection({
                       ? translate(`Uppnåddes ${lobbyAthDisplay.dateLabel}`, `Reached ${lobbyAthDisplay.dateLabel}`)
                       : translate("Datum okänt", "Date unknown")}
                   </Typography>
-                  {lobbyBoostOn && (
-                    <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.65)", textAlign: "center" }}>
-                      {translate("Visar simulerat värde (+10%).", "Showing simulated value (+10%).")}
-                    </Typography>
-                  )}
-                  <Chip
-                    size="small"
-                    label={lobbyBoostOn ? translate("+10% aktiv", "+10% active") : translate("Simulera +10%", "Simulate +10%")}
-                    onClick={onToggleLobbyBoost}
-                    clickable
-                    sx={{
-                      borderRadius: "999px",
-                      mt: 0.5,
-                      alignSelf: "center",
-                      backgroundColor: lobbyBoostOn ? "rgba(96,165,250,0.18)" : "rgba(15,23,42,0.6)",
-                      color: lobbyBoostOn ? "#93c5fd" : "rgba(248,250,252,0.85)",
-                      border: lobbyBoostOn ? "1px solid rgba(96,165,250,0.45)" : "1px solid rgba(148,163,184,0.35)",
-                      fontWeight: 600,
-                    }}
-                  />
                 </>
               ) : (
                 <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>

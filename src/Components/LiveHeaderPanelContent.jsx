@@ -36,6 +36,8 @@ export default function LiveHeaderPanelContent({
     );
   }
 
+  if (activePanel === "calendar") return <panels.FinancialCalendarPanel />;
+
   if (activePanel === "fairvalue") {
     const reports = financialReports?.financialReports ?? [];
     if (!reports.length) {

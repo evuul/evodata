@@ -1,14 +1,11 @@
 // Derived player metrics for the live header.
 
-export const DEFAULT_LOBBY_SIM_MULTIPLIER = 1.1;
 export const DEFAULT_GAME_COLOR = "#38bdf8";
 
 export function buildLiveHeaderPlayerMetrics({
   playerGames,
   liveGames,
   gameColors = {},
-  simulateLobby = false,
-  simulationMultiplier = DEFAULT_LOBBY_SIM_MULTIPLIER,
 } = {}) {
   const games = Array.isArray(playerGames) ? playerGames : [];
   const entries = liveGames && typeof liveGames === "object" ? liveGames : {};
@@ -46,16 +43,20 @@ export function buildLiveHeaderPlayerMetrics({
   let hasPlayers = false;
   const zeroPlayerGames = [];
   let stuckLiveGamesCount = 0;
+  let activeGamesCount = 0;
+  let staleGamesCount = 0;
 
   for (const game of games) {
     const entry = entries?.[game.id] || {};
     const stuck = Boolean(entry.stuck);
     if (stuck) stuckLiveGamesCount += 1;
+    if (entry.stale) staleGamesCount += 1;
 
     const value = stuck ? null : entry.players;
     if (Number.isFinite(value)) {
       totalPlayers += value;
       hasPlayers = true;
+      activeGamesCount += 1;
     }
 
     if (Number(entry.players) === 0 && !entry.stale && !stuck) {
@@ -70,17 +71,15 @@ export function buildLiveHeaderPlayerMetrics({
   }
 
   const liveTotalPlayers = hasPlayers ? totalPlayers : null;
-  const simulatedTotalPlayers = Number.isFinite(liveTotalPlayers)
-    ? Math.round(liveTotalPlayers * simulationMultiplier)
-    : null;
-
   return {
     top3: rankedRows.slice(0, 3),
     totalPlayers: liveTotalPlayers,
-    simulatedTotalPlayers,
-    playersValue: simulateLobby && simulatedTotalPlayers != null ? simulatedTotalPlayers : liveTotalPlayers,
+    playersValue: liveTotalPlayers,
     zeroPlayerGames,
     stuckLiveGamesCount,
+    activeGamesCount,
+    trackedGamesCount: games.length,
+    staleGamesCount,
   };
 }
 

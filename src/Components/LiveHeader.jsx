@@ -36,6 +36,7 @@ const ReportViewPanel = dynamic(() => import("./ReportView"), { ssr: false, load
 const FaqPanel = dynamic(() => import("./FaqPanel"), { ssr: false, loading: PanelLoader });
 const CashPositionPanel = dynamic(() => import("./CashPositionCard"), { ssr: false, loading: PanelLoader });
 const CapitalAllocationPanel = dynamic(() => import("./CapitalAllocationCard"), { ssr: false, loading: PanelLoader });
+const FinancialCalendarPanel = dynamic(() => import("./FinancialCalendarPanel"), { ssr: false, loading: PanelLoader });
 
 export default function LiveHeader({ financialReports, averagePlayersData, dividendData, buybackData, sharesData }) {
   const {
@@ -45,9 +46,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     playersUpdatedLabel,
     hourlyComparisonMeta,
     maintenanceWarningLabel,
-    simulateLobby,
-    setSimulateLobby,
-    simulateButtonLabel,
     liveTrackerOffline,
     liveTrackerOfflineNote,
     priceDisplay,
@@ -75,6 +73,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     marketDotColor,
     blankningChipLabel,
     blankningChipLabelMobile,
+    nextCalendarEventChip,
     lobbyAthLabel,
     userMenuAnchor,
     setUserMenuAnchor,
@@ -88,7 +87,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     cashView,
     setCashView,
     activePanel,
-    panelOptions,
+    panelGroups,
     handlePanelChange,
     isLiveMoneyPanel,
     isLivePanel,
@@ -121,6 +120,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         LiveStockBuyBackInfoPanel,
         ShortIntelligencePanel,
         CapitalAllocationPanel,
+        FinancialCalendarPanel,
       }}
     />
   );
@@ -134,11 +134,11 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 24px 50px rgba(15,23,42,0.45)",
         px: { xs: 2, sm: 3, md: 4 },
-        py: { xs: 2.2, sm: 3 },
+        py: isLivePanel ? { xs: 2.2, sm: 3 } : { xs: 1.5, sm: 2 },
         width: "100%",
       }}
     >
-      <Stack spacing={{ xs: 1.8, sm: 2.5, md: 3 }}>
+      <Stack spacing={isLivePanel ? { xs: 1.8, sm: 2.5, md: 3 } : { xs: 1.2, sm: 1.5 }}>
         <LiveHeaderTopBar
           translate={translate}
           isMobileMenu={isMobileMenu}
@@ -147,6 +147,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           marketDotColor={marketDotColor}
           blankningChipLabel={blankningChipLabel}
           blankningChipLabelMobile={blankningChipLabelMobile}
+          nextCalendarEventChip={nextCalendarEventChip}
           lobbyAthLabel={lobbyAthLabel}
           handlePanelChange={handlePanelChange}
           showDonationNudge={showDonationNudge}
@@ -165,7 +166,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           showMyPageNewBadge={showMyPageNewBadge}
         />
 
-        <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
+        {isLivePanel ? <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
           <Typography
             variant="overline"
             sx={{
@@ -208,7 +209,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
               </Typography>
             </>
           )}
-        </Stack>
+        </Stack> : null}
 
         <LiveHeaderOverviewSection
           translate={translate}
@@ -224,9 +225,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           maintenanceWarningLabel={maintenanceWarningLabel}
           stuckLiveGamesCount={stuckLiveGamesCount}
           buybackSummary={buybackSummary}
-          simulateLobby={simulateLobby}
-          setSimulateLobby={setSimulateLobby}
-          simulateButtonLabel={simulateButtonLabel}
           liveTrackerOffline={liveTrackerOffline}
           liveTrackerOfflineNote={liveTrackerOfflineNote}
           priceDisplay={priceDisplay}
@@ -242,13 +240,14 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           latestTopWinLabelWithEmoji={latestTopWinLabelWithEmoji}
           top3={top3}
           formatTime={formatTime}
+          compact={!isLivePanel}
         />
 
         <Stack spacing={{ xs: 1.6, sm: 1.9 }} alignItems="stretch">
           <LiveHeaderPanelSwitcher
             activePanel={activePanel}
             isMobileMenu={isMobileMenu}
-            panelOptions={panelOptions}
+            panelGroups={panelGroups}
             handlePanelChange={handlePanelChange}
             panelContent={panelContent}
             isLiveMoneyPanel={isLiveMoneyPanel}

@@ -710,11 +710,11 @@ export default function LiveLoggedOutPreview({
       key: "eps",
       icon: <RequestQuoteIcon />,
       title: translate("Justerad EPS", "Adjusted EPS"),
-      value: translate(`${epsDisplay} kr`, `${epsDisplay} SEK`),
+      value: `${epsDisplay} EUR`,
       subtitle: epsPrevDisplay
-        ? translate(`Föregående kvartal ${epsPrevDisplay} kr per aktie.`, `Previous quarter ${epsPrevDisplay} SEK per share.`)
+        ? translate(`Föregående kvartal ${epsPrevDisplay} EUR per aktie.`, `Previous quarter ${epsPrevDisplay} EUR per share.`)
         : translate("Justerat resultat per aktie senaste kvartalet.", "Adjusted earnings per share last quarter."),
-      badge: epsChangeDisplay ? translate(`${epsChangeDisplay} kr`, `${epsChangeDisplay} SEK`) : null,
+      badge: epsChangeDisplay ? `${epsChangeDisplay} EUR` : null,
     });
   }
 
@@ -1037,8 +1037,8 @@ export default function LiveLoggedOutPreview({
               gap: { xs: 2, sm: 2.5, md: 3 },
             }}
           >
-            {visibleCards.map((card) => (
-              <StatCard key={card.key} {...card} tone={toneForCardKey(card.key)} />
+            {visibleCards.map(({ key, ...card }) => (
+              <StatCard key={key} {...card} tone={toneForCardKey(key)} />
             ))}
           </Box>
         </Box>

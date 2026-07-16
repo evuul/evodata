@@ -1,6 +1,6 @@
 "use client";
 
-// Interactive valuation signal card for Mina Sidor.
+// Presents a neutral, multidimensional valuation model for Mina Sidor.
 import { useMemo } from "react";
 import { Box, Chip, Grid, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -14,49 +14,49 @@ const num1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
 const pct1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
 const BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 
-const signalStyleMap = {
-  strong_buy: {
+const modelStatusStyleMap = {
+  very_strong: {
     bg: "rgba(34,197,94,0.18)",
     border: "1px solid rgba(34,197,94,0.45)",
     color: "#86efac",
-    sv: "Starkt köp",
-    en: "Strong buy",
+    sv: "Mycket stark modellbild",
+    en: "Very strong model profile",
   },
-  accumulate: {
+  strong: {
     bg: "rgba(56,189,248,0.18)",
     border: "1px solid rgba(56,189,248,0.45)",
     color: "#7dd3fc",
-    sv: "Öka",
-    en: "Accumulate",
+    sv: "Stark modellbild",
+    en: "Strong model profile",
   },
-  hold: {
+  balanced: {
     bg: "rgba(250,204,21,0.16)",
     border: "1px solid rgba(250,204,21,0.4)",
     color: "#fde68a",
-    sv: "Avvakta",
-    en: "Hold",
+    sv: "Blandad modellbild",
+    en: "Mixed model profile",
   },
-  watch: {
+  weak: {
     bg: "rgba(248,113,113,0.14)",
     border: "1px solid rgba(248,113,113,0.4)",
     color: "#fca5a5",
-    sv: "Vänta",
-    en: "Wait",
+    sv: "Svag modellbild",
+    en: "Weak model profile",
   },
   unknown: {
     bg: "rgba(148,163,184,0.14)",
     border: "1px solid rgba(148,163,184,0.35)",
     color: "#cbd5e1",
-    sv: "Ingen signal",
-    en: "No signal",
+    sv: "Otillräcklig data",
+    en: "Insufficient data",
   },
 };
 
 const scoreBand = (score) => {
   if (!Number.isFinite(score)) return "unknown";
-  if (score >= 75) return "strong";
-  if (score >= 60) return "good";
-  if (score >= 45) return "neutral";
+  if (score >= 80) return "strong";
+  if (score >= 65) return "good";
+  if (score >= 50) return "neutral";
   return "weak";
 };
 
@@ -185,6 +185,24 @@ function MetricBox({ label, value, moodLabel, moodColor, ratio, tooltip }) {
   );
 }
 
+function DimensionScore({ label, score }) {
+  const value = Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0;
+  const color = value >= 80 ? "#34d399" : value >= 65 ? "#7dd3fc" : value >= 50 ? "#facc15" : "#f87171";
+  return (
+    <Box sx={{ p: 1.3, borderRadius: "14px", background: "rgba(30,41,59,0.5)", border: "1px solid rgba(148,163,184,0.18)" }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.7 }}>
+        <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.82)", fontWeight: 700 }}>{label}</Typography>
+        <Typography sx={{ color, fontWeight: 800 }}>{Number.isFinite(score) ? `${score}/100` : "–"}</Typography>
+      </Stack>
+      <LinearProgress
+        variant="determinate"
+        value={value}
+        sx={{ height: 6, borderRadius: 99, backgroundColor: "rgba(15,23,42,0.65)", "& .MuiLinearProgress-bar": { borderRadius: 99, backgroundColor: color } }}
+      />
+    </Box>
+  );
+}
+
 export default function ValuationSignalCard({ translate, currentPrice, isUnlocked }) {
   const { rate: fxRate } = useFxRateContext();
   const reports = Array.isArray(financialReportsData?.financialReports) ? financialReportsData.financialReports : [];
@@ -219,7 +237,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
       >
         <Stack spacing={1}>
           <Typography variant="h6" sx={{ color: "#f8fafc", fontWeight: 700 }}>
-            {translate("Värderingssignal", "Valuation signal")}
+            {translate("Fundamental modellpoäng", "Fundamental model score")}
           </Typography>
           <Typography variant="body2" sx={{ color: "rgba(203,213,225,0.82)" }}>
             {translate(
@@ -232,7 +250,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
     );
   }
 
-  const signalStyle = signalStyleMap[signal.signal] || signalStyleMap.unknown;
+  const signalStyle = modelStatusStyleMap[signal.status] || modelStatusStyleMap.unknown;
   const signalLabel = translate(signalStyle.sv, signalStyle.en);
   const band = scoreBand(signal?.score);
   const bandLabel = bandText(band, translate);
@@ -268,8 +286,8 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
       "P/E shows price relative to earnings per share (LTM). Lower can indicate a cheaper valuation."
     ),
     forwardPe: translate(
-      "Forward P/E använder framåtblickande vinstestimat (NTM) istället för historisk vinst.",
-      "Forward P/E uses forward-looking earnings (NTM) instead of trailing earnings."
+      "Modell-P/E använder rapporterad LTM-vinst justerad med den senaste uppmätta omsättningstillväxten. Det är en intern proxy, inte konsensusestimat.",
+      "Model P/E adjusts reported LTM earnings using the latest measured revenue growth. It is an internal proxy, not a consensus estimate."
     ),
     peg: translate(
       "PEG = P/E delat med tillväxttakt. Runt 1 brukar tolkas som mer balanserad värdering.",
@@ -288,8 +306,8 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
       "EV/EBITDA compares enterprise value to EBITDA and is used to compare valuation across companies."
     ),
     buyback: translate(
-      "2 md EUR-programmet visar hur mycket av nuvarande börsvärde som kan återköpas vid dagens kurs.",
-      "The EUR 2bn program shows how much of the current market cap can be repurchased at today's price."
+      "Visar ett teoretiskt scenario där hela mandatet om 2 md EUR används vid dagens kurs. Faktiska återköp kan bli lägre.",
+      "Shows a theoretical scenario where the full EUR 2bn mandate is used at today's price. Actual buybacks may be lower."
     ),
   };
 
@@ -320,7 +338,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
           justifyContent="space-between"
         >
           <Typography variant="subtitle1" sx={{ color: "#f8fafc", fontWeight: 700 }}>
-            {translate("Värderingssignal (Traffic Light)", "Valuation signal (Traffic Light)")}
+            {translate("Fundamental modellpoäng", "Fundamental model score")}
           </Typography>
           <Chip
             label={signalLabel}
@@ -347,7 +365,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
             >
               <Stack spacing={0.9}>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.85)" }}>
-                  {translate("Model score", "Model score")}
+                  {translate("Samlad modellpoäng", "Overall model score")}
                 </Typography>
                 <Stack direction="row" spacing={1.2} alignItems="baseline">
                   <Typography variant="h4" sx={{ color: "#f8fafc", fontWeight: 900, lineHeight: 1 }}>
@@ -372,8 +390,8 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
                 />
                 <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.72)" }}>
                   {translate(
-                    `Baspoäng ${signal.baseScore ?? "–"} • återköpsstöd ${signal.buybackSupportPoints ?? "–"} • avdrag ${signal.penaltyPoints ?? "–"}`,
-                    `Base score ${signal.baseScore ?? "–"} • buyback support ${signal.buybackSupportPoints ?? "–"} • penalties ${signal.penaltyPoints ?? "–"}`
+                    "Viktad sammanvägning av värdering, kassaflöde, trend och kapitalallokering.",
+                    "Weighted combination of valuation, cash flow, trend and capital allocation."
                   )}
                 </Typography>
                 {signal?.meta?.latestQuarter ? (
@@ -403,25 +421,32 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
                 <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.9)" }}>
                   {hasPenalties
                     ? translate(
-                        "Modellen ser varningsflaggor i trenden. Fokusera på att följa nästa rapport innan du ökar aggressivt.",
-                        "The model sees warning flags in the trend. Focus on the next report before increasing aggressively."
+                        "Värderingen stöds av flera nyckeltal, men aktiva trendrisker drar ned helhetsbilden.",
+                        "Several valuation metrics are supportive, but active trend risks lower the overall profile."
                       )
                     : translate(
-                        "Fundamenta ser stabila ut enligt modellen. Läget är bättre för gradvis ökning än för att jaga kortsiktiga rörelser.",
-                        "Fundamentals look stable in the model. The setup is better for gradual accumulation than short-term chasing."
+                        "Modellen visar en stabil helhetsbild utan aktiva trendvarningar.",
+                        "The model shows a stable overall profile without active trend warnings."
                       )}
                 </Typography>
                 <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.82)" }}>
                   {translate(
-                    `2 md EUR-återköpsprogrammet motsvarar ${buybackMetricLabel} av nuvarande börsvärde och ger cirka ${buybackBoostLabel} EPS-boost vid dagens kurs.`,
-                    `The EUR 2bn buyback program equals ${buybackMetricLabel} of the current market cap and adds about ${buybackBoostLabel} EPS boost at today's price.`
+                    `Om hela mandatet om 2 md EUR används vid dagens kurs motsvarar det ${buybackMetricLabel} av börsvärdet och en teoretisk EPS-effekt på cirka ${buybackBoostLabel}.`,
+                    `If the full EUR 2bn mandate is used at today's price, it equals ${buybackMetricLabel} of market cap and a theoretical EPS effect of about ${buybackBoostLabel}.`
                   )}
                 </Typography>
                 {hasPenalties ? (
                   <Stack spacing={0.4}>
                     {signal.penalties.slice(0, 2).map((p) => (
                       <Typography key={p.key} variant="caption" sx={{ color: "#fecaca" }}>
-                        • {translate("Varningsflagga", "Warning")}: {p.message}
+                        • {translate("Varningsflagga", "Warning")}: {translate(
+                          p.key === "marginTrendBreak"
+                            ? "EBITDA-marginalen har fallit mer än 2 procentenheter två kvartal i rad."
+                            : p.key === "lowRevenueGrowth"
+                            ? "Omsättningstillväxten är under 5% jämfört med samma kvartal i fjol."
+                            : "Omsättningen i Asien har minskat jämfört med föregående kvartal.",
+                          p.message
+                        )}
                       </Typography>
                     ))}
                   </Stack>
@@ -434,6 +459,13 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
             </Box>
           </Grid>
         </Grid>
+
+        <Box sx={{ display: "grid", gap: 1.2, gridTemplateColumns: { xs: "1fr", sm: "repeat(2, minmax(0, 1fr))", lg: "repeat(4, minmax(0, 1fr))" } }}>
+          <DimensionScore label={translate("Värdering", "Valuation")} score={signal?.dimensions?.valuation} />
+          <DimensionScore label={translate("Kassaflöde", "Cash flow")} score={signal?.dimensions?.cashFlow} />
+          <DimensionScore label={translate("Trend", "Trend")} score={signal?.dimensions?.trend} />
+          <DimensionScore label={translate("Kapitalallokering", "Capital allocation")} score={signal?.dimensions?.capitalAllocation} />
+        </Box>
 
         <Box
           sx={{
@@ -456,7 +488,7 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
             tooltip={metricTooltips.pe}
           />
           <MetricBox
-            label={translate("Forward P/E (NTM)", "Forward P/E (NTM)")}
+            label={translate("Modell-P/E (proxy)", "Model P/E (proxy)")}
             value={fwdPeMetricLabel}
             moodLabel={translate(fwdPeMood.sv, fwdPeMood.en)}
             moodColor={fwdPeMood.color}

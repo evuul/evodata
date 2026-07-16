@@ -1,4 +1,6 @@
 
+// Loads portfolio data and derives holdings, dividend, buyback and live-player metrics.
+
 import { useState, useMemo, useEffect } from "react";
 import dividendData from "@/app/data/dividendData.json";
 import buybackDataStatic from "@/app/data/buybackData.json";
@@ -8,6 +10,7 @@ import { isBuyEligibleForDividend, resolveDividendExDate } from "@/lib/dividendE
 import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
 import { fetchAuthJson } from "@/lib/clientApi";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
+import { buildLiveHeaderPlayerMetrics } from "@/lib/liveHeaderPlayers";
 
 const NO_DIVIDEND_PROPOSAL = {
     date: "2026-03-18",
@@ -16,7 +19,17 @@ const NO_DIVIDEND_PROPOSAL = {
     status: "no_dividend_proposed",
 };
 
-export function usePortfolioData({ token, user, isAuthenticated, initialized, stockPrice, playersLive, fxRate }) {
+export function usePortfolioData({
+    token,
+    user,
+    isAuthenticated,
+    initialized,
+    stockPrice,
+    playersLive,
+    playerGames,
+    playersLastUpdated,
+    fxRate,
+}) {
     const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -424,28 +437,33 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         const ownershipAfter = profile.shares / currentOutstanding;
         const ownershipLiftPct =
             ownershipBefore > 0 ? ((ownershipAfter / ownershipBefore) - 1) * 100 : null;
-        const buybackBenefit = ownershipBefore > 0 ? totalBuybackSpend * ownershipBefore : 0;
+        const illustrativeBuybackAllocation = ownershipBefore > 0 ? totalBuybackSpend * ownershipBefore : 0;
+        const buybackYieldPct = preBuybackOutstanding > 0
+            ? (totalBuybackShares / preBuybackOutstanding) * 100
+            : null;
 
-        const dividendBenefit =
+        const dividendIncome =
             Number.isFinite(dividendsReceivedSafe) && dividendsReceivedSafe > 0
                 ? dividendsReceivedSafe
                 : 0;
-        const totalShareholderReturn =
-            (Number.isFinite(dividendBenefit) ? dividendBenefit : 0) + buybackBenefit;
-        const totalShareholderReturnPct =
-            totalValue > 0 ? (totalShareholderReturn / totalValue) * 100 : null;
+        const dividendIncomePct = totalValue > 0 ? (dividendIncome / totalValue) * 100 : null;
 
         return {
             ownershipBefore,
             ownershipAfter,
             ownershipLiftPct,
-            buybackBenefit,
-            dividendBenefit,
+            illustrativeBuybackAllocation,
+            buybackYieldPct,
+            repurchasedShares: totalBuybackShares,
+            currentOutstanding,
+            preBuybackOutstanding,
+            buybackSpendSek: totalBuybackSpend,
+            hasHoldings: profile.shares > 0,
+            dividendIncome,
+            dividendIncomePct,
             dividendCountedExDates: estimatedDividendsFromTransactionsMeta?.counted ?? null,
             dividendExDateFrom: estimatedDividendsFromTransactionsMeta?.firstIncludedExDate ?? null,
             dividendExDateTo: estimatedDividendsFromTransactionsMeta?.lastIncludedExDate ?? null,
-            totalShareholderReturn,
-            totalShareholderReturnPct,
             latestSharesDate: amountOfShares?.[amountOfShares.length - 1]?.date,
         };
     }, [buybackData, dividendsReceivedSafe, estimatedDividendsFromTransactionsMeta, profile.shares, totalValue]);
@@ -480,13 +498,17 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         [isAdminUser, profileIdentity.email, user?.email, user?.isAdmin]
     );
 
-    const totalLivePlayers = useMemo(() => {
-        if (!playersLive) return null;
-        return Object.values(playersLive).reduce((sum, item) => {
-            const val = Number(item?.players);
-            return Number.isFinite(val) ? sum + val : sum;
-        }, 0);
-    }, [playersLive]);
+    const livePlayerMetrics = useMemo(
+        () => buildLiveHeaderPlayerMetrics({ playerGames, liveGames: playersLive }),
+        [playerGames, playersLive]
+    );
+    const totalLivePlayers = livePlayerMetrics.totalPlayers;
+    const livePlayersMeta = {
+        updatedAt: playersLastUpdated ?? null,
+        activeGamesCount: livePlayerMetrics.activeGamesCount,
+        trackedGamesCount: livePlayerMetrics.trackedGamesCount,
+        excludedGamesCount: livePlayerMetrics.stuckLiveGamesCount,
+    };
 
     return {
         profile, setProfile,
@@ -529,6 +551,7 @@ export function usePortfolioData({ token, user, isAuthenticated, initialized, st
         buybackSummary,
         buybackMandateSummary,
         greetingName,
-        totalLivePlayers
+        totalLivePlayers,
+        livePlayersMeta,
     };
 }

@@ -1,10 +1,13 @@
 "use client";
 
+// Compares ownership effects from completed and hypothetical share buybacks.
+
 import { useMemo, useState } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
-import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
+import { formatOwnershipPercent, formatPercent } from "./utils";
 import { cardBase, equalHeightCard, ownershipChipColors, statusColors, text } from "./styles";
 import { computeFullBuybackMandateSummary } from "@/lib/buybackOwnership";
+import { buildOwnershipImpact } from "@/lib/portfolioDashboard";
 
 export default function OwnershipCards({
   translate,
@@ -35,7 +38,13 @@ export default function OwnershipCards({
   const selectedSummary =
     scenarioView === "mandate" ? buybackMandateSummary ?? computedMandateSummary : buybackSummary;
   const isMandateView = scenarioView === "mandate";
-  const programBuybackPct = selectedSummary?.buybackYieldPct != null ? formatPercent(selectedSummary.buybackYieldPct) : "–";
+  const programBuybackPct = selectedSummary?.buybackYieldPct != null
+    ? `${selectedSummary.buybackYieldPct.toFixed(1)}%`
+    : "–";
+  const ownershipImpact = buildOwnershipImpact({
+    shares: profileShares,
+    ownershipLiftPct: selectedSummary?.ownershipLiftPct,
+  });
   const cardSx = {
     p: { xs: 2, md: 2.2 },
     ...cardBase,
@@ -211,51 +220,42 @@ export default function OwnershipCards({
         <Paper sx={cardSx}>
           <Typography sx={{ color: text.subtle }}>
             {translate(
-              isMandateView ? "Värde av hela programmet till dig" : "Återköpsvärde till dig",
-              isMandateView ? "Your share of the full program" : "Buyback value to you"
+              "Motsvarande extra aktier",
+              "Equivalent extra shares"
             )}
           </Typography>
-          <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {selectedSummary && selectedSummary.buybackBenefit != null ? formatSek(selectedSummary.buybackBenefit) : "–"}
+          <Typography variant="h5" sx={{ fontWeight: 800, color: "#86efac" }}>
+            {Number.isFinite(ownershipImpact.equivalentExtraShares)
+              ? `+${ownershipImpact.equivalentExtraShares.toLocaleString("sv-SE", { maximumFractionDigits: 1 })}`
+              : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
             {translate(
-              isMandateView ? "Andel av hela 2 md €-programmet" : "Andel av genomförda återköp",
-              isMandateView ? "Your share of the full EUR 2bn program" : "Your share of completed buybacks"
+              "Så många extra aktier motsvarar ökningen av din relativa ägarandel, utan att du köper fler.",
+              "The equivalent number of extra shares represented by your higher relative ownership, without buying more."
             )}
           </Typography>
         </Paper>
       </Box>
       <Box sx={{ display: "flex" }}>
         <Paper sx={cardSx}>
-          <Typography sx={{ color: text.subtle }}>{translate("Total aktieägaravkastning", "Total shareholder return")}</Typography>
+          <Typography sx={{ color: text.subtle }}>
+            {translate(
+              isMandateView ? "Teoretiskt återköpt aktiestock" : "Faktiskt återköpt aktiestock",
+              isMandateView ? "Theoretical shares repurchased" : "Actual shares repurchased"
+            )}
+          </Typography>
           <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading }}>
-            {selectedSummary && selectedSummary.totalShareholderReturn != null ? formatSek(selectedSummary.totalShareholderReturn) : "–"}
+            {Number.isFinite(selectedSummary?.repurchasedShares)
+              ? selectedSummary.repurchasedShares.toLocaleString("sv-SE", { maximumFractionDigits: 0 })
+              : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
-            {selectedSummary?.totalShareholderReturnPct != null
-              ? translate(
-                  `${formatPercent(selectedSummary.totalShareholderReturnPct)} av nuvärdet`,
-                  `${formatPercent(selectedSummary.totalShareholderReturnPct)} of current value`
-                )
-              : translate("Utdelning + återköp", "Dividend + buybacks")}
+            {translate(
+              `${programBuybackPct} av aktiestocken i valt scenario.`,
+              `${programBuybackPct} of the share base in the selected scenario.`
+            )}
           </Typography>
-          {selectedSummary?.dividendBenefit != null ? (
-            <Typography sx={{ color: "rgba(226,232,240,0.55)", fontSize: "0.82rem" }}>
-              {translate(
-                `Utdelning (mottagen): ${formatSek(selectedSummary.dividendBenefit)} + återköp: ${formatSek(selectedSummary.buybackBenefit)}`,
-                `Dividends (received): ${formatSek(selectedSummary.dividendBenefit)} + buybacks: ${formatSek(selectedSummary.buybackBenefit)}`
-              )}
-            </Typography>
-          ) : null}
-          {selectedSummary?.dividendExDateFrom && selectedSummary?.dividendExDateTo ? (
-            <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.78rem" }}>
-              {translate(
-                `X-datum inkluderade: ${selectedSummary.dividendExDateFrom} → ${selectedSummary.dividendExDateTo} (${selectedSummary.dividendCountedExDates ?? 0} st)`,
-                `Ex-dates included: ${selectedSummary.dividendExDateFrom} to ${selectedSummary.dividendExDateTo} (${selectedSummary.dividendCountedExDates ?? 0})`
-              )}
-            </Typography>
-          ) : null}
         </Paper>
       </Box>
     </Box>

@@ -1,4 +1,4 @@
-// Regression tests for the valuation signal buyback support.
+// Regression tests for the multidimensional valuation model.
 import assert from "node:assert/strict";
 import test from "node:test";
 import { computeValuationSignal } from "./valuationSignal.js";
@@ -16,7 +16,7 @@ const reports = [
 
 const sharesData = [{ date: "2026-04-30", sharesOutstanding: 200 }];
 
-test("buyback mandate contributes to valuation signal metrics and score", () => {
+test("valuation model exposes neutral multidimensional scores", () => {
   const signal = computeValuationSignal({
     reports,
     currentPriceSEK: 100,
@@ -27,8 +27,15 @@ test("buyback mandate contributes to valuation signal metrics and score", () => 
   });
 
   assert.equal(signal.ok, true);
-  assert.equal(signal.buybackSupportPoints, 4);
   assert.ok(Math.abs((signal.metrics.buybackMandateYieldPct ?? 0) - 10) < 0.0001);
   assert.ok(Math.abs((signal.metrics.buybackBoostPct ?? 0) - 11.1111111111) < 0.01);
-  assert.ok(signal.score >= signal.baseScore);
+  assert.deepEqual(Object.keys(signal.dimensions), [
+    "valuation",
+    "cashFlow",
+    "trend",
+    "capitalAllocation",
+  ]);
+  assert.ok(Object.values(signal.dimensions).every(Number.isFinite));
+  assert.ok(["very_strong", "strong", "balanced", "weak"].includes(signal.status));
+  assert.equal("signal" in signal, false);
 });

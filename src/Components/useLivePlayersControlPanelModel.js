@@ -22,8 +22,6 @@ import {
   timeFormatter,
 } from "@/lib/livePlayersControlPanel";
 
-const TREND_BOOST_STORAGE_KEY = "trend_boost_10pct";
-const LOBBY_BOOST_STORAGE_KEY = "lobby_boost_10pct";
 const ATH_FORCE_REFRESH_STORAGE_KEY = "ath_force_refresh_last_at";
 const ATH_FORCE_REFRESH_MS = 3 * 60 * 60 * 1000;
 
@@ -187,43 +185,11 @@ export default function useLivePlayersControlPanelModel() {
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
   const [showAllLive, setShowAllLive] = useState(false);
   const [showAllAth, setShowAllAth] = useState(false);
-  const [trendBoostOn, setTrendBoostOn] = useState(false);
-  const [lobbyBoostOn, setLobbyBoostOn] = useState(false);
   const [trendMaOn, setTrendMaOn] = useState(false);
   const [gameTrendMaOn, setGameTrendMaOn] = useState(true);
   const [trendMaWindowDays, setTrendMaWindowDays] = useState(30);
   const [gameTrendMaWindowDays, setGameTrendMaWindowDays] = useState(30);
   const [asiaTrendMaWindowDays, setAsiaTrendMaWindowDays] = useState(30);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const v = localStorage.getItem(TREND_BOOST_STORAGE_KEY);
-      setTrendBoostOn(v === "1");
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const v = localStorage.getItem(LOBBY_BOOST_STORAGE_KEY);
-      setLobbyBoostOn(v === "1");
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(TREND_BOOST_STORAGE_KEY, trendBoostOn ? "1" : "0");
-    } catch {}
-  }, [trendBoostOn]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(LOBBY_BOOST_STORAGE_KEY, lobbyBoostOn ? "1" : "0");
-    } catch {}
-  }, [lobbyBoostOn]);
 
   const fetchOverview = useCallback(async (range, options = {}) => {
     const force = Boolean(options?.force);
@@ -232,8 +198,8 @@ export default function useLivePlayersControlPanelModel() {
     if (cached) {
       setOverviewError("");
       setDailyTotals(
-        Array.isArray(cached.adjustedDailyTotals) && cached.adjustedDailyTotals.length
-          ? cached.adjustedDailyTotals
+        Array.isArray(cached.rawDailyTotals) && cached.rawDailyTotals.length
+          ? cached.rawDailyTotals
           : cached.dailyTotals
       );
       setSlugAverages(cached.slugAverages);
@@ -316,7 +282,7 @@ export default function useLivePlayersControlPanelModel() {
         : totals;
 
       const payload = {
-        dailyTotals: adjustedTotals,
+        dailyTotals: rawTotals,
         adjustedDailyTotals: adjustedTotals,
         rawDailyTotals: rawTotals,
         slugAverages: averages,
@@ -332,7 +298,7 @@ export default function useLivePlayersControlPanelModel() {
         overviewCache.set(cacheKey, payload, OVERVIEW_TTL);
       }
 
-      setDailyTotals(adjustedTotals);
+      setDailyTotals(rawTotals);
       setSlugAverages(averages);
       setSlugDetails(details);
       const map = new Map(slugDailyEntries);
@@ -480,12 +446,10 @@ export default function useLivePlayersControlPanelModel() {
     return total > 0 ? total : null;
   }, [liveGamesList]);
 
-  const lobbyBoostMultiplier = lobbyBoostOn ? 1.1 : 1;
-
   const totalLiveDisplayValue = useMemo(() => {
     if (!Number.isFinite(totalLivePlayers)) return null;
-    return Math.round(totalLivePlayers * lobbyBoostMultiplier);
-  }, [totalLivePlayers, lobbyBoostMultiplier]);
+    return Math.round(totalLivePlayers);
+  }, [totalLivePlayers]);
 
   const hourlyComparisonMeta = useMemo(() => {
     if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
@@ -549,8 +513,8 @@ export default function useLivePlayersControlPanelModel() {
   const todayPeakDisplayValue = useMemo(() => {
     const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;
     if (peakValue == null) return null;
-    return Math.round(peakValue * lobbyBoostMultiplier);
-  }, [stabilizedTodayPeak, lobbyBoostMultiplier]);
+    return Math.round(peakValue);
+  }, [stabilizedTodayPeak]);
 
   const todayPeakMetaText = useMemo(() => {
     if (!stabilizedTodayPeak) return translate("Ingen peak registrerad", "No peak recorded");
@@ -584,17 +548,17 @@ export default function useLivePlayersControlPanelModel() {
     const date = baseLobbyAth.date ?? null;
     const dateLabel = isToday ? todayPeakTimeInfo?.full || "Idag" : date ? formatDateOnly(date) : null;
     return {
-      value: Math.round(baseLobbyAth.value * lobbyBoostMultiplier),
+      value: Math.round(baseLobbyAth.value),
       date,
       dateLabel,
       isToday,
     };
-  }, [baseLobbyAth, lobbyBoostMultiplier, todayPeakTimeInfo]);
+  }, [baseLobbyAth, todayPeakTimeInfo]);
 
   const yesterdayPeakDisplayValue = useMemo(() => {
     if (!Number.isFinite(mergedYesterdayPeak?.value)) return null;
-    return Math.round(mergedYesterdayPeak.value * lobbyBoostMultiplier);
-  }, [mergedYesterdayPeak, lobbyBoostMultiplier]);
+    return Math.round(mergedYesterdayPeak.value);
+  }, [mergedYesterdayPeak]);
 
   const yesterdayPeakMetaText = useMemo(() => {
     if (!mergedYesterdayPeak) return translate("Ingen peak registrerad", "No peak recorded");
@@ -630,21 +594,11 @@ export default function useLivePlayersControlPanelModel() {
     [trendChartData, trendMaOn, trendMaWindowDays]
   );
 
-  const boostedTrendChartData = useMemo(
-    () =>
-      trendBoostOn
-        ? trendSeriesForView.map((row) => ({
-            ...row,
-            players: Math.round(row.players * 1.1),
-          }))
-        : trendSeriesForView,
-    [trendSeriesForView, trendBoostOn]
+  const trendSummaryForView = useMemo(
+    () => computeTrendDiff(trendSeriesForView) ?? trendDelta,
+    [trendSeriesForView, trendDelta]
   );
-
-  const boostedTrendSummary = useMemo(() => computeTrendDiff(boostedTrendChartData), [boostedTrendChartData]);
-  const trendSummaryForView = boostedTrendSummary ?? trendDelta;
   const trendUpdatedLabel = useMemo(() => formatDateTime(overviewGeneratedAt), [overviewGeneratedAt]);
-  const toggleLobbyBoost = useCallback(() => setLobbyBoostOn((prev) => !prev), []);
 
   const rankingRows = useMemo(
     () =>
@@ -926,10 +880,6 @@ export default function useLivePlayersControlPanelModel() {
     setShowAllLive,
     showAllAth,
     setShowAllAth,
-    trendBoostOn,
-    setTrendBoostOn,
-    lobbyBoostOn,
-    toggleLobbyBoost,
     trendMaOn,
     setTrendMaOn,
     gameTrendMaOn,
@@ -942,7 +892,7 @@ export default function useLivePlayersControlPanelModel() {
     setAsiaTrendMaWindowDays,
     trendSummaryForView,
     trendUpdatedLabel,
-    trendChartData: boostedTrendChartData,
+    trendChartData: trendSeriesForView,
     athRows,
     rankingRows,
     topGrowthUseMa,

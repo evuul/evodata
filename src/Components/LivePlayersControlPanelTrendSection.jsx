@@ -40,8 +40,6 @@ export default function LivePlayersControlPanelTrendSection({
   trendDays,
   trendUpdatedLabel,
   onChangeDays,
-  boostOn,
-  onToggleBoost,
   movingAverageOn,
   onToggleMovingAverage,
   movingAverageDays,
@@ -162,19 +160,6 @@ export default function LivePlayersControlPanelTrendSection({
 
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", rowGap: 1 }}>
           <Chip
-            label={boostOn ? translate("Boost +10% (på)", "Boost +10% (on)") : translate("Boost +10%", "Boost +10%")}
-            onClick={onToggleBoost}
-            clickable
-            sx={{
-              borderRadius: "999px",
-              backgroundColor: boostOn ? "rgba(74,222,128,0.22)" : "rgba(148,163,184,0.12)",
-              color: boostOn ? "#34d399" : "rgba(226,232,240,0.85)",
-              border: boostOn ? "1px solid rgba(74,222,128,0.55)" : "1px solid transparent",
-              fontWeight: boostOn ? 700 : 500,
-            }}
-          />
-
-          <Chip
             label={movingAverageOn ? `${movingAverageLabel} (${translate("på", "on")})` : movingAverageLabel}
             onClick={onToggleMovingAverage}
             clickable
@@ -254,27 +239,6 @@ export default function LivePlayersControlPanelTrendSection({
         </Stack>
       </Stack>
 
-      {boostOn ? (
-        <Box
-          sx={{
-            background: "linear-gradient(90deg, rgba(34,197,94,0.18), rgba(34,197,94,0.06))",
-            border: "1px solid rgba(34,197,94,0.35)",
-            borderRadius: "12px",
-            p: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <Typography variant="caption" sx={{ color: "#34d399", fontWeight: 700 }}>
-            {translate(
-              "Simulerar EVOS riktiga lobby: +10% ökning på trenden (visas i graf & tooltip)",
-              "Simulating EVOS real lobby: +10% boost applied to the trend (shown in chart & tooltip)"
-            )}
-          </Typography>
-        </Box>
-      ) : null}
-
       <Stack
         direction={{ xs: "column", md: "row" }}
         spacing={{ xs: 0.75, md: 2 }}
@@ -289,7 +253,7 @@ export default function LivePlayersControlPanelTrendSection({
           {translate("Slut", "End")}: <strong>{resolvedEndText}</strong> ({resolvedEndDateText})
         </Typography>
         <Typography variant="caption" sx={{ color: resolvedChangeColor, fontWeight: 600 }}>
-          {translate("Förändring", "Change")}: {resolvedAbsoluteText} ({resolvedPercentText}) {boostOn ? translate("• (boost +10%)", "• (boost +10%)") : ""}
+          {translate("Förändring", "Change")}: {resolvedAbsoluteText} ({resolvedPercentText})
           {movingAverageOn ? ` ${translate(`• glidande snitt ${movingAverageDays}d`, `• moving avg ${movingAverageDays}d`)}` : ""}
         </Typography>
       </Stack>
@@ -341,7 +305,7 @@ export default function LivePlayersControlPanelTrendSection({
                   color: "#f8fafc",
                 }}
                 formatter={(value) => [
-                  `${numberFormatter.format(value)} ${translate("spelare", "players")}${boostOn ? " (boost +10%)" : ""}`,
+                  `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
                   tooltipLabel,
                 ]}
               />

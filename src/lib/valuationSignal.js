@@ -56,6 +56,21 @@ const scoreHigherBetter = (value, greenMin, yellowMin, redMax) => {
   return 10;
 };
 
+const averageScores = (...scores) => {
+  const available = scores.filter(Number.isFinite);
+  if (!available.length) return null;
+  return Math.round(available.reduce((sum, value) => sum + value, 0) / available.length);
+};
+
+const weightedAverage = (dimensions) => {
+  const available = dimensions.filter(({ score }) => Number.isFinite(score));
+  const totalWeight = available.reduce((sum, item) => sum + item.weight, 0);
+  if (!available.length || totalWeight <= 0) return null;
+  return Math.round(
+    available.reduce((sum, item) => sum + item.score * item.weight, 0) / totalWeight
+  );
+};
+
 function resolveLtmReports(sorted) {
   if (!Array.isArray(sorted) || sorted.length < 4) return [];
   return sorted.slice(-4);
@@ -146,10 +161,10 @@ export function computeValuationSignal({
       reason: "not_enough_reports",
       metrics: {},
       score: null,
-      signal: "unknown",
+      status: "unknown",
+      dimensions: {},
       penalties: [],
       positives: [],
-      buybackSupportPoints: 0,
     };
   }
 
@@ -272,22 +287,6 @@ export function computeValuationSignal({
     evCfg.redMin ?? 18
   );
 
-  const weights = config?.scoreWeights || {};
-  const weightPe = Number(weights.pe ?? 0.34);
-  const weightFcf = Number(weights.fcfYield ?? 0.33);
-  const weightEv = Number(weights.evEbitda ?? 0.33);
-  const weightSum = Math.max(0.0001, weightPe + weightFcf + weightEv);
-
-  const baseScoreRaw =
-    ((Number(peScore ?? 0) * weightPe +
-      Number(fcfScore ?? 0) * weightFcf +
-      Number(evScore ?? 0) * weightEv) /
-      weightSum) || 0;
-  const baseScore = Math.round(clamp(baseScoreRaw, 0, 100));
-  const buybackSupportPoints = Number.isFinite(buybackBoostPct)
-    ? Math.min(8, Math.max(0, Math.round(buybackBoostPct / 3)))
-    : 0;
-
   const penaltiesCfg = config?.penalties || {};
   const penaltyEvents = [
     resolveMarginPenalty(sorted, penaltiesCfg),
@@ -295,24 +294,43 @@ export function computeValuationSignal({
     resolveAsiaPenalty(sorted, penaltiesCfg),
   ].filter(Boolean);
   const penaltyPoints = penaltyEvents.reduce((acc, p) => acc + (Number(p.points) || 0), 0);
-  const score = Math.round(clamp(baseScore + buybackSupportPoints - penaltyPoints, 0, 100));
+
+  const growthScore = scoreHigherBetter(revenueGrowthPct, 10, 5, 0);
+  const marginScore = penaltyEvents.some((event) => event.key === "marginTrendBreak") ? 30 : 80;
+  const asiaScore = penaltyEvents.some((event) => event.key === "asiaQoqNegative") ? 35 : 80;
+  const trendScore = averageScores(growthScore, marginScore, asiaScore);
+  const valuationScore = averageScores(peScore, evScore);
+  const capitalAllocationScore = scoreHigherBetter(buybackMandateYieldPct, 12, 6, 2);
+  const dimensions = {
+    valuation: valuationScore,
+    cashFlow: fcfScore,
+    trend: trendScore,
+    capitalAllocation: capitalAllocationScore,
+  };
+  const score = weightedAverage([
+    { score: dimensions.valuation, weight: 0.35 },
+    { score: dimensions.cashFlow, weight: 0.25 },
+    { score: dimensions.trend, weight: 0.25 },
+    { score: dimensions.capitalAllocation, weight: 0.15 },
+  ]);
 
   const positives = [];
   if (Number.isFinite(pe) && pe <= (peCfg.greenMax ?? 15)) positives.push("P/E is in green zone.");
   if (Number.isFinite(fcfYieldPct) && fcfYieldPct >= (fcfCfg.greenMin ?? 5)) positives.push("FCF yield is strong.");
   if (Number.isFinite(evEbitda) && evEbitda <= (evCfg.greenMax ?? 10)) positives.push("EV/EBITDA is attractive.");
 
-  let signal = "watch";
-  if (score >= 75) signal = "strong_buy";
-  else if (score >= 60) signal = "accumulate";
-  else if (score >= 45) signal = "hold";
+  let status = "weak";
+  if (!Number.isFinite(score)) status = "unknown";
+  else if (score >= 80) status = "very_strong";
+  else if (score >= 65) status = "strong";
+  else if (score >= 50) status = "balanced";
 
   return {
     ok: true,
     score,
-    baseScore,
     penaltyPoints,
-    signal,
+    status,
+    dimensions,
     penalties: penaltyEvents,
     positives,
     metrics: {
@@ -336,7 +354,6 @@ export function computeValuationSignal({
       revLtmEurM,
       sharesOutstandingM,
     },
-    buybackSupportPoints,
     meta: {
       latestQuarter: latest ? `${latest.year} ${latest.quarter}` : null,
       ltmQuarters: ltm.map((r) => `${r.year} ${r.quarter}`),

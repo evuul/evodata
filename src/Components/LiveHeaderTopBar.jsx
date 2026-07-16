@@ -24,8 +24,48 @@ import InfoOutlined from "@mui/icons-material/InfoOutlined";
 import PersonRounded from "@mui/icons-material/PersonRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import LogoutRounded from "@mui/icons-material/LogoutRounded";
+import CalendarMonthRounded from "@mui/icons-material/CalendarMonthRounded";
 import NextLink from "next/link";
 import { LOCALE_OPTIONS } from "@/context/LocaleContext";
+
+function NextEventChip({ event, mobile, onClick }) {
+  if (!event) return null;
+  const label = mobile ? event.mobileLabel : event.label;
+
+  return (
+    <Chip
+      clickable
+      size="small"
+      icon={<CalendarMonthRounded />}
+      label={label}
+      title={`${label} — ${event.title}`}
+      aria-label={`${label}: ${event.title}`}
+      onClick={onClick}
+      sx={{
+        flex: "0 0 auto",
+        width: "fit-content",
+        flexShrink: 0,
+        backgroundColor: "rgba(139,92,246,0.16)",
+        color: "#c4b5fd",
+        borderRadius: "999px",
+        border: "1px solid rgba(167,139,250,0.3)",
+        height: mobile ? 22 : { xs: 22, sm: 28 },
+        "& .MuiChip-label": {
+          px: mobile ? 0.5 : { xs: 0.65, sm: 1 },
+          fontSize: mobile ? "0.58rem" : { xs: "0.64rem", sm: "0.76rem" },
+          fontWeight: 800,
+          whiteSpace: "nowrap",
+        },
+        "& .MuiChip-icon": {
+          color: "#c4b5fd",
+          fontSize: mobile ? 13 : 16,
+          ml: mobile ? 0.5 : 0.75,
+          mr: mobile ? -0.2 : -0.25,
+        },
+      }}
+    />
+  );
+}
 
 export default function LiveHeaderTopBar({
   translate,
@@ -35,6 +75,7 @@ export default function LiveHeaderTopBar({
   marketDotColor,
   blankningChipLabel,
   blankningChipLabelMobile,
+  nextCalendarEventChip,
   lobbyAthLabel,
   handlePanelChange,
   showDonationNudge,
@@ -125,28 +166,35 @@ export default function LiveHeaderTopBar({
             />
 
             {isMobileMenu ? (
-              <Chip
-                clickable
-                size="small"
-                label={blankningChipLabelMobile}
-                onClick={() => handlePanelChange(null, "short")}
-                sx={{
-                  flex: "0 0 auto",
-                  width: "fit-content",
-                  flexShrink: 0,
-                  backgroundColor: "rgba(250,204,21,0.14)",
-                  color: "#facc15",
-                  borderRadius: "999px",
-                  border: "1px solid rgba(250,204,21,0.28)",
-                  height: 22,
-                  "& .MuiChip-label": {
-                    px: 0.55,
-                    fontSize: "0.58rem",
-                    fontWeight: 800,
-                    whiteSpace: "nowrap",
-                  },
-                }}
-              />
+              <>
+                <Chip
+                  clickable
+                  size="small"
+                  label={blankningChipLabelMobile}
+                  onClick={() => handlePanelChange(null, "short")}
+                  sx={{
+                    flex: "0 0 auto",
+                    width: "fit-content",
+                    flexShrink: 0,
+                    backgroundColor: "rgba(250,204,21,0.14)",
+                    color: "#facc15",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(250,204,21,0.28)",
+                    height: 22,
+                    "& .MuiChip-label": {
+                      px: 0.55,
+                      fontSize: "0.58rem",
+                      fontWeight: 800,
+                      whiteSpace: "nowrap",
+                    },
+                  }}
+                />
+                <NextEventChip
+                  event={nextCalendarEventChip}
+                  mobile
+                  onClick={() => handlePanelChange(null, "calendar")}
+                />
+              </>
             ) : null}
 
             {!isMobileMenu && (
@@ -167,6 +215,10 @@ export default function LiveHeaderTopBar({
                       fontSize: { xs: "0.64rem", sm: "0.8rem" },
                     },
                   }}
+                />
+                <NextEventChip
+                  event={nextCalendarEventChip}
+                  onClick={() => handlePanelChange(null, "calendar")}
                 />
                 {lobbyAthLabel ? (
                   <Chip

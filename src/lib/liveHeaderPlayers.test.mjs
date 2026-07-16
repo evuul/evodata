@@ -1,3 +1,5 @@
+// Regression tests for shared live-player totals and maintenance metadata.
+
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -30,25 +32,26 @@ test("buildLiveHeaderPlayerMetrics ranks active games and excludes stuck from to
   assert.equal(metrics.totalPlayers, 400);
   assert.equal(metrics.playersValue, 400);
   assert.equal(metrics.stuckLiveGamesCount, 1);
+  assert.equal(metrics.activeGamesCount, 3);
+  assert.equal(metrics.trackedGamesCount, 4);
+  assert.equal(metrics.staleGamesCount, 0);
   assert.deepEqual(metrics.zeroPlayerGames, [
     { id: "d", label: "Game D", players: 0, stale: false, stuck: false },
   ]);
 });
 
-test("buildLiveHeaderPlayerMetrics applies simulation to displayed value", () => {
+test("buildLiveHeaderPlayerMetrics always displays the filtered live total", () => {
   const metrics = buildLiveHeaderPlayerMetrics({
     playerGames,
     liveGames: {
       a: { players: 100 },
       b: { players: 50 },
     },
-    simulateLobby: true,
-    simulationMultiplier: 1.2,
   });
 
   assert.equal(metrics.totalPlayers, 150);
-  assert.equal(metrics.simulatedTotalPlayers, 180);
-  assert.equal(metrics.playersValue, 180);
+  assert.equal(metrics.playersValue, 150);
+  assert.equal("simulatedTotalPlayers" in metrics, false);
 });
 
 test("buildMaintenanceWarningParts formats the visible labels and overflow count", () => {

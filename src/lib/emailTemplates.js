@@ -484,7 +484,7 @@ export const buildDailyAvgPlayersEmail = ({
     }
 
     <p style="margin:16px 0 16px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
-      Note: “AVG players” is based on tracked games. Use “Simulate lobby (+10%)” in the live view for a closer match to the full lobby.
+      Note: “AVG players” is based on tracked games and does not include an estimated uplift for the rest of the lobby.
     </p>
 
     <p style="margin:0 0 18px 0;">

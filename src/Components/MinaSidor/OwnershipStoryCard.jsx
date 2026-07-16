@@ -1,5 +1,7 @@
 "use client";
 
+// Summarizes the user's ownership change from completed buybacks.
+
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import { formatOwnershipPercent, formatPercent, formatSek } from "./utils";
 import { cardBase, ownershipChipColors, statusColors, text } from "./styles";
@@ -76,23 +78,23 @@ export default function OwnershipStoryCard({
           </Typography>
         </Box>
         <Box>
-          <Typography sx={{ color: text.subtle }}>{translate("Återköpsvärde till dig", "Buyback value to you")}</Typography>
+          <Typography sx={{ color: text.subtle }}>{translate("Illustrativ andel av återköpsbelopp", "Illustrative share of buyback spend")}</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: text.heading }}>
-            {buybackSummary ? formatSek(buybackSummary.buybackBenefit) : "–"}
+            {buybackSummary ? formatSek(buybackSummary.illustrativeBuybackAllocation) : "–"}
           </Typography>
         </Box>
         <Box>
-          <Typography sx={{ color: text.subtle }}>{translate("Total aktieägaravkastning", "Total shareholder return")}</Typography>
+          <Typography sx={{ color: text.subtle }}>{translate("Mottagna utdelningar", "Dividends received")}</Typography>
           <Typography variant="h5" sx={{ fontWeight: 700, color: text.heading }}>
-            {buybackSummary ? formatSek(buybackSummary.totalShareholderReturn) : "–"}
+            {buybackSummary ? formatSek(buybackSummary.dividendIncome) : "–"}
           </Typography>
           <Typography sx={{ color: text.faint }}>
-            {buybackSummary?.totalShareholderReturnPct != null
+            {buybackSummary?.dividendIncomePct != null
               ? translate(
-                  `${formatPercent(buybackSummary.totalShareholderReturnPct)} av nuvärdet`,
-                  `${formatPercent(buybackSummary.totalShareholderReturnPct)} of current value`
+                  `${formatPercent(buybackSummary.dividendIncomePct)} av nuvärdet`,
+                  `${formatPercent(buybackSummary.dividendIncomePct)} of current value`
                 )
-              : translate("Utdelning + återköp", "Dividend + buybacks")}
+              : translate("Faktiskt registrerade utdelningar", "Dividends actually recorded")}
           </Typography>
         </Box>
       </Stack>

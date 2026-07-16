@@ -52,12 +52,11 @@ export const computeFullBuybackMandateSummary = ({
     ownershipBefore && ownershipBefore > 0 && ownershipAfter
       ? ((ownershipAfter / ownershipBefore) - 1) * 100
       : null;
-  const buybackBenefit = ownershipBefore && ownershipBefore > 0 ? mandateSek * ownershipBefore : null;
-  const dividendBenefit = Number.isFinite(dividendsReceived) && dividendsReceived > 0 ? dividendsReceived : 0;
-  const totalShareholderReturn = Number.isFinite(buybackBenefit) ? dividendBenefit + buybackBenefit : null;
-  const totalShareholderReturnPct =
-    Number.isFinite(totalShareholderReturn) && Number.isFinite(totalValue) && totalValue > 0
-      ? (totalShareholderReturn / totalValue) * 100
+  const illustrativeBuybackAllocation = ownershipBefore && ownershipBefore > 0 ? mandateSek * ownershipBefore : null;
+  const dividendIncome = Number.isFinite(dividendsReceived) && dividendsReceived > 0 ? dividendsReceived : 0;
+  const dividendIncomePct =
+    Number.isFinite(dividendIncome) && Number.isFinite(totalValue) && totalValue > 0
+      ? (dividendIncome / totalValue) * 100
       : null;
   const buybackYieldPct = (repurchasedShares / currentOutstanding) * 100;
 
@@ -65,10 +64,9 @@ export const computeFullBuybackMandateSummary = ({
     ownershipBefore,
     ownershipAfter,
     ownershipLiftPct,
-    buybackBenefit,
-    dividendBenefit,
-    totalShareholderReturn,
-    totalShareholderReturnPct,
+    illustrativeBuybackAllocation,
+    dividendIncome,
+    dividendIncomePct,
     mandateSek,
     buybackYieldPct,
     hasHoldings,

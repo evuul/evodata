@@ -1,5 +1,7 @@
 "use client";
 
+// Renders account controls and the shared live market summary on Mina Sidor.
+
 import { useState } from "react";
 import NextLink from "next/link";
 import { Box, Button, Link, Stack, ToggleButton, ToggleButtonGroup, Typography, IconButton, Menu, MenuItem } from "@mui/material";
@@ -13,7 +15,7 @@ import { formatPercent, formatSek } from "./utils";
 export default function MinaSidorHeader({
   translate,
   totalLivePlayers,
-  onManageHoldings,
+  livePlayersMeta,
   onOpenSettings,
   onOpenSupport,
   supportIndicator,
@@ -42,12 +44,11 @@ export default function MinaSidorHeader({
   const handleNotifClose = () => setNotifAnchorEl(null);
   const hourlyChip = (() => {
     if (!isAdminView) return null;
-    const delta = hourlyComparison?.deltaPct;
     const baseline = hourlyComparison?.baselineAvg;
     const samples = hourlyComparison?.samples;
     const hour = String(hourlyComparison?.hour || "").trim();
     if (
-      !Number.isFinite(delta) ||
+      !Number.isFinite(totalLivePlayers) ||
       !Number.isFinite(baseline) ||
       baseline <= 0 ||
       !Number.isFinite(samples) ||
@@ -56,6 +57,7 @@ export default function MinaSidorHeader({
     ) {
       return null;
     }
+    const delta = ((totalLivePlayers - baseline) / baseline) * 100;
     const sign = delta > 0 ? "+" : "";
     return {
       label: translate(
@@ -80,6 +82,15 @@ export default function MinaSidorHeader({
         `Base ${Math.round(baseline).toLocaleString("sv-SE")} players`
       ),
     };
+  })();
+  const livePlayersUpdatedLabel = (() => {
+    if (!livePlayersMeta?.updatedAt) return null;
+    const date = new Date(livePlayersMeta.updatedAt);
+    if (!Number.isFinite(date.getTime())) return null;
+    return date.toLocaleTimeString(locale === "en" ? "en-GB" : "sv-SE", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   })();
 
   return (
@@ -117,6 +128,7 @@ export default function MinaSidorHeader({
         <Stack direction="row" spacing={1} alignItems="center">
           <IconButton
             onClick={onOpenSettings}
+            aria-label={translate("Öppna inställningar", "Open settings")}
             size="small"
             sx={{
               color: "rgba(226,232,240,0.75)",
@@ -129,6 +141,7 @@ export default function MinaSidorHeader({
           {/* Notification Menu Button (Mobile & Desktop) */}
           <IconButton
             onClick={handleNotifClick}
+            aria-label={translate("Öppna notiser", "Open notifications")}
             size="small"
             sx={{
               color: "rgba(226,232,240,0.75)",
@@ -354,38 +367,8 @@ export default function MinaSidorHeader({
             )}
           </Typography>
 
-          {/* Action Buttons */}
-          <Stack spacing={1} sx={{ mt: 0.5 }}>
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={onManageHoldings}
-              sx={{
-                py: 1.2,
-                fontWeight: 700,
-                fontSize: "1rem",
-                color: "#dbeafe",
-                background: "linear-gradient(135deg, rgba(37,99,235,0.78), rgba(14,165,233,0.72))",
-                border: "1px solid rgba(125,211,252,0.32)",
-                boxShadow: "0 6px 16px rgba(14,116,144,0.18)",
-                "&:hover": {
-                  background: "linear-gradient(135deg, rgba(59,130,246,0.82), rgba(34,211,238,0.76))",
-                  boxShadow: "0 8px 20px rgba(14,116,144,0.24)",
-                },
-                maxWidth: { xs: "100%", sm: 380, md: "fit-content" }
-              }}
-            >
-              {translate("Hantera innehav", "Manage holdings")}
-            </Button>
-
-            <Stack
-              direction="row"
-              spacing={1.5}
-              flexWrap="wrap"
-              sx={{
-                "& > button": { flex: { xs: "1 1 calc(50% - 12px)", sm: "0 1 auto" } } // fluid on mobile
-              }}
-            >
+          {/* Portfolio actions live in the dashboard hero; support remains close to the account heading. */}
+          <Stack direction="row" spacing={1.5} flexWrap="wrap" sx={{ mt: 0.5 }}>
               <Button
                 variant="outlined"
                 onClick={onOpenSupport}
@@ -422,25 +405,6 @@ export default function MinaSidorHeader({
                   />
                 ) : null}
               </Button>
-              <Button
-                variant="outlined"
-                onClick={onOpenSettings}
-                sx={{
-                  py: 1,
-                  px: 2,
-                  textTransform: "none",
-                  fontWeight: 700,
-                  color: "#dbeafe",
-                  borderColor: "rgba(125,211,252,0.35)",
-                  "&:hover": {
-                    borderColor: "rgba(125,211,252,0.65)",
-                    backgroundColor: "rgba(56,189,248,0.08)",
-                  },
-                }}
-              >
-                {translate("Inställningar", "Settings")}
-              </Button>
-            </Stack>
           </Stack>
         </Stack>
 
@@ -460,13 +424,25 @@ export default function MinaSidorHeader({
           }}
         >
           {/* Centered Live Players - Increased Sizes */}
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: { xs: 1.5, md: 0 } }}>
-            <Box sx={liveDot} />
-            <Typography sx={{ color: text.subtle, fontSize: { xs: "0.95rem", md: "0.85rem" } }}>
-              {translate("Live spelare", "Live players")}
-            </Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading, fontSize: { xs: "1.5rem", md: "1.25rem" } }}>
-              {totalLivePlayers != null ? totalLivePlayers.toLocaleString("sv-SE") : "–"}
+          <Stack spacing={0.25} alignItems={{ xs: "center", md: "flex-end" }} sx={{ mb: { xs: 1.5, md: 0 } }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Box sx={liveDot} />
+              <Typography sx={{ color: text.subtle, fontSize: { xs: "0.95rem", md: "0.85rem" } }}>
+                {translate("Live spelare", "Live players")}
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 800, color: text.heading, fontSize: { xs: "1.5rem", md: "1.25rem" } }}>
+                {totalLivePlayers != null ? totalLivePlayers.toLocaleString("sv-SE") : "–"}
+              </Typography>
+            </Stack>
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.7)" }}>
+              {[
+                livePlayersUpdatedLabel
+                  ? translate(`Uppdaterad ${livePlayersUpdatedLabel}`, `Updated ${livePlayersUpdatedLabel}`)
+                  : null,
+                livePlayersMeta?.excludedGamesCount > 0
+                  ? translate(`${livePlayersMeta.excludedGamesCount} fastnade spel exkluderade`, `${livePlayersMeta.excludedGamesCount} stuck games excluded`)
+                  : null,
+              ].filter(Boolean).join(" · ")}
             </Typography>
           </Stack>
           {hourlyChip ? (

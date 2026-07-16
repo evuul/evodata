@@ -17,6 +17,9 @@ import { useLiveHeaderRemoteData } from "./useLiveHeaderRemoteData";
 import { useLiveHeaderShortInterest } from "./useLiveHeaderShortInterest";
 import { COLORS as GAME_COLORS } from "@/config/games";
 import { buildLiveHeaderPlayerMetrics, buildMaintenanceWarningParts } from "@/lib/liveHeaderPlayers";
+import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
+import { buildNextCalendarChip } from "@/lib/financialCalendar";
+import financialCalendarEvents from "@/app/data/financialCalendar";
 import {
   formatLatestWinAmount,
   formatLatestWinTime,
@@ -24,7 +27,6 @@ import {
   prettifyGameShowName,
 } from "@/lib/liveHeader";
 
-const LOBBY_SIM_MULTIPLIER = 1.1;
 const SUPPORT_URL = "https://buymeacoffee.com/evuul";
 const SHOW_MY_PAGE_NEW_BADGE = true;
 const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
@@ -57,13 +59,13 @@ export function useLiveHeaderModel() {
 
   const [cashView, setCashView] = useState("cash");
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
-  const [simulateLobby, setSimulateLobby] = useState(false);
   const { shortPercent, loadingShort } = useLiveHeaderShortInterest();
   const { showDonationNudge, setShowDonationNudge, handleDismissDonationNudge } = useDonationNudge();
   const {
     activePanel,
     setActivePanel,
     panelValues,
+    panelGroups,
     panelOptions,
     handlePanelChange,
     isLiveMoneyPanel,
@@ -130,10 +132,8 @@ export function useLiveHeaderModel() {
         playerGames,
         liveGames,
         gameColors: GAME_COLORS,
-        simulateLobby,
-        simulationMultiplier: LOBBY_SIM_MULTIPLIER,
       }),
-    [playerGames, liveGames, simulateLobby]
+    [playerGames, liveGames]
   );
   const { top3, playersValue, zeroPlayerGames, stuckLiveGamesCount } = playerMetrics;
 
@@ -226,10 +226,10 @@ export function useLiveHeaderModel() {
     : translate("Blankning: –", "Short interest: –");
 
   const blankningChipLabelMobile = loadingShort
-    ? translate("Blankning…", "Short…")
+    ? translate("Blankning…", "Short interest…")
     : Number.isFinite(shortPercent)
-    ? translate(`Short ${shortPercent.toFixed(2)}%`, `Short ${shortPercent.toFixed(2)}%`)
-    : translate("Short –", "Short –");
+    ? translate(`Blankning ${shortPercent.toFixed(2)}%`, `Short interest ${shortPercent.toFixed(2)}%`)
+    : translate("Blankning –", "Short interest –");
   const marketStatusChip = isMarketOpen()
     ? {
         label: translate("Marknaden öppen", "Market open"),
@@ -243,10 +243,6 @@ export function useLiveHeaderModel() {
         color: "#fecaca",
         border: "1px solid rgba(252,165,165,0.35)",
       };
-
-  const simulateButtonLabel = simulateLobby
-    ? translate("Stäng av simulering", "Disable simulation")
-    : translate("Simulera lobby (+10%)", "Simulate lobby (+10%)");
 
   const maintenanceWarningLabel = useMemo(() => {
     const parts = buildMaintenanceWarningParts(zeroPlayerGames);
@@ -304,6 +300,15 @@ export function useLiveHeaderModel() {
           : "—",
     };
   }, [buybackSummary]);
+  const nextCalendarEventChip = useMemo(() => {
+    const chip = buildNextCalendarChip(financialCalendarEvents, getStockholmTodayYmd());
+    if (!chip) return null;
+    return {
+      label: translate(chip.labelSv, chip.labelEn),
+      mobileLabel: translate(chip.mobileLabelSv, chip.mobileLabelEn),
+      title: translate(chip.titleSv, chip.titleEn),
+    };
+  }, [translate]);
 
   const handleLogout = useCallback(() => {
     logout();
@@ -391,8 +396,6 @@ export function useLiveHeaderModel() {
     mobileCardsRef,
     mobileCardIndex,
     scrollToCard,
-    simulateLobby,
-    setSimulateLobby,
     userMenuAnchor,
     setUserMenuAnchor,
     playersValue,
@@ -411,14 +414,15 @@ export function useLiveHeaderModel() {
     stockUpdatedLabel,
     blankningChipLabel,
     blankningChipLabelMobile,
+    nextCalendarEventChip,
     marketStatusChip,
-    simulateButtonLabel,
     maintenanceWarningLabel,
     playerDataAttentionLabel,
     activePanel,
     setActivePanel,
     PANEL_VALUES: panelValues,
     panelOptions,
+    panelGroups,
     handlePanelChange,
     handleLogout,
     userNameLabel,

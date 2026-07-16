@@ -3,7 +3,7 @@
 // Shared live overview cards and top-three showcase for the header hero section.
 
 import React from "react";
-import { Box, Button, Chip, Grid, Stack, Typography } from "@mui/material";
+import { Box, Chip, Grid, Stack, Typography } from "@mui/material";
 import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
@@ -47,6 +47,20 @@ function HeaderMetricCard({ title, dotColor, children }) {
         </Stack>
         {children}
       </Box>
+    </Box>
+  );
+}
+
+function CompactMetric({ label, value, detail, color = "#f8fafc" }) {
+  return (
+    <Box sx={{ minWidth: 0, px: { xs: 1.1, sm: 1.5 }, py: 1, borderRadius: "12px", background: "rgba(15,23,42,0.42)", border: "1px solid rgba(148,163,184,0.14)" }}>
+      <Typography variant="caption" sx={{ display: "block", color: "rgba(148,163,184,0.76)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, whiteSpace: "nowrap" }}>
+        {label}
+      </Typography>
+      <Typography sx={{ color, fontWeight: 800, fontSize: { xs: "0.94rem", sm: "1.05rem" }, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {value}
+      </Typography>
+      {detail ? <Typography variant="caption" sx={{ display: { xs: "none", sm: "block" }, color: "rgba(148,163,184,0.62)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{detail}</Typography> : null}
     </Box>
   );
 }
@@ -174,9 +188,6 @@ export default function LiveHeaderOverviewSection({
   hourlyComparisonMeta,
   maintenanceWarningLabel,
   stuckLiveGamesCount,
-  simulateLobby,
-  setSimulateLobby,
-  simulateButtonLabel,
   liveTrackerOffline,
   liveTrackerOfflineNote,
   priceDisplay,
@@ -193,8 +204,47 @@ export default function LiveHeaderOverviewSection({
   latestTopWinLabelWithEmoji,
   top3,
   formatTime,
+  compact = false,
 }) {
   const buybackUpdatedLabel = buybackSummary?.updatedAt ? formatTime(buybackSummary.updatedAt) : null;
+  if (compact) {
+    return (
+      <Box
+        aria-label={translate("Marknadsöversikt", "Market overview")}
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+          gap: 0.8,
+          maxWidth: 1180,
+          width: "100%",
+          alignSelf: "center",
+          mx: "auto",
+        }}
+      >
+        <CompactMetric
+          label={translate("Live spelare", "Live players")}
+          value={Number.isFinite(playersValue) ? playersValue.toLocaleString("sv-SE") : "—"}
+          detail={playersUpdatedLabel ? translate(`Uppdaterad ${playersUpdatedLabel}`, `Updated ${playersUpdatedLabel}`) : null}
+        />
+        <CompactMetric
+          label={translate("Aktiekurs", "Stock price")}
+          value={loadingPrice ? "—" : priceDisplay}
+          detail={changeDisplay}
+          color={changeColor}
+        />
+        <CompactMetric
+          label={translate("Marknadsvärde", "Market cap")}
+          value={fmtCap(marketCap)}
+          detail={marketStatusChip.label}
+        />
+        <CompactMetric
+          label={translate("Återköpta aktier", "Shares repurchased")}
+          value={formatCompactShares(buybackSummary?.sharesRepurchased)}
+          detail={buybackSummary?.remainingLabel ? `${translate("Kvar", "Remaining")}: ${buybackSummary.remainingLabel}` : null}
+        />
+      </Box>
+    );
+  }
   return (
     <>
       {playerDataAttentionLabel ? (
@@ -346,30 +396,6 @@ export default function LiveHeaderOverviewSection({
                 }}
               >
                 {translate("Live-tracker tillfälligt offline. Fix pågår.", liveTrackerOfflineNote)}
-              </Typography>
-            ) : null}
-            <Button
-              size="small"
-              variant={simulateLobby ? "contained" : "outlined"}
-              onClick={() => setSimulateLobby((prev) => !prev)}
-              sx={{
-                alignSelf: "center",
-                textTransform: "none",
-                borderColor: simulateLobby ? "rgba(56,189,248,0.55)" : "rgba(148,163,184,0.35)",
-                backgroundColor: simulateLobby ? "rgba(56,189,248,0.25)" : "transparent",
-                color: "#e2e8f0",
-                fontWeight: 600,
-                "&:hover": {
-                  borderColor: simulateLobby ? "rgba(56,189,248,0.75)" : "rgba(148,163,184,0.55)",
-                  backgroundColor: simulateLobby ? "rgba(56,189,248,0.35)" : "rgba(148,163,184,0.12)",
-                },
-              }}
-            >
-              {simulateButtonLabel}
-            </Button>
-            {simulateLobby && Number.isFinite(playersValue) ? (
-              <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                {translate("EVOs riktiga lobby ligger ca 10% över min.", "EVO's real lobby is about 10% above mine.")}
               </Typography>
             ) : null}
           </HeaderMetricCard>

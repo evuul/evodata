@@ -8,6 +8,7 @@ const LIVE_HEADER_OVERVIEW_CARDS = 4;
 const PANEL_VALUE_LIST = [
   "live",
   "financial",
+  "calendar",
   "gameshow",
   "fairvalue",
   "report",
@@ -23,19 +24,48 @@ export function useLiveHeaderNavigation({ isMobileMenu, translate }) {
   const mobileCardsRef = useRef(null);
 
   const panelValues = useMemo(() => new Set(PANEL_VALUE_LIST), []);
-  const panelOptions = useMemo(
+  const panelGroups = useMemo(
     () => [
-      { value: "live", label: translate("Gameshows", "Gameshows") },
-      { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
-      { value: "gameshow", label: translate("Forecast Earnings", "Forecast earnings") },
-      { value: "fairvalue", label: translate("AI Fair Value", "AI Fair Value") },
-      { value: "report", label: translate("Rapportanalys", "Report analysis") },
-      { value: "money", label: translate("Live Money", "Live money") },
-      { value: "buybacks", label: translate("Återköp", "Buybacks") },
-      { value: "short", label: translate("Blankning", "Short interest") },
-      { value: "faq", label: translate("FAQ", "FAQ") },
+      {
+        id: "business",
+        label: translate("Verksamheten", "Business"),
+        options: [{ value: "live", label: translate("Gameshows", "Gameshows") }],
+      },
+      {
+        id: "financial",
+        label: translate("Finansiellt", "Financials"),
+        options: [
+          { value: "financial", label: translate("Finansiell översikt", "Financial overview") },
+          { value: "calendar", label: translate("Kalender", "Calendar") },
+          { value: "gameshow", label: translate("Omsättningsprognos", "Revenue forecast") },
+          { value: "report", label: translate("Rapportanalys", "Report analysis") },
+        ],
+      },
+      {
+        id: "share",
+        label: translate("Aktien", "The share"),
+        options: [
+          { value: "fairvalue", label: translate("Modellvärde", "Model value") },
+          { value: "buybacks", label: translate("Återköp", "Buybacks") },
+          { value: "short", label: translate("Blankning", "Short interest") },
+        ],
+      },
+      {
+        id: "tools",
+        label: translate("Verktyg", "Tools"),
+        options: [{ value: "money", label: translate("Simulerad vinsttakt", "Simulated profit pace") }],
+      },
+      {
+        id: "help",
+        label: translate("Hjälp", "Help"),
+        options: [{ value: "faq", label: translate("Metodik & FAQ", "Methodology & FAQ") }],
+      },
     ],
     [translate]
+  );
+  const panelOptions = useMemo(
+    () => panelGroups.flatMap((group) => group.options),
+    [panelGroups]
   );
 
   const scrollToCard = useCallback((index) => {
@@ -100,6 +130,7 @@ export function useLiveHeaderNavigation({ isMobileMenu, translate }) {
     activePanel,
     setActivePanel,
     panelValues,
+    panelGroups,
     panelOptions,
     handlePanelChange,
     isLiveMoneyPanel: activePanel === "money",

@@ -1,6 +1,12 @@
+// Serves cached stock quotes, session changes, and year-to-date market metrics.
+
 import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
+import {
+  calculateDailyCloseChangePercent,
+  calculateQuoteChangePercent,
+} from "@/lib/stockPriceChange";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -302,13 +308,14 @@ async function fetchYahooChartDaily(symbol) {
   const currentPrice = Number.isFinite(result?.meta?.regularMarketPrice)
     ? Number(result.meta.regularMarketPrice)
     : latest?.close ?? null;
-  let changePercent = null;
-  if (rows.length >= 2) {
-    const prev = rows[rows.length - 2];
-    if (Number.isFinite(prev?.close) && prev.close !== 0 && Number.isFinite(latest?.close)) {
-      changePercent = ((latest.close - prev.close) / prev.close) * 100;
-    }
-  }
+  const quoteTime = Number.isFinite(result?.meta?.regularMarketTime)
+    ? new Date(Number(result.meta.regularMarketTime) * 1000)
+    : null;
+  const changePercent = calculateQuoteChangePercent({
+    currentPrice,
+    dailyRows: rows,
+    quoteTime,
+  });
   return { rows, currentPrice, changePercent };
 }
 
@@ -353,12 +360,7 @@ export async function GET(request) {
         rows = await fetchStooqDaily(symbol);
         const latest = rows[rows.length - 1];
         currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
-        if (rows.length >= 2) {
-          const prev = rows[rows.length - 2];
-          if (Number.isFinite(prev?.close) && prev.close !== 0 && Number.isFinite(latest?.close)) {
-            changePercent = ((latest.close - prev.close) / prev.close) * 100;
-          }
-        }
+        changePercent = calculateDailyCloseChangePercent(rows);
       } catch {
         const chart = await fetchYahooChartDaily(symbol);
         rows = chart.rows;
@@ -458,12 +460,7 @@ export async function GET(request) {
           historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
           const latest = rows[rows.length - 1];
           currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
-          if (rows.length >= 2) {
-            const prev = rows[rows.length - 2];
-            if (Number.isFinite(prev?.close) && prev.close !== 0 && Number.isFinite(latest?.close)) {
-              changePercent = ((latest.close - prev.close) / prev.close) * 100;
-            }
-          }
+          changePercent = calculateDailyCloseChangePercent(rows);
           source = "stooq";
         } catch (stooqErr) {
           const chart = await fetchYahooChartDaily(symbol);

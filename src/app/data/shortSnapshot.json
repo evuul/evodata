@@ -1,28 +1,19 @@
 {
   "lei": "549300SUH6ZR1RF6TA88",
-  "totalPercent": 5.5,
-  "publicPercent": 1.41,
+  "totalPercent": 5.81,
+  "publicPercent": 0.7,
   "publicPositions": [
     {
-      "holder": "GREENVALE CAPITAL LLP",
+      "holder": "Two Sigma Investments, LP",
       "isin": "SE0012673267",
-      "positionPercent": 0.85,
-      "positionPercentRaw": "0,85",
-      "positionsDate": "2026-06-04",
-      "previousPositionPercent": 0.9,
-      "previousPositionPercentRaw": "0,9"
-    },
-    {
-      "holder": "BlackRock Investment Management (UK) Limited",
-      "isin": "SE0012673267",
-      "positionPercent": 0.56,
-      "positionPercentRaw": "0,56",
-      "positionsDate": "2026-05-19",
-      "previousPositionPercent": 0.6,
-      "previousPositionPercentRaw": "0,6"
+      "positionPercent": 0.7,
+      "positionPercentRaw": "0,7",
+      "positionsDate": "2026-07-03",
+      "previousPositionPercent": 0.62,
+      "previousPositionPercentRaw": "0,62"
     }
   ],
-  "observedDate": "2026-06-10",
+  "observedDate": "2026-07-16",
   "source": "Finansinspektionen",
-  "fetchedAt": "2026-06-10T21:01:49.312Z"
+  "fetchedAt": "2026-07-16T19:26:07.834Z"
 }
