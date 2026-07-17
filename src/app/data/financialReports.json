@@ -918,6 +918,38 @@
       "buybacksCashFlow": 0,
       "cashAndCashEquivalents": 1098,
       "freeCashFlow": 283.6
+    },
+    {
+      "year": 2026,
+      "quarter": "Q2",
+      "operatingRevenues": 517.791,
+      "adjustedEBITDA": 340.987,
+      "adjustedEBITDAMargin": 65.9,
+      "adjustedOperatingProfit": 297.782,
+      "adjustedOperatingMargin": 57.5,
+      "adjustedProfitForPeriod": 251.437,
+      "adjustedProfitMargin": 48.6,
+      "adjustedEarningsPerShare": 1.27,
+      "equityPerShare": 21.82,
+      "ocfPerShare": 1.49,
+      "averageNumberOfFTEs": 16.534,
+      "cashStart": 1097.951,
+      "cashEnd": 1153.539,
+      "liveCasino": 437.282,
+      "rng": 80.509,
+      "europe": 173,
+      "asia": 190.5,
+      "northAmerica": 81,
+      "latAm": 47.5,
+      "other": 25.8,
+      "regulatedMarket": 49,
+      "Top5Customers": null,
+      "operatingCashFlow": 293.044,
+      "investingCashFlow": 66.282,
+      "financingCashFlow": -304.389,
+      "buybacksCashFlow": -303.21,
+      "cashAndCashEquivalents": 1153.539,
+      "freeCashFlow": 359.326
     }
   ]
 }

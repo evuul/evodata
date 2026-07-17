@@ -33,9 +33,9 @@ import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import {
   applyQuarterSnapshots,
   buildAllowedPlayerPeriods,
+  buildRobustGrowthProjection,
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
-  pickMedianBaseline,
   pickRecentAverageBaseline,
   resolveForecastPeriod,
   resolvePlayersForEstimate,
@@ -52,10 +52,18 @@ const TEMP_BASELINE_BOOST = 1.05; // tillfällig uppvikt per-spelare-koefficient
 const QUARTERLY_PLAYER_SNAPSHOTS = {
   "2025 Q4": {
     adjustedPlayers: 61941,
-    rawPlayers: 56310, // frozen snapshot so Q4 stays visible after rolling into Q1
+    rawPlayers: 56310,
+    days: 92,
+  },
+  "2026 Q1": {
+    rawPlayers: 61600,
+    days: 86,
+  },
+  "2026 Q2": {
+    rawPlayers: 60946,
+    days: 89,
   },
 };
-const TABLE_OVERRIDES = {};
 const BASELINE_WHITELIST = new Set(["2025 Q1", "2025 Q2", "2025 Q3"]); // historiska kvartal vi accepterar trots få datapunkter
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -321,15 +329,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     return mergePlayersData(averagePlayersData, filteredDynamic);
   }, [averagePlayersData, dynamicPlayers, currentPeriod, forecastPeriod, previousPeriod, twoBeforePeriod]);
 
-  const quarterlyPlayersStatic = useMemo(
-    () => applyQuarterSnapshots(
-      calculateQuarterlyPlayers(averagePlayersData),
-      QUARTERLY_PLAYER_SNAPSHOTS,
-      PLAYER_ADJUSTMENT_FACTOR
-    ),
-    [averagePlayersData]
-  );
-
   const quarterProgress = useMemo(
     () => calculateQuarterProgress(currentDate, forecastParts.year, forecastParts.quarter),
     [currentDate, forecastParts.year, forecastParts.quarter]
@@ -405,19 +404,14 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   }, [quarterlyPlayers, revenueData]);
 
   const pickBaseline = useCallback(
-    (targetPeriod) => {
-      if (targetPeriod === forecastPeriod) {
-        return pickRecentAverageBaseline(
-          baselineCandidates.list,
-          targetPeriod,
-          DEFAULT_REVENUE_PER_PLAYER,
-          { sampleSize: 2 }
-        );
-      }
-
-      return pickMedianBaseline(baselineCandidates.list, targetPeriod, DEFAULT_REVENUE_PER_PLAYER);
-    },
-    [baselineCandidates, forecastPeriod]
+    (targetPeriod) =>
+      pickRecentAverageBaseline(
+        baselineCandidates.list,
+        targetPeriod,
+        DEFAULT_REVENUE_PER_PLAYER,
+        { sampleSize: 2 }
+      ),
+    [baselineCandidates]
   );
 
   const baselineComputed = useMemo(() => {
@@ -445,33 +439,26 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       );
     if (!ordered.length) return null;
 
-    const growthRates = [];
-    for (let i = 1; i < ordered.length; i += 1) {
-      const prev = ordered[i - 1];
-      const cur = ordered[i];
-      if (Number.isFinite(prev.rng) && prev.rng > 0 && Number.isFinite(cur.rng)) {
-        growthRates.push(((cur.rng - prev.rng) / prev.rng) * 100);
+    const projection = buildRobustGrowthProjection(
+      ordered.map((report) => report.rng),
+      {
+        lookback: 4,
+        fallbackGrowth: 1.5,
+        minGrowth: 0,
+        maxGrowth: 4,
       }
-    }
-    const recent = growthRates.slice(-8);
-    const avgGrowth = recent.length
-      ? recent.reduce((sum, value) => sum + value, 0) / recent.length
-      : null;
-    const projectedGrowth =
-      avgGrowth == null ? 1.5 : Math.min(2, Math.max(1, avgGrowth));
+    );
+    if (!projection) return null;
 
     const last = ordered[ordered.length - 1];
     const nextPeriod = formatPeriodKey(quarterToIndex(last.year, last.quarter) + 1);
-    const projectedRng = Number.isFinite(last.rng)
-      ? Math.round(last.rng * (1 + projectedGrowth / 100) * 10) / 10
-      : null;
 
     return {
       last,
       nextPeriod,
-      avgGrowth,
-      projectedGrowth,
-      projectedRng,
+      baselineGrowth: projection.baselineGrowth,
+      projectedGrowth: projection.projectedGrowth,
+      projectedRng: Math.round(projection.projectedValue * 10) / 10,
     };
   }, [financialReportList]);
 
@@ -524,6 +511,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       });
   }, [mergedPlayersData, forecastPeriod, forecastParts.year, forecastParts.quarter]);
 
+  const isCurrentForecastPeriod = forecastPeriod === currentPeriod;
+
   const liveAveragePlayersRaw = useMemo(() => {
     if (!qData.length) return null;
     const trimmed = (() => {
@@ -536,6 +525,28 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     const sum = trimmed.reduce((acc, item) => acc + (Number(item.rawPlayers) || 0), 0);
     return Math.round(sum / trimmed.length);
   }, [qData, todayYmd]);
+
+  const playerCoverage = useMemo(() => {
+    const expectedDays = isCurrentForecastPeriod
+      ? Math.max(quarterProgress.elapsedDays - 1, 0)
+      : quarterProgress.totalDays;
+    const latestYmd = normalizeYmd(qData.at(-1)?.date);
+    const observedDays =
+      latestYmd === todayYmd ? Math.max(qData.length - 1, 0) : qData.length;
+    const ratio = expectedDays > 0 ? observedDays / expectedDays : 1;
+
+    return {
+      observedDays,
+      expectedDays,
+      incomplete: expectedDays > 0 && ratio < 0.95,
+    };
+  }, [
+    isCurrentForecastPeriod,
+    qData,
+    quarterProgress.elapsedDays,
+    quarterProgress.totalDays,
+    todayYmd,
+  ]);
 
   const forecastQuarterPlayersRaw = quarterlyPlayers[forecastPeriod]?.avgPlayers ?? null;
 
@@ -602,7 +613,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       .map((period) => {
         const info = quarterlyPlayers[period] || { avgPlayers: 0, adjustedAvgPlayers: null };
         const actualRevenue = Number.isFinite(revenueData[period]) ? revenueData[period] : null;
-        const { basePlayers, adjustedPlayers, playersForEstimate } = resolvePlayersForEstimate(
+        const { basePlayers, playersForEstimate } = resolvePlayersForEstimate(
           info,
           PLAYER_ADJUSTMENT_FACTOR
         );
@@ -618,30 +629,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             ? actualRevenue - est
             : null;
 
-        const override = TABLE_OVERRIDES[period];
-        if (override) {
-          const diffOverride =
-            Number.isFinite(override.estimated) && Number.isFinite(override.actual)
-              ? override.actual - override.estimated
-              : null;
-          return {
-            period,
-            label: labelFromPeriod(period),
-            basePlayers: override.playersUsed,
-            adjustedPlayers: override.playersUsed,
-            playersUsed: override.playersUsed,
-            estimated: override.estimated,
-            actual: override.actual,
-            diff: diffOverride,
-            highlight: period === forecastPeriod,
-          };
-        }
-
         return {
           period,
           label: labelFromPeriod(period),
           basePlayers,
-          adjustedPlayers,
           playersUsed: playersForEstimate,
           estimated: est,
           actual: actualRevenue,
@@ -834,8 +825,12 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             }}
           >
             {translate(
-              "Live-lobbyn översätts till en prognos för senaste stängda kvartal utan faktiskt utfall.",
-              "Live lobby data is translated into a closed-quarter forecast awaiting actuals."
+              isCurrentForecastPeriod
+                ? `Live-lobbyn översätts till en löpande prognos för ${labelFromPeriod(forecastPeriod)}.`
+                : "Live-lobbyn översätts till en prognos för senaste stängda kvartal utan faktiskt utfall.",
+              isCurrentForecastPeriod
+                ? `Live lobby data is translated into a running forecast for ${labelFromPeriod(forecastPeriod)}.`
+                : "Live lobby data is translated into a closed-quarter forecast awaiting actuals."
             )}
           </Typography>
         </Box>
@@ -871,30 +866,32 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         </Stack>
       </Box>
 
-      <Box
-        role="status"
-        aria-live="polite"
-        sx={{
-          mt: 2,
-          mx: "auto",
-          px: 1.6,
-          py: 1,
-          borderRadius: "999px",
-          border: "1px solid rgba(245,158,11,0.28)",
-          background: "rgba(120,53,15,0.22)",
-          color: "#fde68a",
-          width: "100%",
-          maxWidth: 820,
-          textAlign: "center",
-        }}
-      >
-        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.4 }}>
-          {translate(
-            "Spelardatan är delvis inkomplett, så forecasten väger just nu tyngre mot historiska snitt.",
-            "Player data is partially incomplete, so the forecast currently leans more heavily on historical averages."
-          )}
-        </Typography>
-      </Box>
+      {playerCoverage.incomplete && (
+        <Box
+          role="status"
+          aria-live="polite"
+          sx={{
+            mt: 2,
+            mx: "auto",
+            px: 1.6,
+            py: 1,
+            borderRadius: "999px",
+            border: "1px solid rgba(245,158,11,0.28)",
+            background: "rgba(120,53,15,0.22)",
+            color: "#fde68a",
+            width: "100%",
+            maxWidth: 820,
+            textAlign: "center",
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.4 }}>
+            {translate(
+              `Spelardata finns för ${playerCoverage.observedDays} av ${playerCoverage.expectedDays} avslutade dagar, så forecasten väger tyngre mot historiska snitt.`,
+              `Player data is available for ${playerCoverage.observedDays} of ${playerCoverage.expectedDays} completed days, so the forecast leans more heavily on historical averages.`
+            )}
+          </Typography>
+        </Box>
+      )}
 
       {combinedForecastEstimate && (
         <Box
@@ -983,7 +980,11 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 }}
               >
                 <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Stängt kvartal väntar på utfall", "Closed quarter awaiting actuals")} · {labelFromPeriod(forecastPeriod)}
+                  {translate(
+                    isCurrentForecastPeriod ? "Pågående kvartal" : "Stängt kvartal väntar på utfall",
+                    isCurrentForecastPeriod ? "Current quarter" : "Closed quarter awaiting actuals"
+                  )}{" "}
+                  · {labelFromPeriod(forecastPeriod)}
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
                   {translate(

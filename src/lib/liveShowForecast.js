@@ -187,6 +187,63 @@ export function pickRecentAverageBaseline(
   };
 }
 
+export function buildRobustGrowthProjection(values, options = {}) {
+  const fallbackGrowth = Number.isFinite(options?.fallbackGrowth)
+    ? options.fallbackGrowth
+    : 0;
+  const minGrowth = Number.isFinite(options?.minGrowth)
+    ? options.minGrowth
+    : -10;
+  const maxGrowth = Number.isFinite(options?.maxGrowth)
+    ? options.maxGrowth
+    : 10;
+  const requestedLookback = Number(options?.lookback);
+  const lookback = Number.isFinite(requestedLookback)
+    ? Math.max(1, Math.floor(requestedLookback))
+    : 4;
+  const normalized = Array.isArray(values) ? values.map(Number) : [];
+  const latestValue = normalized.at(-1);
+
+  if (!Number.isFinite(latestValue) || latestValue <= 0) return null;
+
+  const growthRates = [];
+  for (let index = 1; index < normalized.length; index += 1) {
+    const previous = normalized[index - 1];
+    const current = normalized[index];
+    if (
+      !Number.isFinite(previous) ||
+      previous <= 0 ||
+      !Number.isFinite(current) ||
+      current <= 0
+    ) {
+      continue;
+    }
+    growthRates.push(((current - previous) / previous) * 100);
+  }
+
+  const recentGrowthRates = growthRates.slice(-lookback).sort((a, b) => a - b);
+  let baselineGrowth = fallbackGrowth;
+  if (recentGrowthRates.length) {
+    const middle = Math.floor(recentGrowthRates.length / 2);
+    baselineGrowth =
+      recentGrowthRates.length % 2 === 0
+        ? (recentGrowthRates[middle - 1] + recentGrowthRates[middle]) / 2
+        : recentGrowthRates[middle];
+  }
+  const projectedGrowth = Math.min(
+    maxGrowth,
+    Math.max(minGrowth, baselineGrowth),
+  );
+
+  return {
+    latestValue,
+    baselineGrowth,
+    projectedGrowth,
+    projectedValue: latestValue * (1 + projectedGrowth / 100),
+    sampleSize: recentGrowthRates.length,
+  };
+}
+
 export function calculateMedianCalibrationFactor(entries, options = {}) {
   const fallback = Number.isFinite(options?.fallback) ? options.fallback : 1;
   const minFactor = Number.isFinite(options?.minFactor) ? options.minFactor : 0.85;

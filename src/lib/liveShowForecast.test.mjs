@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   applyQuarterSnapshots,
+  buildRobustGrowthProjection,
   buildAllowedPlayerPeriods,
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
@@ -49,6 +50,35 @@ test("applyQuarterSnapshots derives raw players from adjusted snapshots", () => 
 
   assert.equal(result["2026 Q1"].avgPlayers, 60000);
   assert.equal(result["2026 Q1"].adjustedAvgPlayers, 66000);
+});
+
+test("applyQuarterSnapshots freezes reported Q1 and Q2 player averages", () => {
+  const result = applyQuarterSnapshots(
+    {
+      "2026 Q1": { avgPlayers: 61000, days: 60 },
+      "2026 Q2": { avgPlayers: 62000, days: 45 },
+    },
+    {
+      "2026 Q1": { rawPlayers: 61600, days: 86 },
+      "2026 Q2": { rawPlayers: 60946, days: 89 },
+    },
+    1.1
+  );
+
+  assert.deepEqual(
+    {
+      q1Players: result["2026 Q1"].avgPlayers,
+      q1Days: result["2026 Q1"].days,
+      q2Players: result["2026 Q2"].avgPlayers,
+      q2Days: result["2026 Q2"].days,
+    },
+    {
+      q1Players: 61600,
+      q1Days: 86,
+      q2Players: 60946,
+      q2Days: 89,
+    }
+  );
 });
 
 test("buildAllowedPlayerPeriods includes the two-quarters-back comparison period", () => {
@@ -155,6 +185,45 @@ test("pickRecentAverageBaseline tracks the latest reported quarters", () => {
   assert.equal(baseline.source, "recent-average");
   assert.deepEqual(baseline.samplePeriods, ["2026 Q1", "2025 Q4"]);
   assert.equal(Math.round(60655 * baseline.revenuePerPlayer * 10) / 10, 450.3);
+});
+
+test("Q3 baseline uses the frozen Q2 and Q1 outcomes", () => {
+  const baseline = pickRecentAverageBaseline(
+    [
+      { period: "2025 Q4", index: 8103, revenuePerPlayer: 438.6 / 56310 },
+      { period: "2026 Q1", index: 8104, revenuePerPlayer: 434.883 / 61600 },
+      { period: "2026 Q2", index: 8105, revenuePerPlayer: 437.282 / 60946 },
+    ],
+    "2026 Q3",
+    423.7 / 65769,
+    { sampleSize: 2 }
+  );
+
+  assert.deepEqual(baseline.samplePeriods, ["2026 Q2", "2026 Q1"]);
+  assert.equal(Math.round(64543 * baseline.revenuePerPlayer * 10) / 10, 459.4);
+});
+
+test("buildRobustGrowthProjection uses the recent median and limits outliers", () => {
+  const projection = buildRobustGrowthProjection(
+    [70.564, 75.5, 75.7, 78.156, 80.509],
+    {
+      lookback: 4,
+      fallbackGrowth: 1.5,
+      minGrowth: 0,
+      maxGrowth: 4,
+    }
+  );
+
+  assert.equal(projection.sampleSize, 4);
+  assert.equal(Math.round(projection.baselineGrowth * 100) / 100, 3.13);
+  assert.equal(Math.round(projection.projectedGrowth * 100) / 100, 3.13);
+  assert.equal(Math.round(projection.projectedValue * 10) / 10, 83);
+
+  const capped = buildRobustGrowthProjection([10, 20, 40], {
+    lookback: 2,
+    maxGrowth: 4,
+  });
+  assert.equal(capped.projectedGrowth, 4);
 });
 
 test("calculateMedianCalibrationFactor learns the median actual-to-estimate bias", () => {
