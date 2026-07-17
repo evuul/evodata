@@ -25,6 +25,20 @@ test("quote change uses the latest close when today's daily candle is missing", 
   assertApproximatelyEqual(changePercent, -1.2802275960170697);
 });
 
+test("quote change prefers explicit previous close over a stale daily series", () => {
+  const changePercent = calculateQuoteChangePercent({
+    currentPrice: 688.8,
+    previousClose: 689.6,
+    quoteTime: new Date("2026-07-17T08:08:00.000Z"),
+    dailyRows: [
+      { date: new Date("2026-07-14T07:00:00.000Z"), close: 698.8 },
+      { date: new Date("2026-07-15T07:00:00.000Z"), close: 703 },
+    ],
+  });
+
+  assertApproximatelyEqual(changePercent, -0.11600928074246586);
+});
+
 test("quote change skips today's candle when it is already in the daily series", () => {
   const changePercent = calculateQuoteChangePercent({
     currentPrice: 693.2,

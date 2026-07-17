@@ -3,7 +3,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  buildDividendScenarios,
   buildOwnershipImpact,
   buildPortfolioTimeline,
   buildReturnBreakdown,
@@ -37,18 +36,6 @@ test("calculateReturnBarWidthPct handles empty and above-capital values safely",
   assert.equal(calculateReturnBarWidthPct({ value: 100, investedCapital: 0 }), 0);
   assert.equal(calculateReturnBarWidthPct({ value: 250, investedCapital: 100 }), 100);
   assert.equal(calculateReturnBarWidthPct({ value: null, investedCapital: 100 }), 0);
-});
-
-test("buildDividendScenarios uses transparent fractions of the last paid dividend", () => {
-  const scenarios = buildDividendScenarios({ shares: 1_000, lastDividendPerShare: 32, targetYear: 2027 });
-  assert.deepEqual(
-    scenarios.map(({ id, dividendPerShare, cash }) => ({ id, dividendPerShare, cash })),
-    [
-      { id: "low", dividendPerShare: 16, cash: 16_000 },
-      { id: "base", dividendPerShare: 24, cash: 24_000 },
-      { id: "high", dividendPerShare: 32, cash: 32_000 },
-    ]
-  );
 });
 
 test("buildPortfolioTimeline combines eligible dividends and transactions", () => {

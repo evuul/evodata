@@ -289,7 +289,6 @@ export default function MinaSidorPage() {
   // --- UI Constants ---
   const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
   const dashboardTodayYmd = getStockholmTodayYmd();
-  const dividendScenarioYear = Number(dashboardTodayYmd.slice(0, 4)) + 1;
 
   return (
     <Box
@@ -492,10 +491,10 @@ export default function MinaSidorPage() {
               shares={profile.shares}
               avgCost={profile.avgCost}
               currentPrice={currentPrice}
+              fxRate={fxRate}
               dividendsReceived={dividendsReceivedSafe}
               upcomingDividend={upcomingDividend}
               lastDividend={lastDividend}
-              targetYear={dividendScenarioYear}
             />
           </Box>
 

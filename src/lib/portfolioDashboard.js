@@ -40,29 +40,6 @@ export const calculateReturnBarWidthPct = ({ value, investedCapital } = {}) => {
   return Math.min((amount / capital) * 100, 100);
 };
 
-const DIVIDEND_SCENARIOS = [
-  { id: "low", factor: 0.5, labelSv: "Låg", labelEn: "Low" },
-  { id: "base", factor: 0.75, labelSv: "Bas", labelEn: "Base" },
-  { id: "high", factor: 1, labelSv: "Hög", labelEn: "High" },
-];
-
-export const buildDividendScenarios = ({ shares, lastDividendPerShare, targetYear } = {}) => {
-  const holdingShares = toNonNegative(shares);
-  const referenceDps = toFinite(lastDividendPerShare);
-  const year = Number(targetYear);
-  if (!(referenceDps > 0) || !Number.isInteger(year)) return [];
-
-  return DIVIDEND_SCENARIOS.map((scenario) => {
-    const dividendPerShare = referenceDps * scenario.factor;
-    return {
-      ...scenario,
-      targetYear: year,
-      dividendPerShare,
-      cash: holdingShares * dividendPerShare,
-    };
-  });
-};
-
 const normalizeTransactions = (transactions) =>
   (Array.isArray(transactions) ? transactions : [])
     .map((row, index) => {

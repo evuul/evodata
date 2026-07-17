@@ -18,7 +18,7 @@ const RETRY_AFTER_SECONDS = 120;
 const OPEN_SHARED_CACHE_TTL_MS = 2 * 60 * 1000; // delad cache (KV) 2 min under öppet
 const CLOSED_SHARED_CACHE_TTL_MS = 15 * 60 * 1000; // delad cache (KV) 15 min när stängt
 const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istället för 500 (1h)
-const SHARED_KEY_PREFIX = "stock:quote:";
+const SHARED_KEY_PREFIX = "stock:quote:v2:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vid 429: vila 10 min
 
@@ -182,6 +182,12 @@ function normalizeError(error) {
   };
 }
 
+function toPositiveNumber(value) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
 function getState(symbol) {
   return g.__stockRouteState.get(symbol) || null;
 }
@@ -194,6 +200,7 @@ function setState(symbol, patch) {
 function buildPayload({
   currentPrice,
   changePercent,
+  previousClose,
   historicalData,
   now,
   source = null,
@@ -233,6 +240,7 @@ function buildPayload({
       regularMarketChangePercent: {
         raw: Number.isFinite(changePercent) ? changePercent : null,
       },
+      regularMarketPreviousClose: Number.isFinite(previousClose) ? previousClose : null,
     },
     marketCap,
     ytdChangePercent,
@@ -311,12 +319,18 @@ async function fetchYahooChartDaily(symbol) {
   const quoteTime = Number.isFinite(result?.meta?.regularMarketTime)
     ? new Date(Number(result.meta.regularMarketTime) * 1000)
     : null;
+  const previousClose = toPositiveNumber(
+    result?.meta?.previousClose ??
+      result?.meta?.regularMarketPreviousClose ??
+      result?.meta?.chartPreviousClose
+  );
   const changePercent = calculateQuoteChangePercent({
     currentPrice,
     dailyRows: rows,
     quoteTime,
+    previousClose,
   });
-  return { rows, currentPrice, changePercent };
+  return { rows, currentPrice, changePercent, previousClose };
 }
 
 export async function GET(request) {
@@ -356,22 +370,26 @@ export async function GET(request) {
       let rows = [];
       let currentPrice = null;
       let changePercent = null;
+      let previousClose = null;
       try {
         rows = await fetchStooqDaily(symbol);
         const latest = rows[rows.length - 1];
         currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
+        previousClose = Number.isFinite(rows.at(-2)?.close) ? rows.at(-2).close : null;
         changePercent = calculateDailyCloseChangePercent(rows);
       } catch {
         const chart = await fetchYahooChartDaily(symbol);
         rows = chart.rows;
         currentPrice = chart.currentPrice;
         changePercent = chart.changePercent;
+        previousClose = chart.previousClose;
         source = "yahoo-chart";
       }
       const historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
       const payload = buildPayload({
         currentPrice,
         changePercent,
+        previousClose,
         historicalData,
         now,
         source,
@@ -422,6 +440,7 @@ export async function GET(request) {
 
       let currentPrice = null;
       let changePercent = null;
+      let previousClose = null;
       let historicalData = [];
 
       try {
@@ -449,7 +468,16 @@ export async function GET(request) {
           .filter((row) => row && row.date >= period1 && row.date <= now)
           .sort((a, b) => a.date - b.date);
         currentPrice = Number(quote?.regularMarketPrice);
-        changePercent = Number.isFinite(quote?.regularMarketChangePercent)
+        previousClose = toPositiveNumber(quote?.regularMarketPreviousClose);
+        const calculatedQuoteChange = calculateQuoteChangePercent({
+          currentPrice,
+          dailyRows: historicalData,
+          quoteTime: quote?.regularMarketTime,
+          previousClose,
+        });
+        changePercent = Number.isFinite(calculatedQuoteChange)
+          ? calculatedQuoteChange
+          : Number.isFinite(Number(quote?.regularMarketChangePercent))
           ? Number(quote.regularMarketChangePercent)
           : null;
       } catch (err) {
@@ -460,6 +488,7 @@ export async function GET(request) {
           historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
           const latest = rows[rows.length - 1];
           currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
+          previousClose = Number.isFinite(rows.at(-2)?.close) ? rows.at(-2).close : null;
           changePercent = calculateDailyCloseChangePercent(rows);
           source = "stooq";
         } catch (stooqErr) {
@@ -467,6 +496,7 @@ export async function GET(request) {
           historicalData = chart.rows.filter((row) => row.date >= period1 && row.date <= now);
           currentPrice = chart.currentPrice;
           changePercent = chart.changePercent;
+          previousClose = chart.previousClose;
           source = "yahoo-chart";
         }
       }
@@ -475,6 +505,7 @@ export async function GET(request) {
         payload: buildPayload({
           currentPrice,
           changePercent,
+          previousClose,
           historicalData,
           now,
           source,

@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { Box, Chip, Paper, Stack, Typography } from "@mui/material";
 import PaymentsRounded from "@mui/icons-material/PaymentsRounded";
-import { buildDividendScenarios } from "@/lib/portfolioDashboard";
+import { buildLatestDividendProjection } from "./dividendEstimate";
 import { cardBase, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
 
@@ -22,16 +22,17 @@ export default function DividendCenterCard({
   shares,
   avgCost,
   currentPrice,
+  fxRate,
   dividendsReceived,
   upcomingDividend,
   lastDividend,
-  targetYear,
 }) {
   const lastDps = Number(lastDividend?.dividendPerShare);
-  const scenarios = useMemo(
-    () => buildDividendScenarios({ shares, lastDividendPerShare: lastDps, targetYear }),
-    [lastDps, shares, targetYear]
+  const projection = useMemo(
+    () => buildLatestDividendProjection({ profileShares: shares, fxRate }),
+    [fxRate, shares]
   );
+  const scenarios = projection?.scenarios ?? [];
   const yieldOnCost = avgCost > 0 && lastDps > 0 ? (lastDps / avgCost) * 100 : null;
   const latestDirectYield = currentPrice > 0 && lastDps > 0 ? (lastDps / currentPrice) * 100 : null;
   const noProposal = upcomingDividend?.status === "no_dividend_proposed";
@@ -72,24 +73,51 @@ export default function DividendCenterCard({
 
       <Box sx={{ mt: 2.7, pt: 2.2, borderTop: "1px solid rgba(148,163,184,0.16)" }}>
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" gap={0.7}>
-          <Typography sx={{ color: text.subtle, fontWeight: 800 }}>
-            {translate(`${targetYear}: illustrativa scenarier`, `${targetYear}: illustrative scenarios`)}
-          </Typography>
-          <Typography sx={{ color: text.muted, fontSize: "0.76rem" }}>
-            {translate("50%, 75% och 100% av senast betalda DPS – inte en prognos.", "50%, 75% and 100% of the last paid DPS – not a forecast.")}
+          <Box>
+            <Typography sx={{ color: text.subtle, fontWeight: 800 }}>
+              {projection
+                ? translate(
+                    `${projection.targetYear}: potentiell utdelning`,
+                    `${projection.targetYear}: potential dividend`
+                  )
+                : translate("Potentiell utdelning", "Potential dividend")}
+            </Typography>
+            {projection ? (
+              <Typography sx={{ color: text.muted, fontSize: "0.76rem", mt: 0.3 }}>
+                {translate(
+                  `Efter ${projection.latestQuarter} ${projection.sourceYear} · ${projection.reportedQuarters}/4 kvartal · annualiserad justerad vinst ${projection.annualizedAdjustedProfitEur.toLocaleString("sv-SE", { maximumFractionDigits: 1 })} MEUR · EUR/SEK ${projection.fxRate.toLocaleString("sv-SE", { maximumFractionDigits: 2 })}`,
+                  `After ${projection.latestQuarter} ${projection.sourceYear} · ${projection.reportedQuarters}/4 quarters · annualized adjusted profit EUR ${projection.annualizedAdjustedProfitEur.toLocaleString("en-US", { maximumFractionDigits: 1 })}m · EUR/SEK ${projection.fxRate.toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                )}
+              </Typography>
+            ) : null}
+          </Box>
+          <Typography sx={{ color: text.muted, fontSize: "0.76rem", maxWidth: 430 }}>
+            {translate(
+              "25 %, 50 % och 75 % av beräknad helårsvinst – inte en prognos eller ett utdelningsförslag.",
+              "25%, 50% and 75% of estimated full-year profit – not a forecast or dividend proposal."
+            )}
           </Typography>
         </Stack>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 1.4, mt: 1.5 }}>
-          {scenarios.map((scenario) => (
-            <Box key={scenario.id} sx={{ p: 1.6, borderRadius: "12px", background: scenario.id === "base" ? "rgba(56,189,248,0.1)" : "rgba(15,23,42,0.45)", border: scenario.id === "base" ? "1px solid rgba(56,189,248,0.3)" : "1px solid rgba(148,163,184,0.14)" }}>
-              <Typography sx={{ color: scenario.id === "base" ? "#7dd3fc" : text.muted, fontSize: "0.76rem", fontWeight: 800 }}>
-                {translate(scenario.labelSv, scenario.labelEn)}
-              </Typography>
-              <Typography sx={{ color: text.heading, fontSize: "1.2rem", fontWeight: 850, mt: 0.3 }}>{formatSek(scenario.cash)}</Typography>
-              <Typography sx={{ color: text.muted, fontSize: "0.75rem" }}>{scenario.dividendPerShare.toLocaleString("sv-SE", { maximumFractionDigits: 2 })} SEK/aktie</Typography>
-            </Box>
-          ))}
-        </Box>
+        {scenarios.length ? (
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" }, gap: 1.4, mt: 1.5 }}>
+            {scenarios.map((scenario) => (
+              <Box key={scenario.id} sx={{ p: 1.6, borderRadius: "12px", background: scenario.id === "base" ? "rgba(56,189,248,0.1)" : "rgba(15,23,42,0.45)", border: scenario.id === "base" ? "1px solid rgba(56,189,248,0.3)" : "1px solid rgba(148,163,184,0.14)" }}>
+                <Typography sx={{ color: scenario.id === "base" ? "#7dd3fc" : text.muted, fontSize: "0.76rem", fontWeight: 800 }}>
+                  {translate(scenario.labelSv, scenario.labelEn)}
+                </Typography>
+                <Typography sx={{ color: text.heading, fontSize: "1.2rem", fontWeight: 850, mt: 0.3 }}>{formatSek(scenario.cash)}</Typography>
+                <Typography sx={{ color: text.muted, fontSize: "0.75rem" }}>{scenario.dividendPerShare.toLocaleString("sv-SE", { maximumFractionDigits: 2 })} SEK/aktie</Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Typography sx={{ color: text.muted, fontSize: "0.82rem", mt: 1.5 }}>
+            {translate(
+              "Prognosen visas när rapportdata, aktieantal och EUR/SEK-kurs finns tillgängliga.",
+              "The projection appears when report data, share count and the EUR/SEK rate are available."
+            )}
+          </Typography>
+        )}
       </Box>
     </Paper>
   );

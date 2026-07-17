@@ -50,19 +50,30 @@ export function calculateDailyCloseChangePercent(dailyRows) {
   return calculatePercentChange(rows.at(-1).close, rows.at(-2).close);
 }
 
-export function calculateQuoteChangePercent({ currentPrice, dailyRows, quoteTime }) {
+export function calculateQuoteChangePercent({
+  currentPrice,
+  dailyRows,
+  quoteTime,
+  previousClose,
+}) {
   if (currentPrice == null || currentPrice === "") return null;
   const price = Number(currentPrice);
-  const rows = normalizeDailyRows(dailyRows);
-  if (!Number.isFinite(price) || rows.length === 0) return null;
+  if (!Number.isFinite(price)) return null;
 
+  const explicitPreviousClose = Number(previousClose);
+  if (Number.isFinite(explicitPreviousClose) && explicitPreviousClose > 0) {
+    return calculatePercentChange(price, explicitPreviousClose);
+  }
+
+  const rows = normalizeDailyRows(dailyRows);
+  if (rows.length === 0) return null;
   const latestRow = rows.at(-1);
   const quoteDate = toTradingDateKey(quoteTime);
   const latestRowDate = toTradingDateKey(latestRow.date);
   const dailySeriesIncludesQuoteSession = quoteDate
     ? quoteDate === latestRowDate
     : price === latestRow.close;
-  const previousClose = dailySeriesIncludesQuoteSession ? rows.at(-2)?.close : latestRow.close;
+  const fallbackPreviousClose = dailySeriesIncludesQuoteSession ? rows.at(-2)?.close : latestRow.close;
 
-  return calculatePercentChange(price, previousClose);
+  return calculatePercentChange(price, fallbackPreviousClose);
 }

@@ -1,5 +1,8 @@
+// Provides current dividend estimates and forward projections for the portfolio views.
+
 import financialReportsData from "@/app/data/financialReports.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
+import { buildAnnualizedDividendProjection } from "@/lib/dividendProjection";
 
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 const NO_DIVIDEND_PROPOSAL = {
@@ -87,4 +90,18 @@ export const buildDividendEstimateRange = ({ profileShares, fxRate }) => {
     base,
     bull,
   };
+};
+
+export const buildLatestDividendProjection = ({ profileShares, fxRate }) => {
+  const latestShareSnapshot = [...(Array.isArray(amountOfShares) ? amountOfShares : [])]
+    .filter((snapshot) => Number.isFinite(Number(snapshot?.sharesOutstanding)))
+    .sort((left, right) => String(left?.date ?? "").localeCompare(String(right?.date ?? "")))
+    .at(-1);
+
+  return buildAnnualizedDividendProjection({
+    reports: financialReportsData?.financialReports,
+    sharesOutstandingMillions: latestShareSnapshot?.sharesOutstanding,
+    fxRate,
+    portfolioShares: profileShares,
+  });
 };
