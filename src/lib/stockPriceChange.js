@@ -43,6 +43,23 @@ function calculatePercentChange(currentPrice, previousClose) {
   return ((currentPrice - previousClose) / previousClose) * 100;
 }
 
+function countWeekdaysBetween(startDateKey, endDateKey) {
+  if (!startDateKey || !endDateKey || startDateKey >= endDateKey) return 0;
+
+  const cursor = new Date(`${startDateKey}T12:00:00.000Z`);
+  const end = new Date(`${endDateKey}T12:00:00.000Z`);
+  let weekdays = 0;
+
+  cursor.setUTCDate(cursor.getUTCDate() + 1);
+  while (cursor < end) {
+    const weekday = cursor.getUTCDay();
+    if (weekday !== 0 && weekday !== 6) weekdays += 1;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return weekdays;
+}
+
 export function calculateDailyCloseChangePercent(dailyRows) {
   const rows = normalizeDailyRows(dailyRows);
   if (rows.length < 2) return null;
@@ -70,6 +87,14 @@ export function calculateQuoteChangePercent({
   const latestRow = rows.at(-1);
   const quoteDate = toTradingDateKey(quoteTime);
   const latestRowDate = toTradingDateKey(latestRow.date);
+  if (
+    quoteDate &&
+    latestRowDate &&
+    (latestRowDate > quoteDate || countWeekdaysBetween(latestRowDate, quoteDate) > 0)
+  ) {
+    return null;
+  }
+
   const dailySeriesIncludesQuoteSession = quoteDate
     ? quoteDate === latestRowDate
     : price === latestRow.close;

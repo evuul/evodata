@@ -1,7 +1,11 @@
 'use client';
+
+// Provides the latest stock quote and derived market metrics to client components.
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const StockPriceContext = createContext();
+const STOCK_QUOTE_CACHE_VERSION = 'v3';
 
 export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInterval = 300000, enabled = true }) => {
   const [stockPrice, setStockPrice] = useState(null);
@@ -19,7 +23,9 @@ export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInt
     setError(null);
 
     try {
-      const response = await fetch(`/api/stock?symbol=${encodeURIComponent(stockSymbol)}`);
+      const response = await fetch(
+        `/api/stock?symbol=${encodeURIComponent(stockSymbol)}&v=${STOCK_QUOTE_CACHE_VERSION}`
+      );
       if (!response.ok) {
         throw new Error('Failed to fetch stock price');
       }

@@ -18,7 +18,7 @@ const RETRY_AFTER_SECONDS = 120;
 const OPEN_SHARED_CACHE_TTL_MS = 2 * 60 * 1000; // delad cache (KV) 2 min under öppet
 const CLOSED_SHARED_CACHE_TTL_MS = 15 * 60 * 1000; // delad cache (KV) 15 min när stängt
 const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istället för 500 (1h)
-const SHARED_KEY_PREFIX = "stock:quote:v2:";
+const SHARED_KEY_PREFIX = "stock:quote:v3:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vid 429: vila 10 min
 
@@ -320,9 +320,7 @@ async function fetchYahooChartDaily(symbol) {
     ? new Date(Number(result.meta.regularMarketTime) * 1000)
     : null;
   const previousClose = toPositiveNumber(
-    result?.meta?.previousClose ??
-      result?.meta?.regularMarketPreviousClose ??
-      result?.meta?.chartPreviousClose
+    result?.meta?.previousClose ?? result?.meta?.regularMarketPreviousClose
   );
   const changePercent = calculateQuoteChangePercent({
     currentPrice,
