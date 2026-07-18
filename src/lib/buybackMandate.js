@@ -99,6 +99,8 @@ export const summarizeBuybackExecution = ({
 
   return {
     snapshotDate: snapshot?.date ?? null,
+    mandateStartDate,
+    executionStartDate: mandateRows.at(0)?.date ?? null,
     reportedShares,
     currentShares,
     latestBuybackDate: rows.at(-1)?.date ?? null,

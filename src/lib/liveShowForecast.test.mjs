@@ -5,6 +5,7 @@ import {
   applyQuarterSnapshots,
   buildRobustGrowthProjection,
   buildAllowedPlayerPeriods,
+  buildQuarterlyModelCheckPeriods,
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
   pickMedianBaseline,
@@ -90,6 +91,23 @@ test("buildAllowedPlayerPeriods includes the two-quarters-back comparison period
   });
 
   assert.deepEqual([...periods], ["2026 Q3", "2026 Q2", "2026 Q1"]);
+});
+
+test("buildQuarterlyModelCheckPeriods includes every quarter from the comparison year", () => {
+  const periods = buildQuarterlyModelCheckPeriods({
+    basePeriods: ["2026 Q3", "2026 Q2", "2026 Q1", "2025 Q4"],
+    historicalYear: 2025,
+  });
+
+  assert.deepEqual(periods, [
+    "2026 Q3",
+    "2026 Q2",
+    "2026 Q1",
+    "2025 Q4",
+    "2025 Q3",
+    "2025 Q2",
+    "2025 Q1",
+  ]);
 });
 
 test("resolvePlayersForEstimate defaults to base players", () => {

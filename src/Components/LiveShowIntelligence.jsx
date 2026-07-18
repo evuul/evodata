@@ -33,6 +33,7 @@ import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import {
   applyQuarterSnapshots,
   buildAllowedPlayerPeriods,
+  buildQuarterlyModelCheckPeriods,
   buildRobustGrowthProjection,
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
@@ -470,19 +471,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       currentPeriod,
       baselineReferencePeriod,
     ];
-    const previousYear = forecastParts.year - 1;
-    const historical = [`${previousYear} Q1`, `${previousYear} Q2`];
-    const unique = [];
-    [...basePeriods, ...historical].forEach((p) => {
-      if (p && !unique.includes(p)) unique.push(p);
+    return buildQuarterlyModelCheckPeriods({
+      basePeriods,
+      historicalYear: forecastParts.year - 1,
     });
-    return unique
-      .map((p) => ({ period: p, parts: periodKeyToParts(p) }))
-      .sort((a, b) => {
-        if (!a.parts || !b.parts) return 0;
-        return quarterToIndex(b.parts.year, b.parts.quarter) - quarterToIndex(a.parts.year, a.parts.quarter);
-      })
-      .map((item) => item.period);
   }, [
     baselineReferencePeriod,
     currentPeriod,
@@ -613,6 +605,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       .map((period) => {
         const info = quarterlyPlayers[period] || { avgPlayers: 0, adjustedAvgPlayers: null };
         const actualRevenue = Number.isFinite(revenueData[period]) ? revenueData[period] : null;
+        const coverageDays = Number(info?.days);
         const { basePlayers, playersForEstimate } = resolvePlayersForEstimate(
           info,
           PLAYER_ADJUSTMENT_FACTOR
@@ -637,6 +630,11 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           estimated: est,
           actual: actualRevenue,
           diff,
+          coverageDays: Number.isFinite(coverageDays) ? coverageDays : null,
+          partialCoverage:
+            Number.isFinite(actualRevenue) &&
+            Number.isFinite(coverageDays) &&
+            coverageDays < 80,
           highlight: period === forecastPeriod,
         };
       })
@@ -1224,7 +1222,24 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                        <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{row.label}</Typography>
+                        <Stack direction="row" spacing={0.8} alignItems="center">
+                          <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{row.label}</Typography>
+                          {row.partialCoverage && (
+                            <Chip
+                              size="small"
+                              label={translate(
+                                `${row.coverageDays} dagar`,
+                                `${row.coverageDays} days`
+                              )}
+                              sx={{
+                                height: 20,
+                                color: "#fde68a",
+                                bgcolor: "rgba(245,158,11,0.12)",
+                                fontSize: "0.68rem",
+                              }}
+                            />
+                          )}
+                        </Stack>
                         <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.85rem" }}>
                           {row.playersUsed.toLocaleString("sv-SE")} {translate("spelare", "players")}
                         </Typography>
@@ -1285,7 +1300,26 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                           "&:last-of-type td": { borderBottom: 0 },
                         }}
                       >
-                        <TableCell sx={{ color: "#f8fafc" }}>{row.label}</TableCell>
+                        <TableCell sx={{ color: "#f8fafc" }}>
+                          <Stack direction="row" spacing={0.8} alignItems="center">
+                            <span>{row.label}</span>
+                            {row.partialCoverage && (
+                              <Chip
+                                size="small"
+                                label={translate(
+                                  `${row.coverageDays} dagar`,
+                                  `${row.coverageDays} days`
+                                )}
+                                sx={{
+                                  height: 20,
+                                  color: "#fde68a",
+                                  bgcolor: "rgba(245,158,11,0.12)",
+                                  fontSize: "0.68rem",
+                                }}
+                              />
+                            )}
+                          </Stack>
+                        </TableCell>
                         <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
                           {row.playersUsed.toLocaleString("sv-SE")}
                         </TableCell>

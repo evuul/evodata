@@ -68,6 +68,23 @@ export function buildAllowedPlayerPeriods({
   ]));
 }
 
+export function buildQuarterlyModelCheckPeriods({
+  basePeriods = [],
+  historicalYear,
+} = {}) {
+  const year = Number(historicalYear);
+  const historicalPeriods = Number.isInteger(year)
+    ? QUARTERS.map((quarter) => `${year} ${quarter}`)
+    : [];
+
+  return uniquePeriods([
+    ...(Array.isArray(basePeriods) ? basePeriods : []),
+    ...historicalPeriods,
+  ])
+    .filter((period) => Number.isFinite(periodToIndex(period)))
+    .sort((a, b) => periodToIndex(b) - periodToIndex(a));
+}
+
 export function applyQuarterSnapshots(
   quarterMap,
   snapshots,

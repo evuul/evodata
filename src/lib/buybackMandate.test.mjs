@@ -55,6 +55,8 @@ test('mandate metadata separates observed execution from remaining authorization
   assert.equal(result.marketCapSek, 19_900_000_000);
   assert.ok(result.mandateYield > 1);
   assert.equal(result.executedShareReduction, 0.005);
+  assert.equal(result.mandateStartDate, "2026-05-18");
+  assert.equal(result.executionStartDate, "2026-05-19");
 });
 
 test('invalid share and buyback inputs fail safely without inventing execution', () => {

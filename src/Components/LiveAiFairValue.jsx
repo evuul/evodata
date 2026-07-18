@@ -7,7 +7,6 @@ import {
   Box,
   Chip,
   Divider,
-  Grid,
   LinearProgress,
   Stack,
   ToggleButton,
@@ -75,6 +74,8 @@ const formatTime = (value) => {
 
 const formatMillions = (value, suffix) =>
   Number.isFinite(value) ? `${number1.format(value / 1_000_000)} ${suffix}` : '–';
+const formatSekBillions = (value, suffix = 'md SEK') =>
+  Number.isFinite(value) ? `${number1.format(value / 1_000_000_000)} ${suffix}` : '–';
 const formatSek0 = (value) => Number.isFinite(value) ? currency0.format(value) : '–';
 const formatSek2 = (value) => Number.isFinite(value) ? currency2.format(value) : '–';
 
@@ -121,6 +122,120 @@ function ScenarioCard({ scenario, selected, onSelect, translate }) {
       <Typography variant="h5" sx={{ color: '#f8fafc', fontWeight: 850, mt: 1.1 }}>{formatSek0(scenario.impliedPriceSEK)}</Typography>
       <Typography variant="body2" sx={{ color: scenario.upsidePct >= 0 ? '#86efac' : '#fca5a5', fontWeight: 700, mt: 0.2 }}>{formatPercent(scenario.upsidePct)} {translate('mot kurs', 'vs price')}</Typography>
       <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)', display: 'block', mt: 0.6 }}>{number2.format(scenario.pe)}x P/E · {number1.format(scenario.discountRate * 100)}% WACC</Typography>
+    </Box>
+  );
+}
+
+function VerifiedBuybacksPanel({ buyback, translate }) {
+  const executionStartDate = buyback?.executionStartDate ?? buyback?.mandateStartDate ?? '–';
+  const snapshotDate = buyback?.snapshotDate ?? buyback?.cashSnapshotDate ?? '–';
+
+  return (
+    <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+        <Box>
+          <Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>
+            {translate('Verifierade återköp', 'Verified buybacks')}
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>
+            {translate(
+              `Hela programmet sedan ${executionStartDate}`,
+              `Full program since ${executionStartDate}`
+            )}
+          </Typography>
+        </Box>
+        <Chip
+          size="small"
+          label={translate('Faktiskt utfall', 'Observed')}
+          sx={{ color: '#a7f3d0', bgcolor: 'rgba(34,197,94,0.11)' }}
+        />
+      </Stack>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', sm: 'repeat(4, minmax(0, 1fr))' },
+          gap: 1,
+          mt: 1.2,
+        }}
+      >
+        <MetricCard
+          label={translate('Program: aktier', 'Program: shares')}
+          value={formatMillions(buyback?.executedSharesInMandate, 'M')}
+        />
+        <MetricCard
+          label={translate('Program: kassa', 'Program: cash')}
+          value={formatSekBillions(buyback?.executedSpendInMandateSek)}
+        />
+        <MetricCard
+          label={translate('Aktier nu', 'Shares now')}
+          value={formatMillions(buyback?.currentShares, 'M')}
+        />
+        <MetricCard
+          label={translate('Kvarvarande mandat', 'Remaining authorization')}
+          value={formatSekBillions(buyback?.remainingMandateSek)}
+        />
+      </Box>
+
+      <Box
+        sx={{
+          mt: 1.2,
+          p: 1.3,
+          borderRadius: '13px',
+          border: '1px solid rgba(56,189,248,0.2)',
+          bgcolor: 'rgba(14,116,144,0.08)',
+        }}
+      >
+        <Typography variant="caption" sx={{ color: '#bae6fd', fontWeight: 750 }}>
+          {translate(
+            `Värderingsjustering efter rapporten · sedan ${snapshotDate}`,
+            `Valuation adjustment after the report · since ${snapshotDate}`
+          )}
+        </Typography>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+            gap: 1,
+            mt: 0.8,
+          }}
+        >
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+              {translate('Aktier', 'Shares')}
+            </Typography>
+            <Typography sx={{ color: '#e2e8f0', fontWeight: 750 }}>
+              {formatMillions(buyback?.executedSharesAfterSnapshot, 'M')}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+              {translate('Kassa', 'Cash')}
+            </Typography>
+            <Typography sx={{ color: '#e2e8f0', fontWeight: 750 }}>
+              {formatSekBillions(buyback?.executedSpendAfterCashSnapshotSek)}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>
+              {translate('EPS-effekt', 'EPS effect')}
+            </Typography>
+            <Typography sx={{ color: '#86efac', fontWeight: 750 }}>
+              {formatPercent((buyback?.executedEpsBoost ?? 0) * 100)}
+            </Typography>
+          </Box>
+        </Box>
+      </Box>
+
+      <Typography
+        variant="caption"
+        sx={{ color: 'rgba(148,163,184,0.7)', display: 'block', mt: 1 }}
+      >
+        {translate(
+          'Endast verifierade återköp efter rapportsnapshoten påverkar värderingen; outnyttjat mandat räknas inte in.',
+          'Only verified buybacks after the report snapshot affect valuation; unused authorization is excluded.'
+        )}
+      </Typography>
     </Box>
   );
 }
@@ -239,7 +354,7 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
-              <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}><Stack direction="row" justifyContent="space-between" alignItems="center"><Box><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('Verifierade återköp', 'Verified buybacks')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>{translate(`Sedan ${buyback?.snapshotDate ?? '–'}`, `Since ${buyback?.snapshotDate ?? '–'}`)}</Typography></Box><Chip size="small" label={translate('Faktiskt utfall', 'Observed')} sx={{ color: '#a7f3d0', bgcolor: 'rgba(34,197,94,0.11)' }} /></Stack><Grid container spacing={1} sx={{ mt: 0.7 }}><Grid item xs={6} sm={3}><MetricCard label={translate('Aktier', 'Shares')} value={formatMillions(buyback?.executedSharesAfterSnapshot, 'M')} /></Grid><Grid item xs={6} sm={3}><MetricCard label={translate('Kassa', 'Cash')} value={Number.isFinite(buyback?.executedSpendAfterSnapshotSek) ? `${number1.format(buyback.executedSpendAfterSnapshotSek / 1_000_000_000)} md` : '–'} /></Grid><Grid item xs={6} sm={3}><MetricCard label={translate('Aktier nu', 'Shares now')} value={formatMillions(buyback?.currentShares, 'M')} /></Grid><Grid item xs={6} sm={3}><MetricCard label="EPS" value={formatPercent((buyback?.executedEpsBoost ?? 0) * 100)} /></Grid></Grid><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)', display: 'block', mt: 1 }}>{translate(`Kvarvarande mandat ${Number.isFinite(buyback?.remainingMandateSek) ? `${number1.format(buyback.remainingMandateSek / 1_000_000_000)} md SEK` : '–'} · outnyttjat mandat räknas inte in.`, `Remaining authorization ${Number.isFinite(buyback?.remainingMandateSek) ? `${number1.format(buyback.remainingMandateSek / 1_000_000_000)}bn SEK` : '–'} · unused authorization is excluded.`)}</Typography></Box>
+              <VerifiedBuybacksPanel buyback={buyback} translate={translate} />
               <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('DCF-känslighet', 'DCF sensitivity')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>{translate('WACC rader · terminal tillväxt kolumner', 'WACC rows · terminal growth columns')}</Typography><Box sx={{ display: 'grid', gridTemplateColumns: '54px repeat(3, 1fr)', gap: 0.5, mt: 1.2 }}><Box />{fairValue.sensitivity.terminalGrowthRates.map((rate) => <Typography key={rate} variant="caption" sx={{ textAlign: 'center', color: '#94a3b8' }}>{number1.format(rate * 100)}%</Typography>)}{fairValue.sensitivity.discountRates.flatMap((rate, rowIndex) => [<Typography key={`r-${rate}`} variant="caption" sx={{ color: '#94a3b8', alignSelf: 'center' }}>{number1.format(rate * 100)}%</Typography>, ...fairValue.sensitivity.values[rowIndex].map((value, columnIndex) => <Box key={`${rate}-${columnIndex}`} sx={{ py: 0.7, textAlign: 'center', borderRadius: '8px', bgcolor: rate === 0.1 && columnIndex === 1 ? 'rgba(34,197,94,0.16)' : 'rgba(30,41,59,0.7)' }}><Typography variant="caption" sx={{ color: '#e2e8f0', fontWeight: 700 }}>{formatSek0(value)}</Typography></Box>),])}</Box></Box>
             </Box>
 
