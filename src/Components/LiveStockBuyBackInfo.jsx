@@ -449,14 +449,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     [evolutionOwnershipData]
   );
   const latestEvolutionShares = evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : 0;
-  const previousEvolutionShares = useMemo(
-    () => combinedBuybacks.reduce((sum, row) => {
-      const date = String(row?.Datum || "").slice(0, 10);
-      if (!date || date > FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE) return sum;
-      return sum + (Number(row?.Antal_aktier) || 0);
-    }, 0),
-    [combinedBuybacks]
-  );
   const latestEvolutionSnapshotDate = useMemo(
     () => combinedBuybacks.reduce((latest, row) => {
       const date = String(row?.Datum || "").slice(0, 10);
@@ -477,7 +469,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         {
           id: 'evolution-treasury',
           name: 'Evolution AB (egna aktier)',
-          shares: Math.max(latestEvolutionShares, 0),
+          shares: Math.max(stats.sharesBought, 0),
           holdingDate: latestEvolutionSnapshotDate || FREE_FLOAT_SNAPSHOT_DATE,
           category: 'Bolagets egna aktier',
           excludeFromStrategicFloat: false,
@@ -496,16 +488,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       ];
       return calculateShareholderOverview({
         totalShares: latestTotalSharesCount,
-        companyTreasuryShares: latestEvolutionShares > 0 ? latestEvolutionShares : FREE_FLOAT_TREASURY_SHARES,
+        companyTreasuryShares: stats.sharesBought > 0 ? stats.sharesBought : FREE_FLOAT_TREASURY_SHARES,
         owners,
-        previousOwners: [
-          ...FREE_FLOAT_PREVIOUS_OWNERS,
-          { id: 'evolution-treasury', shares: previousEvolutionShares },
-        ],
+        previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
         previousTotalShares: FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
       });
     },
-    [latestEvolutionShares, latestEvolutionSnapshotDate, latestTotalSharesCount, previousEvolutionShares]
+    [latestTotalSharesCount, latestEvolutionSnapshotDate, stats.sharesBought]
   );
   const totalBuybackShares = useMemo(
     () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
