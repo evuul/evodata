@@ -84,7 +84,7 @@ export const buildShareholderRows = ({ owners = FREE_FLOAT_OWNER_ASSUMPTIONS, to
       changeShares,
       changePctPoints,
     };
-  });
+  }).sort((left, right) => right.shares - left.shares);
 };
 
 export const calculateIndicativeFreeFloat = ({

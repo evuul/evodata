@@ -70,6 +70,19 @@ test("tracks company treasury as a named owner without double-counting free floa
   assert.equal(result.otherShares, 70);
 });
 
+test("sorts named owners by current share count", () => {
+  const [largest, second] = buildShareholderRows({
+    totalShares: 100,
+    owners: [
+      { id: "small", name: "Small", shares: 10 },
+      { id: "evolution-treasury", name: "Evolution AB (egna aktier)", shares: 20 },
+    ],
+  });
+
+  assert.equal(largest.id, "evolution-treasury");
+  assert.equal(second.id, "small");
+});
+
 test("builds insider trend from direct Evolution share transactions only", () => {
   const result = buildInsiderOwnershipTrend([
     { person: "Martin", direction: "buy", volume: 100, instrumentName: "Evolution AB" },
