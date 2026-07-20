@@ -29,6 +29,7 @@ const translateCategory = (translate, category) => {
     Pension: translate("Pension", "Pension"),
     "Privat ägare": translate("Privat ägare", "Private owner"),
     "VD / insider": translate("VD / insider", "CEO / insider"),
+    "Bolagets egna aktier": translate("Bolagets egna aktier", "Company treasury"),
   };
   return labels[category] || category || "–";
 };
@@ -36,6 +37,7 @@ const translateCategory = (translate, category) => {
 export default function FreeFloatView({
   shareholderOverview,
   snapshotDate,
+  treasurySnapshotDate,
   previousSnapshotDate,
   currentMandateShares = 0,
   totalBuybackShares = 0,
@@ -68,7 +70,7 @@ export default function FreeFloatView({
             )}
           </Typography>
         </Box>
-        <Chip label={translate(`Snapshot ${snapshotDate}`, `Snapshot ${snapshotDate}`)} size="small" sx={{ alignSelf: { xs: "flex-start", sm: "flex-start" }, color: "#bae6fd", backgroundColor: "rgba(14,116,144,0.25)", border: "1px solid rgba(56,189,248,0.3)" }} />
+        <Chip label={translate(`Snapshot ${snapshotDate}${treasurySnapshotDate ? ` · EVO ${treasurySnapshotDate}` : ""}`, `Snapshot ${snapshotDate}${treasurySnapshotDate ? ` · EVO ${treasurySnapshotDate}` : ""}`)} size="small" sx={{ alignSelf: { xs: "flex-start", sm: "flex-start" }, color: "#bae6fd", backgroundColor: "rgba(14,116,144,0.25)", border: "1px solid rgba(56,189,248,0.3)" }} />
       </Stack>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(4, minmax(0, 1fr))" }, gap: 1.4 }}>

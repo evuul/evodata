@@ -55,6 +55,21 @@ test("keeps non-strategic named owners in the adjusted share base", () => {
   assert.equal(result.otherShares, 25);
 });
 
+test("tracks company treasury as a named owner without double-counting free float", () => {
+  const result = calculateShareholderOverview({
+    totalShares: 100,
+    companyTreasuryShares: 15,
+    owners: [{ id: "evolution-treasury", name: "Evolution AB (egna aktier)", shares: 15 }],
+    previousOwners: [{ id: "evolution-treasury", shares: 10 }],
+    previousTotalShares: 100,
+  });
+
+  assert.equal(result.rows[0].shares, 15);
+  assert.equal(result.rows[0].changeShares, 5);
+  assert.equal(result.freeFloat.freeFloatShares, 85);
+  assert.equal(result.otherShares, 70);
+});
+
 test("builds insider trend from direct Evolution share transactions only", () => {
   const result = buildInsiderOwnershipTrend([
     { person: "Martin", direction: "buy", volume: 100, instrumentName: "Evolution AB" },

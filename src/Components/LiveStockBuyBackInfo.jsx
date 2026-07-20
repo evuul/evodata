@@ -449,6 +449,21 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     [evolutionOwnershipData]
   );
   const latestEvolutionShares = evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : 0;
+  const previousEvolutionShares = useMemo(
+    () => combinedBuybacks.reduce((sum, row) => {
+      const date = String(row?.Datum || "").slice(0, 10);
+      if (!date || date > FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE) return sum;
+      return sum + (Number(row?.Antal_aktier) || 0);
+    }, 0),
+    [combinedBuybacks]
+  );
+  const latestEvolutionSnapshotDate = useMemo(
+    () => combinedBuybacks.reduce((latest, row) => {
+      const date = String(row?.Datum || "").slice(0, 10);
+      return date > latest ? date : latest;
+    }, ""),
+    [combinedBuybacks]
+  );
   const latestOwnershipPercentage = useMemo(() => {
     const lastTot = totalSharesData[totalSharesData.length - 1]?.totalShares || 0;
     return lastTot > 0 ? (latestEvolutionShares / lastTot) * 100 : 0;
@@ -459,6 +474,14 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       const martinTrend = buildInsiderOwnershipTrend(insiderTransactionsDefault?.items, { person: 'Martin Carlesund' });
       const owners = [
         ...FREE_FLOAT_OWNER_ASSUMPTIONS,
+        {
+          id: 'evolution-treasury',
+          name: 'Evolution AB (egna aktier)',
+          shares: Math.max(latestEvolutionShares, 0),
+          holdingDate: latestEvolutionSnapshotDate || FREE_FLOAT_SNAPSHOT_DATE,
+          category: 'Bolagets egna aktier',
+          excludeFromStrategicFloat: false,
+        },
         {
           id: 'martin-carlesund',
           name: 'Martin Carlesund',
@@ -473,13 +496,16 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       ];
       return calculateShareholderOverview({
         totalShares: latestTotalSharesCount,
-        companyTreasuryShares: FREE_FLOAT_TREASURY_SHARES,
+        companyTreasuryShares: latestEvolutionShares > 0 ? latestEvolutionShares : FREE_FLOAT_TREASURY_SHARES,
         owners,
-        previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
+        previousOwners: [
+          ...FREE_FLOAT_PREVIOUS_OWNERS,
+          { id: 'evolution-treasury', shares: previousEvolutionShares },
+        ],
         previousTotalShares: FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
       });
     },
-    [latestTotalSharesCount]
+    [latestEvolutionShares, latestEvolutionSnapshotDate, latestTotalSharesCount, previousEvolutionShares]
   );
   const totalBuybackShares = useMemo(
     () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
@@ -991,6 +1017,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           <FreeFloatView
             shareholderOverview={shareholderOverview}
             snapshotDate={FREE_FLOAT_SNAPSHOT_DATE}
+            treasurySnapshotDate={latestEvolutionSnapshotDate || undefined}
             previousSnapshotDate={FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE}
             currentMandateShares={stats.sharesBought}
             totalBuybackShares={totalBuybackShares}
