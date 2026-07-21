@@ -436,8 +436,12 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
 
   // ---- Subview derived data ----
   const evolutionOwnershipData = useMemo(
-    () => calculateEvolutionOwnershipPerYear(combinedBuybacks),
-    [combinedBuybacks]
+    () => {
+      const series = calculateEvolutionOwnershipPerYear(combinedBuybacks);
+      if (!series.length || !Number.isFinite(stats.sharesBought) || stats.sharesBought <= 0) return series;
+      return series.map((point, index) => index === series.length - 1 ? { ...point, shares: stats.sharesBought } : point);
+    },
+    [combinedBuybacks, stats.sharesBought]
   );
   const cancelledShares = useMemo(() => calculateCancelledShares(oldData), [oldData]);
   const ownershipPercentageData = useMemo(

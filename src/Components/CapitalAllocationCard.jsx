@@ -80,6 +80,10 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
       ),
     [buybackData]
   );
+  const currentMandateShares = useMemo(
+    () => currentMandateRows.reduce((sum, row) => sum + (Number(row?.Antal_aktier) || 0), 0),
+    [currentMandateRows]
+  );
   const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(buybackData || []), [buybackData]);
   const latestEvolutionShares = useMemo(
     () => (evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : null),
@@ -113,13 +117,15 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   }, []);
   const sharesExOwnership = useMemo(() => {
     if (!Number.isFinite(sharesOutstanding)) return null;
-    const owned = Number.isFinite(ownershipFromApi)
+    const owned = currentMandateShares > 0
+      ? currentMandateShares
+      : Number.isFinite(ownershipFromApi)
       ? ownershipFromApi
       : Number.isFinite(latestEvolutionShares)
       ? latestEvolutionShares
       : 0;
     return Math.max(sharesOutstanding - owned, 0);
-  }, [sharesOutstanding, latestEvolutionShares, ownershipFromApi]);
+  }, [sharesOutstanding, currentMandateShares, latestEvolutionShares, ownershipFromApi]);
 
   const inferredMarketCap = useMemo(() => {
     if (Number.isFinite(marketCap)) return marketCap;
