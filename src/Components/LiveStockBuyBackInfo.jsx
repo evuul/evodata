@@ -505,7 +505,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     [combinedBuybacks]
   );
 
-  const returns = useMemo(() => calculateShareholderReturns(dividendData || {}, oldData || []), [dividendData, oldData]);
+  const returns = useMemo(() => calculateShareholderReturns(dividendData || {}, combinedBuybacks), [dividendData, combinedBuybacks]);
   const chartReturns = useMemo(
     () => returns.combinedData.map((d) => ({ year: d.year, dividends: d.dividends / 1_000_000, buybacks: d.buybacks / 1_000_000 })),
     [returns]

@@ -1,7 +1,16 @@
 // Regression tests for buyback formatting helpers.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildNiceYAxisConfig, calculateEstimatedCompletion, formatBuybackAxisTick, formatSharesCompact } from "./utils.js";
+import { buildNiceYAxisConfig, calculateEstimatedCompletion, calculateShareholderReturns, formatBuybackAxisTick, formatSharesCompact } from "./utils.js";
+
+test("capital returns include the latest combined buyback rows", () => {
+  const result = calculateShareholderReturns(
+    { historicalDividends: [], plannedDividends: [] },
+    [{ Datum: "2026-06-26", Antal_aktier: 100, Transaktionsvärde: 70_000 }, { Datum: "2026-07-17", Antal_aktier: 50, Transaktionsvärde: 35_000 }]
+  );
+
+  assert.equal(result.combinedData.find((row) => row.year === 2026)?.buybacks, 105_000);
+});
 
 test("formatSharesCompact renders shares in k with one decimal", () => {
   assert.equal(formatSharesCompact(535802), "535,8k");

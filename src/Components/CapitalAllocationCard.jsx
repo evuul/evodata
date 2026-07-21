@@ -13,6 +13,7 @@ import { useFxRateContext } from "@/context/FxRateContext";
 import { useTranslate } from "@/context/LocaleContext";
 import { findLatestReport, sortReports } from "@/lib/reportUtils";
 import { calculateEvolutionOwnershipPerYear, totalSharesData } from "./buybacks/utils";
+import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
 
 const DEFAULT_MANDATE_SEK = Number(process.env.NEXT_PUBLIC_BUYBACK_MANDATE_SEK) || null;
 const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE !== "0";
@@ -33,6 +34,8 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   const { rate: fxRate } = useFxRateContext();
   const translate = useTranslate();
   const [ownershipFromApi, setOwnershipFromApi] = useState(null);
+  const [remoteBuybackData, setRemoteBuybackData] = useState(null);
+  const effectiveBuybackData = Array.isArray(remoteBuybackData) ? remoteBuybackData : (Array.isArray(buybackData) ? buybackData : []);
 
   const { latestDividend, ttmEps, ttmOcf, latestReport } = useMemo(() => {
     const reports = sortReports(financialReports?.financialReports || []);
@@ -58,7 +61,7 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   }, []);
 
   const { last12mBuybacksSek } = useMemo(() => {
-    const rows = Array.isArray(buybackData) ? buybackData : [];
+    const rows = effectiveBuybackData;
     if (!rows.length) return { last12mBuybacksSek: null };
     const parsed = rows
       .map((row) => {
@@ -72,19 +75,19 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     const cutoff = new Date(latestDate.getTime() - 365 * DAY_MS);
     const total = parsed.reduce((acc, item) => (item.date >= cutoff ? acc + item.value : acc), 0);
     return { last12mBuybacksSek: total || null };
-  }, [buybackData]);
+  }, [effectiveBuybackData]);
   const currentMandateRows = useMemo(
     () =>
-      (Array.isArray(buybackData) ? buybackData : []).filter(
+      effectiveBuybackData.filter(
         (row) => row?.Datum && row.Datum >= CURRENT_BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0
       ),
-    [buybackData]
+    [effectiveBuybackData]
   );
   const currentMandateShares = useMemo(
     () => currentMandateRows.reduce((sum, row) => sum + (Number(row?.Antal_aktier) || 0), 0),
     [currentMandateRows]
   );
-  const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(buybackData || []), [buybackData]);
+  const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(effectiveBuybackData), [effectiveBuybackData]);
   const latestEvolutionShares = useMemo(
     () => (evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : null),
     [evolutionOwnershipData]
@@ -100,9 +103,10 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
         const source = Array.isArray(json?.combined)
           ? json.combined
           : Array.isArray(json?.old) && Array.isArray(json?.current)
-            ? [...json.old, ...json.current]
+            ? combineBuybackSnapshots(json.old, json.current)
             : null;
         if (!source) return;
+        setRemoteBuybackData(source);
         const ownership = calculateEvolutionOwnershipPerYear(source);
         const latest = ownership.length ? ownership[ownership.length - 1].shares : null;
         if (active && Number.isFinite(latest)) setOwnershipFromApi(latest);
