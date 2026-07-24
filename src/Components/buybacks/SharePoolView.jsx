@@ -53,6 +53,8 @@ export default function SharePoolView({
   latestWeekShares = 0,
   latestWeekTradingDays = 0,
   latestWeekEnd,
+  displayWeekEnd,
+  isForecast = false,
 }) {
   const translate = useTranslate();
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -70,7 +72,7 @@ export default function SharePoolView({
   );
   const outstandingPct = pool.issuedShares > 0 ? (pool.illustrativeOutstandingShares / pool.issuedShares) * 100 : 0;
   const treasuryPct = pool.issuedShares > 0 ? (pool.illustrativeTreasuryShares / pool.issuedShares) * 100 : 0;
-  const weekLabel = latestWeekEnd ? new Date(latestWeekEnd).toLocaleDateString("sv-SE") : "–";
+  const weekLabel = (displayWeekEnd || latestWeekEnd) ? new Date(displayWeekEnd || latestWeekEnd).toLocaleDateString("sv-SE") : "–";
 
   return (
     <Box sx={{ width: "100%", background: COLORS.surface, borderRadius: "20px", border: `1px solid ${COLORS.border}`, boxShadow: "0 18px 40px rgba(8,15,40,0.46)", px: { xs: 1.2, md: 3 }, py: { xs: 2.4, md: 3.2 } }}>
@@ -80,10 +82,10 @@ export default function SharePoolView({
             {translate("Aktiepoolen i rörelse", "The share pool in motion")}
           </Typography>
           <Typography sx={{ color: COLORS.secondary, lineHeight: 1.6, mt: 0.7, maxWidth: 800 }}>
-            {translate("Verifierade återköp uppdateras när veckans data publiceras. Från måndag räknar vi en tydligt markerad uppskattning baserad på den senaste veckans takt, tills nästa rapport ersätter den med faktiska köp.", "Verified buybacks update when the weekly data is published. From Monday, we show a clearly marked estimate based on the latest weekly pace until the next report replaces it with actual purchases.")}
+            {translate("Verifierade återköp uppdateras när veckans data publiceras. Från måndag räknar vi en tydligt markerad uppskattning från 25%-prognosen, tills nästa rapport ersätter den med faktiska köp.", "Verified buybacks update when the weekly data is published. From Monday, we show a clearly marked estimate from the 25% forecast until the next report replaces it with actual purchases.")}
           </Typography>
         </Box>
-        <Chip label={translate(`Senaste rapportvecka slutar ${weekLabel}`, `Latest report week ends ${weekLabel}`)} size="small" sx={{ alignSelf: { xs: "flex-start", md: "flex-start" }, color: "#bae6fd", backgroundColor: "rgba(14,116,144,0.25)", border: "1px solid rgba(56,189,248,0.3)" }} />
+        <Chip label={translate(`${isForecast ? "Prognosvecka" : "Senaste rapportvecka"} slutar ${weekLabel}`, `${isForecast ? "Forecast week" : "Latest report week"} ends ${weekLabel}`)} size="small" sx={{ alignSelf: { xs: "flex-start", md: "flex-start" }, color: "#bae6fd", backgroundColor: "rgba(14,116,144,0.25)", border: "1px solid rgba(56,189,248,0.3)" }} />
       </Stack>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr auto 1fr" }, gap: 1.6, alignItems: "stretch", mt: 2.5 }}>

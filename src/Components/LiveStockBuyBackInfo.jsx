@@ -506,6 +506,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
     [combinedBuybacks]
   );
+  const latestVerifiedBuybackDate = useMemo(
+    () => currentMandateData.reduce((latest, row) => {
+      const date = String(row?.Datum || '').slice(0, 10);
+      return date > latest ? date : latest;
+    }, ''),
+    [currentMandateData]
+  );
 
   const returns = useMemo(() => calculateShareholderReturns(dividendData || {}, combinedBuybacks), [dividendData, combinedBuybacks]);
   const chartReturns = useMemo(
@@ -1012,9 +1019,11 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
           <SharePoolView
             totalShares={latestTotalSharesCount}
             verifiedTreasuryShares={stats.sharesBought}
-            latestWeekShares={weekNow.totalShares}
-            latestWeekTradingDays={weekNow.entries.length}
-            latestWeekEnd={weekNow.periodEnd}
+            latestWeekShares={weeklyBuybackEstimate?.estimatedShares || weekNow.totalShares}
+            latestWeekTradingDays={weeklyBuybackEstimate?.tradingDays || weekNow.entries.length}
+            latestWeekEnd={latestVerifiedBuybackDate || weekNow.periodEnd}
+            displayWeekEnd={weeklyBuybackEstimate?.periodEnd || weekNow.periodEnd}
+            isForecast={Boolean(weeklyBuybackEstimate)}
           />
         </Box>
       )}
