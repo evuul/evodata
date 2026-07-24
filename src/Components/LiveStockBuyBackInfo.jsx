@@ -43,6 +43,7 @@ import TotalSharesView from './buybacks/TotalSharesView';
 import HistoryView from './buybacks/HistoryView';
 import ReturnsView from './buybacks/ReturnsView';
 import FreeFloatView from './buybacks/FreeFloatView';
+import SharePoolView from './buybacks/SharePoolView';
 import LiveStockBuyBackOverviewSection from './LiveStockBuyBackOverviewSection';
 import {
   buybackDataForGraphDaily as buildDaily,
@@ -86,6 +87,7 @@ const SUB_VIEWS = [
   { value: 'overview', labelSv: 'Översikt', labelEn: 'Overview' },
   { value: 'ownership', labelSv: 'Evolutions ägande', labelEn: "Evolution's ownership" },
   { value: 'total', labelSv: 'Totala aktier', labelEn: 'Total shares' },
+  { value: 'pool', labelSv: 'Aktiepool', labelEn: 'Share pool' },
   { value: 'freeFloat', labelSv: 'Free float', labelEn: 'Free float' },
   { value: 'history', labelSv: 'Återköpshistorik', labelEn: 'Buyback history' },
   { value: 'returns', labelSv: 'Återinvestering', labelEn: 'Capital returns' },
@@ -1001,6 +1003,18 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             yDomain={getYDomain(totalSharesData, 'totalShares')}
             yTicks={getYTickValues(totalSharesData, 'totalShares', 'yearly')}
           formatYAxisTick={formatYAxisTick}
+          />
+        </Box>
+      )}
+
+      {subView === 'pool' && (
+        <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
+          <SharePoolView
+            totalShares={latestTotalSharesCount}
+            verifiedTreasuryShares={stats.sharesBought}
+            latestWeekShares={weekNow.totalShares}
+            latestWeekTradingDays={weekNow.entries.length}
+            latestWeekEnd={weekNow.periodEnd}
           />
         </Box>
       )}
