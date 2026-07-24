@@ -173,3 +173,17 @@ test("buildBuybackWeeklyEstimate estimates the current report week from the late
   assert.equal(estimate.estimatedShares, 900);
   assert.equal(estimate.projectedRemainingShares, 900);
 });
+
+test("buildBuybackWeeklyEstimate ignores an incomplete current-day volume", () => {
+  const volumeByDate = new Map(Array.from({ length: 21 }, (_, index) => {
+    const date = new Date("2026-06-01T12:00:00");
+    date.setDate(date.getDate() + index);
+    return [date.toISOString().slice(0, 10), index === 20 ? 9_000 : 1_000];
+  }));
+  const estimate = buildBuybackWeeklyEstimate([], volumeByDate, {
+    referenceDate: new Date("2026-06-21T12:00:00"),
+  });
+
+  assert.ok(estimate);
+  assert.equal(estimate.rows[0].estimatedShares, 250);
+});

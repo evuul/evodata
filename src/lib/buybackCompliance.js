@@ -311,7 +311,10 @@ export const buildBuybackWeeklyEstimate = (
   volumeByDate,
   { referenceDate = new Date(), utilizationWindow = 5, rollingDays = ROLLING_VOLUME_DAYS, maxShare = MAX_DAILY_VOLUME_SHARE } = {}
 ) => {
-  const volumeEntries = normalizeVolumeSource(volumeByDate);
+  const normalizedVolumeEntries = normalizeVolumeSource(volumeByDate);
+  const referenceDateKey = formatDateFromDate(referenceDate);
+  const completedVolumeEntries = normalizedVolumeEntries.filter(([date]) => date < referenceDateKey);
+  const volumeEntries = completedVolumeEntries.length >= rollingDays ? completedVolumeEntries : normalizedVolumeEntries;
   if (volumeEntries.length < rollingDays) {
     return null;
   }
@@ -319,6 +322,7 @@ export const buildBuybackWeeklyEstimate = (
   const rows = Array.isArray(complianceRows) ? complianceRows : [];
   const measured = rows
     .filter((row) => Number.isFinite(row?.actualShares) && Number.isFinite(row?.maxAllowedShares) && row.maxAllowedShares > 0)
+    .filter((row) => !row?.date || String(row.date).slice(0, 10) < referenceDateKey)
     .filter((row) => Number(row.actualShares) > 0 && Number.isFinite(row.utilizationPct));
   const recentMeasured = measured.slice(-Math.max(utilizationWindow, 1));
   const utilizationRate =
