@@ -20,7 +20,19 @@ test("moves the illustrative share pool between outstanding and treasury shares"
   });
 
   assert.equal(result.outstandingShares, 900);
-  assert.equal(result.illustrativeBoughtToday, 10);
+  assert.equal(result.illustrativeBoughtSinceWeekStart, 10);
   assert.equal(result.illustrativeTreasuryShares, 110);
   assert.equal(result.illustrativeOutstandingShares, 890);
+});
+
+test("caps the estimate at a full five-day reporting week", () => {
+  const result = calculateIllustrativeSharePool({
+    totalShares: 10_000,
+    verifiedTreasuryShares: 100,
+    latestWeekShares: 1_000,
+    tradingDays: 5,
+    secondsElapsed: 6 * 86_400,
+  });
+
+  assert.equal(result.illustrativeBoughtSinceWeekStart, 1_000);
 });

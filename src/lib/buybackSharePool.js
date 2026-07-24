@@ -1,6 +1,6 @@
 // Derives a clearly labelled illustrative intraday share-pool pace from verified buybacks.
 
-const SECONDS_PER_DAY = 24 * 60 * 60;
+export const SECONDS_PER_DAY = 24 * 60 * 60;
 
 const toPositiveNumber = (value) => {
   const number = Number(value);
@@ -27,9 +27,10 @@ export const calculateIllustrativeSharePool = ({
   const issuedShares = toPositiveNumber(totalShares);
   const verifiedTreasury = Math.min(toPositiveNumber(verifiedTreasuryShares), issuedShares);
   const { dailyShares, sharesPerSecond } = calculateBuybackPace({ latestWeekShares, tradingDays });
-  const elapsed = Math.min(Math.max(Number(secondsElapsed) || 0, 0), SECONDS_PER_DAY);
-  const illustrativeBoughtToday = Math.min(sharesPerSecond * elapsed, Math.max(issuedShares - verifiedTreasury, 0));
-  const illustrativeTreasuryShares = verifiedTreasury + illustrativeBoughtToday;
+  const maximumEstimateSeconds = Math.max(toPositiveNumber(tradingDays), 1) * SECONDS_PER_DAY;
+  const elapsed = Math.min(Math.max(Number(secondsElapsed) || 0, 0), maximumEstimateSeconds);
+  const illustrativeBoughtSinceWeekStart = Math.min(sharesPerSecond * elapsed, Math.max(issuedShares - verifiedTreasury, 0));
+  const illustrativeTreasuryShares = verifiedTreasury + illustrativeBoughtSinceWeekStart;
 
   return {
     issuedShares,
@@ -37,7 +38,7 @@ export const calculateIllustrativeSharePool = ({
     outstandingShares: issuedShares - verifiedTreasury,
     dailyShares,
     sharesPerSecond,
-    illustrativeBoughtToday,
+    illustrativeBoughtSinceWeekStart,
     illustrativeTreasuryShares,
     illustrativeOutstandingShares: issuedShares - illustrativeTreasuryShares,
   };

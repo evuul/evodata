@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useTranslate } from "@/context/LocaleContext";
-import { calculateIllustrativeSharePool } from "@/lib/buybackSharePool";
+import { calculateIllustrativeSharePool, SECONDS_PER_DAY } from "@/lib/buybackSharePool";
 
 const COLORS = {
   surface: "rgba(15,23,42,0.62)",
@@ -17,16 +17,34 @@ const COLORS = {
 
 const formatShares = (value, maximumFractionDigits = 0) => Number(value || 0).toLocaleString("sv-SE", { maximumFractionDigits });
 
-const getStockholmSecondsSinceMidnight = () => {
+const getStockholmTimeParts = () => {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Stockholm",
     hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
   }).formatToParts(new Date());
   const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
-  return (values.hour || 0) * 3_600 + (values.minute || 0) * 60 + (values.second || 0);
+  return values;
+};
+
+const getEstimateSecondsSinceVerifiedWeek = (latestWeekEnd) => {
+  if (!latestWeekEnd) return 0;
+  const latest = new Date(latestWeekEnd);
+  if (Number.isNaN(latest.getTime())) return 0;
+
+  const parts = getStockholmTimeParts();
+  const currentDate = Date.UTC(parts.year, (parts.month || 1) - 1, parts.day || 1);
+  const verifiedDate = Date.UTC(latest.getFullYear(), latest.getMonth(), latest.getDate());
+  const nextMondayOffset = ((8 - latest.getDay()) % 7) || 7;
+  const estimateStart = verifiedDate + nextMondayOffset * SECONDS_PER_DAY * 1_000;
+  const elapsedDays = Math.floor((currentDate - estimateStart) / (SECONDS_PER_DAY * 1_000));
+  const secondsToday = (parts.hour || 0) * 3_600 + (parts.minute || 0) * 60 + (parts.second || 0);
+  return Math.max(elapsedDays * SECONDS_PER_DAY + secondsToday, 0);
 };
 
 export default function SharePoolView({
@@ -40,11 +58,11 @@ export default function SharePoolView({
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
   useEffect(() => {
-    const update = () => setSecondsElapsed(getStockholmSecondsSinceMidnight());
+    const update = () => setSecondsElapsed(getEstimateSecondsSinceVerifiedWeek(latestWeekEnd));
     update();
     const timer = window.setInterval(update, 1_000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [latestWeekEnd]);
 
   const pool = useMemo(
     () => calculateIllustrativeSharePool({ totalShares, verifiedTreasuryShares, latestWeekShares, tradingDays: latestWeekTradingDays, secondsElapsed }),
@@ -62,7 +80,7 @@ export default function SharePoolView({
             {translate("Aktiepoolen i rörelse", "The share pool in motion")}
           </Typography>
           <Typography sx={{ color: COLORS.secondary, lineHeight: 1.6, mt: 0.7, maxWidth: 800 }}>
-            {translate("Verifierade återköp uppdateras när veckans data publiceras. Rörelsen nedan visar den senaste veckans snitt, utslaget jämnt över 24 timmar.", "Verified buybacks update when the weekly data is published. The movement below spreads the latest weekly average evenly across 24 hours.")}
+            {translate("Verifierade återköp uppdateras när veckans data publiceras. Från måndag räknar vi en tydligt markerad uppskattning baserad på den senaste veckans takt, tills nästa rapport ersätter den med faktiska köp.", "Verified buybacks update when the weekly data is published. From Monday, we show a clearly marked estimate based on the latest weekly pace until the next report replaces it with actual purchases.")}
           </Typography>
         </Box>
         <Chip label={translate(`Senaste rapportvecka slutar ${weekLabel}`, `Latest report week ends ${weekLabel}`)} size="small" sx={{ alignSelf: { xs: "flex-start", md: "flex-start" }, color: "#bae6fd", backgroundColor: "rgba(14,116,144,0.25)", border: "1px solid rgba(56,189,248,0.3)" }} />
@@ -100,7 +118,7 @@ export default function SharePoolView({
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.4, mt: 2.1 }}>
         <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Utgivna aktier", "Issued shares")}</Typography><Typography sx={{ color: COLORS.primary, fontWeight: 700 }}>{formatShares(pool.issuedShares)}</Typography></Box>
         <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Verifierat EVO-innehav", "Verified EVO holding")}</Typography><Typography sx={{ color: COLORS.success, fontWeight: 700 }}>{formatShares(pool.verifiedTreasuryShares)}</Typography></Box>
-        <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Illustrativ ökning idag", "Illustrative increase today")}</Typography><Typography sx={{ color: COLORS.accent, fontWeight: 700 }}>+{formatShares(pool.illustrativeBoughtToday)}</Typography></Box>
+        <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Estimerat köpt denna vecka", "Estimated bought this week")}</Typography><Typography sx={{ color: COLORS.accent, fontWeight: 700 }}>+{formatShares(pool.illustrativeBoughtSinceWeekStart)}</Typography></Box>
       </Box>
     </Box>
   );
