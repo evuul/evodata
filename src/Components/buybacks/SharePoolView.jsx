@@ -82,7 +82,7 @@ export default function SharePoolView({
             {translate("Aktiepoolen i rörelse", "The share pool in motion")}
           </Typography>
           <Typography sx={{ color: COLORS.secondary, lineHeight: 1.6, mt: 0.7, maxWidth: 800 }}>
-            {translate("Verifierade återköp uppdateras när veckans data publiceras. Från måndag räknar vi en tydligt markerad uppskattning från 25%-prognosen, tills nästa rapport ersätter den med faktiska köp.", "Verified buybacks update when the weekly data is published. From Monday, we show a clearly marked estimate from the 25% forecast until the next report replaces it with actual purchases.")}
+            {translate("Verifierade återköp uppdateras när veckans data publiceras. Veckoprognosen är utslagen jämnt över måndag–fredag (5 × 24 timmar). Faktiska återköp genomförs under Nasdaq Stockholms öppettider, cirka 09:00–17:30.", "Verified buybacks update when the weekly data is published. The weekly forecast is spread evenly across Monday–Friday (5 × 24 hours). Actual buybacks are executed during Nasdaq Stockholm market hours, approximately 09:00–17:30.")}
           </Typography>
         </Box>
         <Chip label={translate(`${isForecast ? "Prognosvecka" : "Senaste rapportvecka"} slutar ${weekLabel}`, `${isForecast ? "Forecast week" : "Latest report week"} ends ${weekLabel}`)} size="small" sx={{ alignSelf: { xs: "flex-start", md: "flex-start" }, color: "#bae6fd", backgroundColor: "rgba(14,116,144,0.25)", border: "1px solid rgba(56,189,248,0.3)" }} />
