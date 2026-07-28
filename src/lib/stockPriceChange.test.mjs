@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
   calculateDailyCloseChangePercent,
+  calculateMarketOpenChangePercent,
   calculateQuoteChangePercent,
 } from "./stockPriceChange.js";
 
@@ -23,6 +24,14 @@ test("quote change uses the latest close when today's daily candle is missing", 
   });
 
   assertApproximatelyEqual(changePercent, -1.2802275960170697);
+});
+
+test("market-open change resets the intraday comparison at the opening price", () => {
+  assertApproximatelyEqual(
+    calculateMarketOpenChangePercent({ currentPrice: 737.2, marketOpen: 730 }),
+    0.9863013698630136
+  );
+  assert.equal(calculateMarketOpenChangePercent({ currentPrice: 737.2, marketOpen: null }), null);
 });
 
 test("quote change prefers explicit previous close over a stale daily series", () => {

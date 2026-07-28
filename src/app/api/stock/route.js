@@ -3,10 +3,7 @@
 import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
-import {
-  calculateDailyCloseChangePercent,
-  calculateQuoteChangePercent,
-} from "@/lib/stockPriceChange";
+import { calculateMarketOpenChangePercent } from "@/lib/stockPriceChange";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -200,6 +197,7 @@ function setState(symbol, patch) {
 function buildPayload({
   currentPrice,
   changePercent,
+  marketOpen,
   previousClose,
   historicalData,
   now,
@@ -240,6 +238,7 @@ function buildPayload({
       regularMarketChangePercent: {
         raw: Number.isFinite(changePercent) ? changePercent : null,
       },
+      regularMarketOpen: Number.isFinite(marketOpen) ? marketOpen : null,
       regularMarketPreviousClose: Number.isFinite(previousClose) ? previousClose : null,
     },
     marketCap,
@@ -274,9 +273,10 @@ async function fetchStooqDaily(symbol) {
     const parts = lines[i].split(",");
     if (parts.length < 6) continue;
     const date = new Date(parts[0]);
+    const open = Number(parts[1]);
     const close = Number(parts[4]);
     if (!date || Number.isNaN(date.getTime()) || !Number.isFinite(close)) continue;
-    rows.push({ date, close });
+    rows.push({ date, open: Number.isFinite(open) ? open : null, close });
   }
   if (!rows.length) {
     throw new Error("Stooq returned empty price series");
@@ -297,6 +297,9 @@ async function fetchYahooChartDaily(symbol) {
   const closes = Array.isArray(result?.indicators?.quote?.[0]?.close)
     ? result.indicators.quote[0].close
     : [];
+  const opens = Array.isArray(result?.indicators?.quote?.[0]?.open)
+    ? result.indicators.quote[0].open
+    : [];
   if (!timestamps.length || !closes.length) {
     throw new Error("Yahoo chart returned no data");
   }
@@ -306,7 +309,7 @@ async function fetchYahooChartDaily(symbol) {
     const close = closes[i];
     const date = new Date(ts * 1000);
     if (!Number.isFinite(close) || Number.isNaN(date.getTime())) continue;
-    rows.push({ date, close: Number(close) });
+    rows.push({ date, open: toPositiveNumber(opens[i]), close: Number(close) });
   }
   if (!rows.length) {
     throw new Error("Yahoo chart returned empty price series");
@@ -316,19 +319,15 @@ async function fetchYahooChartDaily(symbol) {
   const currentPrice = Number.isFinite(result?.meta?.regularMarketPrice)
     ? Number(result.meta.regularMarketPrice)
     : latest?.close ?? null;
-  const quoteTime = Number.isFinite(result?.meta?.regularMarketTime)
-    ? new Date(Number(result.meta.regularMarketTime) * 1000)
-    : null;
   const previousClose = toPositiveNumber(
     result?.meta?.previousClose ?? result?.meta?.regularMarketPreviousClose
   );
-  const changePercent = calculateQuoteChangePercent({
+  const marketOpen = toPositiveNumber(result?.meta?.regularMarketOpen) ?? toPositiveNumber(latest?.open);
+  const changePercent = calculateMarketOpenChangePercent({
     currentPrice,
-    dailyRows: rows,
-    quoteTime,
-    previousClose,
+    marketOpen,
   });
-  return { rows, currentPrice, changePercent, previousClose };
+  return { rows, currentPrice, changePercent, marketOpen, previousClose };
 }
 
 export async function GET(request) {
@@ -368,18 +367,21 @@ export async function GET(request) {
       let rows = [];
       let currentPrice = null;
       let changePercent = null;
+      let marketOpen = null;
       let previousClose = null;
       try {
         rows = await fetchStooqDaily(symbol);
         const latest = rows[rows.length - 1];
         currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
+        marketOpen = toPositiveNumber(latest?.open);
         previousClose = Number.isFinite(rows.at(-2)?.close) ? rows.at(-2).close : null;
-        changePercent = calculateDailyCloseChangePercent(rows);
+        changePercent = calculateMarketOpenChangePercent({ currentPrice, marketOpen });
       } catch {
         const chart = await fetchYahooChartDaily(symbol);
         rows = chart.rows;
         currentPrice = chart.currentPrice;
         changePercent = chart.changePercent;
+        marketOpen = chart.marketOpen;
         previousClose = chart.previousClose;
         source = "yahoo-chart";
       }
@@ -387,6 +389,7 @@ export async function GET(request) {
       const payload = buildPayload({
         currentPrice,
         changePercent,
+        marketOpen,
         previousClose,
         historicalData,
         now,
@@ -438,6 +441,7 @@ export async function GET(request) {
 
       let currentPrice = null;
       let changePercent = null;
+      let marketOpen = null;
       let previousClose = null;
       let historicalData = [];
 
@@ -461,23 +465,18 @@ export async function GET(request) {
             const date = row?.date ? new Date(row.date) : null;
             const close = Number(row?.close ?? row?.adjClose);
             if (!date || Number.isNaN(date.getTime()) || !Number.isFinite(close)) return null;
-            return { date, close };
+            return { date, open: toPositiveNumber(row?.open), close };
           })
           .filter((row) => row && row.date >= period1 && row.date <= now)
           .sort((a, b) => a.date - b.date);
         currentPrice = Number(quote?.regularMarketPrice);
+        marketOpen = toPositiveNumber(quote?.regularMarketOpen);
         previousClose = toPositiveNumber(quote?.regularMarketPreviousClose);
-        const calculatedQuoteChange = calculateQuoteChangePercent({
+        const calculatedOpenChange = calculateMarketOpenChangePercent({
           currentPrice,
-          dailyRows: historicalData,
-          quoteTime: quote?.regularMarketTime,
-          previousClose,
+          marketOpen,
         });
-        changePercent = Number.isFinite(calculatedQuoteChange)
-          ? calculatedQuoteChange
-          : Number.isFinite(Number(quote?.regularMarketChangePercent))
-          ? Number(quote.regularMarketChangePercent)
-          : null;
+        changePercent = Number.isFinite(calculatedOpenChange) ? calculatedOpenChange : null;
       } catch (err) {
         const normalized = normalizeError(err);
         yahooRateLimited = normalized.rateLimited;
@@ -486,14 +485,16 @@ export async function GET(request) {
           historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
           const latest = rows[rows.length - 1];
           currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
+          marketOpen = toPositiveNumber(latest?.open);
           previousClose = Number.isFinite(rows.at(-2)?.close) ? rows.at(-2).close : null;
-          changePercent = calculateDailyCloseChangePercent(rows);
+          changePercent = calculateMarketOpenChangePercent({ currentPrice, marketOpen });
           source = "stooq";
         } catch (stooqErr) {
           const chart = await fetchYahooChartDaily(symbol);
           historicalData = chart.rows.filter((row) => row.date >= period1 && row.date <= now);
           currentPrice = chart.currentPrice;
           changePercent = chart.changePercent;
+          marketOpen = chart.marketOpen;
           previousClose = chart.previousClose;
           source = "yahoo-chart";
         }
@@ -503,6 +504,7 @@ export async function GET(request) {
         payload: buildPayload({
           currentPrice,
           changePercent,
+          marketOpen,
           previousClose,
           historicalData,
           now,

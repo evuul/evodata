@@ -5,7 +5,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const StockPriceContext = createContext();
-const STOCK_QUOTE_CACHE_VERSION = 'v3';
+const STOCK_QUOTE_CACHE_VERSION = 'v4';
 
 export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInterval = 300000, enabled = true }) => {
   const [stockPrice, setStockPrice] = useState(null);

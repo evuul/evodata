@@ -153,8 +153,11 @@ export function useLiveHeaderModel() {
       })} SEK`
     : translate("Saknas", "N/A");
   const changeDisplay = Number.isFinite(stockChangeValue)
-    ? `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}%`
-    : "—";
+    ? translate(
+        `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% sedan öppning`,
+        `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% since open`
+      )
+    : translate("Saknar öppningskurs", "Opening price unavailable");
   const changeColor = Number.isFinite(stockChangeValue)
     ? stockChangeValue > 0
       ? "#34d399"

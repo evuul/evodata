@@ -43,6 +43,13 @@ function calculatePercentChange(currentPrice, previousClose) {
   return ((currentPrice - previousClose) / previousClose) * 100;
 }
 
+export function calculateMarketOpenChangePercent({ currentPrice, marketOpen }) {
+  const openingPrice = Number(marketOpen);
+  return Number.isFinite(openingPrice) && openingPrice > 0
+    ? calculatePercentChange(Number(currentPrice), openingPrice)
+    : null;
+}
+
 function countWeekdaysBetween(startDateKey, endDateKey) {
   if (!startDateKey || !endDateKey || startDateKey >= endDateKey) return 0;
 
