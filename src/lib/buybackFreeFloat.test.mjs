@@ -2,12 +2,22 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  FREE_FLOAT_OWNER_ASSUMPTIONS,
   buildShareholderRows,
   calculateBuybackPctOfFreeFloat,
   calculateIndicativeFreeFloat,
   calculateShareholderOverview,
   buildInsiderOwnershipTrend,
 } from "./buybackFreeFloat.js";
+
+test("keeps Candle Lake's flagged holding in the ownership list", () => {
+  const candleLake = FREE_FLOAT_OWNER_ASSUMPTIONS.find((owner) => owner.id === "dart");
+
+  assert.deepEqual(
+    { shares: candleLake?.shares, holdingDate: candleLake?.holdingDate },
+    { shares: 59_798_619, holdingDate: "2026-07-24" }
+  );
+});
 
 test("calculates free float after treasury shares and excluded strategic owners", () => {
   const result = calculateIndicativeFreeFloat({

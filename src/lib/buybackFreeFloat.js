@@ -4,8 +4,8 @@ export const FREE_FLOAT_OWNER_ASSUMPTIONS = Object.freeze([
   Object.freeze({
     id: "dart",
     name: "Candle Lake Ltd (Kenneth Dart)",
-    shares: 49_736_705,
-    holdingDate: "2026-04-14",
+    shares: 59_798_619,
+    holdingDate: "2026-07-24",
     category: "Strategisk ägare",
     excludeFromStrategicFloat: true,
   }),
