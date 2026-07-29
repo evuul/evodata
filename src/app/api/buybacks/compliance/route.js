@@ -1,40 +1,23 @@
+// Builds buyback compliance metrics from validated public query parameters.
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { ensureRecentBuybackSync, readBuybackFiles } from "@/lib/buybacksSync";
+import { readBuybackFiles } from "@/lib/buybacksSync";
 import { buildBuybackComplianceSeries, summarizeBuybackCompliance } from "@/lib/buybackCompliance";
 import { fetchYahooTradingVolumeByDate } from "@/lib/yahooVolumeHistory";
+import { normalizeComplianceRange, normalizeIsoDate } from "@/lib/buybackRequestValidation";
 
 const BUYBACKS_ACTIVE = (process.env.BUYBACKS_ACTIVE ?? "1") === "1";
 const DEFAULT_SYMBOL = "EVO.ST";
 const DEFAULT_RANGE = "1y";
 const DEFAULT_START_DATE = "2026-05-18";
 
-function isMondayInStockholm(date = new Date()) {
-  const weekday = new Intl.DateTimeFormat("en-US", {
-    weekday: "short",
-    timeZone: "Europe/Stockholm",
-  }).format(date);
-  return weekday === "Mon";
-}
-
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const force = searchParams.get("force") === "1";
-  const startDate = searchParams.get("startDate") || DEFAULT_START_DATE;
-  const range = searchParams.get("range") || DEFAULT_RANGE;
-  const shouldSync = BUYBACKS_ACTIVE && (force || isMondayInStockholm());
-  let syncError = null;
-
-  if (shouldSync) {
-    try {
-      await ensureRecentBuybackSync();
-    } catch (err) {
-      syncError = err instanceof Error ? err.message : String(err);
-      console.error("Auto buyback sync failed for compliance:", syncError);
-    }
-  }
+  const startDate = normalizeIsoDate(searchParams.get("startDate"), DEFAULT_START_DATE);
+  const range = normalizeComplianceRange(searchParams.get("range"), DEFAULT_RANGE);
 
   try {
     const { oldData, curData } = await readBuybackFiles();
@@ -52,7 +35,7 @@ export async function GET(request) {
         symbol: DEFAULT_SYMBOL,
         source,
         buybacksActive: BUYBACKS_ACTIVE,
-        syncError,
+        syncError: null,
         startDate,
         range,
       },
@@ -62,11 +45,11 @@ export async function GET(request) {
     return NextResponse.json(
       {
         ok: false,
-        error: err instanceof Error ? err.message : String(err),
+        error: "Buyback compliance data is temporarily unavailable",
         updatedAt: new Date().toISOString(),
         symbol: DEFAULT_SYMBOL,
         buybacksActive: BUYBACKS_ACTIVE,
-        syncError,
+        syncError: null,
         startDate,
         range,
       },

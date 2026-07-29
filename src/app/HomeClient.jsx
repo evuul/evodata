@@ -4,7 +4,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import LiveHeader from "@/Components/LiveHeader";
 import { useAuth } from "@/context/AuthContext";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
@@ -111,21 +111,26 @@ function LoadingState({ label = "Laddar dashboards ..." }) {
   );
 }
 
-function ErrorState() {
+function ErrorState({ onRetry }) {
   return (
     <main>
       <Box
         sx={{
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           minHeight: "60vh",
           color: "rgba(248,113,113,0.9)",
           px: 2,
           textAlign: "center",
+          gap: 1.5,
         }}
       >
         <Typography variant="body2">Kunde inte ladda dashboarddata. Försök igen om en stund.</Typography>
+        <Button variant="outlined" color="inherit" onClick={onRetry}>
+          Försök igen
+        </Button>
       </Box>
     </main>
   );
@@ -134,6 +139,7 @@ function ErrorState() {
 export default function HomeClient() {
   const { isAuthenticated, initialized } = useAuth();
   const [dashboardData, setDashboardData] = useState(emptyDataState);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     if (!initialized) return undefined;
@@ -153,14 +159,14 @@ export default function HomeClient() {
     return () => {
       cancelled = true;
     };
-  }, [initialized, isAuthenticated]);
+  }, [initialized, isAuthenticated, retryKey]);
 
   if (!initialized || dashboardData.loading) {
     return <LoadingState />;
   }
 
   if (dashboardData.error || !dashboardData.value) {
-    return <ErrorState />;
+    return <ErrorState onRetry={() => setRetryKey((value) => value + 1)} />;
   }
 
   if (!isAuthenticated) {

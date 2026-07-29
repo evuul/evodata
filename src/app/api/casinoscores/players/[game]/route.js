@@ -1,4 +1,6 @@
 // src/app/api/casinoscores/players/[game]/route.js
+// Returns live player data for a validated game and protects maintenance bypasses.
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -176,11 +178,11 @@ export async function GET(req, ctx) {
       (searchParams.get("variant") || "").toLowerCase() === "a"
         ? "a"
         : "default";
-    const force = searchParams.get("force") === "1";
     const cronRequested = searchParams.get("cron") === "1";
     const cronHeader = req.headers.get("x-cs-cron-secret") || "";
     const cronAuthorized = Boolean(CRON_SECRET) && cronRequested && cronHeader === CRON_SECRET;
-    const debug = searchParams.get("debug") === "1";
+    const force = cronAuthorized && searchParams.get("force") === "1";
+    const debug = cronAuthorized && searchParams.get("debug") === "1";
 
     recordCostEvent({
       endpoint: "/api/casinoscores/players/[game]",

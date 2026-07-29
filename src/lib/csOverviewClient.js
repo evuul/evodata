@@ -1,5 +1,7 @@
 'use client';
 
+// Deduplicates client requests for the shared lobby overview.
+
 import { parseJsonResponse } from "@/lib/apiResponse";
 
 const MEM_TTL_MS = 60 * 1000;
@@ -27,7 +29,7 @@ export async function fetchOverviewSharedWithOptions(days, options = {}) {
 
   const promise = (async () => {
     try {
-      const query = force ? `days=${key}&force=1` : `days=${key}`;
+      const query = `days=${key}`;
       const response = await fetch(`/api/casinoscores/lobby/overview?${query}`);
       const json = await parseJsonResponse(response);
       memCache.set(cacheKey, { data: json, exp: Date.now() + MEM_TTL_MS });

@@ -36,7 +36,9 @@ import InsightsIcon from "@mui/icons-material/Insights";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";
+import DataStatusLine from "./DataStatusLine";
 import { useLocale, useTranslate, LOCALE_OPTIONS } from "@/context/LocaleContext";
+import { buildDataStatus } from "@/lib/dataStatus";
 import { parseJsonResponse } from "@/lib/apiResponse";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import { fetchShortHistory } from "@/lib/shortSnapshotClient";
@@ -129,7 +131,7 @@ const toneForCardKey = (key) => {
   return "base";
 };
 
-const StatCard = ({ icon, title, value, subtitle, badge, tone = "base" }) => {
+const StatCard = ({ icon, title, value, subtitle, badge, tone = "base", dataStatus, locale, translate }) => {
   const palette = CARD_TONES[tone] ?? CARD_TONES.base;
   return (
     <Card
@@ -186,6 +188,7 @@ const StatCard = ({ icon, title, value, subtitle, badge, tone = "base" }) => {
             </Typography>
           )}
         </Box>
+        <DataStatusLine status={dataStatus} locale={locale} translate={translate} />
       </CardContent>
     </Card>
   );
@@ -817,6 +820,83 @@ export default function LiveLoggedOutPreview({
     });
   }
 
+  const financialStatus = buildDataStatus({
+    type: "reported",
+    source: "Evolution",
+    observedLabel: latest ? `${latest.quarter} ${latest.year}` : null,
+    fallback: !latest,
+  });
+  const lobbyObservedAt = latestDay?.Datum ?? null;
+  const lobbyStatus = buildDataStatus({
+    type: "live",
+    source: "EvoTracker lobby",
+    observedAt: lobbyObservedAt,
+    fallback: !adjustedAveragePlayersData?.length,
+    maxAgeMs: 48 * 60 * 60 * 1000,
+  });
+  const staticGameDate = topGames.length
+    ? gameShowsData?.flatMap((game) => game?.playerData ?? []).map((row) => row?.date).filter(Boolean).sort().at(-1)
+    : null;
+  const statusByCardKey = {
+    "revenue-ath": buildDataStatus({
+      type: "reported",
+      source: "Evolution",
+      observedLabel: revenueAth ? `${revenueAth.quarter} ${revenueAth.year}` : null,
+      fallback: !revenueAth,
+    }),
+    "lobby-trend": lobbyStatus,
+    forecast: buildDataStatus({
+      type: "model",
+      source: "EvoTracker-modell",
+      observedAt: lobbyObservedAt,
+      fallback: !adjustedAveragePlayersData?.length,
+      maxAgeMs: 48 * 60 * 60 * 1000,
+    }),
+    "live-players": lobbyStatus,
+    "lobby-peak": lobbyStatus,
+    leaderboard: buildDataStatus({
+      type: "live",
+      source: "EvoTracker lobby",
+      observedAt: staticGameDate,
+      fallback: true,
+    }),
+    dividends: buildDataStatus({
+      type: "reported",
+      source: "Evolution",
+      observedAt: latestDividend?.date,
+      fallback: !latestDividend,
+    }),
+    "shareholder-return": buildDataStatus({
+      type: "reported",
+      source: "Evolution · MFN",
+      observedAt: buybackSummary?.latestDate,
+      fallback: !buybackSummary,
+    }),
+    buybacks: buildDataStatus({
+      type: "reported",
+      source: "MFN",
+      observedAt: buybackSummary?.latestDate,
+      fallback: !buybackSummary,
+    }),
+    "short-interest": buildDataStatus({
+      type: "reported",
+      source: "Finansinspektionen",
+      observedAt: shortTrend?.latest?.date,
+      fallback: !liveShortHistoryData?.length,
+      maxAgeMs: 7 * 24 * 60 * 60 * 1000,
+    }),
+    insider: buildDataStatus({
+      type: "reported",
+      source: "Finansinspektionen",
+      observedAt: latestInsiderBuy?.transactionDate,
+      fallback: !latestInsiderBuy,
+    }),
+  };
+  const cardsWithStatus = cards.map((card) => ({
+    ...card,
+    dataStatus: statusByCardKey[card.key] ?? financialStatus,
+  }));
+
   const theme = useTheme();
   const isSmUp = useMediaQuery(theme.breakpoints.up("sm"));
   const isMdUp = useMediaQuery(theme.breakpoints.up("md"));
@@ -826,7 +906,7 @@ export default function LiveLoggedOutPreview({
 
 
   const [page, setPage] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(cards.length / cardsPerPage));
+  const totalPages = Math.max(1, Math.ceil(cardsWithStatus.length / cardsPerPage));
 
   useEffect(() => {
     setPage(0);
@@ -837,7 +917,7 @@ export default function LiveLoggedOutPreview({
   }, [totalPages]);
 
   const startIndex = page * cardsPerPage;
-  const visibleCards = cards.slice(startIndex, startIndex + cardsPerPage);
+  const visibleCards = cardsWithStatus.slice(startIndex, startIndex + cardsPerPage);
 
   const handlePrev = () => {
     setPage((prev) => Math.max(prev - 1, 0));
@@ -912,6 +992,7 @@ export default function LiveLoggedOutPreview({
         </Typography>
         <Typography
           variant="h4"
+          component="h1"
           sx={{
             color: "#fff",
             fontWeight: 700,
@@ -1038,7 +1119,7 @@ export default function LiveLoggedOutPreview({
             }}
           >
             {visibleCards.map(({ key, ...card }) => (
-              <StatCard key={key} {...card} tone={toneForCardKey(key)} />
+              <StatCard key={key} {...card} tone={toneForCardKey(key)} locale={locale} translate={translate} />
             ))}
           </Box>
         </Box>

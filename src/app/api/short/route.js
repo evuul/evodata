@@ -1,3 +1,5 @@
+// Serves the cached Evolution short-interest snapshot for public dashboard reads.
+
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
@@ -5,12 +7,20 @@ import {
   EVO_LEI,
 } from "@/lib/fiShortRegister";
 import { resolveFiShortSnapshot } from "@/lib/fiShortSnapshot";
+import { logApiError } from "@/lib/apiErrors";
 
 const CACHE_CONTROL = "no-store, max-age=0, must-revalidate";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
-  const lei = searchParams.get('lei') || EVO_LEI;
+  const requestedLei = searchParams.get('lei');
+  if (requestedLei && requestedLei !== EVO_LEI) {
+    return new Response(JSON.stringify({ error: "Unsupported issuer" }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Cache-Control': CACHE_CONTROL },
+    });
+  }
+  const lei = EVO_LEI;
 
   try {
     const data = await resolveFiShortSnapshot({ lei });
@@ -37,8 +47,8 @@ export async function GET(request) {
       headers: { 'Content-Type': 'application/json', 'Cache-Control': CACHE_CONTROL },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ error: message }), {
+    logApiError({ route: "short", stage: "resolve-snapshot", error: err });
+    return new Response(JSON.stringify({ error: "Short-interest data is temporarily unavailable" }), {
       status: 500,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': CACHE_CONTROL },
     });

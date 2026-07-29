@@ -1,8 +1,11 @@
+// Authenticates users and provisions the explicitly configured demo account.
+
 import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPassword } from "@/lib/authStore";
 import { logAuthError } from "@/lib/authDebug";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { isConfiguredAdminEmail } from "@/lib/adminAccess";
+import { isDemoLogin, resolveDemoAccountConfig } from "@/lib/demoAccount";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,14 +17,13 @@ const json = (data, init = {}) =>
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
 
-const DEMO_EMAIL = "demo@evotracker.org";
-const DEMO_PASSWORD = process.env.DEMO_ACCOUNT_PASSWORD || "Demo12345!";
+const demoAccount = resolveDemoAccountConfig();
 
 const buildDemoUser = ({ now, existing }) => ({
-  email: DEMO_EMAIL,
+  email: demoAccount.email,
   firstName: "Rich",
   lastName: "Man",
-  passwordHash: hashPassword(DEMO_PASSWORD),
+  passwordHash: hashPassword(demoAccount.password),
   createdAt: existing?.createdAt || now,
   updatedAt: now,
   isSubscriber: false,
@@ -66,7 +68,7 @@ export async function POST(request) {
 
     stage = "read-user";
     let user = await getJson(getUserKey(email), { cache: false });
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+    if (isDemoLogin({ email, password }, demoAccount)) {
       stage = "seed-demo-user";
       const now = new Date().toISOString();
       user = buildDemoUser({ now, existing: user || null });

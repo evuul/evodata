@@ -7,6 +7,9 @@ import { Box, Chip, Grid, Stack, Typography } from "@mui/material";
 import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
+import DataStatusLine from "./DataStatusLine";
+import { useLocale } from "@/context/LocaleContext";
+import { buildDataStatus } from "@/lib/dataStatus";
 
 const LIVE_HEADER_OVERVIEW_CARDS = 4;
 
@@ -24,7 +27,7 @@ const cardShellSx = {
   maxWidth: { xs: "none", md: 320 },
 };
 
-function HeaderMetricCard({ title, dotColor, children }) {
+function HeaderMetricCard({ title, dotColor, children, dataStatus, locale, translate }) {
   return (
     <Box
       sx={{
@@ -46,6 +49,7 @@ function HeaderMetricCard({ title, dotColor, children }) {
           <Box sx={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: dotColor }} />
         </Stack>
         {children}
+        <DataStatusLine status={dataStatus} locale={locale} translate={translate} />
       </Box>
     </Box>
   );
@@ -206,7 +210,28 @@ export default function LiveHeaderOverviewSection({
   formatTime,
   compact = false,
 }) {
+  const { locale } = useLocale();
   const buybackUpdatedLabel = buybackSummary?.updatedAt ? formatTime(buybackSummary.updatedAt) : null;
+  const playerStatus = buildDataStatus({
+    type: "live",
+    source: "EvoTracker lobby",
+    observedLabel: playersUpdatedLabel,
+    fallback: !Number.isFinite(playersValue),
+    stale: liveTrackerOffline,
+  });
+  const marketStatus = buildDataStatus({
+    type: "live",
+    source: translate("Marknadsdata", "Market data"),
+    observedLabel: stockUpdatedLabel,
+    fallback: loadingPrice || !priceDisplay || priceDisplay === "—",
+  });
+  const buybackStatus = buildDataStatus({
+    type: "reported",
+    source: "MFN",
+    observedAt: buybackSummary?.updatedAt,
+    fallback: !buybackSummary || Boolean(buybackSummary?.fallback),
+    stale: Boolean(buybackSummary?.syncError),
+  });
   if (compact) {
     return (
       <Box
@@ -321,6 +346,9 @@ export default function LiveHeaderOverviewSection({
           <HeaderMetricCard
             title={translate("Live · spelare", "Live · players")}
             dotColor={liveTrackerOffline ? "#ef4444" : "#22c55e"}
+            dataStatus={playerStatus}
+            locale={locale}
+            translate={translate}
           >
             <Typography
               variant="h2"
@@ -400,7 +428,7 @@ export default function LiveHeaderOverviewSection({
             ) : null}
           </HeaderMetricCard>
 
-          <HeaderMetricCard title={translate("Aktiekurs", "Stock price")} dotColor="#38bdf8">
+          <HeaderMetricCard title={translate("Aktiekurs", "Stock price")} dotColor="#38bdf8" dataStatus={marketStatus} locale={locale} translate={translate}>
             <Typography
               variant="h2"
               sx={{
@@ -424,7 +452,7 @@ export default function LiveHeaderOverviewSection({
             </Typography>
           </HeaderMetricCard>
 
-          <HeaderMetricCard title={translate("Marknadsvärde", "Market cap")} dotColor="#c084fc">
+          <HeaderMetricCard title={translate("Marknadsvärde", "Market cap")} dotColor="#c084fc" dataStatus={marketStatus} locale={locale} translate={translate}>
             <Typography
               variant="h2"
               sx={{
@@ -442,7 +470,7 @@ export default function LiveHeaderOverviewSection({
             </Typography>
           </HeaderMetricCard>
 
-          <HeaderMetricCard title={translate("Återköp", "Buybacks")} dotColor="#34d399">
+          <HeaderMetricCard title={translate("Återköp", "Buybacks")} dotColor="#34d399" dataStatus={buybackStatus} locale={locale} translate={translate}>
             <Typography
               variant="h2"
               sx={{

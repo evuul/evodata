@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+// Summarizes dividends, buybacks and capital allocation for the Evolution dashboard.
+
+import { useMemo } from "react";
 import { Card, CardContent, Chip, Grid, Stack, Typography, Divider } from "@mui/material";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import PercentIcon from "@mui/icons-material/Percent";
@@ -14,6 +16,7 @@ import { useTranslate } from "@/context/LocaleContext";
 import { findLatestReport, sortReports } from "@/lib/reportUtils";
 import { calculateEvolutionOwnershipPerYear, totalSharesData } from "./buybacks/utils";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
+import { useBuybackData } from "./useBuybackData";
 
 const DEFAULT_MANDATE_SEK = Number(process.env.NEXT_PUBLIC_BUYBACK_MANDATE_SEK) || null;
 const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE !== "0";
@@ -33,9 +36,17 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
   const { stockPrice, marketCap, loading: loadingPrice } = useStockPriceContext();
   const { rate: fxRate } = useFxRateContext();
   const translate = useTranslate();
-  const [ownershipFromApi, setOwnershipFromApi] = useState(null);
-  const [remoteBuybackData, setRemoteBuybackData] = useState(null);
-  const effectiveBuybackData = Array.isArray(remoteBuybackData) ? remoteBuybackData : (Array.isArray(buybackData) ? buybackData : []);
+  const { data: buybackResponse } = useBuybackData({ enabled: BUYBACKS_ACTIVE });
+  const remoteBuybackData = useMemo(() => {
+    if (Array.isArray(buybackResponse?.combined)) return buybackResponse.combined;
+    if (Array.isArray(buybackResponse?.old) && Array.isArray(buybackResponse?.current)) {
+      return combineBuybackSnapshots(buybackResponse.old, buybackResponse.current);
+    }
+    return null;
+  }, [buybackResponse]);
+  const effectiveBuybackData = Array.isArray(remoteBuybackData)
+    ? remoteBuybackData
+    : (Array.isArray(buybackData) ? buybackData : []);
 
   const { latestDividend, ttmEps, ttmOcf, latestReport } = useMemo(() => {
     const reports = sortReports(financialReports?.financialReports || []);
@@ -92,33 +103,12 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     () => (evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : null),
     [evolutionOwnershipData]
   );
-  useEffect(() => {
-    let active = true;
-    if (!BUYBACKS_ACTIVE) return () => {};
-    const load = async () => {
-      try {
-        const res = await fetch("/api/buybacks/data");
-        if (!res.ok) return;
-        const json = await res.json();
-        const source = Array.isArray(json?.combined)
-          ? json.combined
-          : Array.isArray(json?.old) && Array.isArray(json?.current)
-            ? combineBuybackSnapshots(json.old, json.current)
-            : null;
-        if (!source) return;
-        setRemoteBuybackData(source);
-        const ownership = calculateEvolutionOwnershipPerYear(source);
-        const latest = ownership.length ? ownership[ownership.length - 1].shares : null;
-        if (active && Number.isFinite(latest)) setOwnershipFromApi(latest);
-      } catch {
-        /* ignore API errors */
-      }
-    };
-    load();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const ownershipFromApi = useMemo(() => {
+    if (!remoteBuybackData) return null;
+    const ownership = calculateEvolutionOwnershipPerYear(remoteBuybackData);
+    const latest = ownership.length ? ownership[ownership.length - 1].shares : null;
+    return Number.isFinite(latest) ? latest : null;
+  }, [remoteBuybackData]);
   const sharesExOwnership = useMemo(() => {
     if (!Number.isFinite(sharesOutstanding)) return null;
     const owned = currentMandateShares > 0

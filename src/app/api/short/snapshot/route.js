@@ -1,3 +1,5 @@
+// Persists FI short-interest snapshots from authenticated maintenance jobs.
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
@@ -5,10 +7,13 @@ export const runtime = "nodejs";
 import { loadShortHistory, saveShortHistory } from "@/lib/shortHistoryStore";
 import { EVO_LEI } from "@/lib/fiShortRegister";
 import { resolveFiShortSnapshot, stockholmYmd } from "@/lib/fiShortSnapshot";
+import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
+import { logApiError } from "@/lib/apiErrors";
 
 const OUTLIER_WINDOW_DAYS = 10;
 const OUTLIER_BAND_MARGIN_PP = 0.75;
 const OUTLIER_MIN_DELTA_PP = 1.5;
+const SECRET = resolveCronSecret(process.env.SHORT_SYNC_SECRET, process.env.CRON_SECRET);
 
 function getRecentEntries(history, today, limit = OUTLIER_WINDOW_DAYS) {
   if (!Array.isArray(history)) return [];
@@ -76,6 +81,14 @@ function shouldForceRefresh(request) {
 }
 
 export async function POST(request) {
+  const auth = requireCronAuth(request, SECRET, "Short snapshot sync is not configured");
+  if (!auth.ok) {
+    return new Response(JSON.stringify({ ok: false, error: auth.error }), {
+      status: auth.status,
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    });
+  }
+
   let history = [];
   const today = stockholmYmd();
   try {
@@ -159,7 +172,7 @@ export async function POST(request) {
       }
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    logApiError({ route: "short/snapshot", stage: "persist", error: err });
     return new Response(
       JSON.stringify({
         ok: false,
@@ -167,7 +180,7 @@ export async function POST(request) {
         date: today,
         percent: null,
         totalDays: history.length,
-        error: message,
+        error: "Short snapshot sync failed",
       }),
       {
         status: 200,
@@ -177,5 +190,9 @@ export async function POST(request) {
   }
 }
 
-// (valfritt) Låt GET också trigga snapshot
-export async function GET(request) { return POST(request); }
+export async function GET() {
+  return new Response(null, {
+    status: 405,
+    headers: { Allow: "POST", "Cache-Control": "no-store" },
+  });
+}

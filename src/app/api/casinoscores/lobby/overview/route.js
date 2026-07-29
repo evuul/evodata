@@ -1,4 +1,6 @@
 export const runtime = "nodejs";
+// Aggregates cached lobby history for the public dashboard overview.
+
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
@@ -626,9 +628,8 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const daysParam = Number(searchParams.get("days"));
     const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 365)) : 45;
-    const force = searchParams.get("force") === "1";
     const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
-    const forceEffective = force || recoveryEnabled;
+    const forceEffective = recoveryEnabled;
 
     // Överblicks-cache (hela svaret) per days
     const overviewKey = `overview:${targetDays}`;

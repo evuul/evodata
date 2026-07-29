@@ -26,6 +26,7 @@ import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
 import { computeFairValueInsights, resolveFairValueReports } from '@/lib/fairValueUtils';
+import { useBuybackData } from './useBuybackData';
 
 const currency0 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 });
 const currency2 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -245,9 +246,8 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const translate = useTranslate();
   const [liveReports, setLiveReports] = useState(reports);
-  const [liveBuybackData, setLiveBuybackData] = useState(buybackData);
-  const [buybackMeta, setBuybackMeta] = useState(null);
   const [scenarioId, setScenarioId] = useState('fair');
+  const { data: buybackMeta } = useBuybackData();
   const { rate: fxRate, loading: fxLoading, meta: fxMeta, lastUpdated: fxUpdated, error: fxError } = useFxRateContext();
   const { stockPrice, loading: priceLoading, lastUpdated: priceUpdated, error: priceError } = useStockPriceContext();
 
@@ -257,7 +257,9 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
     return regular ?? toPriceNumber(stockPrice?.price?.regularMarketPreviousClose ?? stockPrice?.price?.previousClose);
   }, [stockPrice]);
   const effectiveReports = resolveFairValueReports(liveReports, reports);
-  const effectiveBuybacks = Array.isArray(liveBuybackData) && liveBuybackData.length ? liveBuybackData : buybackData;
+  const effectiveBuybacks = Array.isArray(buybackMeta?.combined) && buybackMeta.combined.length
+    ? buybackMeta.combined
+    : buybackData;
   const fairValue = useMemo(() => computeFairValueInsights({ reports: effectiveReports, buybackData: effectiveBuybacks, sharesData, fxRate: fx, currentPriceSEK }), [currentPriceSEK, effectiveBuybacks, effectiveReports, fx, sharesData]);
 
   useEffect(() => {
@@ -273,16 +275,6 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
     let active = true;
     fetch('/api/financial-reports', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => {
       if (active && Array.isArray(data?.financialReports) && data.financialReports.length) setLiveReports(data.financialReports);
-    }).catch(() => {});
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    fetch('/api/buybacks/data', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => {
-      if (!active) return;
-      if (Array.isArray(data?.combined)) setLiveBuybackData(data.combined);
-      setBuybackMeta(data);
     }).catch(() => {});
     return () => { active = false; };
   }, []);

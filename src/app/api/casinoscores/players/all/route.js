@@ -1,3 +1,5 @@
+// Returns normalized live player counts while respecting the shared lobby cache.
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -136,12 +138,9 @@ export async function GET(req) {
     endpoint: "/api/casinoscores/players/all",
   });
 
-  const { searchParams } = new URL(req.url);
-  const force = searchParams.get("force") === "1";
-
   let lobby = null;
   try {
-    lobby = await fetchLobbyCounts(force);
+    lobby = await fetchLobbyCounts(false);
   } catch (error) {
     lobby = null;
   }

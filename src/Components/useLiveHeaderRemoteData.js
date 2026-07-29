@@ -2,8 +2,9 @@
 
 // Remote header data loaders for top wins, lobby ATH and buyback summary.
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { extractLatestTopWin } from "../lib/liveHeader.js";
+import { useBuybackData } from "./useBuybackData.js";
 
 const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
 const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
@@ -14,7 +15,6 @@ const LOBBY_ATH_DAYS = 365;
 
 const remoteCaches = {
   top3: { ts: 0, entries: null },
-  buybackSummary: { ts: 0, summary: null },
 };
 
 export function buildBuybackFallbackSummary(fxRateNumber, error) {
@@ -60,30 +60,17 @@ export function buildBuybackSummary(data, fxRateNumber) {
 export function useLiveHeaderRemoteData({ fxRateNumber }) {
   const [latestTopWin, setLatestTopWin] = useState(null);
   const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
-  const [buybackSummary, setBuybackSummary] = useState(null);
   const [lobbyAth, setLobbyAth] = useState(null);
-
-  const fetchBuybackSummary = useCallback(async () => {
-    const now = Date.now();
-    if (now - remoteCaches.buybackSummary.ts < LIVE_CACHE_MS && remoteCaches.buybackSummary.summary) {
-      setBuybackSummary(remoteCaches.buybackSummary.summary);
-      return;
-    }
-
-    try {
-      const res = await fetch("/api/buybacks/data", { cache: "no-store" });
-      if (!res.ok) throw new Error(`buybacks failed: ${res.status}`);
-      const data = await res.json();
-      const summary = buildBuybackSummary(data, fxRateNumber);
-      remoteCaches.buybackSummary = { ts: now, summary };
-      setBuybackSummary(summary);
-    } catch (error) {
-      console.warn("[LiveHeader] Failed to fetch buyback summary:", error);
-      const fallbackSummary = buildBuybackFallbackSummary(fxRateNumber, error);
-      remoteCaches.buybackSummary = { ts: now, summary: fallbackSummary };
-      setBuybackSummary(fallbackSummary);
-    }
-  }, [fxRateNumber]);
+  const {
+    data: buybackData,
+    error: buybackError,
+    reload: reloadBuybacks,
+  } = useBuybackData({ refreshIntervalMs: 30 * 60 * 1000 });
+  const buybackSummary = useMemo(() => {
+    if (buybackData) return buildBuybackSummary(buybackData, fxRateNumber);
+    if (buybackError) return buildBuybackFallbackSummary(fxRateNumber, buybackError);
+    return null;
+  }, [buybackData, buybackError, fxRateNumber]);
 
   useEffect(() => {
     let isActive = true;
@@ -135,25 +122,22 @@ export function useLiveHeaderRemoteData({ fxRateNumber }) {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       loadLatestTopWin();
       loadLobbyOverview();
-      fetchBuybackSummary();
+      reloadBuybacks().catch(() => {});
     };
 
     loadLatestTopWin();
     loadLobbyOverview();
-    fetchBuybackSummary();
     const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
-    const buybackIntervalId = setInterval(fetchBuybackSummary, 30 * 60 * 1000);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
 
     return () => {
       isActive = false;
       clearInterval(intervalId);
-      clearInterval(buybackIntervalId);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("visibilitychange", handleFocus);
     };
-  }, [fetchBuybackSummary]);
+  }, [reloadBuybacks]);
 
   return {
     latestTopWin,

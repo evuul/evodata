@@ -1,3 +1,5 @@
+// Runs the authenticated scheduled short-interest snapshot refresh.
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
@@ -5,7 +7,7 @@ export const runtime = "nodejs";
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 
 const CACHE_CONTROL = "no-store, max-age=0, must-revalidate";
-const SECRET = resolveCronSecret(process.env.CRON_SECRET);
+const SECRET = resolveCronSecret(process.env.SHORT_SYNC_SECRET, process.env.CRON_SECRET);
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -36,6 +38,7 @@ async function runCron(request) {
     const origin = new URL(request.url).origin;
     const res = await fetch(`${origin}/api/short/snapshot?force=1`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${SECRET}` },
       cache: "no-store",
     });
 

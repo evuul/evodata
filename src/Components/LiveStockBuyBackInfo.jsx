@@ -1,5 +1,7 @@
 'use client';
 
+// Buyback analytics dashboard with mandate, ownership and compliance views.
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Box,
@@ -31,6 +33,7 @@ import {
   Tooltip as RechartsTooltip,
 } from 'recharts';
 import { parseJsonResponse } from '@/lib/apiResponse';
+import { useBuybackData } from './useBuybackData';
 import {
   buildBuybackComplianceForecast,
   buildBuybackComplianceSeries,
@@ -136,33 +139,21 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const [subView, setSubView] = useState('overview');
   const [viewMode, setViewMode] = useState('weekly');
   const [showWeeklyEstimate, setShowWeeklyEstimate] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [complianceLoading, setComplianceLoading] = useState(false);
   const [complianceError, setComplianceError] = useState('');
   const [tradingVolumeByDate, setTradingVolumeByDate] = useState(new Map());
-  const [oldData, setOldData] = useState(oldBuybackDataDefault);
-  const [curData, setCurData] = useState(buybackDataDefault);
-  const [lastFetchedAt, setLastFetchedAt] = useState(null);
-
-  const fetchData = useCallback(async () => {
-    if (!BUYBACKS_ACTIVE) return;
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/buybacks/data');
-      const json = await parseJsonResponse(res, { requireOk: false });
-      setOldData(Array.isArray(json?.old) ? json.old : []);
-      setCurData(Array.isArray(json?.current) ? json.current : []);
-      setLastFetchedAt(json?.updatedAt || null);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setCurData([]);
-      setLastFetchedAt(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const {
+    data: buybackResponse,
+    error: buybackError,
+    loading: buybackLoading,
+    refresh: refreshBuybacks,
+  } = useBuybackData({ enabled: BUYBACKS_ACTIVE });
+  const oldData = Array.isArray(buybackResponse?.old) ? buybackResponse.old : oldBuybackDataDefault;
+  const curData = Array.isArray(buybackResponse?.current) ? buybackResponse.current : buybackDataDefault;
+  const lastFetchedAt = buybackResponse?.updatedAt || null;
+  const loading = buybackLoading && !buybackResponse;
+  const error = buybackError ? buybackError.message : '';
+  const fetchData = useCallback(() => refreshBuybacks().catch(() => {}), [refreshBuybacks]);
 
   const fetchCompliance = useCallback(async () => {
     if (!BUYBACKS_ACTIVE) return;
@@ -192,10 +183,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       setComplianceLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   useEffect(() => {
     fetchCompliance();
