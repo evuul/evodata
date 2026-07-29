@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
 import { calculateMarketOpenChangePercent } from "@/lib/stockPriceChange";
+import { findIntradayMarketOpen } from "@/lib/stockMarketSession";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -183,6 +184,21 @@ function toPositiveNumber(value) {
   if (value == null || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+async function fetchYahooIntradayMarketOpen(symbol, now) {
+  if (!isMarketOpenStockholm(now)) return null;
+
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m`;
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Yahoo intraday request failed: ${response.status}`);
+
+  const result = (await response.json())?.chart?.result?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const opens = Array.isArray(result?.indicators?.quote?.[0]?.open)
+    ? result.indicators.quote[0].open
+    : [];
+  return findIntradayMarketOpen({ timestamps, opens, referenceDate: now });
 }
 
 function getState(symbol) {
@@ -499,6 +515,16 @@ export async function GET(request) {
           source = "yahoo-chart";
         }
       }
+
+      if (isMarketOpenStockholm(now)) {
+        try {
+          marketOpen = await fetchYahooIntradayMarketOpen(symbol, now);
+        } catch (error) {
+          console.warn("[stock] kunde inte hämta dagens öppningskurs från intradagsdata:", error);
+          marketOpen = null;
+        }
+      }
+      changePercent = calculateMarketOpenChangePercent({ currentPrice, marketOpen });
 
       return {
         payload: buildPayload({
