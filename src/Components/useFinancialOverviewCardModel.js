@@ -43,6 +43,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
   const [wideRange, setWideRange] = useState("5y");
   const [regulatedView, setRegulatedView] = useState("annual");
   const [regulatedChartType, setRegulatedChartType] = useState("line");
+  const [regulatedComparison, setRegulatedComparison] = useState("revenue");
 
   const metricConfigs = useMemo(() => {
     const entries = {};
@@ -625,6 +626,8 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     setRegulatedView,
     regulatedChartType,
     setRegulatedChartType,
+    regulatedComparison,
+    setRegulatedComparison,
     metricConfigs,
     metricToggleOptions,
     viewToggleOptions,

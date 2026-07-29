@@ -210,6 +210,9 @@ const buildRegulatedQuarterlySeries = (reportsAscending, formatQuarterAxisLabel)
       quarter: report.quarter,
       totalRevenue: Number.isFinite(report.operatingRevenues) ? report.operatingRevenues : null,
       regulatedShare: Number.isFinite(report.regulatedMarket) ? report.regulatedMarket : null,
+      operatingMargin: Number.isFinite(report.adjustedOperatingMargin)
+        ? report.adjustedOperatingMargin
+        : null,
     }))
     .filter((row) => Number.isFinite(row.totalRevenue) || Number.isFinite(row.regulatedShare));
 
@@ -219,7 +222,14 @@ const buildRegulatedAnnualSeries = (reportsAscending) => {
     const year = Number(report?.year);
     if (!Number.isFinite(year)) return;
     if (!map.has(year)) {
-      map.set(year, { year, totalRevenue: 0, regulatedRevenue: 0, quarters: new Set() });
+      map.set(year, {
+        year,
+        totalRevenue: 0,
+        regulatedRevenue: 0,
+        adjustedOperatingProfit: 0,
+        marginRevenue: 0,
+        quarters: new Set(),
+      });
     }
     const entry = map.get(year);
     if (QUARTERS.includes(report.quarter)) entry.quarters.add(report.quarter);
@@ -228,6 +238,11 @@ const buildRegulatedAnnualSeries = (reportsAscending) => {
     if (Number.isFinite(total)) entry.totalRevenue += total;
     if (Number.isFinite(total) && Number.isFinite(regulatedPct)) {
       entry.regulatedRevenue += (total * regulatedPct) / 100;
+    }
+    const operatingMargin = Number(report.adjustedOperatingMargin);
+    if (Number.isFinite(total) && Number.isFinite(operatingMargin)) {
+      entry.adjustedOperatingProfit += (total * operatingMargin) / 100;
+      entry.marginRevenue += total;
     }
   });
 
@@ -240,6 +255,10 @@ const buildRegulatedAnnualSeries = (reportsAscending) => {
       regulatedShare:
         Number.isFinite(entry.totalRevenue) && entry.totalRevenue > 0
           ? (entry.regulatedRevenue / entry.totalRevenue) * 100
+          : null,
+      operatingMargin:
+        Number.isFinite(entry.marginRevenue) && entry.marginRevenue > 0
+          ? (entry.adjustedOperatingProfit / entry.marginRevenue) * 100
           : null,
     }))
     .sort((a, b) => a.year - b.year);

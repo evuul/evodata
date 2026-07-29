@@ -10,6 +10,7 @@ import {
   buildNiceAxisScale,
   buildProductMixAnnualSeries,
   buildRegulatedAnnualSeries,
+  buildRegulatedQuarterlySeries,
   filterFinancialSeriesByRange,
   formatFinancialXAxisTick,
 } from "./financialOverviewCard.js";
@@ -87,4 +88,20 @@ test("annual financial views exclude incomplete reporting years", () => {
   assert.deepEqual(annualGeo.map((row) => row.year), [2024]);
   assert.deepEqual(annualProductMix.map((row) => row.year), [2024]);
   assert.deepEqual(annualRegulated.map((row) => row.year), [2024]);
+});
+
+test("regulated series includes quarterly margin and revenue-weighted annual margin", () => {
+  const reports = [
+    { year: 2025, quarter: "Q1", operatingRevenues: 100, regulatedMarket: 40, adjustedOperatingMargin: 50 },
+    { year: 2025, quarter: "Q2", operatingRevenues: 300, regulatedMarket: 60, adjustedOperatingMargin: 70 },
+    { year: 2025, quarter: "Q3", operatingRevenues: 100, regulatedMarket: 50, adjustedOperatingMargin: 60 },
+    { year: 2025, quarter: "Q4", operatingRevenues: 100, regulatedMarket: 50, adjustedOperatingMargin: 60 },
+  ];
+
+  const quarterly = buildRegulatedQuarterlySeries(reports, (year, quarter) => `${quarter}-${year}`);
+  const annual = buildRegulatedAnnualSeries(reports);
+
+  assert.equal(quarterly[0].operatingMargin, 50);
+  assert.equal(Math.round(annual[0].operatingMargin * 10) / 10, 63.3);
+  assert.equal(Math.round(annual[0].regulatedShare * 10) / 10, 53.3);
 });

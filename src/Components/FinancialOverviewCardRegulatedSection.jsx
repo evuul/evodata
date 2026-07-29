@@ -28,12 +28,19 @@ export default function FinancialOverviewCardRegulatedSection({
   onChangeRegulatedView,
   regulatedChartType,
   onChangeRegulatedChartType,
+  regulatedComparison,
+  onChangeRegulatedComparison,
   regulatedXAxisKey,
   regulatedXAxisTicks,
   embedded = false,
 }) {
+  const comparesMargin = regulatedComparison === "margin";
+  const comparisonKey = comparesMargin ? "operatingMargin" : "totalRevenue";
+  const comparisonLabel = comparesMargin
+    ? translate("Rörelsemarginal (justerad)", "Operating margin (adjusted)")
+    : translate("Total intäkt", "Total revenue");
   const formatTooltipValue = (value, dataKey) => {
-    if (dataKey === "regulatedShare") {
+    if (dataKey === "regulatedShare" || dataKey === "operatingMargin") {
       return `${Number(value).toFixed(1)}%`;
     }
     return `${formatMillion(Number(value), 1)} €M`;
@@ -61,16 +68,36 @@ export default function FinancialOverviewCardRegulatedSection({
       >
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {translate("Reglerade intäkter vs total (YoY)", "Regulated revenue vs total (YoY)")}
+            {comparesMargin
+              ? translate("Reglerad andel vs rörelsemarginal", "Regulated share vs operating margin")
+              : translate("Reglerade intäkter vs total (YoY)", "Regulated revenue vs total (YoY)")}
           </Typography>
           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
             {translate(
-              "Årlig utveckling av reglerade marknader jämfört med total intäkt.",
-              "Annual regulated-market revenue compared with total revenue."
+              comparesMargin
+                ? "Jämför reglerad andel med justerad rörelsemarginal. Sambandet visar samvariation, inte orsakssamband."
+                : "Årlig utveckling av reglerade marknader jämfört med total intäkt.",
+              comparesMargin
+                ? "Compares regulated share with adjusted operating margin. The relationship shows correlation, not causation."
+                : "Annual regulated-market revenue compared with total revenue."
             )}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+          <ToggleButtonGroup
+            value={regulatedComparison}
+            exclusive
+            onChange={(_e, value) => value && onChangeRegulatedComparison(value)}
+            size="small"
+            sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.4 }}
+          >
+            <ToggleButton value="revenue" sx={{ textTransform: "none", color: "rgba(226,232,240,0.8)", border: 0, borderRadius: "999px!important", px: { xs: 1.2, md: 1.6 }, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}>
+              {translate("Intäkt", "Revenue")}
+            </ToggleButton>
+            <ToggleButton value="margin" sx={{ textTransform: "none", color: "rgba(226,232,240,0.8)", border: 0, borderRadius: "999px!important", px: { xs: 1.2, md: 1.6 }, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}>
+              {translate("Marginal", "Margin")}
+            </ToggleButton>
+          </ToggleButtonGroup>
           <ToggleButtonGroup
             value={regulatedView}
             exclusive
@@ -167,7 +194,8 @@ export default function FinancialOverviewCardRegulatedSection({
                 tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                tickFormatter={(v) => formatMillion(v, v >= 100 ? 0 : 1)}
+                tickFormatter={(v) => (comparesMargin ? `${Number(v).toFixed(0)}%` : formatMillion(v, v >= 100 ? 0 : 1))}
+                domain={comparesMargin ? [0, 100] : undefined}
                 width={isMobile ? 36 : 52}
               />
               <YAxis
@@ -192,8 +220,8 @@ export default function FinancialOverviewCardRegulatedSection({
               <Legend wrapperStyle={{ color: "rgba(226,232,240,0.78)" }} />
               <Line
                 type="monotone"
-                dataKey="totalRevenue"
-                name={translate("Total intäkt", "Total revenue")}
+                dataKey={comparisonKey}
+                name={comparisonLabel}
                 stroke="#60a5fa"
                 strokeWidth={2.5}
                 dot={false}
@@ -231,7 +259,8 @@ export default function FinancialOverviewCardRegulatedSection({
                 tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                tickFormatter={(v) => formatMillion(v, v >= 100 ? 0 : 1)}
+                tickFormatter={(v) => (comparesMargin ? `${Number(v).toFixed(0)}%` : formatMillion(v, v >= 100 ? 0 : 1))}
+                domain={comparesMargin ? [0, 100] : undefined}
                 width={isMobile ? 36 : 52}
               />
               <YAxis
@@ -255,8 +284,8 @@ export default function FinancialOverviewCardRegulatedSection({
               />
               <Legend wrapperStyle={{ color: "rgba(226,232,240,0.78)" }} />
               <Bar
-                dataKey="totalRevenue"
-                name={translate("Total intäkt", "Total revenue")}
+                dataKey={comparisonKey}
+                name={comparisonLabel}
                 fill="#60a5fa"
                 radius={[6, 6, 0, 0]}
                 barSize={regulatedView === "quarterly" ? 14 : 26}

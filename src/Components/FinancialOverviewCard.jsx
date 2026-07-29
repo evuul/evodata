@@ -45,6 +45,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     setRegulatedView,
     regulatedChartType,
     setRegulatedChartType,
+    regulatedComparison,
+    setRegulatedComparison,
     regulatedXAxisKey,
     regulatedXAxisTicks,
   } = useFinancialOverviewCardModel({ financialReports, dividendData, isMobile });
@@ -97,6 +99,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         onChangeRegulatedView={setRegulatedView}
         regulatedChartType={regulatedChartType}
         onChangeRegulatedChartType={setRegulatedChartType}
+        regulatedComparison={regulatedComparison}
+        onChangeRegulatedComparison={setRegulatedComparison}
         regulatedXAxisKey={regulatedXAxisKey}
         regulatedXAxisTicks={regulatedXAxisTicks}
       />

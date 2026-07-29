@@ -58,6 +58,8 @@ export default function FinancialOverviewCardWideSection({
   onChangeRegulatedView,
   regulatedChartType,
   onChangeRegulatedChartType,
+  regulatedComparison,
+  onChangeRegulatedComparison,
   regulatedXAxisKey,
   regulatedXAxisTicks,
   financialReports,
@@ -77,6 +79,8 @@ export default function FinancialOverviewCardWideSection({
           onChangeRegulatedView={onChangeRegulatedView}
           regulatedChartType={regulatedChartType}
           onChangeRegulatedChartType={onChangeRegulatedChartType}
+          regulatedComparison={regulatedComparison}
+          onChangeRegulatedComparison={onChangeRegulatedComparison}
           regulatedXAxisKey={regulatedXAxisKey}
           regulatedXAxisTicks={regulatedXAxisTicks}
         />
