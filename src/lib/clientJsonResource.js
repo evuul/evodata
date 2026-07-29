@@ -19,6 +19,7 @@ export function createClientJsonResource({
   fetchImpl = (...args) => fetch(...args),
   now = () => Date.now(),
   sleep = wait,
+  transform = (data) => data,
 } = {}) {
   if (!url) throw new Error("A resource URL is required");
 
@@ -56,7 +57,7 @@ export function createClientJsonResource({
             throw error;
           }
 
-          return await response.json();
+          return transform(await response.json());
         } catch (error) {
           if (activeController.signal.aborted) {
             const message = activeController.signal.reason === "timeout" ? "Request timed out" : "Request cancelled";

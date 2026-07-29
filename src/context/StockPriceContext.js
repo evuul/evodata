@@ -3,43 +3,42 @@
 // Provides the latest stock quote and derived market metrics to client components.
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { fetchStockQuoteShared } from '@/lib/quoteFxClient';
 
 const StockPriceContext = createContext();
-const STOCK_QUOTE_CACHE_VERSION = 'v4';
 
 export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInterval = 300000, enabled = true }) => {
   const [stockPrice, setStockPrice] = useState(null);
   const [ytdChangePercent, setYtdChangePercent] = useState(null);
   const [daysWithGains, setDaysWithGains] = useState(null);
   const [daysWithLosses, setDaysWithLosses] = useState(null);
-  const [marketCap, setMarketCap] = useState(null); // Ny state för marknadsvärde
+  const [marketCap, setMarketCap] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [dataStatus, setDataStatus] = useState('idle');
 
-  const fetchStockPrice = useCallback(async () => {
+  const fetchStockPrice = useCallback(async ({ force = false, silent = false } = {}) => {
     if (!enabled) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/stock?symbol=${encodeURIComponent(stockSymbol)}&v=${STOCK_QUOTE_CACHE_VERSION}`
-      );
-      if (!response.ok) {
-        throw new Error('Failed to fetch stock price');
-      }
-      const data = await response.json();
+      const result = await fetchStockQuoteShared(stockSymbol, { force });
+      const data = result.data;
       setStockPrice(data);
       setYtdChangePercent(data.ytdChangePercent);
       setDaysWithGains(data.daysWithGains);
       setDaysWithLosses(data.daysWithLosses);
-      setMarketCap(data.marketCap); // Spara marknadsvärde
-      setLastUpdated(new Date());
-    } catch (err) {
+      setMarketCap(data.marketCap);
+      setDataStatus(result.status);
+      setLastUpdated(new Date(data.generatedAt || result.updatedAt || Date.now()));
+      if (result.error) setError('Visar senast tillgängliga aktiekurs');
+    } catch {
       setError('Kunde inte hämta aktiekursen');
+      setDataStatus('error');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, [enabled, stockSymbol]);
 
@@ -50,7 +49,10 @@ export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInt
     }
 
     fetchStockPrice();
-    const interval = setInterval(fetchStockPrice, updateInterval);
+    const interval = setInterval(
+      () => fetchStockPrice({ force: true, silent: true }),
+      updateInterval
+    );
     return () => clearInterval(interval);
   }, [enabled, fetchStockPrice, updateInterval]);
 
@@ -61,11 +63,12 @@ export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInt
         ytdChangePercent,
         daysWithGains,
         daysWithLosses,
-        marketCap, // Gör marknadsvärde tillgängligt
+        marketCap,
         loading,
         error,
         lastUpdated,
-        refresh: fetchStockPrice,
+        dataStatus,
+        refresh: () => fetchStockPrice({ force: true }),
       }}
     >
       {children}

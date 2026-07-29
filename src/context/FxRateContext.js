@@ -1,6 +1,9 @@
+// Provides a resilient EUR/SEK rate while preserving the latest valid observation.
+
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { fetchFxRateShared, shouldPersistFxPayload } from "@/lib/quoteFxClient";
 
 const DEFAULT_META = { base: "EUR", quote: "SEK", source: "fallback" };
 const STORAGE_KEY = "evodata:fx:eursek";
@@ -12,6 +15,7 @@ const FxRateContext = createContext({
   lastUpdated: null,
   refresh: () => {},
   meta: DEFAULT_META,
+  dataStatus: "idle",
 });
 
 export const FxRateProvider = ({
@@ -25,10 +29,13 @@ export const FxRateProvider = ({
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [meta, setMeta] = useState(DEFAULT_META);
+  const [dataStatus, setDataStatus] = useState("idle");
+  const lastGoodRateRef = useRef(null);
 
   const persistToStorage = useCallback((payload) => {
     if (typeof window === "undefined") return;
     try {
+      if (!shouldPersistFxPayload(payload)) return;
       window.localStorage.setItem(
         STORAGE_KEY,
         JSON.stringify({
@@ -43,7 +50,7 @@ export const FxRateProvider = ({
   }, []);
 
   const fetchRate = useCallback(
-    async ({ silent = false } = {}) => {
+    async ({ silent = false, force = false } = {}) => {
       if (!enabled) {
         setLoading(false);
         return;
@@ -51,38 +58,39 @@ export const FxRateProvider = ({
       if (!silent) setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/fx");
-        if (!res.ok) {
-          throw new Error(`FX request failed with status ${res.status}`);
-        }
-        const payload = await res.json();
-        const fx = Number(payload?.rate);
-        if (!Number.isFinite(fx) || fx <= 0) {
-          throw new Error("Invalid FX payload");
-        }
+        const result = await fetchFxRateShared({ force });
+        const payload = result.data;
+        const fx = payload.rate;
         const metaPayload = {
           base: payload?.base ?? DEFAULT_META.base,
           quote: payload?.quote ?? DEFAULT_META.quote,
           source: payload?.source ?? "unknown",
+          freshness: result.status,
         };
-        const timestamp = payload?.updatedAt ? new Date(payload.updatedAt).getTime() : Date.now();
+        const parsedTimestamp = payload?.updatedAt ? new Date(payload.updatedAt).getTime() : NaN;
+        const timestamp = Number.isFinite(parsedTimestamp) ? parsedTimestamp : result.updatedAt || Date.now();
+
+        if (result.status === "fallback" && lastGoodRateRef.current) {
+          setError("Visar senast giltiga växelkurs");
+          setDataStatus("stale");
+          return;
+        }
 
         setRate(fx);
         setMeta(metaPayload);
         setLastUpdated(new Date(timestamp));
+        setDataStatus(result.status);
+        if (result.status !== "fallback") lastGoodRateRef.current = fx;
+        if (result.error) setError("Visar senast giltiga växelkurs");
 
         persistToStorage({ rate: fx, meta: metaPayload, timestamp });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Kunde inte hämta växelkurs");
-        setRate((prev) => prev ?? fallbackRate);
-        setMeta((prev) => ({ ...prev, source: "fallback" }));
-        setLastUpdated(new Date());
-
-        persistToStorage({
-          rate: fallbackRate,
-          meta: { ...DEFAULT_META, source: "fallback" },
-          timestamp: Date.now(),
-        });
+      } catch {
+        setError("Kunde inte hämta växelkurs");
+        setDataStatus(lastGoodRateRef.current ? "stale" : "fallback");
+        if (!lastGoodRateRef.current) {
+          setRate(fallbackRate);
+          setMeta({ ...DEFAULT_META, source: "fallback", freshness: "fallback" });
+        }
       } finally {
         if (!silent) setLoading(false);
       }
@@ -110,6 +118,8 @@ export const FxRateProvider = ({
               setRate(cachedRate);
               setMeta(cached?.meta ?? DEFAULT_META);
               setLastUpdated(new Date(cachedTimestamp));
+              setDataStatus("cache");
+              lastGoodRateRef.current = cachedRate;
               setLoading(false);
               shouldFetch = false;
             }
@@ -126,7 +136,10 @@ export const FxRateProvider = ({
 
     let id;
     if (refreshInterval > 0) {
-      id = setInterval(() => fetchRate({ silent: true }), refreshInterval);
+      id = setInterval(
+        () => fetchRate({ silent: true, force: true }),
+        refreshInterval
+      );
     }
     return () => {
       if (id) clearInterval(id);
@@ -139,10 +152,11 @@ export const FxRateProvider = ({
       loading,
       error,
       lastUpdated,
-      refresh: fetchRate,
+      refresh: () => fetchRate({ force: true }),
       meta,
+      dataStatus,
     }),
-    [rate, loading, error, lastUpdated, fetchRate, meta]
+    [rate, loading, error, lastUpdated, fetchRate, meta, dataStatus]
   );
 
   return <FxRateContext.Provider value={value}>{children}</FxRateContext.Provider>;
