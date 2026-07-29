@@ -3,9 +3,9 @@
 import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPassword } from "@/lib/authStore";
 import { logAuthError } from "@/lib/authDebug";
-import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 import { isDemoLogin, resolveDemoAccountConfig } from "@/lib/demoAccount";
+import { buildSessionUser, isTrustedSessionRequest, setSessionCookie } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,6 +49,9 @@ const buildDemoUser = ({ now, existing }) => ({
 });
 
 export async function POST(request) {
+  if (!isTrustedSessionRequest(request)) {
+    return json({ error: "Otillåten anropskälla." }, { status: 403 });
+  }
   let stage = "parse-request";
 
   try {
@@ -90,21 +93,15 @@ export async function POST(request) {
     }
 
     stage = "create-session";
-    const { token } = await createSession(email);
+    const { token, session } = await createSession(email);
     stage = "sync-user-index";
     await addUserToIndex(email);
 
-    return json({
-      token,
-      user: {
-        email,
-        firstName: user.firstName ?? "",
-        lastName: user.lastName ?? "",
-        isSubscriber: Boolean(user.isSubscriber),
-        isAdmin,
-        profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
-      },
+    const response = json({
+      user: buildSessionUser(user),
+      accessExpiresAt: session.expiresAt,
     });
+    return setSessionCookie(response, token, session.expiresAt);
   } catch (error) {
     logAuthError({ route: "login", stage, error });
     return json(

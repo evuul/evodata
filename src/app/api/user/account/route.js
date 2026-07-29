@@ -1,13 +1,19 @@
+// Updates or deletes the current authenticated user account.
+
 import { NextResponse } from "next/server";
 import {
   deleteKey,
-  getJson,
   getSessionKey,
   getUserKey,
   removeUserFromIndex,
   setJson,
   verifyPassword,
 } from "@/lib/authStore";
+import {
+  clearSessionCookie,
+  getRequestSessionToken as getToken,
+  resolveUserFromToken,
+} from "@/lib/authSession";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 
 export const dynamic = "force-dynamic";
@@ -20,23 +26,9 @@ const json = (data, init = {}) =>
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
 
-const getToken = (request) => {
-  const auth = request.headers.get("authorization") || "";
-  if (!auth.toLowerCase().startsWith("bearer ")) return null;
-  return auth.slice(7).trim();
-};
-
-const resolveUserFromToken = async (token) => {
-  if (!token) return null;
-  const session = await getJson(getSessionKey(token), { cache: false });
-  if (!session?.email) return null;
-  const user = await getJson(getUserKey(session.email), { cache: false });
-  return user ? { user, email: session.email } : null;
-};
-
 export async function PUT(request) {
   const token = getToken(request);
-  const resolved = await resolveUserFromToken(token);
+  const resolved = await resolveUserFromToken(token, { cache: false });
   if (!resolved) return json({ error: "Unauthorized" }, { status: 401 });
 
   let payload = null;
@@ -76,7 +68,7 @@ export async function PUT(request) {
 
 export async function DELETE(request) {
   const token = getToken(request);
-  const resolved = await resolveUserFromToken(token);
+  const resolved = await resolveUserFromToken(token, { cache: false });
   if (!resolved) return json({ error: "Unauthorized" }, { status: 401 });
 
   let payload = null;
@@ -104,5 +96,5 @@ export async function DELETE(request) {
   await deleteKey(getSessionKey(token));
   await removeUserFromIndex(userEmail);
 
-  return json({ ok: true });
+  return clearSessionCookie(json({ ok: true }));
 }

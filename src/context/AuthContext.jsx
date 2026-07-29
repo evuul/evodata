@@ -1,6 +1,9 @@
+// Restores and manages browser authentication without exposing session secrets.
+
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { COOKIE_SESSION_MARKER, fetchAuthJson } from "@/lib/clientApi";
 
 const STORAGE_KEY = "evodata.auth";
 const AuthContext = createContext(undefined);
@@ -39,44 +42,43 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (AUTH_DISABLED) return;
     if (typeof window === "undefined") return;
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed?.token) {
+    let active = true;
+    const restoreSession = async () => {
+      let legacyToken = null;
+      try {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        legacyToken = stored ? JSON.parse(stored)?.token ?? null : null;
+        window.localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        legacyToken = null;
+      }
+
+      try {
+        const headers = legacyToken ? { Authorization: `Bearer ${legacyToken}` } : undefined;
+        const response = await fetch(`${API_BASE_URL}/api/auth/session`, {
+          headers,
+          credentials: "include",
+          cache: "no-store",
+        });
+        const payload = response.ok ? await response.json() : null;
+        if (!active) return;
+        if (payload?.authenticated && payload?.user) {
           setAuthState({
-            token: parsed.token,
-            user: parsed.user ?? null,
-            accessExpiresAt: parsed.accessExpiresAt ?? null,
+            token: COOKIE_SESSION_MARKER,
+            user: payload.user,
+            accessExpiresAt: payload.accessExpiresAt ?? null,
             initialized: true,
           });
           return;
         }
+      } catch {
+        // A failed restore leaves the visitor signed out.
       }
-    } catch {
-      // Ignore storage errors – continue without persisted auth state.
-    }
-    setAuthState((prev) => ({ ...prev, initialized: true }));
-  }, []);
+      if (active) setAuthState({ token: null, user: null, accessExpiresAt: null, initialized: true });
+    };
 
-  const persistAuth = useCallback((token, user, accessExpiresAt) => {
-    if (AUTH_DISABLED) return;
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ token, user, accessExpiresAt }));
-    } catch {
-      // Ignore storage errors to avoid blocking login flow.
-    }
-  }, []);
-
-  const clearPersistedAuth = useCallback(() => {
-    if (AUTH_DISABLED) return;
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Ignore storage errors to avoid blocking logout flow.
-    }
+    restoreSession();
+    return () => { active = false; };
   }, []);
 
   const login = useCallback(async ({ email, password }) => {
@@ -91,6 +93,7 @@ export function AuthProvider({ children }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
 
       let payload = {};
@@ -122,17 +125,16 @@ export function AuthProvider({ children }) {
         throw createAuthError(message, { status, code });
       }
 
-      const token = payload?.token ?? payload?.accessToken;
-      if (!token) {
-        throw createAuthError("Oväntat svar från servern: ingen token mottagen.", {
+      if (!payload?.user) {
+        throw createAuthError("Oväntat svar från servern: ingen användare mottagen.", {
           code: "AUTH_INVALID_RESPONSE",
         });
       }
 
-      const user = payload?.user ?? { email };
+      const token = COOKIE_SESSION_MARKER;
+      const user = payload.user;
       const accessExpiresAt = payload?.accessExpiresAt ?? null;
       setAuthState({ token, user, accessExpiresAt, initialized: true });
-      persistAuth(token, user, accessExpiresAt);
       return { token, user, accessExpiresAt };
     } catch (error) {
       if (error instanceof Error && error.code) {
@@ -143,7 +145,7 @@ export function AuthProvider({ children }) {
         { code: "AUTH_NETWORK_ERROR" }
       );
     }
-  }, [persistAuth]);
+  }, []);
 
   const register = useCallback(async ({ email, password, firstName, lastName }) => {
     if (AUTH_DISABLED) {
@@ -156,6 +158,7 @@ export function AuthProvider({ children }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, firstName, lastName }),
+      credentials: "include",
     });
 
     let payload = {};
@@ -174,18 +177,13 @@ export function AuthProvider({ children }) {
       throw new Error(message);
     }
 
-    const token = payload?.token ?? payload?.accessToken;
-    if (!token) {
-      // Om backend inte skickar token direkt försöker vi logga in istället.
-      return login({ email, password });
-    }
-
-    const user = payload?.user ?? { email };
+    if (!payload?.user) throw new Error("Registreringsservern returnerade ett ogiltigt svar.");
+    const token = COOKIE_SESSION_MARKER;
+    const user = payload.user;
     const accessExpiresAt = payload?.accessExpiresAt ?? null;
     setAuthState({ token, user, accessExpiresAt, initialized: true });
-    persistAuth(token, user, accessExpiresAt);
     return { token, user, accessExpiresAt };
-  }, [login, persistAuth]);
+  }, []);
 
   const requestPasswordReset = useCallback(async ({ email, resetUrlBase }) => {
     if (AUTH_DISABLED) {
@@ -261,49 +259,38 @@ export function AuthProvider({ children }) {
       throw new Error("Unauthorized");
     }
 
-    const response = await fetch(`${API_BASE_URL}${CHANGE_PASSWORD_PATH}`, {
+    return fetchAuthJson(token, `${API_BASE_URL}${CHANGE_PASSWORD_PATH}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ currentPassword, newPassword }),
+      credentials: "include",
     });
-
-    let payload = {};
-    try {
-      payload = await response.json();
-    } catch {
-      // Ignore parse errors when request fails; handled below.
-    }
-
-    if (!response.ok) {
-      const message =
-        payload?.message ||
-        payload?.error ||
-        payload?.errors?.[0] ||
-        "Could not update password. Please try again.";
-      throw new Error(message);
-    }
-
-    return payload;
   }, []);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
     if (AUTH_DISABLED) {
       setAuthState({ ...GUEST_AUTH_STATE });
       return;
     }
-    clearPersistedAuth();
+    try {
+      await fetch(`${API_BASE_URL}/api/auth/session`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+    } catch {
+      // Local state is cleared even if server-side revocation is temporarily unavailable.
+    }
     setAuthState({ token: null, user: null, accessExpiresAt: null, initialized: true });
-  }, [clearPersistedAuth]);
+  }, []);
 
   const value = useMemo(
     () => ({
       user: authState.user,
       token: authState.token,
       accessExpiresAt: authState.accessExpiresAt,
-      isAuthenticated: AUTH_DISABLED ? true : Boolean(authState.token),
+      isAuthenticated: AUTH_DISABLED ? true : Boolean(authState.user && authState.token),
       initialized: authState.initialized,
       login,
       register,

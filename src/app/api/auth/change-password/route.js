@@ -1,12 +1,13 @@
+// Changes the current user's password through a validated session.
+
 import { NextResponse } from "next/server";
 import {
-  getJson,
-  getSessionKey,
   getUserKey,
   hashPassword,
   setJson,
   verifyPassword,
 } from "@/lib/authStore";
+import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,23 +19,9 @@ const json = (data, init = {}) =>
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
 
-const getToken = (request) => {
-  const auth = request.headers.get("authorization") || "";
-  if (!auth.toLowerCase().startsWith("bearer ")) return null;
-  return auth.slice(7).trim();
-};
-
-const resolveUserFromToken = async (token) => {
-  if (!token) return null;
-  const session = await getJson(getSessionKey(token), { cache: false });
-  if (!session?.email) return null;
-  const user = await getJson(getUserKey(session.email), { cache: false });
-  return user ? { user, email: session.email } : null;
-};
-
 export async function POST(request) {
   const token = getToken(request);
-  const resolved = await resolveUserFromToken(token);
+  const resolved = await resolveUserFromToken(token, { cache: false });
   if (!resolved) return json({ error: "Unauthorized" }, { status: 401 });
 
   let payload = null;

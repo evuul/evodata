@@ -1,6 +1,9 @@
+// Serves and updates the authenticated user's portfolio profile.
+
 import { NextResponse } from "next/server";
-import { getJson, getSessionKey, getUserKey, setJson } from "@/lib/authStore";
+import { getUserKey, setJson } from "@/lib/authStore";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
+import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -13,20 +16,6 @@ const json = (data, init = {}) =>
   });
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
-
-const getToken = (request) => {
-  const auth = request.headers.get("authorization") || "";
-  if (!auth.toLowerCase().startsWith("bearer ")) return null;
-  return auth.slice(7).trim();
-};
-
-const resolveUserFromToken = async (token) => {
-  if (!token) return null;
-  const session = await getJson(getSessionKey(token));
-  if (!session?.email) return null;
-  const user = await getJson(getUserKey(session.email));
-  return user ? { user, email: session.email } : null;
-};
 
 export async function GET(request) {
   const token = getToken(request);

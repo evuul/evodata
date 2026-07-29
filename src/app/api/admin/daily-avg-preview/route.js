@@ -1,6 +1,8 @@
+// Builds authenticated previews of daily player-average alerts.
+
 import { NextResponse } from "next/server";
-import { getJson, getSessionKey, getUserKey } from "@/lib/authStore";
 import { buildDailyAvgPlayersEmail } from "@/lib/emailTemplates";
+import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 import { getDailyAggregates } from "@/lib/csStore";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import {
@@ -21,20 +23,6 @@ const json = (data, init = {}) =>
     status: init.status ?? 200,
     headers: { "Cache-Control": "no-store", ...(init.headers || {}) },
   });
-
-const getToken = (request) => {
-  const auth = request.headers.get("authorization") || "";
-  if (!auth.toLowerCase().startsWith("bearer ")) return null;
-  return auth.slice(7).trim();
-};
-
-const resolveUserFromToken = async (token) => {
-  if (!token) return null;
-  const session = await getJson(getSessionKey(token));
-  if (!session?.email) return null;
-  const user = await getJson(getUserKey(session.email));
-  return user ? { user, email: session.email } : null;
-};
 
 const STOCKHOLM_PARTS = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",

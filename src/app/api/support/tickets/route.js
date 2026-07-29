@@ -1,6 +1,9 @@
+// Lists and creates support tickets for authenticated users.
+
 import { NextResponse } from "next/server";
-import { getJson, getSessionKey, getUserKey } from "@/lib/authStore";
+import { getJson } from "@/lib/authStore";
 import { createSupportTicket, getSupportUserTicketsKey, listSupportTicketsByIds } from "@/lib/supportStore";
+import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,20 +14,6 @@ const json = (data, init = {}) =>
     status: init.status ?? 200,
     headers: { "Cache-Control": "no-store" },
   });
-
-const getToken = (request) => {
-  const auth = request.headers.get("authorization") || "";
-  if (!auth.toLowerCase().startsWith("bearer ")) return null;
-  return auth.slice(7).trim();
-};
-
-const resolveUserFromToken = async (token) => {
-  if (!token) return null;
-  const session = await getJson(getSessionKey(token));
-  if (!session?.email) return null;
-  const user = await getJson(getUserKey(session.email));
-  return user ? { user, email: session.email } : null;
-};
 
 const toSummary = (t) => ({
   id: t.id,

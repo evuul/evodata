@@ -1,12 +1,14 @@
+// Registers users and establishes a hardened browser session.
+
 import { NextResponse } from "next/server";
 import { addUserToIndex, createSession, deleteKey, getJson, getUserKey, hashPassword, setJson } from "@/lib/authStore";
 import { logAuthError } from "@/lib/authDebug";
 import { buildWelcomeEmail } from "@/lib/emailTemplates";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
-import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 import { createRegisteredUser } from "@/lib/authUserFactory";
 import { createAccountWithSession, runRegistrationAfterCommit } from "@/lib/registrationFlow";
+import { buildSessionUser, isTrustedSessionRequest, setSessionCookie } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,6 +21,9 @@ const json = (data, init = {}) =>
   });
 
 export async function POST(request) {
+  if (!isTrustedSessionRequest(request)) {
+    return json({ error: "Otillåten anropskälla." }, { status: 403 });
+  }
   let stage = "parse-request";
   let emailDomain = null;
 
@@ -72,7 +77,7 @@ export async function POST(request) {
     };
 
     stage = "create-account-session";
-    const { token } = await createAccountWithSession({
+    const { token, session } = await createAccountWithSession({
       email,
       user,
       setJson,
@@ -95,17 +100,11 @@ export async function POST(request) {
       });
     }
 
-    return json({
-      token,
-      user: {
-        email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        isSubscriber: user.isSubscriber,
-        isAdmin,
-        profile: normalizePortfolioProfile(user.profile),
-      },
+    const response = json({
+      user: buildSessionUser(user),
+      accessExpiresAt: session.expiresAt,
     });
+    return setSessionCookie(response, token, session.expiresAt);
   } catch (error) {
     logAuthError({ route: "register", stage, error, context: { emailDomain } });
     return json(
