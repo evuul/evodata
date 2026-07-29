@@ -27,6 +27,7 @@ import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
 import { computeFairValueInsights, resolveFairValueReports } from '@/lib/fairValueUtils';
 import { useBuybackData } from './useBuybackData';
+import { fetchFinancialReportsShared } from '@/lib/marketDataClient';
 
 const currency0 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 });
 const currency2 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -273,7 +274,7 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
 
   useEffect(() => {
     let active = true;
-    fetch('/api/financial-reports', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null).then((data) => {
+    fetchFinancialReportsShared().then((data) => {
       if (active && Array.isArray(data?.financialReports) && data.financialReports.length) setLiveReports(data.financialReports);
     }).catch(() => {});
     return () => { active = false; };

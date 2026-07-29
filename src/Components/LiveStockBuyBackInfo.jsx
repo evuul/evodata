@@ -32,8 +32,8 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
 } from 'recharts';
-import { parseJsonResponse } from '@/lib/apiResponse';
 import { useBuybackData } from './useBuybackData';
+import { fetchShortActivityShared } from '@/lib/marketDataClient';
 import {
   buildBuybackComplianceForecast,
   buildBuybackComplianceSeries,
@@ -160,10 +160,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     setComplianceLoading(true);
     setComplianceError('');
     try {
-      const res = await fetch('/api/short/activity?days=365', {
-        cache: 'no-store',
-      });
-      const json = await parseJsonResponse(res, { requireOk: false });
+      const json = await fetchShortActivityShared(365);
       const items = Array.isArray(json?.items) ? json.items : [];
       const volumeMap = new Map();
       for (const item of items) {
@@ -177,7 +174,6 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         setComplianceError(json?.error || json?.message || 'Kunde inte hämta handelsvolymer');
       }
     } catch (e) {
-      setTradingVolumeByDate(new Map());
       setComplianceError(e instanceof Error ? e.message : String(e));
     } finally {
       setComplianceLoading(false);

@@ -3,8 +3,8 @@
 // Data and derived state for the short intelligence dashboard.
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { parseJsonResponse } from "@/lib/apiResponse";
 import { fetchShortHistory, fetchShortSnapshotDetails } from "@/lib/shortSnapshotClient";
+import { fetchShortActivityShared } from "@/lib/marketDataClient";
 import { totalSharesData } from "./buybacks/utils";
 import { useStockPriceContext } from "@/context/StockPriceContext";
 
@@ -233,10 +233,10 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     }
   }, [tradingRanges, tradingRange]);
 
-  const fetchBlanking = useCallback(async () => {
+  const fetchBlanking = useCallback(async (force = false) => {
     setBlankingLoading(true);
     try {
-      const history = await fetchShortHistory();
+      const history = await fetchShortHistory({ force });
       const rows = history.items
         .map((item, idx, arr) => {
           const prev = idx > 0 ? arr[idx - 1] : null;
@@ -262,10 +262,10 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     }
   }, []);
 
-  const fetchShortSnapshot = useCallback(async () => {
+  const fetchShortSnapshot = useCallback(async (force = false) => {
     setShortSnapshotLoading(true);
     try {
-      const details = await fetchShortSnapshotDetails();
+      const details = await fetchShortSnapshotDetails({ force });
       setShortSnapshot(details.snapshot);
       setPublicPositions(details.publicPositions);
       setPublicPositionsError(details.publicPositionsError);
@@ -283,22 +283,26 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
     }
   }, [translate]);
 
-  const refreshBlanking = useCallback(async () => {
+  const loadBlanking = useCallback(async (force = false) => {
     setBlankingLoading(true);
     try {
-      await Promise.all([fetchBlanking(), fetchShortSnapshot()]);
+      await Promise.all([fetchBlanking(force), fetchShortSnapshot(force)]);
     } finally {
       setBlankingLoading(false);
     }
   }, [fetchBlanking, fetchShortSnapshot]);
+
+  const refreshBlanking = useCallback(() => loadBlanking(true), [loadBlanking]);
 
   const fetchTrading = useCallback(
     async (days) => {
       setTradingLoading(true);
       setTradingError("");
       try {
-        const res = await fetch(`/api/short/activity?days=${days}`);
-        const json = await parseJsonResponse(res, { requireOk: false });
+        const json = await fetchShortActivityShared(days);
+        if (json?.ok === false) {
+          throw new Error(json?.error || "Trading activity is unavailable");
+        }
         setTradingItems(Array.isArray(json?.items) ? json.items : []);
         setLatestTrading(json?.latest ?? null);
         setLatestTradingMeta({
@@ -330,8 +334,8 @@ export function useShortIntelligenceModel({ isMobile, translate }) {
   );
 
   useEffect(() => {
-    refreshBlanking();
-  }, [refreshBlanking]);
+    loadBlanking(false);
+  }, [loadBlanking]);
 
   useEffect(() => {
     fetchTrading(tradingRange);

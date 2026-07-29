@@ -101,3 +101,21 @@ test("fetchLatestShortPercent falls back to latest history row", async () => {
     source: "history",
   });
 });
+
+test("fetchLatestShortPercent falls back when the live snapshot request throws", async () => {
+  const fetchImpl = async (url) => {
+    if (String(url).startsWith("/api/short?")) throw new Error("snapshot offline");
+    return {
+      ok: true,
+      async json() {
+        return { items: [{ date: "2026-06-10", percent: 5.5 }] };
+      },
+    };
+  };
+
+  assert.deepEqual(await fetchLatestShortPercent({ fetchImpl }), {
+    percent: 5.5,
+    observedDate: "2026-06-10",
+    source: "history",
+  });
+});

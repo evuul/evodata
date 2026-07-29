@@ -5,29 +5,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchLatestShortPercent } from "@/lib/shortSnapshotClient";
 
-const LIVE_CACHE_MS = 2 * 60 * 1000;
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
-
-const shortCache = { ts: 0, percent: null };
 
 export function useLiveHeaderShortInterest() {
   const [shortPercent, setShortPercent] = useState(null);
   const [loadingShort, setLoadingShort] = useState(false);
 
-  const refreshShortInterest = useCallback(async () => {
-    const now = Date.now();
-    if (now - shortCache.ts < LIVE_CACHE_MS && shortCache.percent != null) {
-      setShortPercent(shortCache.percent);
-      return;
-    }
-
+  const refreshShortInterest = useCallback(async (force = false) => {
     try {
       setLoadingShort(true);
-      const latest = await fetchLatestShortPercent();
+      const latest = await fetchLatestShortPercent({ force: force === true });
       if (!latest) return;
       setShortPercent(latest.percent);
-      shortCache.ts = now;
-      shortCache.percent = latest.percent;
     } catch {
       /* keep the previous header value if the short APIs are unavailable */
     } finally {
@@ -43,7 +32,7 @@ export function useLiveHeaderShortInterest() {
     const handleFocus = () => refreshShortInterest();
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
-    const id = setInterval(refreshShortInterest, REFRESH_INTERVAL_MS);
+    const id = setInterval(() => refreshShortInterest(true), REFRESH_INTERVAL_MS);
     return () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("visibilitychange", handleFocus);
