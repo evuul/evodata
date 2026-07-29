@@ -5,17 +5,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { extractLatestTopWin } from "../lib/liveHeader.js";
 import { useBuybackData } from "./useBuybackData.js";
+import { fetchOverviewShared } from "../lib/csOverviewClient.js";
+import { fetchLiveTop3Shared } from "../lib/liveTop3Client.js";
 
-const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
 const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
-const LIVE_CACHE_MS = 2 * 60 * 1000;
 const BUYBACK_CASH_EUR = 2_000_000_000;
 const BUYBACK_MANDATE_START_DATE = "2026-05-18";
 const LOBBY_ATH_DAYS = 365;
-
-const remoteCaches = {
-  top3: { ts: 0, entries: null },
-};
 
 export function buildBuybackFallbackSummary(fxRateNumber, error) {
   return {
@@ -78,9 +74,7 @@ export function useLiveHeaderRemoteData({ fxRateNumber }) {
 
     const loadLobbyOverview = async () => {
       try {
-        const res = await fetch(`/api/casinoscores/lobby/overview?days=${LOBBY_ATH_DAYS}`);
-        if (!res.ok) throw new Error(`overview failed: ${res.status}`);
-        const data = await res.json();
+        const data = await fetchOverviewShared(LOBBY_ATH_DAYS);
         if (!isActive) return;
         setLobbyAth(data?.ath || null);
       } catch (error) {
@@ -91,22 +85,14 @@ export function useLiveHeaderRemoteData({ fxRateNumber }) {
     };
 
     const loadLatestTopWin = async () => {
-      const now = Date.now();
-      if (now - remoteCaches.top3.ts < LIVE_CACHE_MS && Array.isArray(remoteCaches.top3.entries)) {
-        setLatestTopWin(extractLatestTopWin(remoteCaches.top3.entries));
-        return;
-      }
       if (!isActive) return;
       latestRequestId += 1;
       const requestId = latestRequestId;
       setLoadingLatestTopWin(true);
       try {
-        const res = await fetch(LIVE_TOP3_ENDPOINT);
-        if (!res.ok) throw new Error(`live top3 failed: ${res.status}`);
-        const data = await res.json();
+        const data = await fetchLiveTop3Shared();
         if (!isActive || requestId !== latestRequestId) return;
         const entries = data?.entries ?? [];
-        remoteCaches.top3 = { ts: Date.now(), entries };
         setLatestTopWin(extractLatestTopWin(entries));
       } catch (error) {
         if (!isActive || requestId !== latestRequestId) return;

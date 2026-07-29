@@ -1,7 +1,15 @@
 "use client";
+
+// Provides shared live player counts and lobby statistics to authenticated dashboard views.
+
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { useAuth } from "@/context/AuthContext";
+import {
+  fetchAllPlayersShared,
+  fetchLatestPlayersShared,
+  fetchLobbyStatsShared,
+} from "@/lib/casinoScoresClient";
 
 export const GAMES = GAME_CONFIG;
 
@@ -42,10 +50,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       lastLobbyStatsFetchRef.current = now;
       try {
         const includeHourly = isAdmin || INCLUDE_HOURLY_LOCAL;
-        const qp = includeHourly ? "?includeHourly=1" : "";
-        const res = await fetch(`/api/casinoscores/lobby/stats${qp}`);
-        if (!res.ok) return;
-        const json = await res.json();
+        const json = await fetchLobbyStatsShared({ includeHourly, force });
         if (!json?.ok) return;
         setLobbyStats({
           todayPeak: json.todayPeak ?? null,
@@ -56,7 +61,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
           updatedAt: json.updatedAt ?? null,
         });
       } catch {
-        // ignorerar statsfel
+        lastLobbyStatsFetchRef.current = 0;
       }
     },
     [enabled, isAdmin]
@@ -75,16 +80,11 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     setLoading(true);
     setError("");
 
-    const params = new URLSearchParams();
-    if (force) params.set("force", "1");
-    const qs = params.toString() ? `?${params.toString()}` : "";
-
     try {
-      const res = await fetch(`/api/casinoscores/players/all${qs}`);
-      const json = await res.json();
+      const json = await fetchAllPlayersShared({ force });
 
-      if (!res.ok || !json?.ok) {
-        throw new Error(json?.error || `HTTP ${res.status}`);
+      if (!json?.ok) {
+        throw new Error(json?.error || "Live player data is unavailable");
       }
 
       const map = {};
@@ -134,6 +134,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
 
       fetchLobbyStats(force);
     } catch (e) {
+      lastFetchRef.current = 0;
       setError(String(e?.message || e));
     } finally {
       setLoading(false);
@@ -143,9 +144,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
   const hydrateFromCache = useCallback(async () => {
     if (!enabled) return;
     try {
-      const res = await fetch("/api/casinoscores/players/latest");
-      if (!res.ok) return;
-      const json = await res.json();
+      const json = await fetchLatestPlayersShared();
       if (!json?.ok || !Array.isArray(json.items)) return;
 
       const hydrated = {};

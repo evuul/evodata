@@ -1,6 +1,9 @@
+// Serves query-scoped cached live top-win snapshots and history.
+
 import { NextResponse } from "next/server";
 import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { kvRestRequest } from "@/lib/kvClient";
+import { buildLiveTop3CacheKey, normalizeLiveTop3Options } from "@/lib/liveTop3Request";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,10 +25,24 @@ const STOCKHOLM_TZ = "Europe/Stockholm";
 const cacheControlHeader = `public, s-maxage=${Math.floor(
   API_CACHE_TTL_MS / 1000
 )}, stale-while-revalidate=${Math.floor(API_STALE_MS / 1000)}`;
-let responseCache = {
-  payload: null,
-  expiresAt: 0,
-};
+const responseCache = new Map();
+const MAX_RESPONSE_CACHE_ENTRIES = 20;
+
+function getCachedResponse(key, now = Date.now()) {
+  const cached = responseCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt > now) return cached.payload;
+  responseCache.delete(key);
+  return null;
+}
+
+function setCachedResponse(key, payload, now = Date.now()) {
+  if (responseCache.size >= MAX_RESPONSE_CACHE_ENTRIES && !responseCache.has(key)) {
+    const oldestKey = responseCache.keys().next().value;
+    if (oldestKey !== undefined) responseCache.delete(oldestKey);
+  }
+  responseCache.set(key, { payload, expiresAt: now + API_CACHE_TTL_MS });
+}
 
 const tzDateFormatter = new Intl.DateTimeFormat("sv-SE", {
   timeZone: STOCKHOLM_TZ,
@@ -213,13 +230,16 @@ function groupSnapshotsByDay(snapshots, days, perDay) {
 export async function GET(req) {
   try {
     const now = Date.now();
-    if (responseCache.payload && responseCache.expiresAt > now) {
-      return json({ ...responseCache.payload, source: "cache" });
-    }
-
     const { searchParams } = new URL(req.url);
-    const historyDays = Number(searchParams.get("historyDays") ?? "0");
-    const historyPerDay = Number(searchParams.get("historyPerDay") ?? "0");
+    const { historyDays, historyPerDay } = normalizeLiveTop3Options({
+      historyDays: searchParams.get("historyDays"),
+      historyPerDay: searchParams.get("historyPerDay"),
+    });
+    const cacheKey = buildLiveTop3CacheKey({ historyDays, historyPerDay });
+    const cachedPayload = getCachedResponse(cacheKey, now);
+    if (cachedPayload) {
+      return json({ ...cachedPayload, source: "cache" });
+    }
     const todayYmd = getStockholmTodayYmd();
 
     // 1) Läs current snapshot
@@ -305,10 +325,7 @@ export async function GET(req) {
       history,
     };
 
-    responseCache = {
-      payload,
-      expiresAt: Date.now() + API_CACHE_TTL_MS,
-    };
+    setCachedResponse(cacheKey, payload);
 
     return json(payload);
   } catch (error) {

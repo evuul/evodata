@@ -1,44 +1,40 @@
 'use client';
 
-// Deduplicates client requests for the shared lobby overview.
+// Shares parameterized lobby overview requests across dashboard consumers.
 
-import { parseJsonResponse } from "@/lib/apiResponse";
+import { createClientJsonResource } from "./clientJsonResource.js";
 
-const MEM_TTL_MS = 60 * 1000;
-const memCache = new Map(); // key -> { data:any, exp:number }
-const inFlight = new Map(); // key -> Promise<any>
+const resources = new Map();
+
+export function normalizeOverviewDays(days) {
+  const parsed = Number(days);
+  if (!Number.isFinite(parsed)) return 45;
+  return Math.max(7, Math.min(Math.floor(parsed), 365));
+}
+
+export function buildOverviewUrl(days) {
+  return `/api/casinoscores/lobby/overview?days=${normalizeOverviewDays(days)}`;
+}
+
+export function getOverviewResource(days) {
+  const key = String(normalizeOverviewDays(days));
+  if (!resources.has(key)) {
+    resources.set(key, createClientJsonResource({
+      url: buildOverviewUrl(key),
+      cacheMs: 60 * 1000,
+      timeoutMs: 10_000,
+      retries: 1,
+    }));
+  }
+  return resources.get(key);
+}
 
 export async function fetchOverviewShared(days) {
   return fetchOverviewSharedWithOptions(days, {});
 }
 
 export async function fetchOverviewSharedWithOptions(days, options = {}) {
-  const key = String(Math.max(1, Math.floor(Number(days) || 1)));
   const force = Boolean(options?.force);
-  const cacheKey = force ? `${key}:force` : key;
-  const now = Date.now();
-
-  const cached = memCache.get(cacheKey);
-  if (cached && cached.exp > now) {
-    return cached.data;
-  }
-
-  if (inFlight.has(cacheKey)) {
-    return inFlight.get(cacheKey);
-  }
-
-  const promise = (async () => {
-    try {
-      const query = `days=${key}`;
-      const response = await fetch(`/api/casinoscores/lobby/overview?${query}`);
-      const json = await parseJsonResponse(response);
-      memCache.set(cacheKey, { data: json, exp: Date.now() + MEM_TTL_MS });
-      return json;
-    } finally {
-      inFlight.delete(cacheKey);
-    }
-  })();
-
-  inFlight.set(cacheKey, promise);
-  return promise;
+  const resource = getOverviewResource(days);
+  return force ? resource.refresh() : resource.load();
 }

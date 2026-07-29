@@ -3,13 +3,16 @@
 // Handles fetching, caching, and derived state for the live top-3 wins view.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getGameColor } from "@/config/games";
+import { fetchLiveTop3Shared } from "@/lib/liveTop3Client";
+import {
+  LIVE_TOP3_DEFAULT_HISTORY_DAYS,
+  LIVE_TOP3_DEFAULT_HISTORY_PER_DAY,
+} from "@/lib/liveTop3Request";
 
-export const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
 export const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // hourly refresh is enough
-export const HISTORY_DAYS = 30;
-export const HISTORY_PER_DAY = 3;
+export const HISTORY_DAYS = LIVE_TOP3_DEFAULT_HISTORY_DAYS;
+export const HISTORY_PER_DAY = LIVE_TOP3_DEFAULT_HISTORY_PER_DAY;
 export const HISTORY_ARCHIVE_VISIBLE_LIMIT = 5;
-export const LIVE_TOP3_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 export const NUMBER_LOCALE_MAP = { sv: "sv-SE", en: "en-US" };
 export const TODAY_VISIBLE_LIMIT = 6;
 export const BOLT_ICON_COLOR = "#fef08a";
@@ -93,11 +96,6 @@ const stockholmDateFormatter = new Intl.DateTimeFormat("sv-SE", {
   month: "2-digit",
   day: "2-digit",
 });
-
-let liveTop3Cache = {
-  payload: null,
-  expiresAt: 0,
-};
 
 const getStockholmTodayYmd = () => {
   try {
@@ -319,27 +317,12 @@ export function useLiveTop3Model({ locale }) {
       setStatus("success");
     };
 
-    const maybeUseCache = () => {
-      if (liveTop3Cache.payload && liveTop3Cache.expiresAt > Date.now()) {
-        applyPayload(liveTop3Cache.payload);
-        return true;
-      }
-      return false;
-    };
-
-    const fetchTopWins = async () => {
+    const fetchTopWins = async (force = false) => {
       try {
-        const params = new URLSearchParams({
-          historyDays: String(HISTORY_DAYS),
-          historyPerDay: String(HISTORY_PER_DAY),
-        });
-        const response = await fetch(`${LIVE_TOP3_ENDPOINT}?${params.toString()}`);
-        if (!response.ok) throw new Error(`Request failed with status ${response.status}`);
-        const payload = await response.json();
-        liveTop3Cache = {
-          payload,
-          expiresAt: Date.now() + LIVE_TOP3_CACHE_TTL,
-        };
+        const payload = await fetchLiveTop3Shared(
+          { historyDays: HISTORY_DAYS, historyPerDay: HISTORY_PER_DAY },
+          { force }
+        );
         applyPayload(payload);
       } catch {
         if (!active) return;
@@ -347,11 +330,8 @@ export function useLiveTop3Model({ locale }) {
       }
     };
 
-    const usedCache = maybeUseCache();
-    if (!usedCache) {
-      fetchTopWins();
-    }
-    const id = setInterval(fetchTopWins, REFRESH_INTERVAL_MS);
+    fetchTopWins();
+    const id = setInterval(() => fetchTopWins(true), REFRESH_INTERVAL_MS);
 
     return () => {
       active = false;

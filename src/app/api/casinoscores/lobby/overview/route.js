@@ -25,74 +25,22 @@ import {
 } from "@/lib/liveTrackerRecovery";
 import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { buildStuckAdjustedDailyTotals, computeTrailingStuckMeta } from "@/lib/stuckGames";
+import {
+  OVERVIEW_TTL_MS,
+  getOverviewCache,
+  getOverviewSeriesCache,
+  setOverviewCache,
+  setOverviewSeriesCache,
+} from "@/lib/lobbyOverviewCache";
+import {
+  applyDailyTotalOverrides,
+  recomputeTrendDelta,
+  withManualDailyOverrides,
+} from "@/lib/lobbyOverviewBackfill";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
 const RESPONSE_CACHE_CONTROL = "public, max-age=30, s-maxage=30, stale-while-revalidate=60";
-const MANUAL_DAILY_TOTAL_OVERRIDES = Object.freeze({
-  "2026-02-11": 61972,
-});
-const ENABLE_MANUAL_DAILY_OVERRIDES =
-  process.env.CS_ENABLE_MANUAL_DAILY_OVERRIDES === "1";
-const ENABLE_RECENT_DAILY_BACKFILL =
-  process.env.CS_ENABLE_RECENT_DAILY_BACKFILL === "1";
-const RECENT_DAILY_BACKFILL_MAX_DAYS = (() => {
-  const raw = Number(process.env.CS_RECENT_BACKFILL_MAX_DAYS);
-  if (Number.isFinite(raw) && raw > 0) return Math.min(Math.round(raw), 14);
-  return 7;
-})();
-const TARGETED_GAP_BACKFILL = Object.freeze({
-  start: "2026-02-21",
-  end: "2026-02-24",
-  lookbackDays: 20,
-});
-
-// ---------- In-process cache (per Node-instans) ----------
-const g = globalThis;
-g.__overviewCache ??= { byKey: new Map(), series: new Map() };
-const OVERVIEW_TTL_MS = (() => {
-  const rawMs = Number(process.env.CS_OVERVIEW_REFRESH_MS);
-  if (Number.isFinite(rawMs) && rawMs > 0) {
-    return Math.min(rawMs, 24 * 60 * 60 * 1000); // max 24 h
-  }
-  const rawHours = Number(process.env.CS_OVERVIEW_REFRESH_HOURS);
-  if (Number.isFinite(rawHours) && rawHours > 0) {
-    return Math.min(rawHours * 60 * 60 * 1000, 24 * 60 * 60 * 1000);
-  }
-  return 6 * 60 * 60 * 1000; // default ~6 h ⇒ ~4 uppdateringar/dygn
-})();
-// Per-serie TTL följer overview men caps vid 6 h för att hålla minnet i schack
-const SERIES_TTL_MS = Math.min(Math.max(5 * 60 * 1000, OVERVIEW_TTL_MS), 6 * 60 * 60 * 1000);
-
-function getOverviewCache(key) {
-  const hit = g.__overviewCache.byKey.get(key);
-  if (!hit) return null;
-  if (hit.exp > Date.now()) return hit;
-  g.__overviewCache.byKey.delete(key);
-  return null;
-}
-function setOverviewCache(key, data, etag, meta = null) {
-  const now = Date.now();
-  g.__overviewCache.byKey.set(key, {
-    data,
-    etag,
-    exp: now + OVERVIEW_TTL_MS,
-    ts: now,
-    meta: meta ?? null,
-  });
-}
-
-function getSeriesCache(slug, days) {
-  const k = `${slug}::${days}`;
-  const hit = g.__overviewCache.series.get(k);
-  if (hit && hit.exp > Date.now()) return hit.data;
-  if (hit) g.__overviewCache.series.delete(k);
-  return null;
-}
-function setSeriesCache(slug, days, data) {
-  const k = `${slug}::${days}`;
-  g.__overviewCache.series.set(k, { data, exp: Date.now() + SERIES_TTL_MS });
-}
 
 // ---------- helpers ----------
 function resJSON(data, status = 200, extraHeaders = {}) {
@@ -301,284 +249,6 @@ function buildDailyTotals(perSlugSeries, today) {
     .sort((a, b) => a.date.localeCompare(b.date));
 }
 
-function applyDailyTotalOverrides(rows) {
-  if (!Array.isArray(rows) || !rows.length) return [];
-  if (!ENABLE_MANUAL_DAILY_OVERRIDES) return rows;
-  return rows.map((row) => {
-    const date = String(row?.date || "");
-    const override = Number(MANUAL_DAILY_TOTAL_OVERRIDES[date]);
-    if (!Number.isFinite(override) || override <= 0) return row;
-    return {
-      ...row,
-      avgPlayers: override,
-    };
-  });
-}
-
-function shiftYmd(ymd, offsetDays) {
-  if (!ymd || !Number.isFinite(offsetDays)) return null;
-  const [year, month, day] = String(ymd)
-    .split("-")
-    .map((part) => Number(part));
-  if (![year, month, day].every((part) => Number.isFinite(part))) return null;
-  const date = new Date(Date.UTC(year, month - 1, day));
-  date.setUTCDate(date.getUTCDate() + offsetDays);
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function clamp(value, min, max) {
-  if (!Number.isFinite(value)) return min;
-  return Math.min(max, Math.max(min, value));
-}
-
-function mean(values) {
-  if (!Array.isArray(values) || !values.length) return null;
-  const valid = values.map((v) => Number(v)).filter((v) => Number.isFinite(v));
-  if (!valid.length) return null;
-  return valid.reduce((sum, v) => sum + v, 0) / valid.length;
-}
-
-function stdDev(values, avg) {
-  if (!Array.isArray(values) || values.length < 2 || !Number.isFinite(avg)) return 0;
-  const valid = values.map((v) => Number(v)).filter((v) => Number.isFinite(v));
-  if (valid.length < 2) return 0;
-  const variance =
-    valid.reduce((sum, v) => sum + (v - avg) * (v - avg), 0) / (valid.length - 1);
-  return Math.sqrt(Math.max(0, variance));
-}
-
-function dateHash01(ymd) {
-  const str = String(ymd || "");
-  let h = 0;
-  for (let i = 0; i < str.length; i += 1) {
-    h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  }
-  return (h % 10000) / 10000; // [0..1)
-}
-
-function dateHashWithSalt01(salt, ymd) {
-  return dateHash01(`${String(salt || "")}:${String(ymd || "")}`);
-}
-
-function applyRecentDailyBackfill(rows, todayYmd, maxMissingDays = RECENT_DAILY_BACKFILL_MAX_DAYS) {
-  if (!Array.isArray(rows) || !rows.length) return [];
-  if (!todayYmd) return rows;
-  if (!ENABLE_RECENT_DAILY_BACKFILL) return rows;
-  if (!Number.isFinite(maxMissingDays) || maxMissingDays <= 0) return rows;
-
-  const sorted = [...rows].sort((a, b) => String(a?.date || "").localeCompare(String(b?.date || "")));
-  const lastTargetYmd = shiftYmd(todayYmd, -1);
-  if (!lastTargetYmd) return sorted;
-
-  const lastRow = sorted[sorted.length - 1];
-  const lastDate = String(lastRow?.date || "");
-  const lastValue = Number(lastRow?.avgPlayers);
-  if (!lastDate || !Number.isFinite(lastValue) || lastValue <= 0) return sorted;
-  if (lastDate >= lastTargetYmd) return sorted;
-
-  const recent30 = sorted
-    .slice(-30)
-    .map((row) => Number(row?.avgPlayers))
-    .filter((value) => Number.isFinite(value) && value > 0);
-  const recent7 = sorted
-    .slice(-7)
-    .map((row) => Number(row?.avgPlayers))
-    .filter((value) => Number.isFinite(value) && value > 0);
-
-  const avg30 = mean(recent30);
-  const avg7 = mean(recent7);
-  if (!Number.isFinite(avg30) || avg30 <= 0) return sorted;
-
-  const volAbs = stdDev(recent30, avg30);
-  const volPct = clamp(volAbs / avg30, 0.002, 0.012); // 0.2% - 1.2% daglig variation
-  const trendBiasPct =
-    Number.isFinite(avg7) && avg30 > 0 ? clamp((avg7 - avg30) / avg30, -0.03, 0.03) : 0;
-  const rangeMin = avg30 * 0.94;
-  const rangeMax = avg30 * 1.06;
-
-  const backfilled = [];
-  let cursor = lastDate;
-  let prevValue = lastValue;
-  for (let i = 0; i < maxMissingDays; i += 1) {
-    const next = shiftYmd(cursor, 1);
-    if (!next || next > lastTargetYmd) break;
-
-    const noise = (dateHash01(next) - 0.5) * 2 * volPct;
-    const drift = trendBiasPct * ((i + 1) / Math.max(1, maxMissingDays));
-    const targetFromAvg = avg30 * (1 + noise + drift);
-    const blended = prevValue * 0.35 + targetFromAvg * 0.65;
-    const bounded = clamp(blended, rangeMin, rangeMax);
-
-    backfilled.push({
-      date: next,
-      avgPlayers: Math.round(bounded * 100) / 100,
-    });
-    prevValue = bounded;
-    cursor = next;
-  }
-
-  return backfilled.length ? [...sorted, ...backfilled] : sorted;
-}
-
-function applyTargetedGapBackfill(rows, todayYmd, salt = "") {
-  if (!Array.isArray(rows) || !rows.length) return [];
-  const start = TARGETED_GAP_BACKFILL.start;
-  const end = TARGETED_GAP_BACKFILL.end;
-  if (!start || !end) return rows;
-  if (todayYmd && start >= todayYmd) return rows; // fyll aldrig pa framtida/pagaende dag
-
-  const sorted = [...rows].sort((a, b) =>
-    String(a?.date || "").localeCompare(String(b?.date || ""))
-  );
-  const byDate = new Map(sorted.map((row) => [String(row?.date || ""), row]));
-  const baseRows = sorted.filter((row) => {
-    const date = String(row?.date || "");
-    const value = Number(row?.avg ?? row?.avgPlayers);
-    return date && date < start && Number.isFinite(value);
-  });
-  if (!baseRows.length) return sorted;
-
-  const recent = baseRows.slice(-Math.max(1, TARGETED_GAP_BACKFILL.lookbackDays));
-  const recentValues = recent
-    .map((row) => Number(row?.avg ?? row?.avgPlayers))
-    .filter((v) => Number.isFinite(v) && v > 0);
-  if (!recentValues.length) return sorted;
-
-  const avg20 = mean(recentValues);
-  if (!Number.isFinite(avg20) || avg20 <= 0) return sorted;
-  const avg7 = mean(recentValues.slice(-7));
-  const volAbs = stdDev(recentValues, avg20);
-  const volPct = clamp(volAbs / avg20, 0.003, 0.015);
-  const trendBiasPct =
-    Number.isFinite(avg7) && avg20 > 0 ? clamp((avg7 - avg20) / avg20, -0.025, 0.025) : 0;
-  const rangeMin = avg20 * 0.94;
-  const rangeMax = avg20 * 1.06;
-
-  let cursor = shiftYmd(start, -1);
-  let prevValue = Number(baseRows[baseRows.length - 1]?.avg ?? baseRows[baseRows.length - 1]?.avgPlayers);
-  if (!Number.isFinite(prevValue) || prevValue <= 0) prevValue = avg20;
-  const injected = [];
-  while (cursor && cursor < end) {
-    const next = shiftYmd(cursor, 1);
-    if (!next || next > end) break;
-
-    const existing = byDate.get(next);
-    const existingValue = Number(existing?.avg ?? existing?.avgPlayers);
-    if (existing && Number.isFinite(existingValue)) {
-      prevValue = existingValue;
-      cursor = next;
-      continue;
-    }
-
-    const progress = Math.max(0, Math.min(1, (Date.parse(`${next}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`)) / (3 * 24 * 60 * 60 * 1000)));
-    const noise = (dateHashWithSalt01(salt, next) - 0.5) * 2 * volPct;
-    const drift = trendBiasPct * progress;
-    const target = avg20 * (1 + noise + drift);
-    const blended = prevValue * 0.4 + target * 0.6;
-    const bounded = clamp(blended, rangeMin, rangeMax);
-    const row = { date: next, avg: Math.round(bounded * 100) / 100 };
-    injected.push(row);
-    byDate.set(next, row);
-    prevValue = row.avg;
-    cursor = next;
-  }
-
-  return injected.length
-    ? [...sorted, ...injected].sort((a, b) => String(a?.date || "").localeCompare(String(b?.date || "")))
-    : sorted;
-}
-
-function applyTargetedGapBackfillToSlugDaily(slugDaily, todayYmd) {
-  if (!slugDaily || typeof slugDaily !== "object") return slugDaily;
-  const entries = Object.entries(slugDaily);
-  if (!entries.length) return slugDaily;
-
-  const next = {};
-  for (const [slug, rows] of entries) {
-    const source = Array.isArray(rows) ? rows : [];
-    next[slug] = applyTargetedGapBackfill(source, todayYmd, slug);
-  }
-  return next;
-}
-
-function rebuildDailyTotalsFromSlugDaily(slugDaily, todayYmd) {
-  if (!slugDaily || typeof slugDaily !== "object") return [];
-  const totals = new Map();
-  for (const rows of Object.values(slugDaily)) {
-    if (!Array.isArray(rows)) continue;
-    for (const row of rows) {
-      const date = String(row?.date || "");
-      const avg = Number(row?.avg ?? row?.avgPlayers);
-      if (!date || !Number.isFinite(avg)) continue;
-      if (todayYmd && date >= todayYmd) continue;
-      totals.set(date, (totals.get(date) ?? 0) + avg);
-    }
-  }
-  return Array.from(totals.entries())
-    .map(([date, sum]) => ({
-      date,
-      avgPlayers: Math.round(sum * 100) / 100,
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function recomputeTrendDelta(dailyTotals) {
-  if (!Array.isArray(dailyTotals) || dailyTotals.length < 2) return null;
-  const first = dailyTotals[0];
-  const last = dailyTotals[dailyTotals.length - 1];
-  if (!first || !last) return null;
-  const startValue = Number(first.avgPlayers);
-  const endValue = Number(last.avgPlayers);
-  if (!Number.isFinite(startValue) || !Number.isFinite(endValue)) return null;
-  const absolute = Math.round((endValue - startValue) * 100) / 100;
-  const percent =
-    startValue !== 0
-      ? Math.round(((endValue - startValue) / startValue) * 10000) / 100
-      : null;
-  return {
-    start: { date: first.date, value: startValue },
-    end: { date: last.date, value: endValue },
-    absolute,
-    percent,
-  };
-}
-
-function withManualDailyOverrides(basePayload) {
-  if (!basePayload || typeof basePayload !== "object") return basePayload;
-  const todayYmd = stockholmTodayYMD();
-  const baseSlugDaily =
-    basePayload.slugDaily && typeof basePayload.slugDaily === "object"
-      ? basePayload.slugDaily
-      : {};
-  const nextSlugDaily = applyTargetedGapBackfillToSlugDaily(baseSlugDaily, todayYmd);
-
-  const fromSlugDaily = rebuildDailyTotalsFromSlugDaily(nextSlugDaily, todayYmd);
-  const startingDailyTotals = fromSlugDaily.length
-    ? fromSlugDaily
-    : Array.isArray(basePayload.dailyTotals)
-      ? basePayload.dailyTotals
-      : [];
-
-  const overriddenDailyTotals = applyDailyTotalOverrides(startingDailyTotals);
-  const nextDailyTotals = applyRecentDailyBackfill(overriddenDailyTotals, todayYmd);
-  const nextDays7 = nextDailyTotals.slice(-7);
-  const nextDays30 = nextDailyTotals.slice(-30);
-  return {
-    ...basePayload,
-    dailyTotals: nextDailyTotals,
-    slugDaily: nextSlugDaily,
-    averages: {
-      ...(basePayload.averages || {}),
-      days7: nextDays7,
-      days30: nextDays30,
-    },
-    trendDelta: recomputeTrendDelta(nextDailyTotals),
-  };
-}
-
 function computeTodayPeak(perSlugSeries, today) {
   const bucketMap = new Map(); // bucketTs -> sum av per-slug-peak
 
@@ -652,7 +322,7 @@ export async function GET(req) {
           : cachedEntry.exp - OVERVIEW_TTL_MS;
       const storedMeta =
         cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
-      const adjustedData = withManualDailyOverrides(cachedEntry.data);
+      const adjustedData = withManualDailyOverrides(cachedEntry.data, stockholmTodayYMD());
       if (adjustedData !== cachedEntry.data) {
         cachedEntry.data = adjustedData;
         cachedEntry.etag = makeEtag(adjustedData);
@@ -710,7 +380,7 @@ export async function GET(req) {
         const staleAfterIso = Number.isFinite(staleAfterMs)
           ? new Date(staleAfterMs).toISOString()
           : new Date(Date.now() + refreshIntervalMs).toISOString();
-        const adjustedSnapshotData = withManualDailyOverrides(storedSnapshot.data);
+        const adjustedSnapshotData = withManualDailyOverrides(storedSnapshot.data, stockholmTodayYMD());
         const etag = makeEtag(adjustedSnapshotData);
         const baseMeta = {
           refreshIntervalMs,
@@ -744,7 +414,7 @@ export async function GET(req) {
     const recentDays = 2;
     const cachedSeriesMap = new Map();
     for (const slug of SERIES_SLUGS) {
-      const cached = getSeriesCache(slug, recentDays);
+      const cached = getOverviewSeriesCache(slug, recentDays);
       if (cached) cachedSeriesMap.set(slug, cached);
     }
     const missingForRecent = SERIES_SLUGS.filter((slug) => !cachedSeriesMap.has(slug));
@@ -763,7 +433,7 @@ export async function GET(req) {
         slug === "crazy-time:a"
           ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
           : arr;
-      if (!cached) setSeriesCache(slug, recentDays, filtered);
+      if (!cached) setOverviewSeriesCache(slug, recentDays, filtered);
       return { slug, series: filtered };
     });
     const seriesBySlug = new Map(perSlugSeries.map(({ slug, series }) => [slug, series]));
@@ -882,7 +552,7 @@ export async function GET(req) {
       const cacheKeyDays = targetDays + 5;
       const cachedEntries = new Map();
       for (const slug of SERIES_SLUGS) {
-        const cached = getSeriesCache(slug, cacheKeyDays);
+        const cached = getOverviewSeriesCache(slug, cacheKeyDays);
         if (cached) cachedEntries.set(slug, cached);
       }
       const missingSlugs = SERIES_SLUGS.filter((slug) => !cachedEntries.has(slug));
@@ -900,7 +570,7 @@ export async function GET(req) {
           slug === "crazy-time:a"
             ? arr.filter((p) => Number.isFinite(p?.ts) && p.ts >= CRAZY_TIME_A_RESET_MS)
             : arr;
-        if (!cached) setSeriesCache(slug, cacheKeyDays, filtered);
+        if (!cached) setOverviewSeriesCache(slug, cacheKeyDays, filtered);
 
         const daily = dailyAverages(filtered) || [];
         let sum = 0;

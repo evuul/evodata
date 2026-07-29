@@ -1,5 +1,7 @@
 "use client";
 
+// Handles authentication, password recovery and dashboard data prefetching.
+
 import { Suspense, useEffect, useState } from "react";
 import NextLink from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,17 +25,13 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { classifyLoginError, LOGIN_ERROR_KIND } from "@/lib/loginError";
+import { fetchLiveTop3Shared } from "@/lib/liveTop3Client";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
-const LIVE_TOP3_ENDPOINT = process.env.NEXT_PUBLIC_LIVE_TOP3_ENDPOINT ?? "/api/live-top3";
-const LIVE_TOP3_PREFETCH_PARAMS = new URLSearchParams({
-  historyDays: "7",
-  historyPerDay: "6",
-}).toString();
 
 const prefetchLiveTop3 = () => {
   try {
-    fetch(`${LIVE_TOP3_ENDPOINT}?${LIVE_TOP3_PREFETCH_PARAMS}`, { cache: "no-store" }).catch(() => {
+    fetchLiveTop3Shared().catch(() => {
       // Swallow network errors; dashboard can still load without immediate top wins data.
     });
   } catch {
