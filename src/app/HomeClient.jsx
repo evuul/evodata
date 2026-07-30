@@ -56,38 +56,7 @@ async function loadLiveHeaderData() {
 }
 
 async function loadLoggedOutPreviewData() {
-  const [
-    financialReports,
-    averagePlayersData,
-    dividendData,
-    historicalBuybacks,
-    currentBuybacks,
-    gameShowsData,
-    shortHistoryData,
-    insiderTransactions,
-    sharesData,
-  ] = await Promise.all([
-    readDefault(import("@/app/data/financialReports.json")),
-    readDefault(import("@/app/data/averagePlayers.json")),
-    readDefault(import("@/app/data/dividendData.json")),
-    readDefault(import("@/app/data/oldBuybackData.json")),
-    readDefault(import("@/app/data/buybackData.json")),
-    readDefault(import("@/app/data/gameShows.json")),
-    readDefault(import("@/app/data/shortHistory.json")),
-    readDefault(import("@/app/data/insiderTransactions.json")),
-    readDefault(import("@/app/data/amountOfShares.json")),
-  ]);
-
-  return {
-    financialReports,
-    averagePlayersData,
-    dividendData,
-    buybackData: combineBuybackSnapshots(historicalBuybacks, currentBuybacks),
-    gameShowsData,
-    shortHistoryData,
-    insiderTransactions,
-    sharesData,
-  };
+  return {};
 }
 
 function LoadingState({ label = "Laddar dashboards ..." }) {
