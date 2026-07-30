@@ -1,5 +1,13 @@
-// src/lib/csStore.js  (ESM!)
-// Sätter ESM-friendly exports + KV fallback till in-memory.
+// Stores casino-score history and materialized lobby snapshots in Redis or memory.
+
+import {
+  mergeGameAthSnapshot,
+  normalizeGameAthSnapshot,
+} from "./gameAthSnapshot.js";
+import {
+  deserializeDailyAggregates,
+  serializeDailyAggregates,
+} from "./dailyAggregatesSnapshot.js";
 
 const DEBUG = process.env.DEBUG_CS === "1";
 export const MAX_REASONABLE_PLAYERS = 5_000_000;
@@ -183,12 +191,15 @@ const dailyPeakMem = new Map(); // key (ymd) -> entry
 const LOBBY_INGEST_CHECKPOINT_KEY = "cs:lobby:last-ingested-created-at";
 let lobbyIngestCheckpointMemTs = 0;
 const LATEST_PLAYERS_SNAPSHOT_KEY = "cs:lobby:latest-players-snapshot:v1";
+const GAME_ATH_SNAPSHOT_KEY = "cs:lobby:game-ath-snapshot:v1";
 const LATEST_PLAYERS_SNAPSHOT_TTL_MS = (() => {
   const raw = Number(process.env.CS_LATEST_PLAYERS_SNAPSHOT_TTL_MS);
   if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000);
   return 12 * 60 * 60 * 1000;
 })();
+const MATERIALIZED_SNAPSHOT_MEM_TTL_MS = 60 * 1000;
 let latestPlayersSnapshotMem = { data: null, exp: 0 };
+let gameAthSnapshotMem = { data: null, exp: 0 };
 
 function overviewKey(days) {
   const n = Number(days);
@@ -677,6 +688,17 @@ export async function getDailyAggregates(slugs, days = 30) {
   return result;
 }
 
+export async function getCachedDailyAggregates(slugs, days = 30, { force = false, ttlMs } = {}) {
+  if (!force) {
+    const cached = await getDailySnapshot(days);
+    if (cached) return deserializeDailyAggregates(cached);
+  }
+
+  const aggregates = await getDailyAggregates(slugs, days);
+  await setDailySnapshot(days, serializeDailyAggregates(aggregates), ttlMs);
+  return aggregates;
+}
+
 function clearDailyCacheForSlug(slug) {
   const prefix = `cs:daily:${slug}:`;
   for (const key of dailyMem.keys()) {
@@ -1032,7 +1054,10 @@ export async function getLatestPlayersSnapshot() {
     if (!data || typeof data !== "object") return null;
     latestPlayersSnapshotMem = {
       data,
-      exp: Number.isFinite(exp) ? exp : Date.now() + LATEST_PLAYERS_SNAPSHOT_TTL_MS,
+      exp: Math.min(
+        Number.isFinite(exp) ? exp : Date.now() + LATEST_PLAYERS_SNAPSHOT_TTL_MS,
+        Date.now() + MATERIALIZED_SNAPSHOT_MEM_TTL_MS
+      ),
     };
     return data;
   } catch (err) {
@@ -1045,7 +1070,10 @@ export async function setLatestPlayersSnapshot(data, ttlMs = LATEST_PLAYERS_SNAP
   if (!data || typeof data !== "object") return;
   const ttl = Math.max(60 * 1000, Number(ttlMs) || LATEST_PLAYERS_SNAPSHOT_TTL_MS);
   const exp = Date.now() + ttl;
-  latestPlayersSnapshotMem = { data, exp };
+  latestPlayersSnapshotMem = {
+    data,
+    exp: Date.now() + Math.min(ttl, MATERIALIZED_SNAPSHOT_MEM_TTL_MS),
+  };
   const kv = await getKv();
   if (!kv) return;
   try {
@@ -1062,6 +1090,55 @@ export async function setLatestPlayersSnapshot(data, ttlMs = LATEST_PLAYERS_SNAP
   } catch (err) {
     if (DEBUG) console.warn("[csStore] latest players snapshot set failed:", err);
   }
+}
+
+export async function getGameAthSnapshot() {
+  if (gameAthSnapshotMem.data && gameAthSnapshotMem.exp > Date.now()) {
+    return gameAthSnapshotMem.data;
+  }
+  const kv = await getKv();
+  if (!kv) return null;
+  try {
+    const raw = await kv.get(GAME_ATH_SNAPSHOT_KEY);
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const normalized = normalizeGameAthSnapshot(parsed);
+    if (normalized) {
+      gameAthSnapshotMem = {
+        data: normalized,
+        exp: Date.now() + MATERIALIZED_SNAPSHOT_MEM_TTL_MS,
+      };
+    }
+    return normalized;
+  } catch (err) {
+    if (DEBUG) console.warn("[csStore] game ATH snapshot get failed:", err);
+    return null;
+  }
+}
+
+export async function setGameAthSnapshot(snapshot) {
+  const normalized = normalizeGameAthSnapshot(snapshot);
+  if (!normalized) return null;
+  gameAthSnapshotMem = {
+    data: normalized,
+    exp: Date.now() + MATERIALIZED_SNAPSHOT_MEM_TTL_MS,
+  };
+  const kv = await getKv();
+  if (!kv) return normalized;
+  try {
+    await kv.set(GAME_ATH_SNAPSHOT_KEY, JSON.stringify(normalized));
+  } catch (err) {
+    if (DEBUG) console.warn("[csStore] game ATH snapshot set failed:", err);
+  }
+  return normalized;
+}
+
+export async function updateGameAthSnapshot(items, updatedAt = new Date().toISOString()) {
+  const current = await getGameAthSnapshot();
+  // A missing snapshot must be seeded from historical daily aggregates first.
+  if (!current || current.source !== "daily-history") return null;
+  const merged = mergeGameAthSnapshot(current, items, updatedAt);
+  if (!merged.changed) return merged.snapshot;
+  return setGameAthSnapshot(merged.snapshot);
 }
 
 function parseCheckpointTs(raw) {

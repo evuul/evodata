@@ -331,7 +331,7 @@ export function useLiveHeaderModel() {
   useEffect(() => {
     if (!isAuthenticated || !token) return;
     let cancelled = false;
-    const HEARTBEAT_INTERVAL_MS = 5 * 60 * 1000;
+    const HEARTBEAT_INTERVAL_MS = 30 * 60 * 1000;
     const sendHeartbeat = async () => {
       if (cancelled || typeof window === "undefined") return;
       if (document.visibilityState !== "visible") return;

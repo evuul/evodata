@@ -1,11 +1,14 @@
+// Sends the scheduled daily player summary with bounded Redis reads.
+
 import { NextResponse } from "next/server";
-import { getJson, getUserIndexKey, getUserKey, setJson } from "@/lib/authStore";
+import { getJson, getUserIndexKey, getUserKey, mgetJson, setJson } from "@/lib/authStore";
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
-import { getDailyAggregates } from "@/lib/csStore";
+import { getCachedDailyAggregates } from "@/lib/csStore";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 import { buildDailyAvgPlayersEmail } from "@/lib/emailTemplates";
+import { shouldRunScheduledAggregation } from "@/lib/upstashCostPolicy";
 import {
   applyRecoveryForDate,
   resolveRecoveryDate,
@@ -240,9 +243,22 @@ async function handler(req) {
   // This ensures predictable timing and that "yesterday" is typically complete.
   const atScheduledTime =
     stockholmHour === SEND_HOUR_STOCKHOLM && stockholmMinute === SEND_MINUTE_STOCKHOLM;
-  const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
+  if (!shouldRunScheduledAggregation({ scheduled: atScheduledTime, dryRun, force: forceSend })) {
+    return json({
+      ok: true,
+      dryRun,
+      sent: 0,
+      skipped: true,
+      reason: "Outside Stockholm scheduled send time",
+      stockholmHour,
+      stockholmMinute,
+      scheduledHour: SEND_HOUR_STOCKHOLM,
+      scheduledMinute: SEND_MINUTE_STOCKHOLM,
+    });
+  }
 
-  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
+  const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
+  const dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
   let recoveryMeta = null;
   if (shouldUseLiveTrackerRecovery(process.env)) {
     const fixYmd = resolveRecoveryDate(todayYmd, process.env);
@@ -296,22 +312,6 @@ async function handler(req) {
     });
   }
 
-  if (!atScheduledTime && !dryRun && !forceSend) {
-    return json({
-      ok: true,
-      dryRun,
-      sent: 0,
-      skipped: true,
-      reason: "Outside Stockholm scheduled send time",
-      stockholmHour,
-      stockholmMinute,
-      scheduledHour: SEND_HOUR_STOCKHOLM,
-      scheduledMinute: SEND_MINUTE_STOCKHOLM,
-      targetYmd,
-      prevYmd,
-    });
-  }
-
   if (!dryRun && !forceSend && lastSentYmd === targetYmd) {
     return json({
       ok: true,
@@ -346,13 +346,8 @@ async function handler(req) {
   } else {
     const index = (await getJson(getUserIndexKey())) || {};
     const emails = Array.isArray(index?.emails) ? index.emails : [];
-    for (const email of emails) {
-      const user = await getJson(getUserKey(email)).catch(() => null);
-      if (!user?.email) continue;
-      const enabled = Boolean(user?.notifications?.dailyAvgEmail);
-      if (!enabled) continue;
-      recipients.push(user);
-    }
+    const users = await mgetJson(emails.map(getUserKey)).catch(() => []);
+    recipients = users.filter((user) => user?.email && user?.notifications?.dailyAvgEmail);
   }
 
   if (!recipients.length) {

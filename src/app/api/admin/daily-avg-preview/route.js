@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { buildDailyAvgPlayersEmail } from "@/lib/emailTemplates";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
-import { getDailyAggregates } from "@/lib/csStore";
+import { getCachedDailyAggregates } from "@/lib/csStore";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import {
   applyRecoveryForDate,
@@ -85,7 +85,7 @@ export async function GET(request) {
   if (!dryRunPayload?.targetYmd) {
     try {
       const todayYmd = getStockholmYmd();
-      const dailyAgg = await getDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
+      const dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
       if (shouldUseLiveTrackerRecovery(process.env) && todayYmd) {
         const fixYmd = resolveRecoveryDate(todayYmd, process.env);
         applyRecoveryForDate(dailyAgg, fixYmd);

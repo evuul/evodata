@@ -1,7 +1,7 @@
 // Serves authenticated activity summaries to administrators.
 
 import { NextResponse } from "next/server";
-import { getJson, getUserKey } from "@/lib/authStore";
+import { getJson, getUserKey, mgetJson } from "@/lib/authStore";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
@@ -40,12 +40,15 @@ export async function GET(request) {
   const emails = Array.isArray(index?.emails) ? index.emails : [];
   const now = Date.now();
 
-  const users = (
-    await Promise.all(
-      emails.map(async (email) => {
-        const activity = await getJson(`${USER_KEY_PREFIX}${email}`);
+  const [activities, accounts] = await Promise.all([
+    mgetJson(emails.map((email) => `${USER_KEY_PREFIX}${email}`)),
+    mgetJson(emails.map(getUserKey)),
+  ]);
+  const users = emails
+    .map((email, index) => {
+        const activity = activities[index];
         if (!activity?.email || !activity?.lastSeenAt) return null;
-        const user = await getJson(getUserKey(email)).catch(() => null);
+        const user = accounts[index];
         const seenAt = Date.parse(activity.lastSeenAt);
         const isActive = Number.isFinite(seenAt) && now - seenAt <= ACTIVE_WINDOW_MS;
         return {
@@ -63,8 +66,6 @@ export async function GET(request) {
           visits: Array.isArray(activity.visits) ? activity.visits.slice(-8) : [],
         };
       })
-    )
-  )
     .filter(Boolean)
     .sort((a, b) => Date.parse(b.lastSeenAt) - Date.parse(a.lastSeenAt));
 

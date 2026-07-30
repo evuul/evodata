@@ -7,17 +7,10 @@ export const maxDuration = 30;
 import {
   normalizePlayers,
   getLatestSample,
-  saveSample,
-  getSeriesBulk,
-  maybeUpdateDailyLobbyPeak,
-  getGlobalLobbyAth,
-  setGlobalLobbyAth,
   getOrBuildBaseline,
-  shouldPersistLobbySnapshot,
-  setLatestPlayersSnapshot,
+  getLatestPlayersSnapshot,
   bucketLabelFromTs,
 } from "@/lib/csStore";
-import { computeTrailingStuckMeta } from "@/lib/stuckGames";
 import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
@@ -38,8 +31,6 @@ const SOURCE_STALE_AFTER_MS = 20 * 60 * 1000;
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=60";
 const BASELINE_DAYS = 30;
 const BASELINE_BUCKET_MS = 5 * 60 * 1000;
-const STUCK_LOOKBACK_DAYS = 90;
-const STUCK_MIN_RUN = 8;
 
 const g = globalThis;
 if (!g.__CS_LOBBY_CACHE__) {
@@ -148,8 +139,6 @@ export async function GET(req) {
   const items = [];
   let newestTs = 0;
   const lobbyCreatedAt = lobby?.createdAt ? Date.parse(lobby.createdAt) : null;
-  const shouldPersistSamples =
-    Number.isFinite(lobbyCreatedAt) && (await shouldPersistLobbySnapshot(lobbyCreatedAt));
   const fallbackPromises = [];
   const fallbackIndices = [];
 
@@ -205,92 +194,23 @@ export async function GET(req) {
     });
   }
 
-  if (shouldPersistSamples) {
-    // Persistera en sample per spel för varje ny lobby-snapshot.
-    // Detta gör att dagliga trenddata fortsätter fyllas även om cron missar.
-    const persistTasks = [];
-    for (const entry of items) {
-      if (!entry || entry.stale || !Number.isFinite(entry.players) || !entry.fetchedAt) continue;
-      persistTasks.push(
-        saveSample(entry.id, entry.fetchedAt, entry.players).catch(() => undefined)
-      );
-    }
-    if (persistTasks.length) {
-      await Promise.all(persistTasks);
-    }
-  }
-
-  const seriesMap = await getSeriesBulk(
-    GAME_CONFIG.map((game) => game.id).filter(Boolean),
-    STUCK_LOOKBACK_DAYS
-  ).catch(() => new Map());
-  const stuckById = new Map();
-  for (const game of GAME_CONFIG) {
-    const series = seriesMap.get(game.id) ?? [];
-    stuckById.set(game.id, computeTrailingStuckMeta(series, { minRun: STUCK_MIN_RUN }));
-  }
+  const storedSnapshot = await getLatestPlayersSnapshot().catch(() => null);
+  const storedById = new Map(
+    Array.isArray(storedSnapshot?.items)
+      ? storedSnapshot.items.filter((item) => item?.id).map((item) => [item.id, item])
+      : []
+  );
 
   for (const entry of items) {
-    const stuckMeta = stuckById.get(entry.id);
-    if (stuckMeta) {
-      entry.stuck = true;
-      entry.stuckDays = stuckMeta.stuckDays;
-      entry.stuckSince = stuckMeta.stuckSince;
-      entry.stuckLatestAt = stuckMeta.stuckLatestAt;
-      entry.stuckValue = stuckMeta.stuckValue;
-      entry.stuckRunLength = stuckMeta.stuckRunLength;
-    } else {
-      entry.stuck = false;
-      entry.stuckDays = null;
-      entry.stuckSince = null;
-      entry.stuckLatestAt = null;
-      entry.stuckValue = null;
-      entry.stuckRunLength = 0;
-    }
-  }
-
-  if (shouldPersistSamples && Number.isFinite(lobbyCreatedAt)) {
-    let totalPlayers = 0;
-    let countedGames = 0;
-    for (const entry of items) {
-      if (!entry?.stale && !entry?.stuck && Number.isFinite(entry?.players)) {
-        totalPlayers += entry.players;
-        countedGames += 1;
-      }
-    }
-    if (countedGames > 0) {
-      try {
-        const updatedPeak = await maybeUpdateDailyLobbyPeak(totalPlayers, lobbyCreatedAt);
-        const existingAth = await getGlobalLobbyAth();
-        const existingValue = Number(existingAth?.value);
-        if (!Number.isFinite(existingValue) || totalPlayers > existingValue) {
-          await setGlobalLobbyAth({
-            value: totalPlayers,
-            date: updatedPeak?.date || (updatedPeak?.at ? updatedPeak.at.slice(0, 10) : null),
-            at: new Date(lobbyCreatedAt).toISOString(),
-          });
-        }
-      } catch {
-        // Ignorerar peak/Ath fel så live-endpointen alltid svarar
-      }
-    }
-  }
-
-  if (shouldPersistSamples) {
-    setLatestPlayersSnapshot({
-      items: items.map((entry) => ({
-        id: entry.id,
-        players: entry.players,
-        fetchedAt: entry.fetchedAt,
-        stuck: entry.stuck,
-        stuckDays: entry.stuckDays,
-        stuckSince: entry.stuckSince,
-        stuckLatestAt: entry.stuckLatestAt,
-        stuckValue: entry.stuckValue,
-        stuckRunLength: entry.stuckRunLength,
-      })),
-      updatedAt: newestTs ? new Date(newestTs).toISOString() : lobby?.createdAt ?? null,
-    }).catch(() => undefined);
+    const stored = storedById.get(entry.id);
+    entry.stuck = Boolean(stored?.stuck);
+    entry.stuckDays = Number.isFinite(Number(stored?.stuckDays)) ? Number(stored.stuckDays) : null;
+    entry.stuckSince = stored?.stuckSince ?? null;
+    entry.stuckLatestAt = stored?.stuckLatestAt ?? null;
+    entry.stuckValue = Number.isFinite(Number(stored?.stuckValue)) ? Number(stored.stuckValue) : null;
+    entry.stuckRunLength = Number.isFinite(Number(stored?.stuckRunLength))
+      ? Number(stored.stuckRunLength)
+      : 0;
   }
 
   let baseline = null;

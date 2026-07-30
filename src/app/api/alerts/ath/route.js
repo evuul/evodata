@@ -1,8 +1,15 @@
+// Sends ATH alerts from a materialized snapshot instead of scanning full Redis history.
+
 import { NextResponse } from "next/server";
-import { getJson, getUserIndexKey, getUserKey, setJson } from "@/lib/authStore";
+import { getJson, getUserIndexKey, getUserKey, mgetJson, setJson } from "@/lib/authStore";
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
-import { getLatestSample } from "@/lib/csStore";
-import { getDailyAggregates } from "@/lib/csStore";
+import {
+  getCachedDailyAggregates,
+  getGameAthSnapshot,
+  getLatestPlayersSnapshot,
+  setGameAthSnapshot,
+} from "@/lib/csStore";
+import { buildGameAthSnapshot } from "@/lib/gameAthSnapshot";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
@@ -50,51 +57,6 @@ const gameNameById = (() => {
   }
   return map;
 })();
-
-const computeAthFromDailyMap = (dateMap) => {
-  if (!(dateMap instanceof Map) || dateMap.size === 0) return null;
-  const points = [];
-  for (const [, row] of dateMap) {
-    const v = Number(row?.max);
-    const ts = Number(row?.maxTs);
-    if (!Number.isFinite(v)) continue;
-    points.push({ value: v, ts: Number.isFinite(ts) ? ts : null });
-  }
-  if (!points.length) return null;
-
-  let athValue = null;
-  let athTs = null;
-  for (const p of points) {
-    if (athValue == null || p.value > athValue) {
-      athValue = p.value;
-      athTs = p.ts;
-    } else if (p.value === athValue && Number.isFinite(p.ts) && Number.isFinite(athTs) && p.ts > athTs) {
-      athTs = p.ts;
-    }
-  }
-  if (!Number.isFinite(athValue)) return null;
-
-  let previousValue = null;
-  let previousTs = null;
-  if (Number.isFinite(athTs)) {
-    for (const p of points) {
-      if (!Number.isFinite(p.ts) || p.ts >= athTs) continue;
-      if (previousValue == null || p.value > previousValue) {
-        previousValue = p.value;
-        previousTs = p.ts;
-      } else if (p.value === previousValue && Number.isFinite(previousTs) && p.ts > previousTs) {
-        previousTs = p.ts;
-      }
-    }
-  }
-
-  return {
-    value: Math.round(athValue),
-    ts: Number.isFinite(athTs) ? athTs : null,
-    previousValue: Number.isFinite(previousValue) ? Math.round(previousValue) : null,
-    previousTs: Number.isFinite(previousTs) ? previousTs : null,
-  };
-};
 
 const computeTopTrends = (dailyAggMap) => {
   const out = [];
@@ -158,17 +120,28 @@ async function handler(req) {
   const prevMap = lastNotified?.slugs && typeof lastNotified.slugs === "object" ? lastNotified.slugs : {};
   const nextMap = { ...prevMap };
   const events = [];
-  const dailyAgg = await getDailyAggregates(SERIES_SLUGS, ATH_BASELINE_DAYS).catch(() => new Map());
+  let dailyAgg = null;
+  let athSnapshot = await getGameAthSnapshot().catch(() => null);
+  if (!athSnapshot || athSnapshot.source !== "daily-history") {
+    dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, ATH_BASELINE_DAYS).catch(() => new Map());
+    athSnapshot = buildGameAthSnapshot(dailyAgg, SERIES_SLUGS);
+    await setGameAthSnapshot(athSnapshot).catch(() => null);
+  }
+  const latestSnapshot = await getLatestPlayersSnapshot().catch(() => null);
+  const latestById = new Map(
+    Array.isArray(latestSnapshot?.items)
+      ? latestSnapshot.items.filter((item) => item?.id).map((item) => [item.id, item])
+      : []
+  );
 
   // Detect new ATH per slug.
   const nowTs = Date.now();
   for (const slug of SERIES_SLUGS) {
-    const latest = await getLatestSample(slug).catch(() => null);
-    if (!latest || !Number.isFinite(latest.value)) continue;
-    const dateMap = dailyAgg?.get?.(slug);
-    const ath = computeAthFromDailyMap(dateMap);
+    const latest = latestById.get(slug);
+    if (!latest || !Number.isFinite(Number(latest.players))) continue;
+    const ath = athSnapshot?.games?.[slug];
     if (!ath || !Number.isFinite(ath.value)) continue;
-    const athTs = Number(ath.ts);
+    const athTs = Date.parse(String(ath.at || ""));
     if (!Number.isFinite(athTs)) continue;
     if (nowTs - athTs > NEW_ATH_LOOKBACK_MS) continue;
 
@@ -180,10 +153,10 @@ async function handler(req) {
       id: slug,
       name: gameNameById.get(slug) || slug,
       athValue: ath.value,
-      athAt: ath.ts ? new Date(ath.ts).toISOString() : null,
+      athAt: ath.at ?? null,
       previousAthValue: Number.isFinite(ath.previousValue) ? ath.previousValue : null,
-      previousAthAt: ath.previousTs ? new Date(ath.previousTs).toISOString() : null,
-      currentValue: latest.value,
+      previousAthAt: ath.previousAt ?? null,
+      currentValue: Number(latest.players),
     });
   }
 
@@ -193,18 +166,15 @@ async function handler(req) {
     return (Number.isFinite(bv) ? bv : -Infinity) - (Number.isFinite(av) ? av : -Infinity);
   });
 
-  // Load opted-in users.
+  if (!events.length) {
+    return json({ ok: true, sent: 0, events: [], topTrends: [], recipients: [], dryRun });
+  }
+
+  // Load opted-in users with one MGET command rather than one GET per account.
   const index = (await getJson(getUserIndexKey())) || {};
   const emails = Array.isArray(index?.emails) ? index.emails : [];
-  const recipients = [];
-
-  for (const email of emails) {
-    const user = await getJson(getUserKey(email)).catch(() => null);
-    if (!user?.email) continue;
-    const enabled = Boolean(user?.notifications?.athEmail);
-    if (!enabled) continue;
-    recipients.push(user);
-  }
+  const users = await mgetJson(emails.map(getUserKey)).catch(() => []);
+  const recipients = users.filter((user) => user?.email && user?.notifications?.athEmail);
 
   // During testing: only send to the admin email to avoid spamming real users.
   const effectiveRecipients = (() => {
@@ -219,19 +189,11 @@ async function handler(req) {
     ];
   })();
 
-  if (!events.length) {
-    return json({
-      ok: true,
-      sent: 0,
-      events: [],
-      topTrends: [],
-      recipients: effectiveRecipients.map((u) => u.email),
-      dryRun,
-    });
+  // The 60-day trend scan runs only for an actual ATH event.
+  if (!dailyAgg) {
+    dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, 60).catch(() => new Map());
   }
-
-  // Compute trends to add value.
-  const topTrends = dailyAgg ? computeTopTrends(dailyAgg) : [];
+  const topTrends = computeTopTrends(dailyAgg);
 
   let sent = 0;
   const errors = [];
