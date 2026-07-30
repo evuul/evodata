@@ -4,7 +4,11 @@ import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
 import { calculateMarketOpenChangePercent } from "@/lib/stockPriceChange";
-import { findIntradayMarketOpen } from "@/lib/stockMarketSession";
+import {
+  applyMarketSessionBoundary,
+  findIntradayMarketOpen,
+  isMarketSessionCacheCompatible,
+} from "@/lib/stockMarketSession";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -70,6 +74,25 @@ function makeEtag(obj) {
     h = (h * 31 + s.charCodeAt(i)) >>> 0;
   }
   return `W/"${h.toString(16)}"`;
+}
+
+function applySessionBoundaryToPayload(payload, now = new Date()) {
+  if (!payload || typeof payload !== "object") return payload;
+  const boundary = applyMarketSessionBoundary({
+    changePercent: payload?.price?.regularMarketChangePercent?.raw,
+    marketOpen: payload?.price?.regularMarketOpen,
+    generatedAt: payload?.generatedAt,
+    now,
+  });
+  return {
+    ...payload,
+    price: {
+      ...payload.price,
+      regularMarketChangePercent: { raw: boundary.changePercent },
+      regularMarketOpen: boundary.marketOpen,
+    },
+    marketSessionPhase: boundary.phase,
+  };
 }
 
 function getCached(symbol, { allowStale = false } = {}) {
@@ -147,23 +170,24 @@ async function setSharedCached(symbol, data, etag) {
 }
 
 function respondFromCache(hit, request) {
+  const data = applySessionBoundaryToPayload(hit.data);
+  const etag = makeEtag(data);
   const inm = request.headers.get("if-none-match");
-  if (inm && hit.etag && inm === hit.etag && !hit.stale) {
+  if (inm && inm === etag && !hit.stale) {
     return new Response(null, {
       status: 304,
       headers: {
-        ETag: hit.etag,
+        ETag: etag,
         "Cache-Control": getCachePolicy().cacheControl,
       },
     });
   }
   const headers = {
-    ETag: hit.etag,
+    ETag: etag,
     "Cache-Control": getCachePolicy().cacheControl,
     ...(hit.stale ? { Warning: '110 - "Serving stale stock data"' } : null),
   };
-  const data = hit.stale ? { ...hit.data, stale: true } : hit.data;
-  return NextResponse.json(data, {
+  return NextResponse.json(hit.stale ? { ...data, stale: true } : data, {
     status: 200,
     headers,
   });
@@ -246,7 +270,7 @@ function buildPayload({
       ? currentPrice * totalSharesOutstanding
       : null;
 
-  return {
+  return applySessionBoundaryToPayload({
     price: {
       regularMarketPrice: {
         raw: Number.isFinite(currentPrice) ? currentPrice : null,
@@ -263,7 +287,7 @@ function buildPayload({
     daysWithLosses: losses,
     generatedAt: now.toISOString(),
     ...(source ? { source } : null),
-  };
+  }, now);
 }
 
 function getLatestTotalShares() {
@@ -356,12 +380,12 @@ export async function GET(request) {
   }
 
   const cached = getCached(symbol);
-  if (cached) {
+  if (cached && isMarketSessionCacheCompatible(cached.data, new Date())) {
     return respondFromCache(cached, request);
   }
 
   const sharedCached = await getSharedCached(symbol);
-  if (sharedCached) {
+  if (sharedCached && isMarketSessionCacheCompatible(sharedCached.data, new Date())) {
     setCached(symbol, sharedCached.data, sharedCached.etag);
     return respondFromCache(sharedCached, request);
   }

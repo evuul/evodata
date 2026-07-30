@@ -139,6 +139,7 @@ export function useLiveHeaderModel() {
 
   const stockPriceValue = stockPrice?.price?.regularMarketPrice?.raw;
   const stockChangeValue = stockPrice?.price?.regularMarketChangePercent?.raw;
+  const stockMarketSessionPhase = stockPrice?.marketSessionPhase ?? null;
   const stockSymbol = stockPrice?.price?.symbol ?? "EVO.ST";
   const exchangeName =
     stockPrice?.price?.fullExchangeName ?? stockPrice?.price?.exchangeName ?? "Nasdaq Stockholm";
@@ -152,7 +153,9 @@ export function useLiveHeaderModel() {
         maximumFractionDigits: 2,
       })} SEK`
     : translate("Saknas", "N/A");
-  const changeDisplay = Number.isFinite(stockChangeValue)
+  const changeDisplay = stockMarketSessionPhase === "pre-open"
+    ? translate("0,00% inför öppning", "0.00% before open")
+    : Number.isFinite(stockChangeValue)
     ? translate(
         `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% sedan öppning`,
         `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% since open`

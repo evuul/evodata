@@ -26,7 +26,7 @@ export function normalizeStockSymbol(symbol) {
 }
 
 export function buildStockQuoteUrl(symbol) {
-  return `/api/stock?symbol=${encodeURIComponent(normalizeStockSymbol(symbol))}&v=v4`;
+  return `/api/stock?symbol=${encodeURIComponent(normalizeStockSymbol(symbol))}&v=v5`;
 }
 
 export function normalizeStockQuotePayload(payload) {
