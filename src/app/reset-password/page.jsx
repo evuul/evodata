@@ -1,3 +1,5 @@
+// Renders the password-reset form with shared password validation.
+
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
@@ -15,6 +17,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 const AUTH_DISABLED_FLAG = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 
@@ -58,6 +61,10 @@ function ResetPasswordContent() {
     setError("");
     setSuccess("");
 
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Lösenordet måste vara minst ${MIN_PASSWORD_LENGTH} tecken.`);
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Lösenorden matchar inte.");
       return;
@@ -148,6 +155,7 @@ function ResetPasswordContent() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
+              inputProps={{ minLength: MIN_PASSWORD_LENGTH, maxLength: 128 }}
               required
               fullWidth
               InputLabelProps={{ sx: { color: "rgba(255,255,255,0.7)" } }}
@@ -160,6 +168,7 @@ function ResetPasswordContent() {
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               autoComplete="new-password"
+              inputProps={{ minLength: MIN_PASSWORD_LENGTH, maxLength: 128 }}
               required
               fullWidth
               InputLabelProps={{ sx: { color: "rgba(255,255,255,0.7)" } }}

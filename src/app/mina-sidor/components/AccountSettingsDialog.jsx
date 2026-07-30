@@ -1,3 +1,5 @@
+// Manages profile, password, and account settings for the signed-in user.
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -15,6 +17,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 const inputSx = {
   "& .MuiInputBase-input": { color: "#f8fafc" },
@@ -96,8 +99,11 @@ export function AccountSettingsDialog({
       setPasswordError(translate("Fyll i alla fält.", "Fill in all fields."));
       return;
     }
-    if (newPassword.length < 8) {
-      setPasswordError(translate("Nytt lösenord måste vara minst 8 tecken.", "New password must be at least 8 characters."));
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(translate(
+        `Nytt lösenord måste vara minst ${MIN_PASSWORD_LENGTH} tecken.`,
+        `New password must be at least ${MIN_PASSWORD_LENGTH} characters.`
+      ));
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -234,7 +240,8 @@ export function AccountSettingsDialog({
               <TextField
                 type="password"
                 label={translate("Nytt lösenord", "New password")}
-                value={newPassword}
+                        value={newPassword}
+                        inputProps={{ minLength: MIN_PASSWORD_LENGTH, maxLength: 128 }}
                 onChange={(event) => setNewPassword(event.target.value)}
                 fullWidth
                 sx={inputSx}
@@ -243,7 +250,8 @@ export function AccountSettingsDialog({
               <TextField
                 type="password"
                 label={translate("Bekräfta nytt lösenord", "Confirm new password")}
-                value={confirmPassword}
+                        value={confirmPassword}
+                        inputProps={{ minLength: MIN_PASSWORD_LENGTH, maxLength: 128 }}
                 onChange={(event) => setConfirmPassword(event.target.value)}
                 fullWidth
                 sx={inputSx}

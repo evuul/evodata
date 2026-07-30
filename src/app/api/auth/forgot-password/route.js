@@ -1,7 +1,13 @@
+// Starts password recovery without exposing accounts, tokens, or redirect control.
+
 import { NextResponse } from "next/server";
 import { createPasswordResetToken, getJson, getUserKey } from "@/lib/authStore";
 import { buildResetPasswordEmail } from "@/lib/emailTemplates";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
+import { isTrustedSessionRequest } from "@/lib/authSession";
+import { checkAuthRateLimit, rateLimitResponseHeaders } from "@/lib/authRateLimit";
+import { buildPasswordResetUrl } from "@/lib/passwordResetUrl";
+import { logAuthError } from "@/lib/authDebug";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -14,6 +20,9 @@ const json = (data, init = {}) =>
   });
 
 export async function POST(request) {
+  if (!isTrustedSessionRequest(request)) {
+    return json({ error: "Forbidden" }, { status: 403 });
+  }
   let payload = null;
   try {
     payload = await request.json();
@@ -22,10 +31,17 @@ export async function POST(request) {
   }
 
   const email = String(payload?.email || "").trim().toLowerCase();
-  const resetUrlBase = String(payload?.resetUrlBase || "").trim();
 
-  if (!email || !resetUrlBase) {
+  if (!email) {
     return json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  const rateLimit = await checkAuthRateLimit({ request, scope: "forgotPassword", account: email });
+  if (!rateLimit.allowed) {
+    return json(
+      { error: "Too many reset requests. Try again later." },
+      { status: 429, headers: rateLimitResponseHeaders(rateLimit) }
+    );
   }
 
   const genericMessage =
@@ -38,17 +54,16 @@ export async function POST(request) {
 
   try {
     const { token } = await createPasswordResetToken(email);
-    const resetUrl = `${resetUrlBase}?email=${encodeURIComponent(email)}&token=${encodeURIComponent(token)}`;
+    const resetUrl = buildPasswordResetUrl({ requestUrl: request.url, email, token });
 
     if (isMailerConfigured()) {
       const { subject, html } = buildResetPasswordEmail({ email, resetUrl });
       await sendEmail({ toEmail: email, subject, html });
     } else {
       console.warn("Password reset requested but mailer is not configured.");
-      console.info("Reset URL for debugging:", resetUrl);
     }
   } catch (error) {
-    console.error("Failed to process forgot-password:", error);
+    logAuthError({ route: "forgot-password", stage: "deliver-reset", error });
   }
 
   return json({ message: genericMessage });

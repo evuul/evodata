@@ -1,6 +1,12 @@
 // Centralizes browser-session cookies, request authentication, and CSRF checks.
 
-import { deleteKey, getJson, getSessionKey, getUserKey } from "./authStore.js";
+import {
+  deleteKey,
+  getJson,
+  getSessionKey,
+  getUserKey,
+  sessionMatchesUserAuthVersion,
+} from "./authStore.js";
 import { normalizePortfolioProfile } from "./portfolioProfile.js";
 
 export const SESSION_COOKIE_NAME = "evodata_session";
@@ -71,7 +77,11 @@ export async function resolveUserFromToken(token, { cache = true } = {}) {
   }
 
   const user = await getJson(getUserKey(session.email), { cache });
-  return user ? { user, email: session.email, session, token } : null;
+  if (!user || !sessionMatchesUserAuthVersion(session, user)) {
+    await deleteKey(getSessionKey(token)).catch(() => {});
+    return null;
+  }
+  return { user, email: session.email, session, token };
 }
 
 export async function resolveRequestUser(request, options) {

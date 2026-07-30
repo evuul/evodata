@@ -1,3 +1,5 @@
+// Stores users, password-reset records, and versioned authentication sessions.
+
 import crypto from "crypto";
 import { kvRestRequest, resolveKvRestConfig } from "./kvClient.js";
 
@@ -49,12 +51,35 @@ export const hashPassword = (password) => {
 };
 
 export const verifyPassword = (password, hash) => {
-  if (!hash || typeof hash !== "string") return false;
-  const [salt, stored] = hash.split(":");
-  if (!salt || !stored) return false;
-  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
-  return crypto.timingSafeEqual(Buffer.from(stored, "hex"), Buffer.from(derived, "hex"));
+  try {
+    if (!hash || typeof hash !== "string") return false;
+    const [salt, stored] = hash.split(":");
+    if (!salt || !stored) return false;
+    const derived = Buffer.from(crypto.scryptSync(password, salt, 64));
+    const expected = Buffer.from(stored, "hex");
+    return expected.length === derived.length && crypto.timingSafeEqual(expected, derived);
+  } catch {
+    return false;
+  }
 };
+
+const DUMMY_PASSWORD_HASH = (() => {
+  const salt = "00000000000000000000000000000000";
+  return `${salt}:${crypto.scryptSync("invalid-auth-password", salt, 64).toString("hex")}`;
+})();
+
+export const verifyPasswordOrDummy = (password, passwordHash) =>
+  verifyPassword(password, passwordHash || DUMMY_PASSWORD_HASH);
+
+export const normalizeAuthVersion = (value) => {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : 0;
+};
+
+export const getNextAuthVersion = (user) => normalizeAuthVersion(user?.authVersion) + 1;
+
+export const sessionMatchesUserAuthVersion = (session, user) =>
+  normalizeAuthVersion(session?.authVersion) === normalizeAuthVersion(user?.authVersion);
 
 export const getUserKey = (email) => `user:${email.toLowerCase()}`;
 export const getSessionKey = (token) => `session:${token}`;
@@ -177,9 +202,13 @@ const hashResetSecret = (secret) =>
   crypto.createHash("sha256").update(secret).digest("hex");
 
 export const createSession = async (email) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const user = await getJson(getUserKey(normalizedEmail), { cache: false });
+  if (!user) throw new Error("Cannot create a session for a missing user");
   const token = crypto.randomUUID();
   const session = {
-    email: email.toLowerCase(),
+    email: normalizedEmail,
+    authVersion: normalizeAuthVersion(user.authVersion),
     createdAt: new Date().toISOString(),
     expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString(),
   };

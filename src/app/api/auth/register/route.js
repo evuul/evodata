@@ -9,6 +9,8 @@ import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 import { createRegisteredUser } from "@/lib/authUserFactory";
 import { createAccountWithSession, runRegistrationAfterCommit } from "@/lib/registrationFlow";
 import { buildSessionUser, isTrustedSessionRequest, setSessionCookie } from "@/lib/authSession";
+import { checkAuthRateLimit, rateLimitResponseHeaders } from "@/lib/authRateLimit";
+import { validatePassword } from "@/lib/passwordPolicy";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -41,8 +43,16 @@ export async function POST(request) {
     const lastName = String(payload?.lastName || "").trim();
     emailDomain = email.includes("@") ? email.split("@").pop() : null;
 
-    if (!email || !password || password.length < 8 || !firstName || !lastName) {
+    if (!email || !validatePassword(password).valid || !firstName || !lastName) {
       return json({ error: "Ogiltig registrering." }, { status: 400 });
+    }
+
+    const rateLimit = await checkAuthRateLimit({ request, scope: "register", account: email });
+    if (!rateLimit.allowed) {
+      return json(
+        { error: "För många registreringsförsök. Försök igen senare." },
+        { status: 429, headers: rateLimitResponseHeaders(rateLimit) }
+      );
     }
 
     stage = "check-existing-user";

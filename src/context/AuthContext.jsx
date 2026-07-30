@@ -185,7 +185,7 @@ export function AuthProvider({ children }) {
     return { token, user, accessExpiresAt };
   }, []);
 
-  const requestPasswordReset = useCallback(async ({ email, resetUrlBase }) => {
+  const requestPasswordReset = useCallback(async ({ email }) => {
     if (AUTH_DISABLED) {
       return { message: "Återställning av lösenord är inaktiverad." };
     }
@@ -196,7 +196,7 @@ export function AuthProvider({ children }) {
     const response = await fetch(`${API_BASE_URL}${FORGOT_PASSWORD_PATH}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, resetUrlBase }),
+      body: JSON.stringify({ email }),
     });
 
     let payload = {};

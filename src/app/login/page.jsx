@@ -166,11 +166,7 @@ function LoginPageContent() {
     setResetSuccess("");
     setResetSubmitting(true);
     try {
-      const resetUrlBase =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/reset-password`
-          : "/reset-password";
-      await requestPasswordReset({ email: resetEmail.trim(), resetUrlBase });
+      await requestPasswordReset({ email: resetEmail.trim() });
       setResetSuccess(defaultResetSuccess);
     } catch (err) {
       setResetError(err?.message || defaultResetError);

@@ -84,3 +84,28 @@ test("getJson exposes Upstash error metadata for diagnostics", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("auth versions invalidate every older session", async () => {
+  const {
+    getNextAuthVersion,
+    normalizeAuthVersion,
+    sessionMatchesUserAuthVersion,
+  } = await import("./authStore.js?versions=" + Date.now());
+
+  assert.equal(normalizeAuthVersion(undefined), 0);
+  assert.equal(sessionMatchesUserAuthVersion({}, {}), true);
+  assert.equal(getNextAuthVersion({ authVersion: 0 }), 1);
+  assert.equal(
+    sessionMatchesUserAuthVersion({ authVersion: 0 }, { authVersion: 1 }),
+    false
+  );
+});
+
+test("dummy password verification preserves invalid-login behavior", async () => {
+  const { hashPassword, verifyPassword, verifyPasswordOrDummy } = await import("./authStore.js?dummy=" + Date.now());
+  const hash = hashPassword("correct-password");
+  assert.equal(verifyPasswordOrDummy("correct-password", hash), true);
+  assert.equal(verifyPasswordOrDummy("wrong-password", hash), false);
+  assert.equal(verifyPasswordOrDummy("wrong-password", null), false);
+  assert.equal(verifyPassword("wrong-password", "malformed:not-hex"), false);
+});

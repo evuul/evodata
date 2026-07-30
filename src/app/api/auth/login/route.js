@@ -1,11 +1,12 @@
 // Authenticates users and provisions the explicitly configured demo account.
 
 import { NextResponse } from "next/server";
-import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPassword } from "@/lib/authStore";
+import { addUserToIndex, createSession, getJson, getUserKey, hashPassword, setJson, verifyPasswordOrDummy } from "@/lib/authStore";
 import { logAuthError } from "@/lib/authDebug";
 import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 import { isDemoLogin, resolveDemoAccountConfig } from "@/lib/demoAccount";
 import { buildSessionUser, isTrustedSessionRequest, setSessionCookie } from "@/lib/authSession";
+import { checkAuthRateLimit, rateLimitResponseHeaders } from "@/lib/authRateLimit";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -69,6 +70,14 @@ export async function POST(request) {
       return json({ error: "Ogiltig inloggning." }, { status: 400 });
     }
 
+    const rateLimit = await checkAuthRateLimit({ request, scope: "login", account: email });
+    if (!rateLimit.allowed) {
+      return json(
+        { error: "För många inloggningsförsök. Försök igen senare." },
+        { status: 429, headers: rateLimitResponseHeaders(rateLimit) }
+      );
+    }
+
     stage = "read-user";
     let user = await getJson(getUserKey(email), { cache: false });
     if (isDemoLogin({ email, password }, demoAccount)) {
@@ -80,7 +89,8 @@ export async function POST(request) {
     }
 
     stage = "verify-password";
-    if (!user || !verifyPassword(password, user.passwordHash)) {
+    const passwordMatches = verifyPasswordOrDummy(password, user?.passwordHash);
+    if (!user || !passwordMatches) {
       return json({ error: "Fel e-post eller lösenord." }, { status: 401 });
     }
 

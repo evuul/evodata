@@ -1,3 +1,5 @@
+// Renders account registration with the shared password policy.
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,6 +19,7 @@ import {
 } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
+import { MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -44,8 +47,8 @@ export default function RegisterPage() {
   const passwordLabel = translate("Lösenord", "Password");
   const confirmPasswordLabel = translate("Bekräfta lösenord", "Confirm password");
   const helperText = translate(
-    "Minst 8 tecken, inkludera gärna siffror och specialtecken.",
-    "At least 8 characters, preferably with numbers and special symbols."
+    `Minst ${MIN_PASSWORD_LENGTH} tecken. En lång lösenordsfras fungerar bra.`,
+    `At least ${MIN_PASSWORD_LENGTH} characters. A long passphrase works well.`
   );
   const title = translate("Registrera konto", "Create account");
   const subtitle = translate("Skapa ett konto för att komma igång.", "Create an account to get started.");
@@ -81,6 +84,10 @@ export default function RegisterPage() {
 
     if (form.password !== form.confirmPassword) {
       setError(passwordMismatchMessage);
+      return;
+    }
+    if (form.password.length < MIN_PASSWORD_LENGTH) {
+      setError(helperText);
       return;
     }
     if (!form.firstName.trim() || !form.lastName.trim()) {
@@ -219,6 +226,7 @@ export default function RegisterPage() {
             value={form.password}
             onChange={handleChange}
             autoComplete="new-password"
+            inputProps={{ minLength: MIN_PASSWORD_LENGTH, maxLength: 128 }}
             required
             fullWidth
             InputLabelProps={{ sx: { color: "rgba(255,255,255,0.7)" } }}
@@ -234,6 +242,7 @@ export default function RegisterPage() {
             value={form.confirmPassword}
             onChange={handleChange}
             autoComplete="new-password"
+            inputProps={{ minLength: MIN_PASSWORD_LENGTH, maxLength: 128 }}
             required
             fullWidth
             InputLabelProps={{ sx: { color: "rgba(255,255,255,0.7)" } }}
