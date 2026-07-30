@@ -39,7 +39,7 @@ function AssumptionControl({ config, assumptions, limits, onChange, translate })
   const label = translate(config.labelSv, config.labelEn);
 
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ width: '100%', minWidth: 0 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="baseline" spacing={1}>
         <Typography variant="caption" sx={{ color: 'rgba(203,213,225,0.78)' }}>{label}</Typography>
         <Typography variant="body2" sx={{ color: '#ddd6fe', fontWeight: 800 }}>{config.format(value)}</Typography>
@@ -67,7 +67,18 @@ export default function ValuationScenarioWorkshop({ assumptions, limits, forecas
   const maxRevenue = Math.max(...forecast.map((item) => item.revenueMEUR), 1);
 
   return (
-    <Box sx={{ ...panelSx, p: { xs: 1.8, sm: 2.4 }, width: '100%', maxWidth: 940, mx: 'auto' }}>
+    <Box
+      data-testid="valuation-scenario-workshop"
+      sx={{
+        ...panelSx,
+        boxSizing: 'border-box',
+        width: '100%',
+        maxWidth: 940,
+        alignSelf: 'center',
+        marginInline: 'auto',
+        p: { xs: 1.8, sm: 2.4 },
+      }}
+    >
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} spacing={1.2}>
         <Box>
           <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap">
@@ -84,13 +95,13 @@ export default function ValuationScenarioWorkshop({ assumptions, limits, forecas
         </Button>
       </Stack>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' }, gap: { xs: 1.4, sm: 2 }, mt: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(5, minmax(0, 1fr))' }, gap: { xs: 1.4, sm: 2 }, width: '100%', maxWidth: 880, mx: 'auto', mt: 2 }}>
         {CONTROL_CONFIG.map((config) => (
           <AssumptionControl key={config.key} config={config} assumptions={assumptions} limits={limits} onChange={onChange} translate={translate} />
         ))}
       </Box>
 
-      <Box sx={{ mt: 2.2 }}>
+      <Box sx={{ width: '100%', maxWidth: 880, mx: 'auto', mt: 2.2 }}>
         <Typography variant="subtitle2" sx={{ color: '#e2e8f0', fontWeight: 750 }}>{translate('Beräknat femårsutfall', 'Calculated five-year outcome')}</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(5, minmax(0, 1fr))' }, gap: 1, mt: 1 }}>
           {forecast.map((item) => (
