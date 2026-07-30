@@ -24,6 +24,10 @@ export const metadata = {
   description: "Följer Evolution Gaming",
   applicationName: "Evolution Tracker",
   metadataBase: new URL(site),
+  icons: {
+    icon: [{ url: "/icon.svg?v=2", type: "image/svg+xml" }],
+    shortcut: "/icon.svg?v=2",
+  },
   openGraph: {
     title: "Evolution Tracker",
     description: "Finansiell översikt, återköp, utdelning och nyheter om Evolution (EVO.ST)",
