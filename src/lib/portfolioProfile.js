@@ -1,5 +1,10 @@
 // Normalizes persisted portfolio profiles before they are shown or stored.
 
+import {
+  normalizePortfolioTransactions,
+  rebuildPortfolioFromTransactions,
+} from "./portfolioTransactions.js";
+
 const normalizeDate = (value) => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim().slice(0, 10);
@@ -24,111 +29,15 @@ const normalizeLot = (lot) => {
   return { shares, price, date };
 };
 
-const normalizeTransaction = (tx, index) => {
-  const type = tx?.type === "buy" || tx?.type === "sell" ? tx.type : null;
-  const date = normalizeDate(tx?.date);
-  const shares = Math.abs(Math.round(Number(tx?.shares)));
-  const price = toFiniteNumber(tx?.price);
-  const feeValue = toFiniteNumber(tx?.fee);
-  const fee = feeValue != null && feeValue > 0 ? feeValue : 0;
-  const sourceOrderValue = toFiniteNumber(tx?.sourceOrder);
-  const sourceOrder = sourceOrderValue != null ? sourceOrderValue : index;
-
-  if (!type || !date || !(shares > 0)) return null;
-  if (type === "buy" && !(price != null && price > 0)) return null;
-
-  return {
-    type,
-    date,
-    shares,
-    price: price != null ? price : null,
-    fee,
-    sourceOrder,
-  };
-};
-
-const applySellFifo = (lots, sharesToSell) => {
-  let remaining = Math.max(0, Number(sharesToSell) || 0);
-  const nextLots = [];
-
-  for (const lot of lots) {
-    const lotShares = Math.max(0, Number(lot?.shares) || 0);
-    if (!(lotShares > 0)) continue;
-    if (remaining <= 0) {
-      nextLots.push({ ...lot, shares: lotShares });
-      continue;
-    }
-    if (lotShares <= remaining) {
-      remaining -= lotShares;
-      continue;
-    }
-    nextLots.push({ ...lot, shares: lotShares - remaining });
-    remaining = 0;
-  }
-
-  return { nextLots, remaining };
-};
-
 const buildProfileFromTransactions = (transactions) => {
-  const normalized = transactions
-    .map((tx, index) => normalizeTransaction(tx, index))
-    .filter(Boolean)
-    .sort((a, b) => {
-      const byDate = a.date.localeCompare(b.date);
-      if (byDate !== 0) return byDate;
-      if (a.type !== b.type) return a.type === "buy" ? -1 : 1;
-      return a.sourceOrder - b.sourceOrder;
-    });
-
-  if (!normalized.length) return null;
-
-  let computedShares = 0;
-  let computedAvgCost = 0;
-  let computedLots = [];
-
-  for (const tx of normalized) {
-    if (tx.type === "buy") {
-      const unitPrice = (tx.shares * tx.price + (tx.fee || 0)) / tx.shares;
-      const totalCost = computedAvgCost * computedShares + tx.shares * unitPrice;
-      computedShares += tx.shares;
-      computedAvgCost = computedShares > 0 ? totalCost / computedShares : 0;
-      computedLots.push({ shares: tx.shares, price: unitPrice, date: tx.date });
-      continue;
-    }
-
-    if (tx.shares > computedShares) {
-      return null;
-    }
-
-    const { nextLots } = applySellFifo(computedLots, tx.shares);
-    computedLots = nextLots;
-    computedShares = Math.max(computedShares - tx.shares, 0);
-    if (computedShares === 0) {
-      computedAvgCost = 0;
-      computedLots = [];
-    } else if (computedLots.length > 0) {
-      const remainingCost = computedLots.reduce((sum, lot) => sum + (Number(lot.shares) || 0) * (Number(lot.price) || 0), 0);
-      computedAvgCost = remainingCost / computedShares;
-    }
-  }
-
-  return {
-    shares: computedShares,
-    avgCost: computedAvgCost,
-    acquisitionDate: computedLots.length ? String(computedLots[0].date || "").slice(0, 10) : null,
-    lots: computedLots,
-    transactions: normalized,
-  };
+  const rebuilt = rebuildPortfolioFromTransactions(transactions, { strict: false });
+  return rebuilt.ok && rebuilt.profile.transactions.length ? rebuilt.profile : null;
 };
 
 export const normalizePortfolioProfile = (profile) => {
   const raw = profile && typeof profile === "object" ? profile : {};
   const normalizedLots = Array.isArray(raw.lots) ? raw.lots.map(normalizeLot).filter(Boolean) : [];
-  const normalizedTransactions = Array.isArray(raw.transactions)
-    ? raw.transactions
-        .map((tx, index) => normalizeTransaction(tx, index))
-        .filter(Boolean)
-    : [];
+  const normalizedTransactions = normalizePortfolioTransactions(raw.transactions);
 
   const fallbackShares = toNonNegativeNumber(raw.shares) ?? 0;
   const fallbackAvgCost = toNonNegativeNumber(raw.avgCost) ?? 0;

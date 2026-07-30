@@ -34,6 +34,7 @@ const DividendCenterCard = dynamic(() => import("@/Components/MinaSidor/Dividend
 const PortfolioTimelineCard = dynamic(() => import("@/Components/MinaSidor/PortfolioTimelineCard"), { loading: SectionLoader });
 const BuyImpactSimulatorCard = dynamic(() => import("@/Components/MinaSidor/BuyImpactSimulatorCard"), { loading: SectionLoader });
 const HoldingsHistoryChart = dynamic(() => import("@/Components/MinaSidor/HoldingsHistoryChart"), { loading: SectionLoader });
+const TransactionManagerDialog = dynamic(() => import("@/Components/MinaSidor/TransactionManagerDialog"));
 const ValuationSignalCard = dynamic(() => import("@/Components/MinaSidor/ValuationSignalCard"), { loading: SectionLoader });
 const ManageHoldingsModal = dynamic(() => import("@/Components/MinaSidor/ManageHoldingsModal"));
 const SupportModal = dynamic(() => import("@/Components/MinaSidor/SupportModal"));
@@ -111,7 +112,9 @@ export default function MinaSidorPage() {
     handleBuy,
     handleSell,
     handleSet,
-    handleImportTransactions
+    handleImportTransactions,
+    handleUpdateTransaction,
+    handleDeleteTransaction,
   } = usePortfolioActions({ token, user, profile, setProfile, setLoading, setError, translate });
 
   // --- Admin Tools Hook ---
@@ -124,6 +127,7 @@ export default function MinaSidorPage() {
   // --- Local State ---
   const [ownershipView, setOwnershipView] = useState("after");
   const [manageOpen, setManageOpen] = useState(false);
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [adminSupportInboxOpen, setAdminSupportInboxOpen] = useState(false);
@@ -134,6 +138,7 @@ export default function MinaSidorPage() {
   const [buyDate, setBuyDate] = useState("");
   const [sellShares, setSellShares] = useState("");
   const [sellPrice, setSellPrice] = useState("");
+  const [sellDate, setSellDate] = useState("");
   const [setShares, setSetShares] = useState("");
   const [setAvgCost, setSetAvgCost] = useState("");
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
@@ -192,6 +197,7 @@ export default function MinaSidorPage() {
         : ""
     );
     setBuyDate(new Date().toISOString().slice(0, 10));
+    setSellDate(new Date().toISOString().slice(0, 10));
     setManageOpen(true);
   };
 
@@ -528,6 +534,7 @@ export default function MinaSidorPage() {
                 calendarEvents={financialCalendarEvents}
                 todayYmd={dashboardTodayYmd}
                 onManage={handleOpenManage}
+                onManageTransactions={() => setTransactionsOpen(true)}
               />
             </DeferredSection>
           </Box>
@@ -666,6 +673,7 @@ export default function MinaSidorPage() {
         buyDate={buyDate}
         sellShares={sellShares}
         sellPrice={sellPrice}
+        sellDate={sellDate}
         setShares={setShares}
         setAvgCost={setAvgCost}
         dividendsReceived={dividendsReceived}
@@ -677,6 +685,7 @@ export default function MinaSidorPage() {
         onBuyDateChange={(event) => setBuyDate(event.target.value)}
         onSellSharesChange={(event) => setSellShares(event.target.value)}
         onSellPriceChange={(event) => setSellPrice(event.target.value)}
+        onSellDateChange={(event) => setSellDate(event.target.value)}
         onSetSharesChange={(event) => setSetShares(event.target.value)}
         onSetAvgCostChange={(event) => setSetAvgCost(event.target.value)}
         acquisitionDate={setAcquisitionDate}
@@ -691,10 +700,20 @@ export default function MinaSidorPage() {
         dividendInputMode={dividendInputMode}
         onDividendInputModeChange={onDividendModeChange}
         onBuy={() => handleBuy({ shares: Number(buyShares), price: Number(buyPrice), buyDate }).then(() => { setBuyShares(""); setBuyPrice(""); setBuyDate(""); })}
-        onSell={() => handleSell({ shares: Number(sellShares), price: Number(sellPrice) }).then(() => { setSellShares(""); setSellPrice(""); })}
+        onSell={() => handleSell({ shares: Number(sellShares), price: Number(sellPrice), sellDate }).then(() => { setSellShares(""); setSellPrice(""); setSellDate(""); })}
         onSet={() => handleSet({ shares: Number(setShares), avgCost: Number(setAvgCost), acquisitionDate: setAcquisitionDate }).then((success) => { if (success) setManageOpen(false); })}
         onImportTransactions={onImportTransactions}
         loading={loading}
+      /> : null}
+
+      {transactionsOpen ? <TransactionManagerDialog
+        open={transactionsOpen}
+        onClose={() => setTransactionsOpen(false)}
+        translate={translate}
+        profile={profile}
+        loading={loading}
+        onUpdate={handleUpdateTransaction}
+        onDelete={handleDeleteTransaction}
       /> : null}
 
       {supportOpen ? <SupportModal

@@ -23,6 +23,7 @@ export default function PortfolioTimelineCard({
   calendarEvents,
   todayYmd,
   onManage,
+  onManageTransactions,
 }) {
   const timeline = useMemo(
     () => buildPortfolioTimeline({
@@ -64,7 +65,10 @@ export default function PortfolioTimelineCard({
             sx={{ color: timeline.source === "transactions" ? "#86efac" : "#fde68a", backgroundColor: "rgba(148,163,184,0.1)", border: "1px solid rgba(148,163,184,0.22)" }}
           />
           <Button size="small" variant="outlined" onClick={onManage} sx={{ textTransform: "none", whiteSpace: "nowrap" }}>
-            {translate("Hantera", "Manage")}
+            {translate("Lägg till", "Add")}
+          </Button>
+          <Button size="small" variant="contained" onClick={onManageTransactions} sx={{ textTransform: "none", whiteSpace: "nowrap" }}>
+            {translate("Transaktioner", "Transactions")}
           </Button>
         </Stack>
       </Stack>

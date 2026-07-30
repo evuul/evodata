@@ -3,6 +3,12 @@
 import { NextResponse } from "next/server";
 import { getUserKey, setJson } from "@/lib/authStore";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
+import {
+  buildEditableTransactionLedger,
+  deletePortfolioTransaction,
+  rebuildPortfolioFromTransactions,
+  updatePortfolioTransaction,
+} from "@/lib/portfolioTransactions";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 
 export const dynamic = "force-dynamic";
@@ -66,8 +72,7 @@ export async function PUT(request) {
     typeof rawAcquisitionDate === "string" && rawAcquisitionDate.trim()
       ? rawAcquisitionDate.trim().slice(0, 10)
       : null;
-  const lots = Array.isArray(profile.lots) ? profile.lots.filter((lot) => Number(lot?.shares) > 0) : [];
-  const transactions = Array.isArray(profile.transactions) ? profile.transactions : [];
+  const transactions = buildEditableTransactionLedger(profile);
   const importedDividendTotalRaw = Number(payload?.dividendTotal);
   const importedDividendTotal =
     Number.isFinite(importedDividendTotalRaw) && importedDividendTotalRaw >= 0
@@ -76,80 +81,17 @@ export async function PUT(request) {
 
   const now = new Date().toISOString();
 
-  if (action === "buy") {
-    if (!(shares > 0) || !(price > 0)) {
-      return json({ error: "Ogiltig köpdata." }, { status: 400 });
+  if (action === "buy" || action === "sell") {
+    const date = action === "buy" ? normalizedBuyDate : normalizedSellDate;
+    if (!(shares > 0) || !(price > 0) || !date) {
+      return json({ error: action === "buy" ? "Ogiltig köpdata." : "Ogiltig säljdata." }, { status: 400 });
     }
-    if (lots.length === 0 && profile.shares > 0) {
-      lots.push({
-        shares: profile.shares,
-        price: profile.avgCost,
-        date: profile.acquisitionDate ?? now.slice(0, 10),
-      });
-    }
-    const totalCost = profile.avgCost * profile.shares + shares * price;
-    const newShares = profile.shares + shares;
-    profile.shares = newShares;
-    profile.avgCost = newShares > 0 ? totalCost / newShares : 0;
-    const lotDate = normalizedBuyDate ?? now.slice(0, 10);
-    lots.push({
-      shares,
-      price,
-      date: lotDate,
-    });
-    transactions.push({
-      type: "buy",
-      shares,
-      price,
-      date: lotDate,
-      fee: 0,
-    });
-    if (!profile.acquisitionDate || (typeof profile.acquisitionDate === "string" && lotDate < profile.acquisitionDate)) {
-      profile.acquisitionDate = lotDate;
-    }
-  } else if (action === "sell") {
-    if (!(shares > 0) || !(price > 0)) {
-      return json({ error: "Ogiltig säljdata." }, { status: 400 });
-    }
-    if (shares > profile.shares) {
-      return json({ error: "Du försöker sälja fler aktier än du har." }, { status: 400 });
-    }
-    const newShares = Math.max(profile.shares - shares, 0);
-    let remainingToSell = shares;
-    const sortedLots = [...lots].sort((a, b) => {
-      const da = String(a?.date || "");
-      const db = String(b?.date || "");
-      return da.localeCompare(db);
-    });
-    const nextLots = [];
-    sortedLots.forEach((lot) => {
-      const lotShares = Number(lot?.shares ?? 0);
-      if (!(lotShares > 0)) return;
-      if (remainingToSell <= 0) {
-        nextLots.push({ ...lot, shares: lotShares });
-        return;
-      }
-      if (lotShares <= remainingToSell) {
-        remainingToSell -= lotShares;
-        return;
-      }
-      nextLots.push({ ...lot, shares: lotShares - remainingToSell });
-      remainingToSell = 0;
-    });
-    profile.lots = nextLots;
-    profile.shares = newShares;
-    transactions.push({
-      type: "sell",
-      shares,
-      price,
-      date: normalizedSellDate ?? now.slice(0, 10),
-      fee: 0,
-    });
-    if (newShares === 0) {
-      profile.avgCost = 0;
-      profile.acquisitionDate = null;
-      profile.lots = [];
-    }
+    const rebuilt = rebuildPortfolioFromTransactions([
+      ...transactions,
+      { type: action, shares, price, date, fee: 0, sourceOrder: transactions.length },
+    ]);
+    if (!rebuilt.ok) return json({ error: rebuilt.error }, { status: 400 });
+    Object.assign(profile, rebuilt.profile);
   } else if (action === "set") {
     const nextShares = Number(payload?.shares ?? profile.shares);
     const nextAvgCost = Number(payload?.avgCost ?? profile.avgCost);
@@ -181,10 +123,6 @@ export async function PUT(request) {
     if (!incoming.length && importedDividendTotal == null) {
       return json({ error: "Ingen transaktionsdata hittades." }, { status: 400 });
     }
-    if (incoming.length > 5000) {
-      return json({ error: "För många transaktioner i importen (max 5000)." }, { status: 400 });
-    }
-
     if (!incoming.length && importedDividendTotal != null) {
       profile.importedDividendTotal = importedDividendTotal;
       profile.updatedAt = now;
@@ -203,98 +141,22 @@ export async function PUT(request) {
       });
     }
 
-    const normalized = incoming
-      .map((t, idx) => {
-        const type = t?.type === "buy" || t?.type === "sell" ? t.type : null;
-        const dateRaw = typeof t?.date === "string" ? t.date.trim().slice(0, 10) : "";
-        const date = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw) ? dateRaw : null;
-        const sharesNum = Math.abs(Math.round(Number(t?.shares)));
-        const priceNum = Number(t?.price);
-        const price = Number.isFinite(priceNum) && priceNum > 0 ? priceNum : null;
-        const feeNum = Number(t?.fee);
-        const fee = Number.isFinite(feeNum) && feeNum > 0 ? feeNum : 0;
-        const sourceOrderNum = Number(t?.sourceOrder);
-        const sourceOrder = Number.isFinite(sourceOrderNum) ? sourceOrderNum : idx;
-        if (!type || !date) return null;
-        if (!(Number.isFinite(sharesNum) && sharesNum > 0)) return null;
-        if (type === "buy" && price == null) return null;
-        return { type, date, shares: sharesNum, price, fee, sourceOrder };
-      })
-      .filter(Boolean)
-      .sort((a, b) => {
-        const c = a.date.localeCompare(b.date);
-        if (c !== 0) return c;
-        if (a.type !== b.type) return a.type === "buy" ? -1 : 1;
-        return a.sourceOrder - b.sourceOrder;
-      });
-
-    if (!normalized.length) {
-      return json({ error: "Kunde inte tolka transaktionerna." }, { status: 400 });
-    }
-
-    let computedShares = 0;
-    let computedAvgCost = 0;
-    let computedLots = [];
-
-    for (const tx of normalized) {
-      if (tx.type === "buy") {
-        const unitPrice = (tx.shares * tx.price + (tx.fee || 0)) / tx.shares; // include brokerage in cost basis
-        const totalCost = computedAvgCost * computedShares + tx.shares * unitPrice;
-        computedShares += tx.shares;
-        computedAvgCost = computedShares > 0 ? totalCost / computedShares : 0;
-        computedLots.push({ shares: tx.shares, price: unitPrice, date: tx.date });
-      } else {
-        if (tx.shares > computedShares) {
-          return json(
-            {
-              error:
-                "Importen innehåller en säljrad som överskrider innehavet. Det beror oftast på att exporten saknar tidigare köp eller att du flyttat aktier mellan Avanza-konton (ÖVERFÖR I/U) och bara exporterat ett konto. Testa att exportera transaktioner för alla konton och hela perioden, eller sätt en baseline via 'Justera GAV' innan du importerar.",
-            },
-            { status: 400 }
-          );
-        }
-        let remainingToSell = tx.shares;
-        const nextLots = [];
-        for (const lot of computedLots) {
-          const lotShares = Number(lot?.shares ?? 0);
-          if (!(lotShares > 0)) continue;
-          if (remainingToSell <= 0) {
-            nextLots.push({ ...lot, shares: lotShares });
-            continue;
-          }
-          if (lotShares <= remainingToSell) {
-            remainingToSell -= lotShares;
-            continue;
-          }
-          nextLots.push({ ...lot, shares: lotShares - remainingToSell });
-          remainingToSell = 0;
-        }
-        computedLots = nextLots;
-        computedShares = Math.max(computedShares - tx.shares, 0);
-        if (computedShares === 0) {
-          computedAvgCost = 0;
-          computedLots = [];
-        }
-      }
-    }
-
-    profile.shares = computedShares;
-    profile.avgCost = computedAvgCost;
-    profile.lots = computedLots;
-    profile.acquisitionDate = computedLots.length ? String(computedLots[0].date || "").slice(0, 10) : null;
-    profile.transactions = normalized;
+    const rebuilt = rebuildPortfolioFromTransactions(incoming);
+    if (!rebuilt.ok) return json({ error: rebuilt.error }, { status: 400 });
+    Object.assign(profile, rebuilt.profile);
     if (importedDividendTotal != null) {
       profile.importedDividendTotal = importedDividendTotal;
     }
+  } else if (action === "updateTransaction") {
+    const rebuilt = updatePortfolioTransaction(transactions, payload?.transactionId, payload?.changes);
+    if (!rebuilt.ok) return json({ error: rebuilt.error }, { status: 400 });
+    Object.assign(profile, rebuilt.profile);
+  } else if (action === "deleteTransaction") {
+    const rebuilt = deletePortfolioTransaction(transactions, payload?.transactionId);
+    if (!rebuilt.ok) return json({ error: rebuilt.error }, { status: 400 });
+    Object.assign(profile, rebuilt.profile);
   } else {
     return json({ error: "Okänd åtgärd." }, { status: 400 });
-  }
-
-  if (action === "buy") {
-    profile.lots = lots;
-  }
-  if (action === "buy" || action === "sell") {
-    profile.transactions = transactions.slice(-5000);
   }
 
   profile.updatedAt = now;

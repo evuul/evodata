@@ -1,3 +1,4 @@
+// Persists portfolio actions and keeps the local profile synchronized.
 
 import { useState, useEffect } from "react";
 import { fetchAuthJson } from "@/lib/clientApi";
@@ -56,9 +57,9 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
     };
 
-    const handleSell = async ({ shares, price }) => {
-        if (!(shares > 0) || !(price > 0)) {
-            setError(translate("Ange antal och pris.", "Enter shares and price."));
+    const handleSell = async ({ shares, price, sellDate }) => {
+        if (!(shares > 0) || !(price > 0) || !sellDate) {
+            setError(translate("Ange antal, pris och datum.", "Enter shares, price and date."));
             return;
         }
         try {
@@ -66,13 +67,14 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
             const data = await fetchAuthJson(token, "/api/user/profile", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "sell", shares, price }),
+                body: JSON.stringify({ action: "sell", shares, price, sellDate }),
             });
             setProfile(normalizePortfolioProfile(data.profile ?? profile));
             pushActivity({
                 type: "sell",
                 shares,
                 price,
+                sellDate,
                 timestamp: new Date().toISOString(),
             });
             setError("");
@@ -151,11 +153,53 @@ export function usePortfolioActions({ token, user, profile, setProfile, setLoadi
         }
     };
 
+    const handleUpdateTransaction = async ({ transactionId, changes }) => {
+        if (!transactionId) return false;
+        try {
+            setLoading(true);
+            const data = await fetchAuthJson(token, "/api/user/profile", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "updateTransaction", transactionId, changes }),
+            });
+            setProfile(normalizePortfolioProfile(data.profile ?? profile));
+            setError("");
+            return true;
+        } catch (err) {
+            setError(err?.message || translate("Kunde inte uppdatera transaktionen.", "Could not update transaction."));
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteTransaction = async (transactionId) => {
+        if (!transactionId) return false;
+        try {
+            setLoading(true);
+            const data = await fetchAuthJson(token, "/api/user/profile", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "deleteTransaction", transactionId }),
+            });
+            setProfile(normalizePortfolioProfile(data.profile ?? profile));
+            setError("");
+            return true;
+        } catch (err) {
+            setError(err?.message || translate("Kunde inte radera transaktionen.", "Could not delete transaction."));
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return {
         activity,
         handleBuy,
         handleSell,
         handleSet,
-        handleImportTransactions
+        handleImportTransactions,
+        handleUpdateTransaction,
+        handleDeleteTransaction,
     };
 }
