@@ -16,6 +16,7 @@ import {
   normalizeTrendDelta,
   normalizeTodayPeak,
   normalizeLobbyAth,
+  reconcileTodayPeak,
   computeTrendDiff,
   applyMovingAverage,
   dateFormatter,
@@ -361,21 +362,6 @@ export default function useLivePlayersControlPanelModel() {
   const mergedLobbyAth = lobbyStats?.lobbyAth ?? lobbyAth;
   const stockholmTodayYmd = getStockholmTodayYmd();
 
-  const stabilizedTodayPeak = useMemo(() => {
-    const athValue = Number(mergedLobbyAth?.value);
-    const todayValue = Number(rawTodayPeak?.value);
-    const athDate = mergedLobbyAth?.date ?? (mergedLobbyAth?.at ? mergedLobbyAth.at.slice(0, 10) : null);
-    const athIsToday = athDate && athDate === stockholmTodayYmd;
-    if (athIsToday && Number.isFinite(athValue) && (!Number.isFinite(todayValue) || athValue > todayValue)) {
-      return {
-        value: athValue,
-        at: mergedLobbyAth?.at ?? rawTodayPeak?.at ?? null,
-        date: athDate ?? rawTodayPeak?.date ?? null,
-      };
-    }
-    return rawTodayPeak;
-  }, [rawTodayPeak, mergedLobbyAth, stockholmTodayYmd]);
-
   const playersUpdatedText = useMemo(() => {
     if (!lastUpdated) return translate("Uppdatering saknas", "No update available");
     const dateStr = formatDateTime(lastUpdated);
@@ -383,21 +369,6 @@ export default function useLivePlayersControlPanelModel() {
       ? translate(`Senast ${dateStr}`, `Last updated ${dateStr}`)
       : translate("Uppdatering saknas", "No update available");
   }, [lastUpdated, translate]);
-
-  const todayPeakTimeInfo = useMemo(() => {
-    if (!stabilizedTodayPeak?.at) return null;
-    try {
-      const date = new Date(stabilizedTodayPeak.at);
-      if (!Number.isFinite(date.getTime())) return null;
-      return {
-        time: timeFormatter.format(date),
-        date: dateFormatter.format(date),
-        full: formatDateTime(date),
-      };
-    } catch {
-      return null;
-    }
-  }, [stabilizedTodayPeak]);
 
   const liveGamesList = useMemo(() => {
     const sourceGames = contextGames ?? GAME_CONFIG ?? [];
@@ -450,6 +421,43 @@ export default function useLivePlayersControlPanelModel() {
     if (!Number.isFinite(totalLivePlayers)) return null;
     return Math.round(totalLivePlayers);
   }, [totalLivePlayers]);
+
+  const stabilizedTodayPeak = useMemo(() => {
+    const athValue = Number(mergedLobbyAth?.value);
+    const todayValue = Number(rawTodayPeak?.value);
+    const athDate = mergedLobbyAth?.date ?? (mergedLobbyAth?.at ? mergedLobbyAth.at.slice(0, 10) : null);
+    const athIsToday = athDate && athDate === stockholmTodayYmd;
+    const peakWithTodayAth =
+      athIsToday && Number.isFinite(athValue) && (!Number.isFinite(todayValue) || athValue > todayValue)
+        ? {
+            value: athValue,
+            at: mergedLobbyAth?.at ?? rawTodayPeak?.at ?? null,
+            date: athDate ?? rawTodayPeak?.date ?? null,
+          }
+        : rawTodayPeak;
+
+    return reconcileTodayPeak({
+      storedPeak: peakWithTodayAth,
+      liveTotal: totalLiveDisplayValue,
+      liveUpdatedAt: lastUpdated,
+      todayYmd: stockholmTodayYmd,
+    });
+  }, [rawTodayPeak, mergedLobbyAth, stockholmTodayYmd, totalLiveDisplayValue, lastUpdated]);
+
+  const todayPeakTimeInfo = useMemo(() => {
+    if (!stabilizedTodayPeak?.at) return null;
+    try {
+      const date = new Date(stabilizedTodayPeak.at);
+      if (!Number.isFinite(date.getTime())) return null;
+      return {
+        time: timeFormatter.format(date),
+        date: dateFormatter.format(date),
+        full: formatDateTime(date),
+      };
+    } catch {
+      return null;
+    }
+  }, [stabilizedTodayPeak]);
 
   const hourlyComparisonMeta = useMemo(() => {
     if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;

@@ -18,7 +18,6 @@ export const PLAYERS_POLL_INTERVAL_MS = 20 * 60 * 1000; // 20 minuter
 const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
 const PlayersLiveContext = createContext(undefined);
-const INITIAL_FETCH_DELAY_MS = 4000;
 const INCLUDE_HOURLY_LOCAL =
   process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
@@ -68,12 +67,12 @@ export function PlayersLiveProvider({ children, enabled = true }) {
   );
 
   const fetchAll = useCallback(async (force = false) => {
-    if (!enabled) return;
+    if (!enabled) return null;
     const now = Date.now();
     const visible = typeof document === "undefined" ? true : document.visibilityState === "visible";
 
     if (!force && (!visible || now - lastFetchRef.current < MIN_COOLDOWN_MS)) {
-      return; // respektera cooldown + endast när flik är synlig
+      return null; // respektera cooldown + endast när flik är synlig
     }
     lastFetchRef.current = now;
 
@@ -133,9 +132,11 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       }
 
       fetchLobbyStats(force);
+      return true;
     } catch (e) {
       lastFetchRef.current = 0;
       setError(String(e?.message || e));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -177,17 +178,6 @@ export function PlayersLiveProvider({ children, enabled = true }) {
 
   // initial + events
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return () => {};
-    }
-    const id = setTimeout(() => {
-      hydrateFromCache();
-    }, 0);
-    return () => clearTimeout(id);
-  }, [hydrateFromCache, enabled]);
-
-  useEffect(() => {
     fetchLobbyStats(true);
   }, [fetchLobbyStats]);
 
@@ -196,9 +186,10 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       setLoading(false);
       return () => {};
     }
-    const initialId = setTimeout(() => {
-      fetchAll(false);
-    }, INITIAL_FETCH_DELAY_MS);
+    let active = true;
+    fetchAll(false).then((loaded) => {
+      if (active && loaded === false) hydrateFromCache();
+    });
     const onFocus = () => fetchAll(false);
     const onVis = () => fetchAll(false);
     window.addEventListener("focus", onFocus);
@@ -207,12 +198,12 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       if (document.visibilityState === "visible" && navigator.onLine) fetchAll(false);
     }, PLAYERS_POLL_INTERVAL_MS);
     return () => {
-      clearTimeout(initialId);
+      active = false;
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("visibilitychange", onVis);
       clearInterval(id);
     };
-  }, [enabled, fetchAll]);
+  }, [enabled, fetchAll, hydrateFromCache]);
 
   const value = useMemo(
     () => ({

@@ -24,6 +24,17 @@ export const getStockholmTodayYmd = () => {
   }
 };
 
+const getStockholmYmd = (value) => {
+  if (!value) return null;
+  try {
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return null;
+    return dateFormatter.format(date).replace(/\//g, "-");
+  } catch {
+    return null;
+  }
+};
+
 export const formatDateTime = (value) => {
   if (!value) return null;
   try {
@@ -86,7 +97,36 @@ export const normalizeTodayPeak = (value) => {
   const num = Number(value?.value);
   if (!Number.isFinite(num)) return null;
   const at = typeof value?.at === "string" ? value.at : null;
-  return { value: Math.round(num), at };
+  const date = typeof value?.date === "string" ? value.date : null;
+  return { value: Math.round(num), at, date };
+};
+
+export const reconcileTodayPeak = ({
+  storedPeak,
+  liveTotal,
+  liveUpdatedAt,
+  todayYmd = getStockholmTodayYmd(),
+} = {}) => {
+  const peak = normalizeTodayPeak(storedPeak);
+  const liveValue = Number(liveTotal);
+  const liveDate = getStockholmYmd(liveUpdatedAt);
+
+  if (
+    !Number.isFinite(liveValue) ||
+    liveValue <= 0 ||
+    !liveDate ||
+    liveDate !== todayYmd ||
+    (peak && peak.value >= liveValue)
+  ) {
+    return peak;
+  }
+
+  const liveDateTime = new Date(liveUpdatedAt);
+  return {
+    value: Math.round(liveValue),
+    at: liveDateTime.toISOString(),
+    date: liveDate,
+  };
 };
 
 export const normalizeLobbyAth = (value) => {
