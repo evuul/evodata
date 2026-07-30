@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
+import { dashboardVariantForAuth, resolveHomeDashboardView } from "@/lib/homeDashboardState";
 
 const LiveHeader = dynamic(() => import("@/Components/LiveHeader"), {
   ssr: false,
@@ -30,7 +31,8 @@ const LiveLoggedOutPreview = dynamic(() => import("@/Components/LiveLoggedOutPre
 });
 
 const emptyDataState = {
-  loading: false,
+  status: "idle",
+  variant: null,
   error: null,
   value: null,
 };
@@ -48,6 +50,7 @@ async function loadLiveHeaderData() {
     readDefault(import("@/app/data/oldBuybackData.json")),
     readDefault(import("@/app/data/buybackData.json")),
     readDefault(import("@/app/data/amountOfShares.json")),
+    import("@/Components/LiveHeader"),
   ]);
 
   return {
@@ -60,6 +63,7 @@ async function loadLiveHeaderData() {
 }
 
 async function loadLoggedOutPreviewData() {
+  await import("@/Components/LiveLoggedOutPreview");
   return {};
 }
 
@@ -118,15 +122,16 @@ export default function HomeClient() {
     if (!initialized) return undefined;
 
     let cancelled = false;
+    const variant = dashboardVariantForAuth(isAuthenticated);
     const loader = isAuthenticated ? loadLiveHeaderData : loadLoggedOutPreviewData;
-    setDashboardData({ loading: true, error: null, value: null });
+    setDashboardData({ status: "loading", variant, error: null, value: null });
 
     loader()
       .then((value) => {
-        if (!cancelled) setDashboardData({ loading: false, error: null, value });
+        if (!cancelled) setDashboardData({ status: "success", variant, error: null, value });
       })
       .catch((error) => {
-        if (!cancelled) setDashboardData({ loading: false, error, value: null });
+        if (!cancelled) setDashboardData({ status: "error", variant, error, value: null });
       });
 
     return () => {
@@ -134,15 +139,21 @@ export default function HomeClient() {
     };
   }, [initialized, isAuthenticated, retryKey]);
 
-  if (!initialized || dashboardData.loading) {
+  const dashboardView = resolveHomeDashboardView({
+    initialized,
+    isAuthenticated,
+    dashboardState: dashboardData,
+  });
+
+  if (dashboardView === "loading") {
     return <LoadingState />;
   }
 
-  if (dashboardData.error || !dashboardData.value) {
+  if (dashboardView === "error") {
     return <ErrorState onRetry={() => setRetryKey((value) => value + 1)} />;
   }
 
-  if (!isAuthenticated) {
+  if (dashboardView === "public") {
     return (
       <main>
         <LiveLoggedOutPreview {...dashboardData.value} />
