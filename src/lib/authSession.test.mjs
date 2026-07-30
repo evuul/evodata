@@ -6,12 +6,30 @@ import test from "node:test";
 import {
   COOKIE_SESSION_MARKER,
   SESSION_COOKIE_NAME,
+  buildSessionUser,
   clearSessionCookie,
   getRequestAuth,
   isSessionExpired,
   isTrustedSessionRequest,
   setSessionCookie,
 } from "./authSession.js";
+
+test("allows restored sessions to use the current server-derived admin role", () => {
+  const user = {
+    email: "admin@example.com",
+    isAdmin: false,
+    notifications: { athEmail: 1, dailyAvgEmail: 0 },
+    profile: {},
+  };
+
+  assert.equal(buildSessionUser(user).isAdmin, false);
+  const restored = buildSessionUser(user, { isAdmin: true });
+  assert.equal(restored.isAdmin, true);
+  assert.deepEqual(restored.notifications, {
+    athEmail: true,
+    dailyAvgEmail: false,
+  });
+});
 
 const request = ({ method = "GET", origin, cookie, authorization, secFetchSite } = {}) => ({
   method,

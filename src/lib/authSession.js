@@ -91,13 +91,17 @@ export async function resolveRequestUser(request, options) {
   return resolved ? { ...resolved, authSource: auth.source } : null;
 }
 
-export function buildSessionUser(user) {
+export function buildSessionUser(user, { isAdmin = Boolean(user?.isAdmin) } = {}) {
   return {
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
-    isAdmin: Boolean(user.isAdmin),
+    isAdmin: Boolean(isAdmin),
+    notifications: {
+      athEmail: Boolean(user?.notifications?.athEmail),
+      dailyAvgEmail: Boolean(user?.notifications?.dailyAvgEmail),
+    },
     profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   };
 }

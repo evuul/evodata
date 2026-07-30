@@ -10,6 +10,7 @@ import {
   resolveUserFromToken,
   setSessionCookie,
 } from "@/lib/authSession";
+import { isConfiguredAdminEmail } from "@/lib/adminAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -27,7 +28,9 @@ export async function GET(request) {
 
   const response = json({
     authenticated: true,
-    user: buildSessionUser(resolved.user),
+    user: buildSessionUser(resolved.user, {
+      isAdmin: isConfiguredAdminEmail(resolved.user?.email),
+    }),
     accessExpiresAt: resolved.session.expiresAt,
   });
   return auth.source === "bearer"

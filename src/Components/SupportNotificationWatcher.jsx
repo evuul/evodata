@@ -1,12 +1,14 @@
 "use client";
 
+// Polls shared inbox resources and surfaces new support activity.
+
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Alert, Button, Snackbar } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
-import { fetchAuthJson } from "@/lib/clientApi";
 import { readStoredString, writeStoredString } from "@/lib/clientStorage";
+import { inboxResourceClient } from "@/lib/inboxResourceClient";
 
 const POLL_MS = 60 * 60 * 1000;
 const PREVIEW_EVENT = "evodata.support.notify.preview";
@@ -19,6 +21,7 @@ const toMs = (value) => {
 export default function SupportNotificationWatcher() {
   const translate = useTranslate();
   const router = useRouter();
+  const pathname = usePathname();
   const { token, isAuthenticated, initialized, user } = useAuth();
   const [snack, setSnack] = useState({ open: false, severity: "info", message: "", actionLabel: "" });
 
@@ -47,6 +50,7 @@ export default function SupportNotificationWatcher() {
   }, [email, token, isAdmin]);
 
   useEffect(() => {
+    if (pathname === "/mina-sidor") return undefined;
     if (!initialized || !isAuthenticated || !token || !email) return undefined;
 
     let cancelled = false;
@@ -61,9 +65,7 @@ export default function SupportNotificationWatcher() {
     };
 
     const checkUserReplies = async () => {
-      const payload = await fetchAuthJson(token, "/api/support/tickets", {
-        cache: "no-store",
-      });
+      const payload = await inboxResourceClient.loadSupport({ identity: email, token });
       const tickets = Array.isArray(payload?.tickets) ? payload.tickets : [];
       const replied = tickets.filter((t) => Boolean(t?.hasReply) && String(t?.status || "").toLowerCase() === "answered");
       const latestReplyAt = replied.reduce((max, t) => Math.max(max, toMs(t?.updatedAt)), 0);
@@ -100,9 +102,7 @@ export default function SupportNotificationWatcher() {
 
     const checkUserAdminMessages = async () => {
       if (isAdmin) return;
-      const payload = await fetchAuthJson(token, "/api/user/messages", {
-        cache: "no-store",
-      });
+      const payload = await inboxResourceClient.loadMessages({ identity: email, token });
       const messages = Array.isArray(payload?.messages) ? payload.messages : [];
       const unread = messages.filter((m) => !m?.readAt);
       if (!unread.length) {
@@ -136,9 +136,7 @@ export default function SupportNotificationWatcher() {
 
     const checkAdminNewTickets = async () => {
       if (!isAdmin) return;
-      const payload = await fetchAuthJson(token, "/api/admin/support/tickets", {
-        cache: "no-store",
-      });
+      const payload = await inboxResourceClient.loadSupport({ identity: email, token, isAdmin: true });
       const tickets = Array.isArray(payload?.tickets) ? payload.tickets : [];
       const openUnanswered = tickets.filter(
         (t) => String(t?.status || "").toLowerCase() === "open" && !Boolean(t?.hasReply)
@@ -176,6 +174,7 @@ export default function SupportNotificationWatcher() {
     };
 
     const run = async () => {
+      if (cancelled || document.visibilityState === "hidden") return;
       try {
         await Promise.all([checkUserReplies(), checkUserAdminMessages(), checkAdminNewTickets()]);
       } catch {
@@ -185,12 +184,14 @@ export default function SupportNotificationWatcher() {
 
     run();
     const id = window.setInterval(() => {
-      if (!cancelled) run();
+      run();
     }, POLL_MS);
+    document.addEventListener("visibilitychange", run);
 
     return () => {
       cancelled = true;
       window.clearInterval(id);
+      document.removeEventListener("visibilitychange", run);
     };
   }, [
     adminTicketStorageKey,
@@ -199,6 +200,7 @@ export default function SupportNotificationWatcher() {
     initialized,
     isAdmin,
     isAuthenticated,
+    pathname,
     token,
     translate,
     userReplyStorageKey,

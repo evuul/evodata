@@ -1,12 +1,15 @@
 "use client";
 
+// Displays support tickets and keeps the shared support cache synchronized.
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Button, Chip, Dialog, Divider, Stack, TextField, Typography } from "@mui/material";
 import { actionCard, buttonStyles, statusColors, text } from "./styles";
 import { fetchAuthJson } from "@/lib/clientApi";
 import { readStoredJson, writeStoredJson } from "@/lib/clientStorage";
+import { inboxResourceClient } from "@/lib/inboxResourceClient";
 
-export default function SupportModal({ open, onClose, translate, token }) {
+export default function SupportModal({ open, onClose, translate, token, identity }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [tickets, setTickets] = useState([]);
@@ -26,13 +29,16 @@ export default function SupportModal({ open, onClose, translate, token }) {
     [viewerEmail]
   );
 
-  const loadTickets = useCallback(async () => {
-    if (!token) return;
+  const loadTickets = useCallback(async ({ force = false } = {}) => {
+    const resourceIdentity = identity || viewerEmail;
+    if (!token || !resourceIdentity) return;
     try {
       setLoading(true);
       setError("");
-      const data = await fetchAuthJson(token, "/api/support/tickets", {
-        cache: "no-store",
+      const data = await inboxResourceClient.loadSupport({
+        identity: resourceIdentity,
+        token,
+        force,
       });
       setTickets(Array.isArray(data?.tickets) ? data.tickets : []);
       setViewerEmail(String(data?.viewerEmail || "").trim().toLowerCase());
@@ -41,7 +47,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
     } finally {
       setLoading(false);
     }
-  }, [token, translate]);
+  }, [identity, token, translate, viewerEmail]);
 
   const loadTicketDetail = async (id) => {
     if (!token || !id) return;
@@ -81,7 +87,8 @@ export default function SupportModal({ open, onClose, translate, token }) {
       });
       setSelected(data?.ticket || null);
       setReopenMessage("");
-      await loadTickets();
+      inboxResourceClient.invalidateSupport({ identity: identity || viewerEmail });
+      await loadTickets({ force: true });
     } catch (e) {
       setError(e?.message || translate("Kunde inte öppna ticket igen.", "Could not reopen ticket."));
     } finally {
@@ -125,7 +132,8 @@ export default function SupportModal({ open, onClose, translate, token }) {
       });
       setSubject("");
       setMessage("");
-      await loadTickets();
+      inboxResourceClient.invalidateSupport({ identity: identity || viewerEmail });
+      await loadTickets({ force: true });
     } catch (e) {
       setError(e?.message || translate("Kunde inte skapa ticket.", "Could not create ticket."));
     } finally {
@@ -189,7 +197,7 @@ export default function SupportModal({ open, onClose, translate, token }) {
             </Typography>
             <Button
               variant="outlined"
-              onClick={loadTickets}
+              onClick={() => loadTickets({ force: true })}
               disabled={loading}
               sx={{
                 textTransform: "none",

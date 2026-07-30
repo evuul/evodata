@@ -1,13 +1,16 @@
 
+// Coordinates administrator tools and their section-specific data loading.
+
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { fetchAuthJson } from "@/lib/clientApi";
+import { inboxResourceClient } from "@/lib/inboxResourceClient";
 
 const ADMIN_ACTIVITY_REFRESH_MS = 5 * 60 * 1000;
 const ADMIN_USERS_REFRESH_MS = 5 * 60 * 1000;
 const ADMIN_SUPPORT_REFRESH_MS = 60 * 60 * 1000;
 const ADMIN_COST_REFRESH_MS = 5 * 60 * 1000;
 
-export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
+export function useAdminTools({ token, identity, effectiveIsAdmin, locale, translate }) {
   const [adminMode, setAdminMode] = useState(false);
   const [adminPanel, setAdminPanel] = useState("tools");
   
@@ -330,13 +333,16 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     }
   };
 
-  const loadAdminSupport = useCallback(async () => {
-    if (!token) return;
+  const loadAdminSupport = useCallback(async ({ force = false } = {}) => {
+    if (!token || !identity) return;
     try {
       setAdminSupportLoading(true);
       setAdminSupportError("");
-      const payload = await authFetchJson("/api/admin/support/tickets", {
-        cache: "no-store",
+      const payload = await inboxResourceClient.loadSupport({
+        identity,
+        token,
+        isAdmin: true,
+        force,
       });
       setAdminSupportRows(Array.isArray(payload?.tickets) ? payload.tickets : []);
     } catch {
@@ -344,7 +350,7 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     } finally {
       setAdminSupportLoading(false);
     }
-  }, [authFetchJson, token, translate]);
+  }, [identity, token, translate]);
 
   const createDemoSupportTicket = async (mode) => {
     if (!token) return;
@@ -356,7 +362,8 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode }),
       });
-      await loadAdminSupport();
+      inboxResourceClient.invalidateSupport({ identity, isAdmin: true });
+      await loadAdminSupport({ force: true });
     } catch {
       setAdminSupportError(translate("Kunde inte skapa demo-ticket.", "Could not create demo ticket."));
     } finally {
@@ -399,7 +406,8 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
         body: JSON.stringify({ action: "reply", message: msg }),
       });
       setAdminSupportSelected(data?.ticket || null);
-      await loadAdminSupport();
+      inboxResourceClient.invalidateSupport({ identity, isAdmin: true });
+      await loadAdminSupport({ force: true });
     } catch {
       setAdminSupportError(translate("Kunde inte spara svar.", "Could not save reply."));
     } finally {
@@ -418,7 +426,8 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
         body: JSON.stringify({ action: "close" }),
       });
       setAdminSupportSelected(data?.ticket || null);
-      await loadAdminSupport();
+      inboxResourceClient.invalidateSupport({ identity, isAdmin: true });
+      await loadAdminSupport({ force: true });
     } catch {
       setAdminSupportError(translate("Kunde inte stänga ticket.", "Could not close ticket."));
     } finally {
@@ -519,14 +528,16 @@ export function useAdminTools({ token, effectiveIsAdmin, locale, translate }) {
     if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "support") return;
     let cancelled = false;
     const load = async () => {
-      if (cancelled) return;
+      if (cancelled || document.visibilityState === "hidden") return;
       await loadAdminSupport();
     };
     load();
     const id = setInterval(load, ADMIN_SUPPORT_REFRESH_MS);
+    document.addEventListener("visibilitychange", load);
     return () => {
       cancelled = true;
       clearInterval(id);
+      document.removeEventListener("visibilitychange", load);
     };
   }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminSupport, token]);
 

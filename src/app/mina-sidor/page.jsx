@@ -2,10 +2,10 @@
 
 // Renders the authenticated portfolio dashboard and coordinates its feature sections.
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Box, Button, Divider, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import { useRouter } from "next/navigation";
+import { Box, Button, CircularProgress, Divider, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { useStockPriceContext } from "@/context/StockPriceContext";
@@ -16,6 +16,7 @@ import PortfolioHeroCard from "@/Components/MinaSidor/PortfolioHeroCard";
 import ReturnBreakdownCard from "@/Components/MinaSidor/ReturnBreakdownCard";
 import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
+import MinaSidorSectionNav from "@/Components/MinaSidor/MinaSidorSectionNav";
 import DeferredSection from "@/Components/DeferredSection";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 
@@ -28,6 +29,7 @@ import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions"
 import { useAdminTools } from "@/app/mina-sidor/hooks/useAdminTools";
 import { useMinaSidorInbox } from "@/app/mina-sidor/hooks/useMinaSidorInbox";
 import { fetchAuthJson } from "@/lib/clientApi";
+import { buildMinaSidorViewHref, normalizeMinaSidorView } from "@/lib/minaSidorNavigation";
 
 const SectionLoader = () => <Box sx={{ minHeight: 220 }} />;
 const DividendCenterCard = dynamic(() => import("@/Components/MinaSidor/DividendCenterCard"), { loading: SectionLoader });
@@ -47,10 +49,46 @@ const AdminSupportInboxDialog = dynamic(() =>
   import("@/app/mina-sidor/components/AdminSupportInboxDialog").then((module) => module.AdminSupportInboxDialog)
 );
 
+const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
+
+const SectionHeading = ({ children }) => (
+  <Box sx={contentWrapSx}>
+    <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
+      <Box sx={sectionRule} />
+      {children}
+      <Box sx={sectionRule} />
+    </Box>
+  </Box>
+);
+
+const PageFallback = () => (
+  <Box
+    sx={{
+      minHeight: "100vh",
+      display: "grid",
+      placeItems: "center",
+      background: "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(17,28,47,0.98))",
+    }}
+  >
+    <CircularProgress size={30} sx={{ color: "#7dd3fc" }} />
+  </Box>
+);
+
 export default function MinaSidorPage() {
+  return (
+    <Suspense fallback={<PageFallback />}>
+      <MinaSidorContent />
+    </Suspense>
+  );
+}
+
+function MinaSidorContent() {
   const translate = useTranslate();
   const { locale } = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const shouldLoadBuybacks = searchParams.get("vy") === "agande";
   const { token, isAuthenticated, initialized, user, changePassword, logout } = useAuth();
   const { stockPrice } = useStockPriceContext();
   const { rate: fxRate } = useFxRateContext();
@@ -96,7 +134,6 @@ export default function MinaSidorPage() {
     totalLivePlayers,
     livePlayersMeta,
   } = usePortfolioData({
-    token,
     user,
     isAuthenticated,
     initialized,
@@ -105,6 +142,7 @@ export default function MinaSidorPage() {
     playerGames,
     playersLastUpdated,
     fxRate,
+    loadBuybacks: shouldLoadBuybacks,
   });
 
   // --- Portfolio Actions Hook ---
@@ -118,7 +156,8 @@ export default function MinaSidorPage() {
   } = usePortfolioActions({ token, user, profile, setProfile, setLoading, setError, translate });
 
   // --- Admin Tools Hook ---
-  const adminTools = useAdminTools({ token, effectiveIsAdmin, locale, translate });
+  const inboxIdentity = profileIdentity?.email || user?.email || "";
+  const adminTools = useAdminTools({ token, identity: inboxIdentity, effectiveIsAdmin, locale, translate });
   const {
     adminMode, setAdminMode,
     adminPanel, setAdminPanel
@@ -131,6 +170,7 @@ export default function MinaSidorPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [adminSupportInboxOpen, setAdminSupportInboxOpen] = useState(false);
+  const [privateMessagesOpen, setPrivateMessagesOpen] = useState(false);
 
   // Manage Modal State (local to page or extract? keeping local as it's UI state)
   const [buyShares, setBuyShares] = useState("");
@@ -152,8 +192,15 @@ export default function MinaSidorPage() {
     privateMessagesError,
     privateMessagesUnread,
     loadSupportIndicator,
+    markPrivateMessagesRead,
     dismissPrivateMessages,
-  } = useMinaSidorInbox({ token, isAuthenticated, effectiveIsAdmin, translate });
+  } = useMinaSidorInbox({
+    token,
+    identity: inboxIdentity,
+    isAuthenticated,
+    effectiveIsAdmin,
+    translate,
+  });
 
   const triggerSupportPreview = useCallback((type) => {
     if (typeof window === "undefined") return;
@@ -178,6 +225,16 @@ export default function MinaSidorPage() {
   }, [adminTools, effectiveIsAdmin]);
 
   const showPrivateMessagesBox = Boolean(privateMessages.length);
+
+  const handleOpenPrivateMessages = useCallback(async () => {
+    setPrivateMessagesOpen(true);
+    await markPrivateMessagesRead();
+  }, [markPrivateMessagesRead]);
+
+  const handleDeletePrivateMessages = useCallback(async () => {
+    await dismissPrivateMessages();
+    setPrivateMessagesOpen(false);
+  }, [dismissPrivateMessages]);
 
   useEffect(() => {
     if (!isAuthenticated || typeof window === "undefined") return;
@@ -300,8 +357,21 @@ export default function MinaSidorPage() {
     router.push("/");
   };
 
-  // --- UI Constants ---
-  const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
+  const activeView = normalizeMinaSidorView(searchParams.get("vy"), { isAdmin: effectiveIsAdmin });
+  const handleViewChange = useCallback((view) => {
+    const href = buildMinaSidorViewHref({
+      pathname,
+      search: searchParams.toString(),
+      view,
+    });
+    router.push(href, { scroll: false });
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("mina-sidor-view-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [pathname, router, searchParams]);
+
   const dashboardTodayYmd = getStockholmTodayYmd();
 
   return (
@@ -368,32 +438,51 @@ export default function MinaSidorPage() {
                   p: { xs: 1.2, md: 1.4 },
                 }}
               >
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.9, gap: 1 }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: "stretch", sm: "center" }}
+                  sx={{ mb: privateMessagesOpen ? 0.9 : 0, gap: 1 }}
+                >
                   <Typography sx={{ color: "#bfdbfe", fontWeight: 800 }}>
                     {translate("Personliga meddelanden från admin", "Personal messages from admin")}
-                    {privateMessagesUnread > 0 ? ` (${privateMessagesUnread} nya)` : ""}
+                    {privateMessagesUnread > 0
+                      ? ` (${translate(`${privateMessagesUnread} nya`, `${privateMessagesUnread} new`)})`
+                      : ""}
                   </Typography>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={dismissPrivateMessages}
-                    sx={{
-                      textTransform: "none",
-                      borderColor: "rgba(255,255,255,0.45)",
-                      color: "rgba(255,255,255,0.92)",
-                      minWidth: "auto",
-                      px: 1.2,
-                      py: 0.35,
-                      "&:hover": {
-                        borderColor: "rgba(255,255,255,0.8)",
-                        backgroundColor: "rgba(255,255,255,0.08)",
-                      },
-                    }}
-                  >
-                    {translate("Stäng meddelanden", "Close messages")}
-                  </Button>
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={privateMessagesOpen
+                        ? () => setPrivateMessagesOpen(false)
+                        : handleOpenPrivateMessages}
+                      sx={{
+                        textTransform: "none",
+                        borderColor: "rgba(96,165,250,0.55)",
+                        color: "#dbeafe",
+                        minWidth: "auto",
+                        px: 1.2,
+                        py: 0.35,
+                      }}
+                    >
+                      {privateMessagesOpen
+                        ? translate("Dölj", "Hide")
+                        : translate("Visa meddelanden", "View messages")}
+                    </Button>
+                    {privateMessagesOpen ? (
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={handleDeletePrivateMessages}
+                        sx={{ textTransform: "none", color: "rgba(226,232,240,0.78)", minWidth: "auto" }}
+                      >
+                        {translate("Ta bort", "Delete")}
+                      </Button>
+                    ) : null}
+                  </Stack>
                 </Stack>
-                <Stack spacing={0.9}>
+                {privateMessagesOpen ? <Stack spacing={0.9}>
                   {privateMessages.slice(0, 3).map((item) => (
                     <Box
                       key={item?.id || item?.createdAt}
@@ -419,7 +508,7 @@ export default function MinaSidorPage() {
                       </Typography>
                     </Box>
                   ))}
-                </Stack>
+                </Stack> : null}
               </Box>
             ) : null}
             {privateMessagesError ? (
@@ -431,174 +520,131 @@ export default function MinaSidorPage() {
           </Box>
 
           <Box sx={contentWrapSx}>
-            <PortfolioHeroCard
+            <MinaSidorSectionNav
+              activeView={activeView}
+              isAdmin={effectiveIsAdmin}
+              onChange={handleViewChange}
               translate={translate}
-              totalValue={totalValue}
-              totalCost={totalCost}
-              totalReturn={totalReturnWithDividends}
-              totalReturnPct={totalReturnPctWithDividends}
-              todaysHoldingChangeSek={todaysHoldingChangeSek}
-              todaysChangePercent={todaysChangePercent}
-              shares={profile.shares}
-              avgCost={profile.avgCost}
-              currentPrice={currentPrice}
-              dividendsReceived={dividendsReceivedSafe}
-              onManage={handleOpenManage}
             />
           </Box>
 
           {error ? <Typography sx={{ color: statusColors.warning, fontWeight: 600 }}>{error}</Typography> : null}
 
-          <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Din avkastning", "Your return")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
+          <Box id="mina-sidor-view-content" sx={{ ...contentWrapSx, scrollMarginTop: "92px" }}>
+            {activeView === "oversikt" ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <PortfolioHeroCard
+                  translate={translate}
+                  totalValue={totalValue}
+                  totalCost={totalCost}
+                  totalReturn={totalReturnWithDividends}
+                  totalReturnPct={totalReturnPctWithDividends}
+                  todaysHoldingChangeSek={todaysHoldingChangeSek}
+                  todaysChangePercent={todaysChangePercent}
+                  shares={profile.shares}
+                  avgCost={profile.avgCost}
+                  currentPrice={currentPrice}
+                  dividendsReceived={dividendsReceivedSafe}
+                  onManage={handleOpenManage}
+                />
+                <SectionHeading>{translate("Din avkastning", "Your return")}</SectionHeading>
+                <ReturnBreakdownCard
+                  translate={translate}
+                  totalCost={totalCost}
+                  totalValue={totalValue}
+                  dividendsReceived={dividendsReceivedSafe}
+                />
+                {isTraderMode ? <TraderPnlRow translate={translate} pnl={traderPnl} /> : null}
+              </Stack>
+            ) : null}
 
-          <Box sx={contentWrapSx}>
-            <ReturnBreakdownCard
-              translate={translate}
-              totalCost={totalCost}
-              totalValue={totalValue}
-              dividendsReceived={dividendsReceivedSafe}
-            />
-          </Box>
+            {activeView === "transaktioner" ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <SectionHeading>{translate("Transaktioner & historik", "Transactions & history")}</SectionHeading>
+                <DeferredSection minHeight={280}>
+                  <PortfolioTimelineCard
+                    translate={translate}
+                    locale={locale}
+                    profile={profile}
+                    historicalDividends={
+                      Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
+                    }
+                    calendarEvents={financialCalendarEvents}
+                    todayYmd={dashboardTodayYmd}
+                    onManage={handleOpenManage}
+                    onManageTransactions={() => setTransactionsOpen(true)}
+                  />
+                </DeferredSection>
+                <DeferredSection minHeight={360}>
+                  <HoldingsHistoryChart
+                    translate={translate}
+                    profile={profile}
+                    historicalDividends={
+                      Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
+                    }
+                  />
+                </DeferredSection>
+              </Stack>
+            ) : null}
 
-          {isTraderMode ? (
-            <Box sx={contentWrapSx}>
-              <TraderPnlRow translate={translate} pnl={traderPnl} />
-            </Box>
-          ) : null}
+            {activeView === "utdelning" ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <SectionHeading>{translate("Utdelning", "Dividends")}</SectionHeading>
+                <DeferredSection minHeight={320}>
+                  <DividendCenterCard
+                    translate={translate}
+                    shares={profile.shares}
+                    avgCost={profile.avgCost}
+                    currentPrice={currentPrice}
+                    fxRate={fxRate}
+                    dividendsReceived={dividendsReceivedSafe}
+                    upcomingDividend={upcomingDividend}
+                    lastDividend={lastDividend}
+                  />
+                </DeferredSection>
+              </Stack>
+            ) : null}
 
-          <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Återköp & ditt ägande", "Buybacks & your ownership")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
+            {activeView === "agande" ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <SectionHeading>{translate("Återköp & ditt ägande", "Buybacks & your ownership")}</SectionHeading>
+                <OwnershipCards
+                  translate={translate}
+                  buybackSummary={buybackSummary}
+                  buybackMandateSummary={buybackMandateSummary}
+                  profileShares={profile.shares}
+                  ownershipView={ownershipView}
+                  onChangeView={setOwnershipView}
+                />
+              </Stack>
+            ) : null}
 
-          <Box sx={contentWrapSx}>
-            <OwnershipCards
-              translate={translate}
-              buybackSummary={buybackSummary}
-              buybackMandateSummary={buybackMandateSummary}
-              profileShares={profile.shares}
-              ownershipView={ownershipView}
-              onChangeView={setOwnershipView}
-            />
-          </Box>
+            {activeView === "verktyg" ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <SectionHeading>{translate("Köpsimulator", "Purchase simulator")}</SectionHeading>
+                <DeferredSection minHeight={300}>
+                  <BuyImpactSimulatorCard
+                    translate={translate}
+                    profile={profile}
+                    currentPrice={currentPrice}
+                    upcomingDividend={upcomingDividend}
+                    lastDividend={lastDividend}
+                  />
+                </DeferredSection>
+                <SectionHeading>{translate("Värderingssignal", "Valuation signal")}</SectionHeading>
+                <DeferredSection minHeight={320}>
+                  <ValuationSignalCard
+                    translate={translate}
+                    currentPrice={currentPrice}
+                    isUnlocked={Boolean(effectiveIsAdmin || isSubscriber)}
+                  />
+                </DeferredSection>
+              </Stack>
+            ) : null}
 
-          <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Utdelning", "Dividends")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <DeferredSection minHeight={320}>
-              <DividendCenterCard
-                translate={translate}
-                shares={profile.shares}
-                avgCost={profile.avgCost}
-                currentPrice={currentPrice}
-                fxRate={fxRate}
-                dividendsReceived={dividendsReceivedSafe}
-                upcomingDividend={upcomingDividend}
-                lastDividend={lastDividend}
-              />
-            </DeferredSection>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Historik & nästa händelser", "History & next events")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <DeferredSection minHeight={280}>
-              <PortfolioTimelineCard
-                translate={translate}
-                locale={locale}
-                profile={profile}
-                historicalDividends={
-                  Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
-                }
-                calendarEvents={financialCalendarEvents}
-                todayYmd={dashboardTodayYmd}
-                onManage={handleOpenManage}
-                onManageTransactions={() => setTransactionsOpen(true)}
-              />
-            </DeferredSection>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <DeferredSection minHeight={360}>
-              <HoldingsHistoryChart
-                translate={translate}
-                profile={profile}
-                historicalDividends={
-                  Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
-                }
-              />
-            </DeferredSection>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Verktyg", "Tools")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <DeferredSection minHeight={300}>
-              <BuyImpactSimulatorCard
-                translate={translate}
-                profile={profile}
-                currentPrice={currentPrice}
-                upcomingDividend={upcomingDividend}
-                lastDividend={lastDividend}
-              />
-            </DeferredSection>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-              <Box sx={sectionRule} />
-              {translate("Värderingssignal", "Valuation signal")}
-              <Box sx={sectionRule} />
-            </Box>
-          </Box>
-
-          <Box sx={contentWrapSx}>
-            <DeferredSection minHeight={320}>
-              <ValuationSignalCard
-                translate={translate}
-                currentPrice={currentPrice}
-                isUnlocked={Boolean(effectiveIsAdmin || isSubscriber)}
-              />
-            </DeferredSection>
-          </Box>
-
-          {effectiveIsAdmin ? (
-            <>
-              <Box sx={contentWrapSx}>
-                <Box sx={{ ...sectionHeader, justifyContent: "center" }}>
-                  <Box sx={sectionRule} />
-                  {translate("Admin", "Admin")}
-                  <Box sx={sectionRule} />
-                </Box>
-              </Box>
-              <Box sx={contentWrapSx}>
+            {activeView === "admin" && effectiveIsAdmin ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <SectionHeading>{translate("Admin", "Admin")}</SectionHeading>
                 <Stack spacing={2} alignItems="center">
                   <ToggleButtonGroup
                     value={adminMode ? "on" : "off"}
@@ -608,11 +654,7 @@ export default function MinaSidorPage() {
                       setAdminMode(value === "on");
                     }}
                     size="small"
-                    sx={{
-                      backgroundColor: "rgba(148,163,184,0.12)",
-                      borderRadius: "999px",
-                      p: 0.5,
-                    }}
+                    sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
                   >
                     <ToggleButton
                       value="off"
@@ -641,7 +683,6 @@ export default function MinaSidorPage() {
                       {translate("Admin vy på", "Admin view on")}
                     </ToggleButton>
                   </ToggleButtonGroup>
-
                   {adminMode ? (
                     <AdminPanel
                       adminPanel={adminPanel}
@@ -654,9 +695,9 @@ export default function MinaSidorPage() {
                     />
                   ) : null}
                 </Stack>
-              </Box>
-            </>
-          ) : null}
+              </Stack>
+            ) : null}
+          </Box>
 
           <Divider sx={sectionDivider} />
         </Stack>
@@ -724,6 +765,7 @@ export default function MinaSidorPage() {
         }}
         translate={translate}
         token={token}
+        identity={inboxIdentity}
       /> : null}
 
       {adminSupportInboxOpen ? <AdminSupportInboxDialog

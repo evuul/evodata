@@ -11,9 +11,8 @@ import {
     computeFullBuybackMandateSummary,
     computePersonalCurrentProgramSummary,
 } from "@/lib/buybackOwnership";
-import { fetchAuthJson } from "@/lib/clientApi";
-import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { buildLiveHeaderPlayerMetrics } from "@/lib/liveHeaderPlayers";
+import { buildPortfolioSessionState } from "@/lib/portfolioSession";
 
 const NO_DIVIDEND_PROPOSAL = {
     date: "2026-03-18",
@@ -23,7 +22,6 @@ const NO_DIVIDEND_PROPOSAL = {
 };
 
 export function usePortfolioData({
-    token,
     user,
     isAuthenticated,
     initialized,
@@ -32,13 +30,14 @@ export function usePortfolioData({
     playerGames,
     playersLastUpdated,
     fxRate,
+    loadBuybacks = true,
 }) {
     const [profile, setProfile] = useState({ shares: 0, avgCost: 0, acquisitionDate: null, lots: [] });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [profileIdentity, setProfileIdentity] = useState({ firstName: "", lastName: "", email: "" });
-    const [isAdminUser, setIsAdminUser] = useState(false);
-    const [isSubscriber, setIsSubscriber] = useState(false);
+    const isAdminUser = Boolean(user?.isAdmin);
+    const isSubscriber = Boolean(user?.isSubscriber);
     const [athEmailEnabled, setAthEmailEnabled] = useState(false);
     const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
 
@@ -50,46 +49,28 @@ export function usePortfolioData({
         Array.isArray(buybackDataStatic) ? buybackDataStatic : []
     );
 
-    // -- Data Fetching --
+    // -- Session Hydration --
 
     useEffect(() => {
         if (!initialized) return;
-        if (!isAuthenticated) return;
+        if (!isAuthenticated || !user) {
+            setLoading(false);
+            return;
+        }
 
-        const loadProfile = async () => {
-            try {
-                setLoading(true);
-                const data = await fetchAuthJson(token, "/api/user/profile", {
-                    cache: "no-store",
-                });
-                setProfileIdentity({
-                    firstName: data.firstName ?? "",
-                    lastName: data.lastName ?? "",
-                    email: data.email ?? "",
-                });
-                setIsAdminUser(Boolean(data.isAdmin));
-                setIsSubscriber(Boolean(data.isSubscriber));
-                setAthEmailEnabled(Boolean(data?.notifications?.athEmail));
-                setDailyAvgEmailEnabled(Boolean(data?.notifications?.dailyAvgEmail));
-                setProfile(
-                    normalizePortfolioProfile(
-                        data.profile ?? { shares: 0, avgCost: 0, acquisitionDate: null, lots: [] }
-                    )
-                );
-                setError("");
-            } catch (err) {
-                setError(err?.message || "Något gick fel.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadProfile();
-    }, [initialized, isAuthenticated, token]);
+        const sessionState = buildPortfolioSessionState(user);
+        setProfileIdentity(sessionState.identity);
+        setAthEmailEnabled(sessionState.notifications.athEmail);
+        setDailyAvgEmailEnabled(sessionState.notifications.dailyAvgEmail);
+        setProfile(sessionState.profile);
+        setError("");
+        setLoading(false);
+    }, [initialized, isAuthenticated, user]);
 
     useEffect(() => {
+        if (!loadBuybacks) return undefined;
         let cancelled = false;
-        const loadBuybacks = async () => {
+        const fetchBuybacks = async () => {
             try {
                 const res = await fetch("/api/buybacks/data", { cache: "no-store" });
                 if (!res.ok) return;
@@ -101,11 +82,11 @@ export function usePortfolioData({
                 // Keep static fallback data
             }
         };
-        loadBuybacks();
+        fetchBuybacks();
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [loadBuybacks]);
 
     // -- Local Storage Sync --
 
