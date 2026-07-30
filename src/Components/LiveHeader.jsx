@@ -5,7 +5,6 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
-import FinancialOverviewPanel from "./FinancialOverviewCard";
 import LiveHeaderTopBar from "./LiveHeaderTopBar";
 import LiveHeaderOverviewSection from "./LiveHeaderOverviewSection";
 import LiveHeaderPanelSwitcher from "./LiveHeaderPanelSwitcher";
@@ -27,6 +26,7 @@ const PanelLoader = () => (
 );
 
 const LiveAiFairValuePanel = dynamic(() => import("./LiveAiFairValue"), { ssr: false, loading: PanelLoader });
+const FinancialOverviewPanel = dynamic(() => import("./FinancialOverviewCard"), { ssr: false, loading: PanelLoader });
 const GameshowEarningsPanel = dynamic(() => import("./LiveShowIntelligence"), { ssr: false, loading: PanelLoader });
 const ShortIntelligencePanel = dynamic(() => import("./ShortIntellegence"), { ssr: false, loading: PanelLoader });
 const LivePlayersControlPanel = dynamic(() => import("./LivePlayersControlPanel"), { ssr: false, loading: PanelLoader });

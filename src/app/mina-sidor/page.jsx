@@ -3,6 +3,7 @@
 // Renders the authenticated portfolio dashboard and coordinates its feature sections.
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { Box, Button, Divider, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -13,15 +14,9 @@ import { usePlayersLive } from "@/context/PlayersLiveContext";
 import MinaSidorHeader from "@/Components/MinaSidor/MinaSidorHeader";
 import PortfolioHeroCard from "@/Components/MinaSidor/PortfolioHeroCard";
 import ReturnBreakdownCard from "@/Components/MinaSidor/ReturnBreakdownCard";
-import DividendCenterCard from "@/Components/MinaSidor/DividendCenterCard";
-import PortfolioTimelineCard from "@/Components/MinaSidor/PortfolioTimelineCard";
-import BuyImpactSimulatorCard from "@/Components/MinaSidor/BuyImpactSimulatorCard";
 import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
-import ManageHoldingsModal from "@/Components/MinaSidor/ManageHoldingsModal";
-import HoldingsHistoryChart from "@/Components/MinaSidor/HoldingsHistoryChart";
-import ValuationSignalCard from "@/Components/MinaSidor/ValuationSignalCard";
-import SupportModal from "@/Components/MinaSidor/SupportModal";
+import DeferredSection from "@/Components/DeferredSection";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 
 import dividendData from "@/app/data/dividendData.json";
@@ -32,11 +27,24 @@ import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
 import { usePortfolioActions } from "@/app/mina-sidor/hooks/usePortfolioActions";
 import { useAdminTools } from "@/app/mina-sidor/hooks/useAdminTools";
 import { useMinaSidorInbox } from "@/app/mina-sidor/hooks/useMinaSidorInbox";
-import { AdminPanel } from "@/app/mina-sidor/components/AdminPanel";
-import { AdminDialogs } from "@/app/mina-sidor/components/AdminDialogs";
-import { AccountSettingsDialog } from "@/app/mina-sidor/components/AccountSettingsDialog";
-import { AdminSupportInboxDialog } from "@/app/mina-sidor/components/AdminSupportInboxDialog";
 import { fetchAuthJson } from "@/lib/clientApi";
+
+const SectionLoader = () => <Box sx={{ minHeight: 220 }} />;
+const DividendCenterCard = dynamic(() => import("@/Components/MinaSidor/DividendCenterCard"), { loading: SectionLoader });
+const PortfolioTimelineCard = dynamic(() => import("@/Components/MinaSidor/PortfolioTimelineCard"), { loading: SectionLoader });
+const BuyImpactSimulatorCard = dynamic(() => import("@/Components/MinaSidor/BuyImpactSimulatorCard"), { loading: SectionLoader });
+const HoldingsHistoryChart = dynamic(() => import("@/Components/MinaSidor/HoldingsHistoryChart"), { loading: SectionLoader });
+const ValuationSignalCard = dynamic(() => import("@/Components/MinaSidor/ValuationSignalCard"), { loading: SectionLoader });
+const ManageHoldingsModal = dynamic(() => import("@/Components/MinaSidor/ManageHoldingsModal"));
+const SupportModal = dynamic(() => import("@/Components/MinaSidor/SupportModal"));
+const AdminPanel = dynamic(() => import("@/app/mina-sidor/components/AdminPanel").then((module) => module.AdminPanel));
+const AdminDialogs = dynamic(() => import("@/app/mina-sidor/components/AdminDialogs").then((module) => module.AdminDialogs));
+const AccountSettingsDialog = dynamic(() =>
+  import("@/app/mina-sidor/components/AccountSettingsDialog").then((module) => module.AccountSettingsDialog)
+);
+const AdminSupportInboxDialog = dynamic(() =>
+  import("@/app/mina-sidor/components/AdminSupportInboxDialog").then((module) => module.AdminSupportInboxDialog)
+);
 
 export default function MinaSidorPage() {
   const translate = useTranslate();
@@ -486,16 +494,18 @@ export default function MinaSidorPage() {
           </Box>
 
           <Box sx={contentWrapSx}>
-            <DividendCenterCard
-              translate={translate}
-              shares={profile.shares}
-              avgCost={profile.avgCost}
-              currentPrice={currentPrice}
-              fxRate={fxRate}
-              dividendsReceived={dividendsReceivedSafe}
-              upcomingDividend={upcomingDividend}
-              lastDividend={lastDividend}
-            />
+            <DeferredSection minHeight={320}>
+              <DividendCenterCard
+                translate={translate}
+                shares={profile.shares}
+                avgCost={profile.avgCost}
+                currentPrice={currentPrice}
+                fxRate={fxRate}
+                dividendsReceived={dividendsReceivedSafe}
+                upcomingDividend={upcomingDividend}
+                lastDividend={lastDividend}
+              />
+            </DeferredSection>
           </Box>
 
           <Box sx={contentWrapSx}>
@@ -507,27 +517,31 @@ export default function MinaSidorPage() {
           </Box>
 
           <Box sx={contentWrapSx}>
-            <PortfolioTimelineCard
-              translate={translate}
-              locale={locale}
-              profile={profile}
-              historicalDividends={
-                Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
-              }
-              calendarEvents={financialCalendarEvents}
-              todayYmd={dashboardTodayYmd}
-              onManage={handleOpenManage}
-            />
+            <DeferredSection minHeight={280}>
+              <PortfolioTimelineCard
+                translate={translate}
+                locale={locale}
+                profile={profile}
+                historicalDividends={
+                  Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
+                }
+                calendarEvents={financialCalendarEvents}
+                todayYmd={dashboardTodayYmd}
+                onManage={handleOpenManage}
+              />
+            </DeferredSection>
           </Box>
 
           <Box sx={contentWrapSx}>
-            <HoldingsHistoryChart
-              translate={translate}
-              profile={profile}
-              historicalDividends={
-                Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
-              }
-            />
+            <DeferredSection minHeight={360}>
+              <HoldingsHistoryChart
+                translate={translate}
+                profile={profile}
+                historicalDividends={
+                  Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
+                }
+              />
+            </DeferredSection>
           </Box>
 
           <Box sx={contentWrapSx}>
@@ -539,13 +553,15 @@ export default function MinaSidorPage() {
           </Box>
 
           <Box sx={contentWrapSx}>
-            <BuyImpactSimulatorCard
-              translate={translate}
-              profile={profile}
-              currentPrice={currentPrice}
-              upcomingDividend={upcomingDividend}
-              lastDividend={lastDividend}
-            />
+            <DeferredSection minHeight={300}>
+              <BuyImpactSimulatorCard
+                translate={translate}
+                profile={profile}
+                currentPrice={currentPrice}
+                upcomingDividend={upcomingDividend}
+                lastDividend={lastDividend}
+              />
+            </DeferredSection>
           </Box>
 
           <Box sx={contentWrapSx}>
@@ -557,11 +573,13 @@ export default function MinaSidorPage() {
           </Box>
 
           <Box sx={contentWrapSx}>
-            <ValuationSignalCard
-              translate={translate}
-              currentPrice={currentPrice}
-              isUnlocked={Boolean(effectiveIsAdmin || isSubscriber)}
-            />
+            <DeferredSection minHeight={320}>
+              <ValuationSignalCard
+                translate={translate}
+                currentPrice={currentPrice}
+                isUnlocked={Boolean(effectiveIsAdmin || isSubscriber)}
+              />
+            </DeferredSection>
           </Box>
 
           {effectiveIsAdmin ? (
@@ -637,7 +655,7 @@ export default function MinaSidorPage() {
         </Stack>
       </Box>
 
-      <ManageHoldingsModal
+      {manageOpen ? <ManageHoldingsModal
         open={manageOpen}
         onClose={() => setManageOpen(false)}
         translate={translate}
@@ -677,9 +695,9 @@ export default function MinaSidorPage() {
         onSet={() => handleSet({ shares: Number(setShares), avgCost: Number(setAvgCost), acquisitionDate: setAcquisitionDate }).then((success) => { if (success) setManageOpen(false); })}
         onImportTransactions={onImportTransactions}
         loading={loading}
-      />
+      /> : null}
 
-      <SupportModal
+      {supportOpen ? <SupportModal
         open={supportOpen}
         onClose={() => {
           setSupportOpen(false);
@@ -687,9 +705,9 @@ export default function MinaSidorPage() {
         }}
         translate={translate}
         token={token}
-      />
+      /> : null}
 
-      <AdminSupportInboxDialog
+      {adminSupportInboxOpen ? <AdminSupportInboxDialog
         open={adminSupportInboxOpen}
         onClose={() => setAdminSupportInboxOpen(false)}
         translate={translate}
@@ -699,14 +717,14 @@ export default function MinaSidorPage() {
         rows={adminTools.adminSupportRows}
         onRefresh={adminTools.loadAdminSupport}
         onOpenTicket={(id) => adminTools.openAdminSupportTicket?.(id)}
-      />
+      /> : null}
 
-      <AdminDialogs
+      {effectiveIsAdmin && (adminTools.previewOpen || adminTools.adminSupportDialogOpen) ? <AdminDialogs
         {...adminTools}
         translate={translate}
-      />
+      /> : null}
 
-      <AccountSettingsDialog
+      {settingsOpen ? <AccountSettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         translate={translate}
@@ -716,7 +734,7 @@ export default function MinaSidorPage() {
         onSaveProfile={handleSaveProfileSettings}
         onChangePassword={handleChangePasswordSettings}
         onDeleteAccount={handleDeleteAccount}
-      />
+      /> : null}
     </Box>
   );
 }

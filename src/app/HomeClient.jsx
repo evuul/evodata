@@ -5,9 +5,13 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
-import LiveHeader from "@/Components/LiveHeader";
 import { useAuth } from "@/context/AuthContext";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
+
+const LiveHeader = dynamic(() => import("@/Components/LiveHeader"), {
+  ssr: false,
+  loading: () => <LoadingState label="Laddar kontrollcenter ..." />,
+});
 
 const LiveLoggedOutPreview = dynamic(() => import("@/Components/LiveLoggedOutPreview"), {
   ssr: false,
