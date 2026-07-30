@@ -20,24 +20,34 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import InsightsIcon from '@mui/icons-material/Insights';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TuneIcon from '@mui/icons-material/Tune';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { useTheme } from '@mui/material/styles';
 import { useFxRateContext } from '@/context/FxRateContext';
 import { useStockPriceContext } from '@/context/StockPriceContext';
 import { useTranslate } from '@/context/LocaleContext';
-import { computeFairValueInsights, resolveFairValueReports } from '@/lib/fairValueUtils';
+import {
+  CUSTOM_SCENARIO_LIMITS,
+  computeFairValueInsights,
+  normalizeCustomScenarioAssumptions,
+  resolveFairValueReports,
+} from '@/lib/fairValueUtils';
+import { readStoredJson, removeStoredValue, writeStoredJson } from '@/lib/clientStorage';
 import { useBuybackData } from './useBuybackData';
 import { fetchFinancialReportsShared } from '@/lib/marketDataClient';
+import ValuationScenarioWorkshop from './ValuationScenarioWorkshop';
 
 const currency0 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 });
 const currency2 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const number1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
 const number2 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 2 });
+const CUSTOM_SCENARIO_STORAGE_KEY = 'evodata.valuation.custom-scenario.v1';
 
 const SCENARIO_STYLE = {
   fair: { color: '#22c55e', Icon: InsightsIcon, sv: 'Bas', en: 'Base' },
   bull: { color: '#38bdf8', Icon: TrendingUpIcon, sv: 'Bull', en: 'Bull' },
   bear: { color: '#f87171', Icon: TrendingDownIcon, sv: 'Bear', en: 'Bear' },
+  custom: { color: '#a78bfa', Icon: TuneIcon, sv: 'Eget scenario', en: 'Custom' },
 };
 
 const WARNING_LABELS = {
@@ -248,6 +258,8 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
   const translate = useTranslate();
   const [liveReports, setLiveReports] = useState(reports);
   const [scenarioId, setScenarioId] = useState('fair');
+  const [customScenario, setCustomScenario] = useState(null);
+  const [customScenarioLoaded, setCustomScenarioLoaded] = useState(false);
   const { data: buybackMeta } = useBuybackData();
   const { rate: fxRate, loading: fxLoading, meta: fxMeta, lastUpdated: fxUpdated, error: fxError } = useFxRateContext();
   const { stockPrice, loading: priceLoading, lastUpdated: priceUpdated, error: priceError } = useStockPriceContext();
@@ -261,7 +273,14 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
   const effectiveBuybacks = Array.isArray(buybackMeta?.combined) && buybackMeta.combined.length
     ? buybackMeta.combined
     : buybackData;
-  const fairValue = useMemo(() => computeFairValueInsights({ reports: effectiveReports, buybackData: effectiveBuybacks, sharesData, fxRate: fx, currentPriceSEK }), [currentPriceSEK, effectiveBuybacks, effectiveReports, fx, sharesData]);
+  const fairValue = useMemo(() => computeFairValueInsights({
+    reports: effectiveReports,
+    buybackData: effectiveBuybacks,
+    sharesData,
+    fxRate: fx,
+    currentPriceSEK,
+    customScenario,
+  }), [currentPriceSEK, customScenario, effectiveBuybacks, effectiveReports, fx, sharesData]);
 
   useEffect(() => {
     if (!fairValue.scenarios.some((scenario) => scenario.id === scenarioId)) setScenarioId(fairValue.scenarios[0]?.id ?? 'fair');
@@ -273,6 +292,39 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
   const dataUnavailable = fairValue.scenarios.length === 0;
 
   useEffect(() => {
+    setCustomScenario(readStoredJson(CUSTOM_SCENARIO_STORAGE_KEY, null));
+    setCustomScenarioLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!customScenarioLoaded || customScenario == null || !fairValue.customScenarioAssumptions) return;
+    const normalized = fairValue.customScenarioAssumptions;
+    if (JSON.stringify(normalized) !== JSON.stringify(customScenario)) {
+      setCustomScenario(normalized);
+      return;
+    }
+    const persistenceTimer = window.setTimeout(() => {
+      writeStoredJson(CUSTOM_SCENARIO_STORAGE_KEY, normalized);
+    }, 250);
+    return () => window.clearTimeout(persistenceTimer);
+  }, [customScenario, customScenarioLoaded, fairValue.customScenarioAssumptions]);
+
+  const handleCustomAssumptionChange = useCallback((key, value) => {
+    const next = normalizeCustomScenarioAssumptions(
+      { ...fairValue.customScenarioAssumptions, [key]: value },
+      fairValue.customScenarioDefaults
+    );
+    setCustomScenario(next);
+    setScenarioId('custom');
+  }, [fairValue.customScenarioAssumptions, fairValue.customScenarioDefaults]);
+
+  const handleCustomScenarioReset = useCallback(() => {
+    removeStoredValue(CUSTOM_SCENARIO_STORAGE_KEY);
+    setCustomScenario(null);
+    setScenarioId('custom');
+  }, []);
+
+  useEffect(() => {
     let active = true;
     fetchFinancialReportsShared().then((data) => {
       if (active && Array.isArray(data?.financialReports) && data.financialReports.length) setLiveReports(data.financialReports);
@@ -281,7 +333,7 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
   }, []);
 
   const rangeLabel = Number.isFinite(fairValue.valuationRange.low) ? `${formatSek0(fairValue.valuationRange.low)}–${formatSek0(fairValue.valuationRange.high)}` : '–';
-  const midpointLabel = formatSek0(fairValue.valuationRange.midpoint);
+  const selectedValueLabel = formatSek0(activeScenario?.impliedPriceSEK);
   const fxPair = fxMeta?.base && fxMeta?.quote ? `${fxMeta.base}/${fxMeta.quote}` : 'EUR/SEK';
   const warnings = fairValue.dataQuality?.warnings ?? [];
   const scenarioOptions = fairValue.scenarios.map((scenario) => ({ ...scenario, style: SCENARIO_STYLE[scenario.id] ?? SCENARIO_STYLE.fair }));
@@ -309,7 +361,7 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
           <Box sx={{ ...panelSx, p: 3 }}><Stack direction="row" spacing={1} alignItems="center"><WarningAmberRoundedIcon sx={{ color: '#fbbf24' }} /><Typography sx={{ color: '#e2e8f0' }}>{translate('Modellen kan inte beräknas. Kontrollera EUR/SEK och åtta sammanhängande kvartal.', 'The model cannot be calculated. Check EUR/SEK and eight consecutive quarters.')}</Typography></Stack></Box>
         ) : (
           <>
-            <ToggleButtonGroup value={scenarioId} exclusive onChange={handleScenarioChange} size="small" sx={{ alignSelf: 'center', display: 'flex', gap: 1, '& .MuiToggleButtonGroup-grouped': { border: '1px solid rgba(148,163,184,0.24) !important' } }}>
+            <ToggleButtonGroup value={scenarioId} exclusive onChange={handleScenarioChange} size="small" sx={{ alignSelf: 'center', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, '& .MuiToggleButtonGroup-grouped': { border: '1px solid rgba(148,163,184,0.24) !important' } }}>
               {scenarioOptions.map((scenario) => <ToggleButton key={scenario.id} value={scenario.id} sx={{ borderRadius: '999px !important', color: 'rgba(203,213,225,0.78)', bgcolor: 'rgba(15,23,42,0.5)', textTransform: 'none', px: { xs: 1.8, sm: 3 }, '&.Mui-selected': { color: scenario.style.color, bgcolor: `${scenario.style.color}1f`, borderColor: `${scenario.style.color}66 !important` } }}>{translate(scenario.style.sv, scenario.style.en)}</ToggleButton>)}
             </ToggleButtonGroup>
 
@@ -326,18 +378,29 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
                 </Box>
               </Box>
               <Box>
-                <MetricCard label={translate('Antaganden', 'Assumptions')} value={`${formatPercent(activeScenario?.growth * 100)} tillväxt`} helper={`${number1.format(activeScenario?.margin)}% marginal · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% WACC`} />
+                <MetricCard label={translate('Antaganden', 'Assumptions')} value={translate(`${formatPercent(activeScenario?.growth * 100)} tillväxt`, `${formatPercent(activeScenario?.growth * 100)} growth`)} helper={translate(`${number1.format(activeScenario?.margin)}% marginal · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% WACC`, `${number1.format(activeScenario?.margin)}% margin · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% WACC`)} />
               </Box>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
+            {scenarioId === 'custom' && fairValue.customScenarioAssumptions && (
+              <ValuationScenarioWorkshop
+                assumptions={fairValue.customScenarioAssumptions}
+                limits={CUSTOM_SCENARIO_LIMITS}
+                forecast={activeScenario?.forecast}
+                onChange={handleCustomAssumptionChange}
+                onReset={handleCustomScenarioReset}
+                translate={translate}
+              />
+            )}
+
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
               {scenarioOptions.map((scenario) => <ScenarioCard key={scenario.id} scenario={scenario} selected={scenario.id === scenarioId} onSelect={setScenarioId} translate={translate} />)}
             </Box>
 
             <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto', background: 'rgba(15,23,42,0.42)' }}>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }}>
                 <Box><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('Värderingsbrygga', 'Valuation bridge')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)' }}>{translate('Två metoder, ett tydligt sammanvägt värde', 'Two methods, one transparent blended value')}</Typography></Box>
-                <Typography variant="h6" sx={{ color: activeStyle.color, fontWeight: 800 }}>{midpointLabel}</Typography>
+                <Typography variant="h6" sx={{ color: activeStyle.color, fontWeight: 800 }}>{selectedValueLabel}</Typography>
               </Stack>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mt: 0.2, maxWidth: 760, mx: 'auto' }}>
                 <MetricCard label="Owner earnings-DCF" value={formatSek0(activeScenario?.dcfValueSEK)} helper={`${number1.format(activeScenario?.discountRate * 100)}% WACC · ${number1.format(activeScenario?.terminalGrowth * 100)}% terminal`} color="#a7f3d0" />

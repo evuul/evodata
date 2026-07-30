@@ -13,6 +13,13 @@ const MAX_PE = 28;
 
 export const MIN_FWD_GROWTH = -0.15;
 export const MAX_FWD_GROWTH = 0.22;
+export const CUSTOM_SCENARIO_LIMITS = Object.freeze({
+  growth: Object.freeze({ min: MIN_FWD_GROWTH, max: MAX_FWD_GROWTH }),
+  margin: Object.freeze({ min: 25, max: 75 }),
+  pe: Object.freeze({ min: MIN_PE, max: MAX_PE }),
+  discountRate: Object.freeze({ min: 0.07, max: 0.18 }),
+  terminalGrowth: Object.freeze({ min: 0, max: 0.05 }),
+});
 
 const SCENARIO_CONFIG = Object.freeze([
   {
@@ -63,6 +70,31 @@ const toFiniteNumber = (value) => {
   if (value == null || value === "") return null;
   const number = Number(value);
   return Number.isFinite(number) ? number : null;
+};
+
+export const normalizeCustomScenarioAssumptions = (input = {}, defaults = {}) => {
+  const resolve = (key, fallback) => toFiniteNumber(input?.[key]) ?? toFiniteNumber(defaults?.[key]) ?? fallback;
+  const discountRate = clamp(
+    resolve("discountRate", 0.1),
+    CUSTOM_SCENARIO_LIMITS.discountRate.min,
+    CUSTOM_SCENARIO_LIMITS.discountRate.max
+  );
+  const terminalGrowthMax = Math.min(
+    CUSTOM_SCENARIO_LIMITS.terminalGrowth.max,
+    discountRate - 0.005
+  );
+
+  return {
+    growth: clamp(resolve("growth", 0.05), CUSTOM_SCENARIO_LIMITS.growth.min, CUSTOM_SCENARIO_LIMITS.growth.max),
+    margin: clamp(resolve("margin", 55), CUSTOM_SCENARIO_LIMITS.margin.min, CUSTOM_SCENARIO_LIMITS.margin.max),
+    pe: clamp(resolve("pe", 16), CUSTOM_SCENARIO_LIMITS.pe.min, CUSTOM_SCENARIO_LIMITS.pe.max),
+    discountRate,
+    terminalGrowth: clamp(
+      resolve("terminalGrowth", 0.025),
+      CUSTOM_SCENARIO_LIMITS.terminalGrowth.min,
+      terminalGrowthMax
+    ),
+  };
 };
 
 const average = (values) =>
@@ -193,6 +225,37 @@ const projectOwnerEarningsValue = ({
   return (presentValue + discountedTerminal + excessCashPerShareEur) * fxRate;
 };
 
+const buildFiveYearProjection = ({
+  revenueTtmEurM,
+  normalizedEpsEur,
+  shareAdjustment,
+  currentMargin,
+  targetMargin,
+  nearTermGrowth,
+  terminalGrowth,
+  fxRate,
+}) => {
+  const marginAdjustment = currentMargin > 0 ? targetMargin / currentMargin : 1;
+  let revenueEurM = revenueTtmEurM;
+  let epsEur = normalizedEpsEur * shareAdjustment * marginAdjustment;
+
+  return Array.from({ length: FORECAST_YEARS }, (_, index) => {
+    const year = index + 1;
+    const fade = index / (FORECAST_YEARS - 1);
+    const growth = nearTermGrowth + (terminalGrowth - nearTermGrowth) * fade;
+    revenueEurM *= 1 + growth;
+    epsEur *= 1 + growth;
+
+    return {
+      year,
+      growth,
+      margin: targetMargin,
+      revenueMEUR: revenueEurM,
+      epsSEK: epsEur * fxRate,
+    };
+  });
+};
+
 const buildEmptyResult = (warnings = []) => ({
   latestLabel: "",
   annualEpsTTMSEK: null,
@@ -207,6 +270,8 @@ const buildEmptyResult = (warnings = []) => ({
   buybackInfo: null,
   dataQuality: { status: "error", warnings, quarterCount: 0 },
   sensitivity: null,
+  customScenarioDefaults: null,
+  customScenarioAssumptions: null,
   raw: { ttmEpsEUR: null, normalizedEpsEUR: null },
 });
 
@@ -242,6 +307,7 @@ export const computeFairValueInsights = ({
   sharesData = [],
   fxRate,
   currentPriceSEK,
+  customScenario,
 } = {}) => {
   const fx = toFiniteNumber(fxRate);
   if (fx == null || fx <= 0) return buildEmptyResult(["invalid_fx"]);
@@ -305,18 +371,41 @@ export const computeFairValueInsights = ({
     : 0;
   const adjustedOwnerEarningsPerShareEur = ownerEarningsPerShareEur * shareAdjustment;
   const price = toFiniteNumber(currentPriceSEK);
+  const customScenarioDefaults = normalizeCustomScenarioAssumptions({}, {
+    growth: baseRevenueGrowth,
+    margin: currentMargin,
+    pe: smoothPeFromFundamentals(baseRevenueGrowth, currentMargin),
+    discountRate: 0.1,
+    terminalGrowth: 0.025,
+  });
+  const customScenarioAssumptions = normalizeCustomScenarioAssumptions(
+    customScenario,
+    customScenarioDefaults
+  );
+  const scenarioConfigs = [
+    ...SCENARIO_CONFIG,
+    {
+      id: "custom",
+      label: "Custom",
+      variant: "custom",
+      ...customScenarioAssumptions,
+    },
+  ];
 
-  const scenarios = SCENARIO_CONFIG.map((config) => {
-    const growth = clamp(baseRevenueGrowth + config.growthDelta, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
-    const margin = clamp(currentMargin + config.marginDelta, 25, 75);
+  const scenarios = scenarioConfigs.map((config) => {
+    const isCustom = config.id === "custom";
+    const growth = isCustom
+      ? config.growth
+      : clamp(baseRevenueGrowth + config.growthDelta, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
+    const margin = isCustom
+      ? config.margin
+      : clamp(currentMargin + config.marginDelta, 25, 75);
     const marginAdjustment = currentMargin > 0 ? margin / currentMargin : 1;
     const forwardEpsBeforeBuybackEur = normalizedEpsEur * (1 + growth) * marginAdjustment;
     const forwardEpsEur = forwardEpsBeforeBuybackEur * shareAdjustment;
-    const pe = clamp(
-      smoothPeFromFundamentals(growth, margin) + config.peDelta,
-      MIN_PE,
-      MAX_PE
-    );
+    const pe = isCustom
+      ? config.pe
+      : clamp(smoothPeFromFundamentals(growth, margin) + config.peDelta, MIN_PE, MAX_PE);
     const peValueSek = forwardEpsEur * pe * fx;
     const dcfValueSek = projectOwnerEarningsValue({
       ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
@@ -348,6 +437,16 @@ export const computeFairValueInsights = ({
       peValueSEK: peValueSek,
       dcfValueSEK: dcfValueSek,
       buybackRate: buybackInfo.executedShareReduction,
+      forecast: buildFiveYearProjection({
+        revenueTtmEurM,
+        normalizedEpsEur,
+        shareAdjustment,
+        currentMargin,
+        targetMargin: margin,
+        nearTermGrowth: growth,
+        terminalGrowth: config.terminalGrowth,
+        fxRate: fx,
+      }),
     };
   });
 
@@ -391,6 +490,8 @@ export const computeFairValueInsights = ({
       excessCashPerShareEur,
       fxRate: fx,
     }),
+    customScenarioDefaults,
+    customScenarioAssumptions,
     methodWeights: { dcf: DCF_WEIGHT, pe: PE_WEIGHT },
     raw: {
       ttmEpsEUR: ttmEpsEur,

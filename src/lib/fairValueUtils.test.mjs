@@ -3,8 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  CUSTOM_SCENARIO_LIMITS,
   computeFairValueInsights,
   normalizeFairValueReports,
+  normalizeCustomScenarioAssumptions,
   resolveFairValueReports,
 } from './fairValueUtils.js';
 
@@ -122,4 +124,51 @@ test('resolveFairValueReports prefers live data and falls back safely', () => {
   assert.deepEqual(resolveFairValueReports([], fallbackReports), fallbackReports);
   assert.deepEqual(resolveFairValueReports(null, fallbackReports), fallbackReports);
   assert.deepEqual(resolveFairValueReports([], null), []);
+});
+
+test('custom scenario changes valuation while fixed scenarios remain stable', () => {
+  const baseline = computeSample();
+  const result = computeSample({
+    customScenario: {
+      growth: 0.18,
+      margin: 70,
+      pe: 24,
+      discountRate: 0.08,
+      terminalGrowth: 0.04,
+    },
+  });
+  const custom = result.scenarios.find((scenario) => scenario.id === 'custom');
+  const baselineCustom = baseline.scenarios.find((scenario) => scenario.id === 'custom');
+
+  assert.ok(custom.impliedPriceSEK > baselineCustom.impliedPriceSEK);
+  assert.deepEqual(
+    result.scenarios.filter((scenario) => scenario.id !== 'custom'),
+    baseline.scenarios.filter((scenario) => scenario.id !== 'custom')
+  );
+  assert.deepEqual(result.valuationRange, baseline.valuationRange);
+});
+
+test('custom assumptions are clamped and keep terminal growth below WACC', () => {
+  const assumptions = normalizeCustomScenarioAssumptions({
+    growth: 2,
+    margin: -10,
+    pe: 100,
+    discountRate: 0.07,
+    terminalGrowth: 0.2,
+  });
+
+  assert.equal(assumptions.growth, CUSTOM_SCENARIO_LIMITS.growth.max);
+  assert.equal(assumptions.margin, CUSTOM_SCENARIO_LIMITS.margin.min);
+  assert.equal(assumptions.pe, CUSTOM_SCENARIO_LIMITS.pe.max);
+  assert.ok(assumptions.terminalGrowth < assumptions.discountRate);
+});
+
+test('every scenario exposes a five-year forecast matching its first-year EPS', () => {
+  const result = computeSample();
+
+  result.scenarios.forEach((scenario) => {
+    assert.equal(scenario.forecast.length, 5);
+    assert.ok(Math.abs(scenario.forecast[0].epsSEK - scenario.fwdEpsSEK) < 0.000001);
+    assert.ok(scenario.forecast.every((year) => Number.isFinite(year.revenueMEUR)));
+  });
 });
