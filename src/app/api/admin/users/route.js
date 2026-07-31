@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { getJson, getUserIndexKey, getUserKey, mgetJson } from "@/lib/authStore";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
+import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -63,13 +64,16 @@ export async function GET(request) {
       const isActive = Number.isFinite(seenAtTs) && now - seenAtTs <= ACTIVE_WINDOW_MS;
       const privateMessages = Array.isArray(user?.privateMessages) ? user.privateMessages : [];
       const pmUnreadCount = privateMessages.filter((item) => item && typeof item === "object" && !item.readAt).length;
+      const playerAlerts = normalizePlayerAlertPreferences(user?.notifications);
       return {
         email: user?.email || activity?.email || email,
         firstName: user?.firstName || activity?.firstName || "",
         lastName: user?.lastName || activity?.lastName || "",
         isSubscriber: Boolean(user?.isSubscriber),
-        athEmailEnabled: Boolean(user?.notifications?.athEmail),
-        dailyAvgEmailEnabled: Boolean(user?.notifications?.dailyAvgEmail),
+        athEmailEnabled: playerAlerts.lobbyAthEmail || playerAlerts.gameAthEmail,
+        lobbyAthEmailEnabled: playerAlerts.lobbyAthEmail,
+        gameAthEmailEnabled: playerAlerts.gameAthEmail,
+        dailyAvgEmailEnabled: playerAlerts.dailyAvgEmail,
         createdAt: user?.createdAt || null,
         updatedAt: user?.updatedAt || null,
         hasHoldings: hasHoldings(user),

@@ -30,7 +30,8 @@ const buildDemoUser = ({ now, existing }) => ({
   isSubscriber: false,
   isAdmin: false,
   notifications: {
-    athEmail: false,
+    lobbyAthEmail: false,
+    gameAthEmail: false,
     dailyAvgEmail: false,
   },
   profile: {

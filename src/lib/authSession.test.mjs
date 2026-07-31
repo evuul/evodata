@@ -26,7 +26,8 @@ test("allows restored sessions to use the current server-derived admin role", ()
   const restored = buildSessionUser(user, { isAdmin: true });
   assert.equal(restored.isAdmin, true);
   assert.deepEqual(restored.notifications, {
-    athEmail: true,
+    lobbyAthEmail: true,
+    gameAthEmail: true,
     dailyAvgEmail: false,
   });
 });

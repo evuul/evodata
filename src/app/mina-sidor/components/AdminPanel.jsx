@@ -22,6 +22,7 @@ export function AdminPanel({
     handleAdminMailTest,
     handleAdminMailPreview,
     handleAdminAthPreview,
+    handleAdminLobbyAthTest,
     handleAdminAthSendNow,
     handleAdminDailyAvgPreview,
     handleAdminDailyAvgSendNow,
@@ -34,6 +35,7 @@ export function AdminPanel({
     loadAdminCost,
     // State
     mailTestLoading,
+    lobbyAthTestLoading,
     mailTestMessage,
     previewLoading,
     adminActivityLoading,
@@ -91,6 +93,7 @@ export function AdminPanel({
     const athOffCount = adminUsersRows.length - athOnCount;
     const dailyAvgOnCount = adminUsersRows.filter((row) => Boolean(row?.dailyAvgEmailEnabled)).length;
     const dailyAvgOffCount = adminUsersRows.length - dailyAvgOnCount;
+    const mailActionLoading = Boolean(mailTestLoading || lobbyAthTestLoading);
 
     return (
         <Stack spacing={1.1} alignItems="center">
@@ -315,7 +318,7 @@ export function AdminPanel({
                         <Button
                             variant="outlined"
                             onClick={() => handleAdminMailTest(profileIdentity, user?.email)}
-                            disabled={mailTestLoading}
+                            disabled={mailActionLoading}
                             sx={{
                                 textTransform: "none",
                                 borderColor: "rgba(255,255,255,0.75)",
@@ -386,8 +389,26 @@ export function AdminPanel({
                         </Button>
                         <Button
                             variant="outlined"
+                            onClick={handleAdminLobbyAthTest}
+                            disabled={mailActionLoading}
+                            sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(192,132,252,0.55)",
+                                color: "#e9d5ff",
+                                "&:hover": {
+                                    borderColor: "rgba(192,132,252,0.85)",
+                                    backgroundColor: "rgba(168,85,247,0.1)",
+                                },
+                            }}
+                        >
+                            {lobbyAthTestLoading
+                                ? translate("Skickar lobby-test...", "Sending lobby test...")
+                                : translate("Skicka test: lobby-ATH", "Send test: lobby ATH")}
+                        </Button>
+                        <Button
+                            variant="outlined"
                             onClick={handleAdminAthSendNow}
-                            disabled={mailTestLoading}
+                            disabled={mailActionLoading}
                             sx={{
                                 textTransform: "none",
                                 borderColor: "rgba(251,191,36,0.5)",
@@ -421,7 +442,7 @@ export function AdminPanel({
                         <Button
                             variant="outlined"
                             onClick={handleAdminDailyAvgSendNow}
-                            disabled={mailTestLoading}
+                            disabled={mailActionLoading}
                             sx={{
                                 textTransform: "none",
                                 borderColor: "rgba(14,165,233,0.5)",

@@ -16,6 +16,7 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
   
   // Mail Test & Preview
   const [mailTestLoading, setMailTestLoading] = useState(false);
+  const [lobbyAthTestLoading, setLobbyAthTestLoading] = useState(false);
   const [mailTestMessage, setMailTestMessage] = useState("");
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -133,6 +134,56 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
       setMailTestMessage(translate("Kunde inte hämta ATH-preview.", "Could not load ATH preview."));
     } finally {
       setPreviewLoading(false);
+    }
+  };
+
+  const handleAdminLobbyAthTest = async () => {
+    if (!token) return;
+    try {
+      setLobbyAthTestLoading(true);
+      setMailTestMessage("");
+      const payload = await authFetchJson("/api/admin/lobby-ath-test", {
+        method: "POST",
+      });
+      setMailTestMessage(
+        translate(
+          `Testmail för lobby-ATH skickat till ${payload?.toEmail || "din adminadress"}.`,
+          `Lobby ATH test email sent to ${payload?.toEmail || "your admin address"}.`
+        )
+      );
+    } catch (error) {
+      const message = String(error?.message || "");
+      if (message === "Mailer not configured") {
+        setMailTestMessage(
+          translate(
+            "Mailtjänsten är inte konfigurerad. Lägg till RESEND_API_KEY i miljövariablerna.",
+            "The mail service is not configured. Add RESEND_API_KEY to the environment variables."
+          )
+        );
+      } else if (message === "Forbidden") {
+        setMailTestMessage(
+          translate(
+            "Adminadressen matchar inte serverns ADMIN_EMAIL.",
+            "The administrator address does not match the server's ADMIN_EMAIL."
+          )
+        );
+      } else if (message === "Unauthorized") {
+        setMailTestMessage(
+          translate(
+            "Din session har gått ut. Logga in igen och försök på nytt.",
+            "Your session has expired. Sign in again and retry."
+          )
+        );
+      } else {
+        setMailTestMessage(
+          translate(
+            "Mailleverantören avvisade testutskicket. Kontrollera Resend-konfigurationen.",
+            "The email provider rejected the test email. Check the Resend configuration."
+          )
+        );
+      }
+    } finally {
+      setLobbyAthTestLoading(false);
     }
   };
 
@@ -564,7 +615,7 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
   return {
     adminMode, setAdminMode,
     adminPanel, setAdminPanel,
-    mailTestLoading, mailTestMessage,
+    mailTestLoading, lobbyAthTestLoading, mailTestMessage,
     previewLoading, previewOpen, setPreviewOpen, previewTitle, previewHtml,
     adminActivityLoading, adminActivityError, adminActivityRows, adminActivityGeoSummary, loadAdminActivity,
     adminUsersLoading, adminUsersError, adminUsersRows, adminUsersTotal, loadAdminUsers,
@@ -588,6 +639,7 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
     handleAdminMailTest,
     handleAdminMailPreview,
     handleAdminAthPreview,
+    handleAdminLobbyAthTest,
     handleAdminAthSendNow,
     handleAdminDailyAvgPreview,
     handleAdminDailyAvgSendNow

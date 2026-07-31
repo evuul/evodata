@@ -8,6 +8,7 @@ import {
   sessionMatchesUserAuthVersion,
 } from "./authStore.js";
 import { normalizePortfolioProfile } from "./portfolioProfile.js";
+import { normalizePlayerAlertPreferences } from "./playerAlertPreferences.js";
 
 export const SESSION_COOKIE_NAME = "evodata_session";
 export const COOKIE_SESSION_MARKER = "cookie-session";
@@ -98,10 +99,7 @@ export function buildSessionUser(user, { isAdmin = Boolean(user?.isAdmin) } = {}
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin: Boolean(isAdmin),
-    notifications: {
-      athEmail: Boolean(user?.notifications?.athEmail),
-      dailyAvgEmail: Boolean(user?.notifications?.dailyAvgEmail),
-    },
+    notifications: normalizePlayerAlertPreferences(user?.notifications),
     profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   };
 }

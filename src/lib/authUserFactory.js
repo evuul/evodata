@@ -26,7 +26,9 @@ export const createRegisteredUser = ({
   isSubscriber: false,
   isAdmin,
   notifications: {
-    athEmail: false,
+    lobbyAthEmail: false,
+    gameAthEmail: false,
+    dailyAvgEmail: false,
   },
   profile: createDefaultUserProfile(now),
 });

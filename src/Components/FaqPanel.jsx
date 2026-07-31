@@ -308,16 +308,16 @@ const FaqPanel = () => {
           >
             <Typography sx={{ fontWeight: 700 }}>
               {translate(
-                "Hur aktiverar jag Daily AVG / ATH-notiser?",
-                "How do I enable Daily AVG / ATH notifications?"
+                "Hur aktiverar jag spelarbevakningar?",
+                "How do I enable player alerts?"
               )}
             </Typography>
           </AccordionSummary>
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                "Gå till Mina sidor och öppna notis-menyn (klockikonen). Där kan du slå på “Nytt ATH” och “Daily AVG”. Daily AVG skickas på en fast daglig tid när gårdagens data är klar.",
-                "Go to My Page and open the notifications menu (bell icon). There you can enable “New ATH” and “Daily AVG”. Daily AVG is sent at a fixed daily time when yesterday’s data is ready."
+                "Gå till Mina sidor och öppna notis-menyn (klockikonen). Där väljer du separat e-post för nytt lobby-ATH, nytt ATH för ett enskilt spel och Daily AVG. Daily AVG skickas när gårdagens data är klar.",
+                "Go to My Page and open the notifications menu (bell icon). There you can separately enable email for a new lobby ATH, a new ATH for an individual game, and Daily AVG. Daily AVG is sent when yesterday's data is ready."
               )}
             </Typography>
           </AccordionDetails>

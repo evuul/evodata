@@ -275,7 +275,7 @@ export const buildAthAlertEmail = ({
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;">
         <thead>
           <tr>
-            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Game</th>
+            <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Series</th>
             <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">ATH</th>
             <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">Prev ATH</th>
             <th align="left" style="padding:0 12px 10px 12px;color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:1.2px;">At</th>
@@ -301,7 +301,7 @@ export const buildAthAlertEmail = ({
     }
 
     <p style="margin:16px 0 16px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
-      You can disable ATH emails anytime from <strong>My page</strong>.
+      You can manage lobby ATH and game ATH emails separately from <strong>My page</strong>.
     </p>
 
     <p style="margin:0 0 18px 0;">
@@ -317,7 +317,7 @@ export const buildAthAlertEmail = ({
     subject: "New ATH detected",
     html: shell({
       title: "New ATH detected",
-      preheader: "A game just hit a new All-Time High.",
+      preheader: "Live player activity just hit a new All-Time High.",
       body,
     }),
   };

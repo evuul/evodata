@@ -29,6 +29,10 @@ test("createRegisteredUser returns a normalizable new-account profile", () => {
 
   assert.equal(user.email, "new@example.com");
   assert.equal(user.isSubscriber, false);
-  assert.deepEqual(user.notifications, { athEmail: false });
+  assert.deepEqual(user.notifications, {
+    lobbyAthEmail: false,
+    gameAthEmail: false,
+    dailyAvgEmail: false,
+  });
   assert.deepEqual(normalizePortfolioProfile(user.profile).transactions, []);
 });

@@ -3,6 +3,10 @@
 import { NextResponse } from "next/server";
 import { getUserKey, setJson } from "@/lib/authStore";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
+import {
+  normalizePlayerAlertPreferences,
+  pickPlayerAlertPreferencePatch,
+} from "@/lib/playerAlertPreferences";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,7 +26,7 @@ export async function GET(request) {
   return json({
     ok: true,
     email: user.email,
-    notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
+    notifications: normalizePlayerAlertPreferences(user.notifications),
   });
 }
 
@@ -38,17 +42,15 @@ export async function PUT(request) {
     payload = null;
   }
 
-  const nextAthEmail = payload?.athEmail;
-  const nextDailyAvgEmail = payload?.dailyAvgEmail;
-  if (typeof nextAthEmail !== "boolean" && typeof nextDailyAvgEmail !== "boolean") {
+  const patch = pickPlayerAlertPreferencePatch(payload);
+  if (!Object.keys(patch).length) {
     return json({ error: "Invalid request." }, { status: 400 });
   }
 
   const user = resolved.user;
   user.notifications = {
     ...(user.notifications || {}),
-    ...(typeof nextAthEmail === "boolean" ? { athEmail: nextAthEmail } : null),
-    ...(typeof nextDailyAvgEmail === "boolean" ? { dailyAvgEmail: nextDailyAvgEmail } : null),
+    ...patch,
   };
   user.updatedAt = new Date().toISOString();
 
@@ -56,6 +58,6 @@ export async function PUT(request) {
 
   return json({
     ok: true,
-    notifications: user.notifications,
+    notifications: normalizePlayerAlertPreferences(user.notifications),
   });
 }

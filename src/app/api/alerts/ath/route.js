@@ -6,6 +6,7 @@ import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import {
   getCachedDailyAggregates,
   getGameAthSnapshot,
+  getGlobalLobbyAth,
   getLatestPlayersSnapshot,
   setGameAthSnapshot,
 } from "@/lib/csStore";
@@ -14,6 +15,11 @@ import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 import { buildAthAlertEmail } from "@/lib/emailTemplates";
+import {
+  buildLobbyAthEvent,
+  filterAthEventsForPreferences,
+} from "@/lib/athAlertEvents";
+import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -119,6 +125,10 @@ async function handler(req) {
   const lastNotified = (await getJson(LAST_NOTIFIED_KEY)) || {};
   const prevMap = lastNotified?.slugs && typeof lastNotified.slugs === "object" ? lastNotified.slugs : {};
   const nextMap = { ...prevMap };
+  const previousLobbyNotified = Number(lastNotified?.lobby);
+  let nextLobbyNotified = Number.isFinite(previousLobbyNotified)
+    ? previousLobbyNotified
+    : null;
   const events = [];
   let dailyAgg = null;
   let athSnapshot = await getGameAthSnapshot().catch(() => null);
@@ -127,12 +137,25 @@ async function handler(req) {
     athSnapshot = buildGameAthSnapshot(dailyAgg, SERIES_SLUGS);
     await setGameAthSnapshot(athSnapshot).catch(() => null);
   }
-  const latestSnapshot = await getLatestPlayersSnapshot().catch(() => null);
+  const [latestSnapshot, lobbyAth] = await Promise.all([
+    getLatestPlayersSnapshot().catch(() => null),
+    getGlobalLobbyAth().catch(() => null),
+  ]);
   const latestById = new Map(
     Array.isArray(latestSnapshot?.items)
       ? latestSnapshot.items.filter((item) => item?.id).map((item) => [item.id, item])
       : []
   );
+  const lobbyEvent = buildLobbyAthEvent({
+    lobbyAth,
+    latestItems: latestSnapshot?.items,
+    previousNotifiedValue: previousLobbyNotified,
+    lookbackMs: NEW_ATH_LOOKBACK_MS,
+  });
+  if (lobbyEvent) {
+    events.push(lobbyEvent);
+    nextLobbyNotified = lobbyEvent.athValue;
+  }
 
   // Detect new ATH per slug.
   const nowTs = Date.now();
@@ -151,6 +174,7 @@ async function handler(req) {
     nextMap[slug] = ath.value;
     events.push({
       id: slug,
+      kind: "game",
       name: gameNameById.get(slug) || slug,
       athValue: ath.value,
       athAt: ath.at ?? null,
@@ -174,7 +198,13 @@ async function handler(req) {
   const index = (await getJson(getUserIndexKey())) || {};
   const emails = Array.isArray(index?.emails) ? index.emails : [];
   const users = await mgetJson(emails.map(getUserKey)).catch(() => []);
-  const recipients = users.filter((user) => user?.email && user?.notifications?.athEmail);
+  const recipients = users
+    .filter((user) => user?.email)
+    .map((user) => ({
+      ...user,
+      playerAlerts: normalizePlayerAlertPreferences(user?.notifications),
+    }))
+    .filter((user) => user.playerAlerts.lobbyAthEmail || user.playerAlerts.gameAthEmail);
 
   // During testing: only send to the admin email to avoid spamming real users.
   const effectiveRecipients = (() => {
@@ -185,27 +215,39 @@ async function handler(req) {
       {
         email: ADMIN_EMAIL,
         firstName: "Alexander",
+        playerAlerts: {
+          lobbyAthEmail: true,
+          gameAthEmail: true,
+          dailyAvgEmail: false,
+        },
       },
     ];
   })();
+  const deliveries = effectiveRecipients
+    .map((user) => ({
+      user,
+      events: filterAthEventsForPreferences(events, user.playerAlerts),
+    }))
+    .filter((delivery) => delivery.events.length > 0);
 
-  // The 60-day trend scan runs only for an actual ATH event.
-  if (!dailyAgg) {
+  // Skip the trend read when no user will receive this event.
+  if (deliveries.length > 0 && !dailyAgg) {
     dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, 60).catch(() => new Map());
   }
-  const topTrends = computeTopTrends(dailyAgg);
+  const topTrends = deliveries.length > 0 ? computeTopTrends(dailyAgg || new Map()) : [];
 
   let sent = 0;
   const errors = [];
 
   if (!dryRun) {
-    for (const user of effectiveRecipients) {
+    for (const delivery of deliveries) {
+      const { user } = delivery;
       try {
         const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
         const { subject, html } = buildAthAlertEmail({
           email: user.email,
           firstName: user.firstName || "there",
-          events,
+          events: delivery.events,
           topTrends,
           coffeeUrl,
         });
@@ -224,6 +266,7 @@ async function handler(req) {
   if (!dryRun) {
     await setJson(LAST_NOTIFIED_KEY, {
       slugs: nextMap,
+      ...(Number.isFinite(nextLobbyNotified) ? { lobby: nextLobbyNotified } : null),
       updatedAt: new Date().toISOString(),
     });
   }
@@ -233,7 +276,7 @@ async function handler(req) {
     dryRun,
     events,
     topTrends,
-    recipients: effectiveRecipients.map((u) => u.email),
+    recipients: deliveries.map(({ user }) => user.email),
     sent,
     errors,
   });

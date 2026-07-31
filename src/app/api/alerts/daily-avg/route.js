@@ -14,6 +14,7 @@ import {
   resolveRecoveryDate,
   shouldUseLiveTrackerRecovery,
 } from "@/lib/liveTrackerRecovery";
+import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -347,7 +348,9 @@ async function handler(req) {
     const index = (await getJson(getUserIndexKey())) || {};
     const emails = Array.isArray(index?.emails) ? index.emails : [];
     const users = await mgetJson(emails.map(getUserKey)).catch(() => []);
-    recipients = users.filter((user) => user?.email && user?.notifications?.dailyAvgEmail);
+    recipients = users.filter(
+      (user) => user?.email && normalizePlayerAlertPreferences(user?.notifications).dailyAvgEmail
+    );
   }
 
   if (!recipients.length) {

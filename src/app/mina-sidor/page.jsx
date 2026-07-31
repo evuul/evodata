@@ -107,7 +107,8 @@ function MinaSidorContent() {
     profileIdentity, setProfileIdentity,
     effectiveIsAdmin,
     isSubscriber,
-    athEmailEnabled, setAthEmailEnabled,
+    lobbyAthEmailEnabled, setLobbyAthEmailEnabled,
+    gameAthEmailEnabled, setGameAthEmailEnabled,
     dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
     dividendsReceived, setDividendsReceived,
     dividendInputMode, setDividendInputMode,
@@ -293,34 +294,18 @@ function MinaSidorContent() {
     }
   };
 
-  const saveAthEmailEnabled = async (nextValue) => {
+  const savePlayerAlertPreference = async (key, setValue, nextValue, previousValue) => {
     if (!token) return;
     try {
       setNotificationsSaving(true);
       const payload = await fetchAuthJson(token, "/api/user/notifications", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ athEmail: Boolean(nextValue) }),
+        body: JSON.stringify({ [key]: Boolean(nextValue) }),
       });
-      setAthEmailEnabled(Boolean(payload?.notifications?.athEmail));
+      setValue(Boolean(payload?.notifications?.[key]));
     } catch (err) {
-      setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
-    } finally {
-      setNotificationsSaving(false);
-    }
-  };
-
-  const saveDailyAvgEmailEnabled = async (nextValue) => {
-    if (!token) return;
-    try {
-      setNotificationsSaving(true);
-      const payload = await fetchAuthJson(token, "/api/user/notifications", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dailyAvgEmail: Boolean(nextValue) }),
-      });
-      setDailyAvgEmailEnabled(Boolean(payload?.notifications?.dailyAvgEmail));
-    } catch (err) {
+      setValue(Boolean(previousValue));
       setError(err?.message || translate("Kunde inte spara inställningen.", "Could not save setting."));
     } finally {
       setNotificationsSaving(false);
@@ -402,16 +387,36 @@ function MinaSidorContent() {
               onOpenSettings={() => setSettingsOpen(true)}
               onOpenSupport={handleOpenSupport}
               supportIndicator={supportIndicator}
-              athEmailEnabled={athEmailEnabled}
+              lobbyAthEmailEnabled={lobbyAthEmailEnabled}
+              gameAthEmailEnabled={gameAthEmailEnabled}
               dailyAvgEmailEnabled={dailyAvgEmailEnabled}
               notificationsSaving={notificationsSaving}
-              onToggleAthEmail={(nextValue) => {
-                setAthEmailEnabled(Boolean(nextValue));
-                saveAthEmailEnabled(Boolean(nextValue));
+              onToggleLobbyAthEmail={(nextValue) => {
+                setLobbyAthEmailEnabled(Boolean(nextValue));
+                savePlayerAlertPreference(
+                  "lobbyAthEmail",
+                  setLobbyAthEmailEnabled,
+                  nextValue,
+                  lobbyAthEmailEnabled
+                );
+              }}
+              onToggleGameAthEmail={(nextValue) => {
+                setGameAthEmailEnabled(Boolean(nextValue));
+                savePlayerAlertPreference(
+                  "gameAthEmail",
+                  setGameAthEmailEnabled,
+                  nextValue,
+                  gameAthEmailEnabled
+                );
               }}
               onToggleDailyAvgEmail={(nextValue) => {
                 setDailyAvgEmailEnabled(Boolean(nextValue));
-                saveDailyAvgEmailEnabled(Boolean(nextValue));
+                savePlayerAlertPreference(
+                  "dailyAvgEmail",
+                  setDailyAvgEmailEnabled,
+                  nextValue,
+                  dailyAvgEmailEnabled
+                );
               }}
               isAdminView={effectiveIsAdmin}
               onPreviewUserSupportNotice={() => triggerSupportPreview("user")}

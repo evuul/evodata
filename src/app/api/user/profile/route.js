@@ -10,6 +10,7 @@ import {
   updatePortfolioTransaction,
 } from "@/lib/portfolioTransactions";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
+import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -38,7 +39,7 @@ export async function GET(request) {
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin,
-    notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
+    notifications: normalizePlayerAlertPreferences(user.notifications),
     profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   });
 }
@@ -136,7 +137,7 @@ export async function PUT(request) {
         lastName: user.lastName ?? "",
         isSubscriber: Boolean(user.isSubscriber),
         isAdmin: Boolean(user.isAdmin),
-        notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
+        notifications: normalizePlayerAlertPreferences(user.notifications),
         profile,
       });
     }
@@ -173,7 +174,7 @@ export async function PUT(request) {
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin: Boolean(user.isAdmin),
-    notifications: user.notifications ?? { athEmail: false, dailyAvgEmail: false },
+    notifications: normalizePlayerAlertPreferences(user.notifications),
     profile: normalizedProfile,
   });
 }

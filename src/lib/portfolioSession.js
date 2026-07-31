@@ -1,6 +1,7 @@
 // Normalizes the authenticated session payload used to initialize Mina sidor.
 
 import { normalizePortfolioProfile } from "./portfolioProfile.js";
+import { normalizePlayerAlertPreferences } from "./playerAlertPreferences.js";
 
 export function buildPortfolioSessionState(user) {
   const source = user && typeof user === "object" ? user : {};
@@ -15,9 +16,6 @@ export function buildPortfolioSessionState(user) {
     ),
     isAdmin: Boolean(source.isAdmin),
     isSubscriber: Boolean(source.isSubscriber),
-    notifications: {
-      athEmail: Boolean(source?.notifications?.athEmail),
-      dailyAvgEmail: Boolean(source?.notifications?.dailyAvgEmail),
-    },
+    notifications: normalizePlayerAlertPreferences(source.notifications),
   };
 }

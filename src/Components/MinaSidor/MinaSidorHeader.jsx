@@ -12,6 +12,51 @@ import { LOCALE_OPTIONS, useLocale } from "@/context/LocaleContext";
 import { liveDot, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
 
+const PlayerAlertToggle = ({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+  activeColor,
+}) => (
+  <MenuItem
+    disableRipple
+    sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default", py: 0.8 }}
+  >
+    <Stack
+      direction="row"
+      spacing={1.5}
+      alignItems="center"
+      justifyContent="space-between"
+      sx={{ width: "100%", minWidth: { xs: 250, sm: 310 } }}
+    >
+      <Box>
+        <Typography sx={{ fontSize: "0.86rem", fontWeight: 700 }}>
+          {label}
+        </Typography>
+        <Typography sx={{ color: "rgba(203,213,225,0.66)", fontSize: "0.72rem", mt: 0.15 }}>
+          {description}
+        </Typography>
+      </Box>
+      <Switch
+        size="small"
+        checked={Boolean(checked)}
+        disabled={Boolean(disabled)}
+        onChange={(event) => onChange?.(Boolean(event.target.checked))}
+        inputProps={{ "aria-label": label }}
+        sx={{
+          "& .MuiSwitch-thumb": { backgroundColor: "#f8fafc" },
+          "& .MuiSwitch-track": { backgroundColor: "rgba(148,163,184,0.25)" },
+          "& .Mui-checked + .MuiSwitch-track": {
+            backgroundColor: `${activeColor}!important`,
+          },
+        }}
+      />
+    </Stack>
+  </MenuItem>
+);
+
 export default function MinaSidorHeader({
   translate,
   totalLivePlayers,
@@ -19,10 +64,12 @@ export default function MinaSidorHeader({
   onOpenSettings,
   onOpenSupport,
   supportIndicator,
-  athEmailEnabled,
+  lobbyAthEmailEnabled,
+  gameAthEmailEnabled,
   dailyAvgEmailEnabled,
   notificationsSaving,
-  onToggleAthEmail,
+  onToggleLobbyAthEmail,
+  onToggleGameAthEmail,
   onToggleDailyAvgEmail,
   isAdminView,
   onPreviewUserSupportNotice,
@@ -167,54 +214,43 @@ export default function MinaSidorHeader({
               }
             }}
           >
-            <MenuItem disableRipple sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default" }}>
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ width: "100%", minWidth: 200 }}
-              >
-                <Typography sx={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                  {translate("Notis: Nytt ATH", "Notify: New ATH")}
+            <MenuItem
+              disableRipple
+              sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default", pb: 0.7 }}
+            >
+              <Box>
+                <Typography sx={{ color: "#f8fafc", fontSize: "0.9rem", fontWeight: 800 }}>
+                  {translate("Spelarbevakningar", "Player alerts")}
                 </Typography>
-                <Switch
-                  size="small"
-                  checked={Boolean(athEmailEnabled)}
-                  disabled={Boolean(notificationsSaving)}
-                  onChange={(event) => onToggleAthEmail?.(Boolean(event.target.checked))}
-                  sx={{
-                    "& .MuiSwitch-thumb": { backgroundColor: "#f8fafc" },
-                    "& .MuiSwitch-track": { backgroundColor: "rgba(148,163,184,0.25)" },
-                    "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "rgba(34,197,94,0.35)!important" },
-                  }}
-                />
-              </Stack>
-            </MenuItem>
-            <MenuItem disableRipple sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default" }}>
-              <Stack
-                direction="row"
-                spacing={1}
-                alignItems="center"
-                justifyContent="space-between"
-                sx={{ width: "100%" }}
-              >
-                <Typography sx={{ fontSize: "0.85rem", fontWeight: 600 }}>
-                  {translate("Notis: Dagligt GAV", "Notify: Daily AVG")}
+                <Typography sx={{ color: "rgba(203,213,225,0.62)", fontSize: "0.72rem", mt: 0.15 }}>
+                  {translate("Skickas som e-postnotiser", "Delivered as email notifications")}
                 </Typography>
-                <Switch
-                  size="small"
-                  checked={Boolean(dailyAvgEmailEnabled)}
-                  disabled={Boolean(notificationsSaving)}
-                  onChange={(event) => onToggleDailyAvgEmail?.(Boolean(event.target.checked))}
-                  sx={{
-                    "& .MuiSwitch-thumb": { backgroundColor: "#f8fafc" },
-                    "& .MuiSwitch-track": { backgroundColor: "rgba(148,163,184,0.25)" },
-                    "& .Mui-checked + .MuiSwitch-track": { backgroundColor: "rgba(59,130,246,0.35)!important" },
-                  }}
-                />
-              </Stack>
+              </Box>
             </MenuItem>
+            <PlayerAlertToggle
+              label={translate("Nytt lobby-ATH", "New lobby ATH")}
+              description={translate("När totalt antal live-spelare slår rekord", "When total live players reach a record")}
+              checked={lobbyAthEmailEnabled}
+              disabled={notificationsSaving}
+              onChange={onToggleLobbyAthEmail}
+              activeColor="rgba(34,197,94,0.4)"
+            />
+            <PlayerAlertToggle
+              label={translate("Nytt ATH för ett spel", "New game ATH")}
+              description={translate("När ett enskilt spel slår rekord", "When an individual game reaches a record")}
+              checked={gameAthEmailEnabled}
+              disabled={notificationsSaving}
+              onChange={onToggleGameAthEmail}
+              activeColor="rgba(168,85,247,0.4)"
+            />
+            <PlayerAlertToggle
+              label={translate("Daily AVG", "Daily AVG")}
+              description={translate("Gårdagens genomsnitt och förändring", "Yesterday's average and change")}
+              checked={dailyAvgEmailEnabled}
+              disabled={notificationsSaving}
+              onChange={onToggleDailyAvgEmail}
+              activeColor="rgba(59,130,246,0.4)"
+            />
 
             <MenuItem disableRipple sx={{ "&:hover": { backgroundColor: "transparent" }, cursor: "default", pt: 1.5, borderTop: "1px solid rgba(148,163,184,0.15)" }}>
               <Stack

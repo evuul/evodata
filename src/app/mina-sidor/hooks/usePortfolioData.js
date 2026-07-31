@@ -38,7 +38,8 @@ export function usePortfolioData({
     const [profileIdentity, setProfileIdentity] = useState({ firstName: "", lastName: "", email: "" });
     const isAdminUser = Boolean(user?.isAdmin);
     const isSubscriber = Boolean(user?.isSubscriber);
-    const [athEmailEnabled, setAthEmailEnabled] = useState(false);
+    const [lobbyAthEmailEnabled, setLobbyAthEmailEnabled] = useState(false);
+    const [gameAthEmailEnabled, setGameAthEmailEnabled] = useState(false);
     const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
 
     const [dividendsReceived, setDividendsReceived] = useState("");
@@ -60,7 +61,8 @@ export function usePortfolioData({
 
         const sessionState = buildPortfolioSessionState(user);
         setProfileIdentity(sessionState.identity);
-        setAthEmailEnabled(sessionState.notifications.athEmail);
+        setLobbyAthEmailEnabled(sessionState.notifications.lobbyAthEmail);
+        setGameAthEmailEnabled(sessionState.notifications.gameAthEmail);
         setDailyAvgEmailEnabled(sessionState.notifications.dailyAvgEmail);
         setProfile(sessionState.profile);
         setError("");
@@ -489,7 +491,8 @@ export function usePortfolioData({
         isAdminUser,
         isSubscriber,
         effectiveIsAdmin,
-        athEmailEnabled, setAthEmailEnabled,
+        lobbyAthEmailEnabled, setLobbyAthEmailEnabled,
+        gameAthEmailEnabled, setGameAthEmailEnabled,
         dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
 
         dividendsReceived, setDividendsReceived,
