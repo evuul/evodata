@@ -16,6 +16,7 @@ import {
   normalizeTrendDelta,
   normalizeTodayPeak,
   normalizeLobbyAth,
+  reconcileGamePeakWithLive,
   reconcileTodayPeak,
   computeTrendDiff,
   applyMovingAverage,
@@ -632,17 +633,24 @@ export default function useLivePlayersControlPanelModel() {
       slugDetails
         .map((detail) => {
           const game = SLUG_TO_GAME.get(detail.slug);
+          const liveEntry = game ? liveGames?.[game.id] : null;
+          const peaks = reconcileGamePeakWithLive({
+            storedAth: detail.ath,
+            storedLatest: detail.latest,
+            liveValue: liveEntry?.stuck ? null : liveEntry?.players,
+            liveUpdatedAt: liveEntry?.updated,
+          });
           return {
             slug: detail.slug,
             label: game?.label || detail.slug,
             color: GAME_COLORS?.[game?.id] || "#f8fafc",
-            ath: detail.ath || null,
-            latest: detail.latest || null,
+            ath: peaks.ath,
+            latest: peaks.latest,
           };
         })
         .filter((item) => item.ath != null || item.latest != null)
         .sort((a, b) => (b.ath?.value ?? -Infinity) - (a.ath?.value ?? -Infinity)),
-    [slugDetails]
+    [slugDetails, liveGames]
   );
 
   const topGrowthUseMa = trendMaOn || gameTrendMaOn;

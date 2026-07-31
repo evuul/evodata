@@ -137,6 +137,38 @@ export const normalizeLobbyAth = (value) => {
   return { value: Math.round(num), date };
 };
 
+const normalizeGamePeak = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const players = Number(value.value);
+  if (!Number.isFinite(players) || players < 0) return null;
+  const timestamp = Date.parse(String(value.at ?? ""));
+  return {
+    value: Math.round(players),
+    at: Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : null,
+  };
+};
+
+export const reconcileGamePeakWithLive = ({ storedAth, storedLatest, liveValue, liveUpdatedAt } = {}) => {
+  const ath = normalizeGamePeak(storedAth);
+  const latest = normalizeGamePeak(storedLatest);
+  const players = liveValue == null || liveValue === "" ? Number.NaN : Number(liveValue);
+
+  if (!Number.isFinite(players) || players < 0) {
+    return { ath, latest };
+  }
+
+  const liveTimestamp = Date.parse(String(liveUpdatedAt ?? ""));
+  const live = {
+    value: Math.round(players),
+    at: Number.isFinite(liveTimestamp) ? new Date(liveTimestamp).toISOString() : null,
+  };
+
+  return {
+    ath: !ath || live.value > ath.value ? live : ath,
+    latest: live,
+  };
+};
+
 export const computeTrendDiff = (series, key = "players") => {
   if (!Array.isArray(series) || series.length < 2) return null;
   const first = series[0];
