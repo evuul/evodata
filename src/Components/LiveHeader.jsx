@@ -200,19 +200,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
                   "Real-time tracking for price, lobby, and short interest"
                 )}
               </Typography>
-              <Typography
-                variant="body1"
-                sx={{
-                  maxWidth: 720,
-                  color: "rgba(226,232,240,0.75)",
-                  lineHeight: 1.6,
-                }}
-              >
-                {translate(
-                  "Växla mellan finansiella dashboards utan att lämna kontrollrummet. Aktiekurs, live-spelare och marknadsvärde visas alltid längst upp.",
-                  "Switch between financial dashboards without leaving the control room. Stock price, live players, and market cap stay pinned to the top."
-                )}
-              </Typography>
             </>
           )}
         </Stack> : null}
