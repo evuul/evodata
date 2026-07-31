@@ -1,3 +1,5 @@
+// Renders administrator controls, diagnostics, and account-experience previews.
+
 import { useMemo, useState } from "react";
 import {
     Box,
@@ -14,6 +16,8 @@ import {
 } from "@mui/material";
 import CheckCircleRounded from "@mui/icons-material/CheckCircleRounded";
 import { statusColors } from "@/Components/MinaSidor/styles";
+import FounderAchievementBadge from "@/Components/MinaSidor/FounderAchievementBadge";
+import { FOUNDER_PROGRAM } from "@/config/founderProgram";
 
 export function AdminPanel({
     adminPanel, setAdminPanel,
@@ -177,6 +181,24 @@ export function AdminPanel({
 
             {adminPanel === "tools" ? (
                 <Stack spacing={1.2} sx={{ width: "100%", alignItems: "center" }}>
+                    <Stack spacing={0.7} sx={{ width: "100%", maxWidth: 980, alignItems: "center" }}>
+                        <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center", fontWeight: 800 }}>
+                            {translate("Förhandsvisning av Founder-utmärkelse", "Founder achievement preview")}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(148,163,184,0.68)", textAlign: "center", fontSize: "0.76rem" }}>
+                            {translate(
+                                "Detta är endast en adminförhandsvisning och ger inte ditt konto Founder-status.",
+                                "This is an admin-only preview and does not give your account Founder status."
+                            )}
+                        </Typography>
+                        <FounderAchievementBadge
+                            locale={locale}
+                            translate={translate}
+                            founderSince={FOUNDER_PROGRAM.launchedAt}
+                            founderPublic={false}
+                            founderVisibilitySaving
+                        />
+                    </Stack>
                     <Stack spacing={0.8} sx={{ width: "100%", maxWidth: 980 }}>
                         <Typography sx={{ color: "rgba(226,232,240,0.78)", textAlign: "center", fontWeight: 800 }}>
                             {translate("Alert-inställningar", "Alert settings")}

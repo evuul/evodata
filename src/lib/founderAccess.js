@@ -6,6 +6,7 @@ import {
   STANDARD_HISTORY_MAX_DAYS,
 } from "./historyRange.js";
 import { FOUNDER_PROGRAM } from "../config/founderProgram.js";
+import { isConfiguredAdminEmail } from "./adminAccess.js";
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
@@ -33,7 +34,11 @@ export function isFounderEmail(email, records = FOUNDERS) {
 }
 
 export function hasExtendedDataAccess(user, records = FOUNDERS) {
-  return Boolean(user?.isSubscriber) || isFounderEmail(user?.email, records);
+  return (
+    Boolean(user?.isAdmin || user?.isSubscriber) ||
+    isConfiguredAdminEmail(user?.email) ||
+    isFounderEmail(user?.email, records)
+  );
 }
 
 export function normalizeHistoryDays(value, { hasExtendedAccess = false } = {}) {

@@ -13,6 +13,7 @@ import {
 } from "@/lib/buybackOwnership";
 import { buildLiveHeaderPlayerMetrics } from "@/lib/liveHeaderPlayers";
 import { buildPortfolioSessionState } from "@/lib/portfolioSession";
+import { isPrimaryAdminEmail } from "@/lib/adminAccess";
 
 const NO_DIVIDEND_PROPOSAL = {
     date: "2026-03-18",
@@ -471,7 +472,7 @@ export function usePortfolioData({
         () =>
             Boolean(user?.isAdmin) ||
             isAdminUser ||
-            String(user?.email || profileIdentity.email || "").toLowerCase() === "alexander.ek@live.se",
+            isPrimaryAdminEmail(user?.email || profileIdentity.email),
         [isAdminUser, profileIdentity.email, user?.email, user?.isAdmin]
     );
 

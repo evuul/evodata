@@ -45,9 +45,11 @@ test("limits extended history to Founder accounts", () => {
   assert.equal(normalizeHistoryDays(2, { hasExtendedAccess: true }), 7);
 });
 
-test("allows both Founders and future Premium accounts", () => {
+test("allows Founders, Premium accounts, and administrators", () => {
   assert.equal(hasExtendedDataAccess({ email: "founder@example.com" }, records), true);
   assert.equal(hasExtendedDataAccess({ email: "other@example.com", isSubscriber: true }, records), true);
+  assert.equal(hasExtendedDataAccess({ email: "admin@example.com", isAdmin: true }, records), true);
+  assert.equal(hasExtendedDataAccess({ email: "alexander.ek@live.se" }, records), true);
   assert.equal(hasExtendedDataAccess({ email: "other@example.com" }, records), false);
 });
 

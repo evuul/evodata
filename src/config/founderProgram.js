@@ -4,6 +4,7 @@ export const FOUNDER_PROGRAM = Object.freeze({
   minimumDonationSek: 500,
   maximumFounders: 30,
   launchedAt: "2026-07-31",
+  cumulativeDonations: true,
 });
 
 export const FOUNDER_BENEFITS = Object.freeze([

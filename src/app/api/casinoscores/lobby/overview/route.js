@@ -270,7 +270,7 @@ export async function GET(req) {
     : null;
   const hasExtendedAccess = Boolean(resolved && hasExtendedDataAccess(resolved.user));
   if (extendedAccessRequested && !hasExtendedAccess) {
-    return resJSON({ ok: false, error: "Founder or Premium access required" }, 403, {
+    return resJSON({ ok: false, error: "Extended data access required" }, 403, {
       "Cache-Control": "private, no-store",
       Vary: "Cookie, Authorization",
     });

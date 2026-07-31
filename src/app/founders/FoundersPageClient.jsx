@@ -170,8 +170,8 @@ export default function FoundersPageClient({
       number: "01",
       title: translate("Stötta projektet", "Support the project"),
       text: translate(
-        `När dina donationer når totalt ${amount} kvalificerar du dig.`,
-        `Once your total support reaches ${amount}, you qualify.`
+        `När dina sammanlagda donationer når ${amount} kvalificerar du dig. Flera donationer räknas ihop.`,
+        `You qualify once your combined donations reach ${amount}. Multiple donations are added together.`
       ),
     },
     {

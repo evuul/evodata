@@ -346,6 +346,12 @@ export default function LiveLoggedOutPreview() {
             <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 24, md: 29 }, fontWeight: 780, mt: 1.2 }}>
               {translate("Bli en av EvoTrackers Founders", "Become an EvoTracker Founder")}
             </Typography>
+            <Typography sx={{ color: colors.muted, fontSize: 12.5, lineHeight: 1.55, mt: 0.7 }}>
+              {translate(
+                `När dina donationer tillsammans når ${FOUNDER_PROGRAM.minimumDonationSek} kr. Flera donationer räknas ihop.`,
+                `When your combined donations reach SEK ${FOUNDER_PROGRAM.minimumDonationSek}. Multiple donations are added together.`
+              )}
+            </Typography>
           </Box>
           <Stack spacing={0.8}>
             {FOUNDER_BENEFITS.map((benefit) => (

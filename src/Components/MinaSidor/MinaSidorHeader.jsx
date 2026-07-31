@@ -8,10 +8,10 @@ import { Box, Button, Link, Stack, ToggleButton, ToggleButtonGroup, Typography, 
 import Switch from "@mui/material/Switch";
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
-import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
 import { LOCALE_OPTIONS, useLocale } from "@/context/LocaleContext";
 import { liveDot, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
+import FounderAchievementBadge from "./FounderAchievementBadge";
 
 const PlayerAlertToggle = ({
   label,
@@ -397,32 +397,14 @@ export default function MinaSidorHeader({
                 </Box>
               ) : null}
               {isFounder ? (
-                <Stack direction="row" spacing={0.7} alignItems="center">
-                  <Box
-                    title={founderSince ? translate(`Founder sedan ${founderSince}`, `Founder since ${founderSince}`) : "Founder"}
-                    sx={{
-                      display: "inline-flex", alignItems: "center", gap: 0.55, px: 1.05, py: 0.42,
-                      borderRadius: "999px", color: "#fde68a", border: "1px solid rgba(245,158,11,0.3)",
-                      backgroundColor: "rgba(245,158,11,0.08)", fontSize: "0.78rem", fontWeight: 800,
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    <WorkspacePremiumRoundedIcon sx={{ fontSize: 16 }} />
-                    FOUNDER
-                  </Box>
-                  <Stack direction="row" spacing={0.25} alignItems="center">
-                    <Typography sx={{ color: "rgba(203,213,225,0.72)", fontSize: "0.72rem", whiteSpace: "nowrap" }}>
-                      {translate("Visa på väggen", "Show on wall")}
-                    </Typography>
-                    <Switch
-                      size="small"
-                      checked={Boolean(founderPublic)}
-                      disabled={Boolean(founderVisibilitySaving)}
-                      onChange={(event) => onToggleFounderVisibility?.(Boolean(event.target.checked))}
-                      inputProps={{ "aria-label": translate("Visa mig på Founder-väggen", "Show me on the Founders wall") }}
-                    />
-                  </Stack>
-                </Stack>
+                <FounderAchievementBadge
+                  locale={locale}
+                  translate={translate}
+                  founderSince={founderSince}
+                  founderPublic={founderPublic}
+                  founderVisibilitySaving={founderVisibilitySaving}
+                  onToggleFounderVisibility={onToggleFounderVisibility}
+                />
               ) : null}
             </Stack>
 

@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewSharedWithOptions } from "@/lib/csOverviewClient";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
+import { isPrimaryAdminEmail } from "@/lib/adminAccess";
 import {
   getStockholmTodayYmd,
   formatDateTime,
@@ -148,7 +149,9 @@ export default function useLivePlayersControlPanelModel() {
   const { locale } = useLocale();
   const { user } = useAuth();
   const isAdminView = Boolean(user?.isAdmin);
-  const hasExtendedAccess = Boolean(user?.isFounder || user?.isSubscriber);
+  const hasExtendedAccess = Boolean(
+    user?.isAdmin || user?.isFounder || user?.isSubscriber || isPrimaryAdminEmail(user?.email)
+  );
   const trendDayOptions = EXTENDED_TREND_DAY_OPTIONS;
   const athDayOptions = EXTENDED_ATH_DAY_OPTIONS;
   const translate = useTranslate();
