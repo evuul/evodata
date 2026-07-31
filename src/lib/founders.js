@@ -27,13 +27,17 @@ const normalizeProfileUrl = (value) => {
   }
 };
 
-export function buildPublishedFounders(records) {
+export function buildPublishedFounders(records, { publishedIds } = {}) {
   if (!Array.isArray(records)) return [];
 
   const seenIds = new Set();
   return records
     .map((record) => {
-      if (record?.qualified !== true || record?.consentToPublish !== true) return null;
+      const hasRuntimeConsent = publishedIds instanceof Set;
+      const approved = hasRuntimeConsent
+        ? publishedIds.has(record?.id)
+        : record?.consentToPublish === true;
+      if (record?.qualified !== true || !approved) return null;
       const id = normalizeText(record.id, MAX_ID_LENGTH);
       const displayName = normalizeText(record.displayName, MAX_NAME_LENGTH);
       const recognizedAt = normalizeDate(record.recognizedAt);

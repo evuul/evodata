@@ -14,6 +14,6 @@ export const FOUNDERS = Object.freeze([
     recognizedAt: "2026-07-31",
     profileUrl: null,
     qualified: true,
-    consentToPublish: true,
+    consentToPublish: false,
   },
 ]);

@@ -3,6 +3,9 @@
 import FoundersPageClient from "./FoundersPageClient";
 import { FOUNDER_PROGRAM, FOUNDERS } from "@/app/data/founders";
 import { buildPublishedFounders } from "@/lib/founders";
+import { getUserKey, mgetJson } from "@/lib/authStore";
+
+export const revalidate = 300;
 
 export const metadata = {
   title: "Founders | EvoTracker",
@@ -10,10 +13,16 @@ export const metadata = {
   alternates: { canonical: "/founders" },
 };
 
-export default function FoundersPage() {
+export default async function FoundersPage() {
+  const users = await mgetJson(FOUNDERS.map((founder) => getUserKey(founder.accountEmail))).catch(() => []);
+  const publishedIds = new Set(
+    FOUNDERS
+      .filter((_, index) => users[index]?.founderPublic === true)
+      .map((founder) => founder.id)
+  );
   return (
     <FoundersPageClient
-      founders={buildPublishedFounders(FOUNDERS)}
+      founders={buildPublishedFounders(FOUNDERS, { publishedIds })}
       minimumDonationSek={FOUNDER_PROGRAM.minimumDonationSek}
     />
   );

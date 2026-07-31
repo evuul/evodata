@@ -91,10 +91,14 @@ test("sorts founders by recognition date and then display name", () => {
 });
 
 test("configured founders expose display names without publishing email addresses", () => {
-  const published = buildPublishedFounders(FOUNDERS);
+  const published = buildPublishedFounders(FOUNDERS, { publishedIds: new Set(["robin-jonsson"]) });
 
   assert.equal(published.length, 1);
   assert.equal(published[0].displayName, "Robin Jonsson");
   assert.equal(published[0].displayName.includes("@"), false);
   assert.equal("accountEmail" in published[0], false);
+});
+
+test("configured founders remain private until their account opts in", () => {
+  assert.deepEqual(buildPublishedFounders(FOUNDERS, { publishedIds: new Set() }), []);
 });

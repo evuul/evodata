@@ -103,6 +103,7 @@ export function buildSessionUser(user, { isAdmin = Boolean(user?.isAdmin) } = {}
     isAdmin: Boolean(isAdmin),
     isFounder: Boolean(founderAccess),
     founderSince: founderAccess?.recognizedAt ?? null,
+    founderPublic: Boolean(founderAccess && user.founderPublic === true),
     notifications: normalizePlayerAlertPreferences(user?.notifications),
     profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   };

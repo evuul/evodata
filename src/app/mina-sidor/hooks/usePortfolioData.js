@@ -40,6 +40,7 @@ export function usePortfolioData({
     const isSubscriber = Boolean(user?.isSubscriber);
     const isFounder = Boolean(user?.isFounder);
     const founderSince = typeof user?.founderSince === "string" ? user.founderSince : null;
+    const [founderPublic, setFounderPublic] = useState(false);
     const [lobbyAthEmailEnabled, setLobbyAthEmailEnabled] = useState(false);
     const [gameAthEmailEnabled, setGameAthEmailEnabled] = useState(false);
     const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
@@ -66,6 +67,7 @@ export function usePortfolioData({
         setLobbyAthEmailEnabled(sessionState.notifications.lobbyAthEmail);
         setGameAthEmailEnabled(sessionState.notifications.gameAthEmail);
         setDailyAvgEmailEnabled(sessionState.notifications.dailyAvgEmail);
+        setFounderPublic(sessionState.founderPublic);
         setProfile(sessionState.profile);
         setError("");
         setLoading(false);
@@ -494,6 +496,7 @@ export function usePortfolioData({
         isSubscriber,
         isFounder,
         founderSince,
+        founderPublic, setFounderPublic,
         effectiveIsAdmin,
         lobbyAthEmailEnabled, setLobbyAthEmailEnabled,
         gameAthEmailEnabled, setGameAthEmailEnabled,

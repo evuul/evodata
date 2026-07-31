@@ -18,6 +18,7 @@ export function buildPortfolioSessionState(user) {
     isSubscriber: Boolean(source.isSubscriber),
     isFounder: Boolean(source.isFounder),
     founderSince: typeof source.founderSince === "string" ? source.founderSince : null,
+    founderPublic: Boolean(source.isFounder && source.founderPublic === true),
     notifications: normalizePlayerAlertPreferences(source.notifications),
   };
 }

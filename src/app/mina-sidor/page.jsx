@@ -111,6 +111,7 @@ function MinaSidorContent() {
     isSubscriber,
     isFounder,
     founderSince,
+    founderPublic, setFounderPublic,
     lobbyAthEmailEnabled, setLobbyAthEmailEnabled,
     gameAthEmailEnabled, setGameAthEmailEnabled,
     dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
@@ -189,6 +190,7 @@ function MinaSidorContent() {
   const [setAcquisitionDate, setSetAcquisitionDate] = useState("");
 
   const [notificationsSaving, setNotificationsSaving] = useState(false);
+  const [founderVisibilitySaving, setFounderVisibilitySaving] = useState(false);
 
   const {
     supportIndicator,
@@ -316,6 +318,26 @@ function MinaSidorContent() {
     }
   };
 
+  const saveFounderVisibility = async (nextValue) => {
+    if (!token || !isFounder) return;
+    const previousValue = founderPublic;
+    setFounderPublic(Boolean(nextValue));
+    try {
+      setFounderVisibilitySaving(true);
+      const payload = await fetchAuthJson(token, "/api/user/founder-visibility", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ visible: Boolean(nextValue) }),
+      });
+      setFounderPublic(Boolean(payload?.founderPublic));
+    } catch (err) {
+      setFounderPublic(previousValue);
+      setError(err?.message || translate("Kunde inte spara Founder-inställningen.", "Could not save Founder setting."));
+    } finally {
+      setFounderVisibilitySaving(false);
+    }
+  };
+
   const handleSaveProfileSettings = async ({ firstName, lastName }) => {
     if (!token) throw new Error(translate("Inte inloggad.", "Not logged in."));
     const payload = await fetchAuthJson(token, "/api/user/account", {
@@ -428,6 +450,9 @@ function MinaSidorContent() {
               greetingName={greetingName}
               isFounder={isFounder}
               founderSince={founderSince}
+              founderPublic={founderPublic}
+              founderVisibilitySaving={founderVisibilitySaving}
+              onToggleFounderVisibility={saveFounderVisibility}
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
               isTraderMode={isTraderMode}

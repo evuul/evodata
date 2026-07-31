@@ -14,6 +14,7 @@ test("builds Mina sidor state directly from the session user", () => {
     isSubscriber: true,
     isFounder: true,
     founderSince: "2026-07-31",
+    founderPublic: true,
     notifications: {
       lobbyAthEmail: true,
       gameAthEmail: false,
@@ -33,6 +34,7 @@ test("builds Mina sidor state directly from the session user", () => {
   assert.equal(state.isSubscriber, true);
   assert.equal(state.isFounder, true);
   assert.equal(state.founderSince, "2026-07-31");
+  assert.equal(state.founderPublic, true);
   assert.deepEqual(state.notifications, {
     lobbyAthEmail: true,
     gameAthEmail: false,
@@ -48,6 +50,7 @@ test("falls back to an empty safe state for missing session fields", () => {
   assert.equal(state.profile.avgCost, 0);
   assert.equal(state.isAdmin, false);
   assert.equal(state.isFounder, false);
+  assert.equal(state.founderPublic, false);
   assert.equal(state.notifications.lobbyAthEmail, false);
   assert.equal(state.notifications.gameAthEmail, false);
 });
