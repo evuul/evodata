@@ -375,7 +375,7 @@ export default function MinaSidorHeader({
         {/* Left Column: Title, Greeting, Description, Actions */}
         <Stack spacing={1.5} sx={{ flex: "1 1 auto", width: "100%", maxWidth: { md: 720 } }}>
           <Box>
-            <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: greetingName || isFounder ? 1 : 0 }}>
+            <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: greetingName || isFounder || isAdminView ? 1 : 0 }}>
               {greetingName ? (
                 <Box
                   sx={{
@@ -404,6 +404,12 @@ export default function MinaSidorHeader({
                   founderPublic={founderPublic}
                   founderVisibilitySaving={founderVisibilitySaving}
                   onToggleFounderVisibility={onToggleFounderVisibility}
+                />
+              ) : isAdminView ? (
+                <FounderAchievementBadge
+                  locale={locale}
+                  translate={translate}
+                  variant="admin"
                 />
               ) : null}
             </Stack>

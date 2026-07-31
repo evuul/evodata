@@ -19,16 +19,21 @@ const formatFounderDate = (value, locale) => {
 export default function FounderAchievementBadge({
   locale,
   translate,
+  variant = "founder",
   founderSince,
   founderPublic,
   founderVisibilitySaving,
   onToggleFounderVisibility,
 }) {
+  const isAdminBadge = variant === "admin";
   const recognizedAt = formatFounderDate(founderSince, locale);
 
   return (
     <Box
-      aria-label={translate("Founder-utmärkelse", "Founder achievement")}
+      aria-label={translate(
+        isAdminBadge ? "Admin-utmärkelse" : "Founder-utmärkelse",
+        isAdminBadge ? "Admin achievement" : "Founder achievement"
+      )}
       sx={{
         display: "inline-flex",
         flexDirection: { xs: "column", sm: "row" },
@@ -59,34 +64,41 @@ export default function FounderAchievementBadge({
         </Box>
         <Box>
           <Typography sx={{ color: "#fde68a", fontSize: "0.72rem", fontWeight: 850, letterSpacing: "0.09em" }}>
-            {translate("FOUNDER-UTMÄRKELSE", "FOUNDER ACHIEVEMENT")}
+            {translate(
+              isAdminBadge ? "ADMIN-UTMÄRKELSE" : "FOUNDER-UTMÄRKELSE",
+              isAdminBadge ? "ADMIN ACHIEVEMENT" : "FOUNDER ACHIEVEMENT"
+            )}
           </Typography>
           <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.7rem", mt: 0.05 }}>
-            {recognizedAt
+            {isAdminBadge
+              ? translate("Full tillgång till all data", "Full access to all data")
+              : recognizedAt
               ? translate(`Founding supporter sedan ${recognizedAt}`, `Founding supporter since ${recognizedAt}`)
               : translate("Verifierad founding supporter", "Verified founding supporter")}
           </Typography>
         </Box>
       </Stack>
 
-      <Stack
-        direction="row"
-        spacing={0.4}
-        alignItems="center"
-        justifyContent={{ xs: "space-between", sm: "flex-start" }}
-        sx={{ pl: { sm: 1.3 }, borderLeft: { sm: "1px solid rgba(245,158,11,0.2)" } }}
-      >
-        <Typography sx={{ color: "rgba(203,213,225,0.72)", fontSize: "0.7rem", whiteSpace: "nowrap" }}>
-          {translate("Visa på Founder-väggen", "Show on Founders wall")}
-        </Typography>
-        <Switch
-          size="small"
-          checked={Boolean(founderPublic)}
-          disabled={Boolean(founderVisibilitySaving)}
-          onChange={(event) => onToggleFounderVisibility?.(Boolean(event.target.checked))}
-          inputProps={{ "aria-label": translate("Visa mig på Founder-väggen", "Show me on the Founders wall") }}
-        />
-      </Stack>
+      {!isAdminBadge ? (
+        <Stack
+          direction="row"
+          spacing={0.4}
+          alignItems="center"
+          justifyContent={{ xs: "space-between", sm: "flex-start" }}
+          sx={{ pl: { sm: 1.3 }, borderLeft: { sm: "1px solid rgba(245,158,11,0.2)" } }}
+        >
+          <Typography sx={{ color: "rgba(203,213,225,0.72)", fontSize: "0.7rem", whiteSpace: "nowrap" }}>
+            {translate("Visa på Founder-väggen", "Show on Founders wall")}
+          </Typography>
+          <Switch
+            size="small"
+            checked={Boolean(founderPublic)}
+            disabled={Boolean(founderVisibilitySaving)}
+            onChange={(event) => onToggleFounderVisibility?.(Boolean(event.target.checked))}
+            inputProps={{ "aria-label": translate("Visa mig på Founder-väggen", "Show me on the Founders wall") }}
+          />
+        </Stack>
+      ) : null}
     </Box>
   );
 }
