@@ -77,39 +77,48 @@ function FounderCard({ founder, locale, translate }) {
   }).format(new Date(`${founder.recognizedAt}T00:00:00.000Z`));
 
   return (
-    <Box sx={{ ...cardSx, borderRadius: "18px", p: 2.5, minHeight: 176 }}>
-      <Stack direction="row" spacing={1.6} alignItems="center">
+    <Box
+      sx={{
+        border: "1px solid rgba(245,158,11,0.18)",
+        borderRadius: "20px",
+        backgroundColor: "rgba(15,23,42,0.42)",
+        p: { xs: 3, sm: 3.5 },
+        minHeight: 228,
+        textAlign: "center",
+      }}
+    >
+      <Stack spacing={1.4} alignItems="center">
         <Box
           aria-hidden="true"
           sx={{
-            width: 48,
-            height: 48,
-            borderRadius: "14px",
+            width: 58,
+            height: 58,
+            borderRadius: "50%",
             display: "grid",
             placeItems: "center",
             color: "#fde68a",
-            backgroundColor: "rgba(245,158,11,0.1)",
-            border: "1px solid rgba(245,158,11,0.24)",
+            backgroundColor: "rgba(245,158,11,0.08)",
+            border: "1px solid rgba(245,158,11,0.22)",
             fontWeight: 850,
-            fontSize: 19,
+            fontSize: 20,
           }}
         >
           {initial}
         </Box>
-        <Box sx={{ minWidth: 0 }}>
-          <Stack direction="row" spacing={0.7} alignItems="center">
-            <Typography sx={{ color: "#f8fafc", fontWeight: 780, fontSize: 17 }} noWrap>
+        <Box sx={{ minWidth: 0, width: "100%" }}>
+          <Stack direction="row" spacing={0.7} alignItems="center" justifyContent="center">
+            <Typography sx={{ color: "#f8fafc", fontWeight: 780, fontSize: 18 }} noWrap>
               {founder.displayName}
             </Typography>
-            <VerifiedRounded sx={{ color: "#fbbf24", fontSize: 17 }} />
+            <VerifiedRounded sx={{ color: "#fbbf24", fontSize: 18 }} />
           </Stack>
-          <Typography sx={{ color: "rgba(226,232,240,0.55)", fontSize: 12.5, mt: 0.25 }}>
+          <Typography sx={{ color: "rgba(226,232,240,0.5)", fontSize: 12.5, mt: 0.35 }}>
             {translate("Founding supporter", "Founding supporter")}
           </Typography>
         </Box>
       </Stack>
-      <Divider sx={{ borderColor: "rgba(148,163,184,0.13)", my: 2 }} />
-      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
+      <Divider sx={{ borderColor: "rgba(148,163,184,0.11)", my: 2.1 }} />
+      <Stack spacing={0.7} alignItems="center">
         <Typography sx={{ color: "rgba(226,232,240,0.62)", fontSize: 12.5 }}>
           {translate(`Founder sedan ${recognizedAt}`, `Recognized since ${recognizedAt}`)}
         </Typography>
@@ -121,7 +130,7 @@ function FounderCard({ founder, locale, translate }) {
             rel="noopener noreferrer"
             endIcon={<OpenInNewRounded sx={{ fontSize: "14px!important" }} />}
             size="small"
-            sx={{ color: "#bae6fd", textTransform: "none", fontSize: 12 }}
+            sx={{ color: "#bae6fd", textTransform: "none", fontSize: 12, minHeight: 28 }}
           >
             {translate("Profil", "Profile")}
           </Button>
@@ -308,8 +317,8 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
           </Box>
 
           <Box id="founders" component="section" sx={{ scrollMarginTop: 24, pb: { xs: 8, md: 11 } }}>
-            <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={2} alignItems={{ xs: "flex-start", sm: "flex-end" }} sx={{ mb: 3 }}>
-              <Box>
+            <Stack spacing={1.5} alignItems="center" textAlign="center" sx={{ mb: 3.5 }}>
+              <Box sx={{ maxWidth: 760 }}>
                 <Typography sx={{ color: "#fbbf24", fontSize: 11, fontWeight: 840, letterSpacing: "0.12em" }}>
                   {translate("FOUNDERS-VÄGGEN", "THE FOUNDERS WALL")}
                 </Typography>
@@ -318,13 +327,32 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
                 </Typography>
               </Box>
               <Chip
-                label={translate(`${founders.length} Founders`, `${founders.length} Founders`)}
-                sx={{ color: "#cbd5e1", backgroundColor: "rgba(148,163,184,0.08)", border: "1px solid rgba(148,163,184,0.17)" }}
+                label={
+                  founders.length === 1
+                    ? translate("1 Founder", "1 Founder")
+                    : translate(`${founders.length} Founders`, `${founders.length} Founders`)
+                }
+                sx={{
+                  height: 26,
+                  color: "rgba(226,232,240,0.68)",
+                  backgroundColor: "rgba(148,163,184,0.06)",
+                  border: "1px solid rgba(148,163,184,0.14)",
+                  "& .MuiChip-label": { px: 1.2, fontSize: 12, fontWeight: 700 },
+                }}
               />
             </Stack>
 
             {founders.length ? (
-              <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, gap: 2 }}>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: founders.length === 1 ? "minmax(0, 520px)" : { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+                  justifyContent: "center",
+                  maxWidth: founders.length === 1 ? 520 : 900,
+                  mx: "auto",
+                  gap: 2,
+                }}
+              >
                 {founders.map((founder) => (
                   <FounderCard key={founder.id} founder={founder} locale={locale} translate={translate} />
                 ))}
