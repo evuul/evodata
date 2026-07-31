@@ -5,8 +5,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, ToggleButton, Tooltip, Typography } from "@mui/material";
 import LockRounded from "@mui/icons-material/LockRounded";
-
-const STANDARD_MAX_DAYS = 180;
+import { STANDARD_HISTORY_MAX_DAYS } from "@/lib/historyRange";
 
 export default function HistoryRangeSelector({
   value,
@@ -29,7 +28,7 @@ export default function HistoryRangeSelector({
 
   const handleChange = (nextValue) => {
     if (!nextValue) return;
-    const locked = Number(nextValue) > STANDARD_MAX_DAYS && !hasExtendedAccess;
+    const locked = Number(nextValue) > STANDARD_HISTORY_MAX_DAYS && !hasExtendedAccess;
     if (locked) {
       showLockedExplanation(nextValue);
       return;
@@ -53,27 +52,30 @@ export default function HistoryRangeSelector({
   );
 
   return (
-    <Box
-      role="group"
-      aria-label={translate("Välj historikperiod", "Select history range")}
-      sx={{
-        width: "fit-content",
-        maxWidth: "100%",
-        display: "flex",
-        alignItems: "center",
-        p: 0.25,
-        gap: 0.15,
-        overflowX: "auto",
-        borderRadius: "10px",
-        border: "1px solid rgba(148,163,184,0.13)",
-        backgroundColor: "rgba(30,41,59,0.66)",
-      }}
-    >
+    <Box sx={{ width: "fit-content", maxWidth: "100%" }}>
+      <Box
+        role="group"
+        aria-label={translate("Välj historikperiod", "Select history range")}
+        sx={{
+          width: "fit-content",
+          maxWidth: "100%",
+          display: "flex",
+          alignItems: "center",
+          p: 0.25,
+          gap: 0.15,
+          overflowX: "auto",
+          borderRadius: "10px",
+          border: "1px solid rgba(148,163,184,0.13)",
+          backgroundColor: "rgba(30,41,59,0.66)",
+        }}
+      >
         {(options || []).map((option) => {
-          const locked = Number(option) > STANDARD_MAX_DAYS && !hasExtendedAccess;
-          const label = Number(option) === 365
-            ? translate("1 år", "1 yr")
-            : `${option} d`;
+          const locked = Number(option) > STANDARD_HISTORY_MAX_DAYS && !hasExtendedAccess;
+          const label = Number(option) === 730
+            ? translate("2 år", "2 yrs")
+            : Number(option) === 365
+              ? translate("1 år", "1 yr")
+              : `${option} d`;
           const button = (
             <ToggleButton
               key={option}
@@ -138,6 +140,24 @@ export default function HistoryRangeSelector({
             button
           );
         })}
+      </Box>
+      {Number(value) === 730 ? (
+        <Typography
+          role="status"
+          sx={{
+            mt: 0.65,
+            maxWidth: 410,
+            color: "rgba(253,230,138,0.82)",
+            fontSize: 11.5,
+            lineHeight: 1.45,
+          }}
+        >
+          {translate(
+            "Ofullständig tvåårsperiod: grafen visar all tillgänglig historik, men täcker ännu inte två hela år.",
+            "Incomplete two-year period: the chart shows all available history, but does not yet cover two full years."
+          )}
+        </Typography>
+      ) : null}
     </Box>
   );
 }

@@ -14,7 +14,7 @@ test("validates ranges and game slugs", () => {
   assert.deepEqual(normalizeFounderExportRequest(params("scope=lobby&days=999"), new Set()), {
     ok: true,
     scope: "lobby",
-    days: 365,
+    days: 730,
     game: null,
   });
   assert.equal(normalizeFounderExportRequest(params("scope=game&game=unknown"), new Set(["known"])).ok, false);

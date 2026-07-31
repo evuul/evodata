@@ -1,7 +1,9 @@
 // Validates Founder export requests and converts daily aggregates into safe CSV files.
 
 const MIN_DAYS = 7;
-const MAX_DAYS = 365;
+import { EXTENDED_HISTORY_MAX_DAYS } from "./historyRange.js";
+
+const MAX_DAYS = EXTENDED_HISTORY_MAX_DAYS;
 
 export function normalizeFounderExportRequest(searchParams, allowedGameSlugs) {
   const scope = searchParams?.get?.("scope") === "game" ? "game" : "lobby";

@@ -3,13 +3,14 @@
 // Shares parameterized lobby overview requests across dashboard consumers.
 
 import { createClientJsonResource } from "./clientJsonResource.js";
+import { EXTENDED_HISTORY_MAX_DAYS } from "./historyRange.js";
 
 const resources = new Map();
 
 export function normalizeOverviewDays(days) {
   const parsed = Number(days);
   if (!Number.isFinite(parsed)) return 45;
-  return Math.max(7, Math.min(Math.floor(parsed), 365));
+  return Math.max(7, Math.min(Math.floor(parsed), EXTENDED_HISTORY_MAX_DAYS));
 }
 
 export function buildOverviewUrl(days, { extendedAccess = false } = {}) {

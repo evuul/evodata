@@ -8,6 +8,7 @@ import {
 } from "@/lib/founderExport";
 import { resolveRequestUser } from "@/lib/authSession";
 import { getCachedDailyAggregates } from "@/lib/csStore";
+import { limitHistoryReadDays } from "@/lib/historyRange";
 import { SERIES_SLUGS } from "../../casinoscores/players/shared";
 
 export const dynamic = "force-dynamic";
@@ -46,14 +47,16 @@ export async function GET(request) {
 
   try {
     // Match the overview snapshot key so an export normally reuses already aggregated data.
-    const aggregates = await getCachedDailyAggregates(SERIES_SLUGS, exportRequest.days + 5);
+    const todayYmd = stockholmTodayYmd();
+    const effectiveDays = limitHistoryReadDays(exportRequest.days, todayYmd);
+    const aggregates = await getCachedDailyAggregates(SERIES_SLUGS, effectiveDays + 5);
     const rows = buildFounderExportRows({
       aggregates,
       slugs: SERIES_SLUGS,
       scope: exportRequest.scope,
       game: exportRequest.game,
       days: exportRequest.days,
-      todayYmd: stockholmTodayYmd(),
+      todayYmd,
     });
     const csv = serializeFounderCsv(rows, { scope: exportRequest.scope });
     const suffix = exportRequest.scope === "game" ? exportRequest.game : "lobby";

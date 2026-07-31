@@ -39,8 +39,9 @@ test("rejects missing, unknown, and unqualified accounts", () => {
 });
 
 test("limits extended history to Founder accounts", () => {
-  assert.equal(normalizeHistoryDays(365), 180);
+  assert.equal(normalizeHistoryDays(730), 180);
   assert.equal(normalizeHistoryDays(365, { hasExtendedAccess: true }), 365);
+  assert.equal(normalizeHistoryDays(999, { hasExtendedAccess: true }), 730);
   assert.equal(normalizeHistoryDays(2, { hasExtendedAccess: true }), 7);
 });
 

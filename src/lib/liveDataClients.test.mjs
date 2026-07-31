@@ -10,11 +10,15 @@ import { buildLiveTop3Url } from "./liveTop3Client.js";
 test("normalizes lobby overview ranges to the API contract", () => {
   assert.equal(normalizeOverviewDays("200.9"), 200);
   assert.equal(normalizeOverviewDays(1), 7);
-  assert.equal(normalizeOverviewDays(999), 365);
+  assert.equal(normalizeOverviewDays(999), 730);
   assert.equal(buildOverviewUrl(200), "/api/casinoscores/lobby/overview?days=200");
   assert.equal(
     buildOverviewUrl(365, { extendedAccess: true }),
     "/api/casinoscores/lobby/overview?days=365&access=extended"
+  );
+  assert.equal(
+    buildOverviewUrl(730, { extendedAccess: true }),
+    "/api/casinoscores/lobby/overview?days=730&access=extended"
   );
 });
 

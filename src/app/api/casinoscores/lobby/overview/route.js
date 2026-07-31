@@ -43,6 +43,7 @@ import {
 } from "@/lib/dailyAggregatesSnapshot";
 import { resolveRequestUser } from "@/lib/authSession";
 import { hasExtendedDataAccess, normalizeHistoryDays } from "@/lib/founderAccess";
+import { limitHistoryReadDays } from "@/lib/historyRange";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -284,6 +285,7 @@ export async function GET(req) {
     const { searchParams } = requestUrl;
     const daysParam = Number(searchParams.get("days"));
     const targetDays = normalizeHistoryDays(daysParam, { hasExtendedAccess });
+    const effectiveHistoryDays = limitHistoryReadDays(targetDays, stockholmTodayYMD());
     const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
     const forceEffective = recoveryEnabled;
 
@@ -391,7 +393,7 @@ export async function GET(req) {
     }
 
     const aggregatesStart = Date.now();
-    const snapshotDays = targetDays + 5;
+    const snapshotDays = effectiveHistoryDays + 5;
     const cachedDailySnapshot = forceEffective ? null : await getDailySnapshot(snapshotDays);
     const dailyAggregates = cachedDailySnapshot
       ? deserializeDailyAggregates(cachedDailySnapshot)
@@ -536,7 +538,7 @@ export async function GET(req) {
       dataSource = "series";
 
       const fetchStart = Date.now();
-      const cacheKeyDays = targetDays + 5;
+      const cacheKeyDays = effectiveHistoryDays + 5;
       const cachedEntries = new Map();
       for (const slug of SERIES_SLUGS) {
         const cached = getOverviewSeriesCache(slug, cacheKeyDays);
@@ -632,7 +634,10 @@ export async function GET(req) {
       ...item,
       daily: Array.isArray(item.daily) ? item.daily.map((row) => ({ ...row })) : [],
     }));
-    const stuckSeriesMap = await getSeriesBulk(SERIES_SLUGS, Math.max(targetDays, 30)).catch(() => new Map());
+    const stuckSeriesMap = await getSeriesBulk(
+      SERIES_SLUGS,
+      Math.max(effectiveHistoryDays, 30)
+    ).catch(() => new Map());
     const stuckBySlug = new Map();
     for (const slug of SERIES_SLUGS) {
       stuckBySlug.set(slug, computeTrailingStuckMeta(stuckSeriesMap.get(slug) ?? [], { minRun: 8 }));
