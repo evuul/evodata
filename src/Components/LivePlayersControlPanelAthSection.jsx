@@ -9,10 +9,9 @@ import {
   CircularProgress,
   Divider,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import HistoryRangeSelector from "./HistoryRangeSelector";
 
 export default function LivePlayersControlPanelAthSection({
   athRows,
@@ -27,6 +26,7 @@ export default function LivePlayersControlPanelAthSection({
   numberFormatter,
   translate,
   formatDateTime,
+  hasExtendedAccess,
 }) {
   const visibleRows = useMemo(
     () => (showAllAth ? athRows : athRows.slice(0, initialVisibleCount)),
@@ -71,37 +71,14 @@ export default function LivePlayersControlPanelAthSection({
               : translate("Ingen toppdata tillgänglig ännu.", "No peak data available yet.")}
           </Typography>
         </Stack>
-        <ToggleButtonGroup
+        <HistoryRangeSelector
           value={athDays}
-          exclusive
-          onChange={(_, value) => value && onChangeDays(value)}
-          size="small"
-          sx={{
-            backgroundColor: "rgba(148,163,184,0.12)",
-            borderRadius: "999px",
-            p: 0.5,
-          }}
-        >
-          {dayOptions.map((option) => (
-            <ToggleButton
-              key={option}
-              value={option}
-              sx={{
-                textTransform: "none",
-                color: "rgba(226,232,240,0.75)",
-                border: 0,
-                borderRadius: "999px!important",
-                px: { xs: 1.5, md: 2 },
-                "&.Mui-selected": {
-                  color: "#f8fafc",
-                  backgroundColor: "rgba(192,132,252,0.28)",
-                },
-              }}
-            >
-              {option} d
-            </ToggleButton>
-          ))}
-        </ToggleButtonGroup>
+          onChange={onChangeDays}
+          options={dayOptions}
+          hasExtendedAccess={hasExtendedAccess}
+          translate={translate}
+          accentColor="rgba(192,132,252,0.28)"
+        />
       </Stack>
 
       {isLoading ? (

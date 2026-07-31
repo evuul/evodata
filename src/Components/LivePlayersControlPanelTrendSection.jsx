@@ -3,7 +3,6 @@
 // Trend chart card for live players overview.
 
 import React, { useCallback, useMemo } from "react";
-import NextLink from "next/link";
 import {
   Box,
   Button,
@@ -15,11 +14,11 @@ import {
   Typography,
 } from "@mui/material";
 import DownloadRounded from "@mui/icons-material/DownloadRounded";
-import LockRounded from "@mui/icons-material/LockRounded";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { computeTrendDiff } from "@/lib/livePlayersControlPanel";
+import HistoryRangeSelector from "./HistoryRangeSelector";
 
 const formatDateOnly = (value) => {
   if (!value) return null;
@@ -53,7 +52,7 @@ export default function LivePlayersControlPanelTrendSection({
   translate,
   percentFormatter,
   dayOptions,
-  isFounder,
+  hasExtendedAccess,
   exportHref,
 }) {
   const theme = useTheme();
@@ -211,38 +210,14 @@ export default function LivePlayersControlPanelTrendSection({
             </ToggleButtonGroup>
           ) : null}
 
-          <ToggleButtonGroup
+          <HistoryRangeSelector
             value={trendDays}
-            exclusive
-            onChange={(_, value) => value && onChangeDays(value)}
-            size="small"
-            sx={{
-              backgroundColor: "rgba(148,163,184,0.12)",
-              borderRadius: "999px",
-              p: 0.5,
-            }}
-          >
-            {(dayOptions || []).map((option) => (
-              <ToggleButton
-                key={option}
-                value={option}
-                sx={{
-                  textTransform: "none",
-                  color: "rgba(226,232,240,0.75)",
-                  border: 0,
-                  borderRadius: "999px!important",
-                  px: { xs: 1.5, md: 2 },
-                  "&.Mui-selected": {
-                    color: "#f8fafc",
-                    backgroundColor: "rgba(56,189,248,0.28)",
-                  },
-                }}
-              >
-                {option} d
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-          {isFounder ? (
+            onChange={onChangeDays}
+            options={dayOptions}
+            hasExtendedAccess={hasExtendedAccess}
+            translate={translate}
+          />
+          {hasExtendedAccess ? (
             <Button
               component="a"
               href={exportHref}
@@ -253,17 +228,7 @@ export default function LivePlayersControlPanelTrendSection({
             >
               {translate("Exportera CSV", "Export CSV")}
             </Button>
-          ) : (
-            <Button
-              component={NextLink}
-              href="/founders"
-              size="small"
-              startIcon={<LockRounded />}
-              sx={{ color: "rgba(253,230,138,0.82)", textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
-            >
-              {translate("365 d · Founder", "365 d · Founder")}
-            </Button>
-          )}
+          ) : null}
         </Stack>
       </Stack>
 

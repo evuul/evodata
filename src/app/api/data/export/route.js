@@ -1,6 +1,6 @@
-// Exports extended daily player history for authenticated Founder accounts.
+// Exports extended daily player history for authenticated Founder and Premium accounts.
 
-import { findFounderAccess } from "@/lib/founderAccess";
+import { hasExtendedDataAccess } from "@/lib/founderAccess";
 import {
   buildFounderExportRows,
   normalizeFounderExportRequest,
@@ -36,7 +36,9 @@ const stockholmTodayYmd = () => {
 export async function GET(request) {
   const resolved = await resolveRequestUser(request, { cache: false });
   if (!resolved) return jsonError("Unauthorized", 401);
-  if (!findFounderAccess(resolved.user?.email)) return jsonError("Founder access required", 403);
+  if (!hasExtendedDataAccess(resolved.user)) {
+    return jsonError("Founder or Premium access required", 403);
+  }
 
   const { searchParams } = new URL(request.url);
   const exportRequest = normalizeFounderExportRequest(searchParams, SERIES_SLUG_SET);

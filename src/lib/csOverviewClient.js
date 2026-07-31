@@ -12,16 +12,16 @@ export function normalizeOverviewDays(days) {
   return Math.max(7, Math.min(Math.floor(parsed), 365));
 }
 
-export function buildOverviewUrl(days, { founderAccess = false } = {}) {
-  const access = founderAccess ? "&access=founder" : "";
+export function buildOverviewUrl(days, { extendedAccess = false } = {}) {
+  const access = extendedAccess ? "&access=extended" : "";
   return `/api/casinoscores/lobby/overview?days=${normalizeOverviewDays(days)}${access}`;
 }
 
-export function getOverviewResource(days, { founderAccess = false } = {}) {
-  const key = `${normalizeOverviewDays(days)}:${founderAccess ? "founder" : "standard"}`;
+export function getOverviewResource(days, { extendedAccess = false } = {}) {
+  const key = `${normalizeOverviewDays(days)}:${extendedAccess ? "extended" : "standard"}`;
   if (!resources.has(key)) {
     resources.set(key, createClientJsonResource({
-      url: buildOverviewUrl(days, { founderAccess }),
+      url: buildOverviewUrl(days, { extendedAccess }),
       cacheMs: 60 * 1000,
       timeoutMs: 10_000,
       retries: 1,
@@ -36,6 +36,6 @@ export async function fetchOverviewShared(days) {
 
 export async function fetchOverviewSharedWithOptions(days, options = {}) {
   const force = Boolean(options?.force);
-  const resource = getOverviewResource(days, { founderAccess: Boolean(options?.founderAccess) });
+  const resource = getOverviewResource(days, { extendedAccess: Boolean(options?.extendedAccess) });
   return force ? resource.refresh() : resource.load();
 }

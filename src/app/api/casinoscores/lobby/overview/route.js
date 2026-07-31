@@ -42,7 +42,7 @@ import {
   serializeDailyAggregates,
 } from "@/lib/dailyAggregatesSnapshot";
 import { resolveRequestUser } from "@/lib/authSession";
-import { findFounderAccess, normalizeHistoryDays } from "@/lib/founderAccess";
+import { hasExtendedDataAccess, normalizeHistoryDays } from "@/lib/founderAccess";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -261,29 +261,29 @@ function computeTodayPeak(perSlugSeries, today) {
 export async function GET(req) {
   const t0 = Date.now();
   const requestUrl = new URL(req.url);
-  const founderAccessRequested = requestUrl.searchParams.get("access") === "founder";
-  const resolved = founderAccessRequested
+  const extendedAccessRequested = requestUrl.searchParams.get("access") === "extended";
+  const resolved = extendedAccessRequested
     ? await resolveRequestUser(req, { cache: false })
     : null;
-  const hasFounderAccess = Boolean(resolved && findFounderAccess(resolved.user?.email));
-  if (founderAccessRequested && !hasFounderAccess) {
-    return resJSON({ ok: false, error: "Founder access required" }, 403, {
+  const hasExtendedAccess = Boolean(resolved && hasExtendedDataAccess(resolved.user));
+  if (extendedAccessRequested && !hasExtendedAccess) {
+    return resJSON({ ok: false, error: "Founder or Premium access required" }, 403, {
       "Cache-Control": "private, no-store",
       Vary: "Cookie, Authorization",
     });
   }
-  const responseCacheControl = founderAccessRequested
+  const responseCacheControl = extendedAccessRequested
     ? "private, no-store"
     : RESPONSE_CACHE_CONTROL;
   const respond = (data, status = 200, headers = {}) => resJSON(data, status, {
     "Cache-Control": responseCacheControl,
-    ...(founderAccessRequested ? { Vary: "Cookie, Authorization" } : null),
+    ...(extendedAccessRequested ? { Vary: "Cookie, Authorization" } : null),
     ...headers,
   });
   try {
     const { searchParams } = requestUrl;
     const daysParam = Number(searchParams.get("days"));
-    const targetDays = normalizeHistoryDays(daysParam, { isFounder: hasFounderAccess });
+    const targetDays = normalizeHistoryDays(daysParam, { hasExtendedAccess });
     const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
     const forceEffective = recoveryEnabled;
 
@@ -298,7 +298,7 @@ export async function GET(req) {
           headers: {
             ETag: cachedEntry.etag,
             "Cache-Control": responseCacheControl,
-            ...(founderAccessRequested ? { Vary: "Cookie, Authorization" } : null),
+            ...(extendedAccessRequested ? { Vary: "Cookie, Authorization" } : null),
           },
         });
       }

@@ -16,7 +16,7 @@ import useLivePlayersControlPanelModel from "./useLivePlayersControlPanelModel";
 const LivePlayersControlPanel = () => {
   const {
     translate,
-    isFounder,
+    hasExtendedAccess,
     numberFormatter,
     percentFormatter,
     timeFormatter,
@@ -258,8 +258,8 @@ const LivePlayersControlPanel = () => {
             translate={translate}
             percentFormatter={percentFormatter}
             dayOptions={TREND_DAY_OPTIONS}
-            isFounder={isFounder}
-            exportHref={`/api/founders/export?scope=lobby&days=${trendDays}`}
+            hasExtendedAccess={hasExtendedAccess}
+            exportHref={`/api/data/export?scope=lobby&days=${trendDays}`}
           />
         )}
 
@@ -285,8 +285,8 @@ const LivePlayersControlPanel = () => {
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
-            isFounder={isFounder}
-            exportHref={gameTrendSlug ? `/api/founders/export?scope=game&game=${encodeURIComponent(gameTrendSlug)}&days=${gameTrendDays}` : null}
+            hasExtendedAccess={hasExtendedAccess}
+            exportHref={gameTrendSlug ? `/api/data/export?scope=game&game=${encodeURIComponent(gameTrendSlug)}&days=${gameTrendDays}` : null}
           />
         )}
 
@@ -319,6 +319,7 @@ const LivePlayersControlPanel = () => {
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
+            hasExtendedAccess={hasExtendedAccess}
           />
         )}
 
@@ -345,6 +346,7 @@ const LivePlayersControlPanel = () => {
             numberFormatter={numberFormatter}
             translate={translate}
             formatDateTime={formatDateTime}
+            hasExtendedAccess={hasExtendedAccess}
           />
         )}
       </Stack>

@@ -3,7 +3,6 @@
 // Game trend card for the live players overview.
 
 import React, { useCallback, useMemo } from "react";
-import NextLink from "next/link";
 import {
   Box,
   Button,
@@ -15,11 +14,11 @@ import {
   Typography,
 } from "@mui/material";
 import DownloadRounded from "@mui/icons-material/DownloadRounded";
-import LockRounded from "@mui/icons-material/LockRounded";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { formatDateOnly } from "@/lib/livePlayersControlPanel";
+import HistoryRangeSelector from "./HistoryRangeSelector";
 
 export default function LivePlayersControlPanelGameTrendView({
   overviewLoading,
@@ -42,7 +41,7 @@ export default function LivePlayersControlPanelGameTrendView({
   numberFormatter,
   translate,
   percentFormatter,
-  isFounder,
+  hasExtendedAccess,
   exportHref,
 }) {
   const theme = useTheme();
@@ -245,38 +244,15 @@ export default function LivePlayersControlPanelGameTrendView({
               ))}
             </ToggleButtonGroup>
           )}
-          <ToggleButtonGroup
+          <HistoryRangeSelector
             value={days}
-            exclusive
-            size="small"
-            onChange={(_, value) => value && onChangeDays(value)}
-            sx={{
-              backgroundColor: "rgba(148,163,184,0.12)",
-              borderRadius: "999px",
-              p: 0.5,
-            }}
-          >
-            {(dayOptions || []).map((option) => (
-              <ToggleButton
-                key={option}
-                value={option}
-                sx={{
-                  textTransform: "none",
-                  color: "rgba(226,232,240,0.75)",
-                  border: 0,
-                  borderRadius: "999px!important",
-                  px: { xs: 1.5, md: 2 },
-                  "&.Mui-selected": {
-                    color: "#f8fafc",
-                    backgroundColor: "rgba(74,222,128,0.28)",
-                  },
-                }}
-              >
-                {option} d
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-          {isFounder ? (
+            onChange={onChangeDays}
+            options={dayOptions}
+            hasExtendedAccess={hasExtendedAccess}
+            translate={translate}
+            accentColor="rgba(74,222,128,0.28)"
+          />
+          {hasExtendedAccess ? (
             <Button
               component="a"
               href={exportHref || undefined}
@@ -288,17 +264,7 @@ export default function LivePlayersControlPanelGameTrendView({
             >
               {translate("Exportera CSV", "Export CSV")}
             </Button>
-          ) : (
-            <Button
-              component={NextLink}
-              href="/founders"
-              size="small"
-              startIcon={<LockRounded />}
-              sx={{ color: "rgba(253,230,138,0.82)", textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
-            >
-              {translate("365 d · Founder", "365 d · Founder")}
-            </Button>
-          )}
+          ) : null}
         </Stack>
       </Stack>
 

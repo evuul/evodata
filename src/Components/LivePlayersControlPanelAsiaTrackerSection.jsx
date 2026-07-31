@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
+import HistoryRangeSelector from "./HistoryRangeSelector";
 
 const formatDateOnly = (value) => {
   if (!value) return null;
@@ -70,6 +71,7 @@ export default function LivePlayersControlPanelAsiaTrackerSection({
   numberFormatter,
   translate,
   percentFormatter,
+  hasExtendedAccess,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -391,37 +393,14 @@ export default function LivePlayersControlPanelAsiaTrackerSection({
               ))}
             </ToggleButtonGroup>
           ) : null}
-          <ToggleButtonGroup
+          <HistoryRangeSelector
             value={days}
-            exclusive
-            size="small"
-            onChange={(_, value) => value && onChangeDays(value)}
-            sx={{
-              backgroundColor: "rgba(148,163,184,0.12)",
-              borderRadius: "999px",
-              p: 0.5,
-            }}
-          >
-            {(dayOptions || []).map((option) => (
-              <ToggleButton
-                key={option}
-                value={option}
-                sx={{
-                  textTransform: "none",
-                  color: "rgba(226,232,240,0.75)",
-                  border: 0,
-                  borderRadius: "999px!important",
-                  px: { xs: 1.5, md: 2 },
-                  "&.Mui-selected": {
-                    color: "#f8fafc",
-                    backgroundColor: isTrendView ? "rgba(248,250,133,0.28)" : "rgba(56,189,248,0.28)",
-                  },
-                }}
-              >
-                {option} d
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
+            onChange={onChangeDays}
+            options={dayOptions}
+            hasExtendedAccess={hasExtendedAccess}
+            translate={translate}
+            accentColor={isTrendView ? "rgba(248,250,133,0.24)" : "rgba(56,189,248,0.28)"}
+          />
         </Stack>
       </Stack>
 

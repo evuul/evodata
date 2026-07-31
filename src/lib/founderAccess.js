@@ -25,10 +25,14 @@ export function isFounderEmail(email, records = FOUNDERS) {
   return Boolean(findFounderAccess(email, records));
 }
 
-export function normalizeHistoryDays(value, { isFounder = false } = {}) {
+export function hasExtendedDataAccess(user, records = FOUNDERS) {
+  return Boolean(user?.isSubscriber) || isFounderEmail(user?.email, records);
+}
+
+export function normalizeHistoryDays(value, { hasExtendedAccess = false } = {}) {
   const parsed = Number(value);
   const fallback = 45;
-  const maximum = isFounder ? 365 : 180;
+  const maximum = hasExtendedAccess ? 365 : 180;
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(7, Math.min(Math.floor(parsed), maximum));
 }
