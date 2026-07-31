@@ -200,7 +200,8 @@ export default function useLivePlayersControlPanelModel() {
 
   const fetchOverview = useCallback(async (range, options = {}) => {
     const force = Boolean(options?.force);
-    const cacheKey = `days_${range}_${isFounder ? "founder" : "standard"}${force ? "_force" : ""}`;
+    const usesFounderHistory = isFounder && Number(range) > 180;
+    const cacheKey = `days_${range}_${usesFounderHistory ? "founder" : "standard"}${force ? "_force" : ""}`;
     const cached = force ? null : overviewCache.get(cacheKey);
     if (cached) {
       setOverviewError("");
@@ -230,7 +231,10 @@ export default function useLivePlayersControlPanelModel() {
     setOverviewLoading(true);
     setOverviewError("");
     try {
-      const json = await fetchOverviewSharedWithOptions(range, { force, founderAccess: isFounder });
+      const json = await fetchOverviewSharedWithOptions(range, {
+        force,
+        founderAccess: usesFounderHistory,
+      });
 
       const totals = Array.isArray(json?.dailyTotals)
         ? json.dailyTotals
