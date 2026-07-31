@@ -14,6 +14,7 @@ import {
   setDailySnapshot,
   getDailyAggregates,
   getGlobalLobbyAth,
+  getGameAthSnapshot,
   setGlobalLobbyAth,
   getDailyLobbyPeak,
 } from "@/lib/csStore";
@@ -44,6 +45,7 @@ import {
 import { resolveRequestUser } from "@/lib/authSession";
 import { hasExtendedDataAccess, normalizeHistoryDays } from "@/lib/founderAccess";
 import { limitHistoryReadDays } from "@/lib/historyRange";
+import { mergeGameAthIntoOverview } from "@/lib/gameAthOverview";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -286,6 +288,7 @@ export async function GET(req) {
     const daysParam = Number(searchParams.get("days"));
     const targetDays = normalizeHistoryDays(daysParam, { hasExtendedAccess });
     const effectiveHistoryDays = limitHistoryReadDays(targetDays, stockholmTodayYMD());
+    const gameAthSnapshot = await getGameAthSnapshot().catch(() => null);
     const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
     const forceEffective = recoveryEnabled;
 
@@ -293,6 +296,21 @@ export async function GET(req) {
     const overviewKey = `overview:${targetDays}`;
     const cachedEntry = forceEffective ? null : getOverviewCache(overviewKey);
     if (cachedEntry) {
+      const t = Date.now() - t0;
+      const cachedAtMs =
+        typeof cachedEntry.ts === "number" && Number.isFinite(cachedEntry.ts)
+          ? cachedEntry.ts
+          : cachedEntry.exp - OVERVIEW_TTL_MS;
+      const storedMeta =
+        cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
+      const adjustedData = mergeGameAthIntoOverview(
+        withManualDailyOverrides(cachedEntry.data, stockholmTodayYMD()),
+        gameAthSnapshot
+      );
+      if (adjustedData !== cachedEntry.data) {
+        cachedEntry.data = adjustedData;
+        cachedEntry.etag = makeEtag(adjustedData);
+      }
       const inm = req.headers.get("if-none-match");
       if (inm && cachedEntry.etag && inm === cachedEntry.etag) {
         return new Response(null, {
@@ -303,18 +321,6 @@ export async function GET(req) {
             ...(extendedAccessRequested ? { Vary: "Cookie, Authorization" } : null),
           },
         });
-      }
-      const t = Date.now() - t0;
-      const cachedAtMs =
-        typeof cachedEntry.ts === "number" && Number.isFinite(cachedEntry.ts)
-          ? cachedEntry.ts
-          : cachedEntry.exp - OVERVIEW_TTL_MS;
-      const storedMeta =
-        cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
-      const adjustedData = withManualDailyOverrides(cachedEntry.data, stockholmTodayYMD());
-      if (adjustedData !== cachedEntry.data) {
-        cachedEntry.data = adjustedData;
-        cachedEntry.etag = makeEtag(adjustedData);
       }
       const payload = attachMeta(adjustedData, {
         cached: true,
@@ -369,7 +375,10 @@ export async function GET(req) {
         const staleAfterIso = Number.isFinite(staleAfterMs)
           ? new Date(staleAfterMs).toISOString()
           : new Date(Date.now() + refreshIntervalMs).toISOString();
-        const adjustedSnapshotData = withManualDailyOverrides(storedSnapshot.data, stockholmTodayYMD());
+        const adjustedSnapshotData = mergeGameAthIntoOverview(
+          withManualDailyOverrides(storedSnapshot.data, stockholmTodayYMD()),
+          gameAthSnapshot
+        );
         const etag = makeEtag(adjustedSnapshotData);
         const baseMeta = {
           refreshIntervalMs,
@@ -706,7 +715,7 @@ export async function GET(req) {
     const trendDelta = recomputeTrendDelta(dailyTotals);
     const rawTrendDelta = recomputeTrendDelta(rawDailyTotals);
 
-    const basePayload = {
+    const basePayload = mergeGameAthIntoOverview({
       ok: true,
       dailyTotals,
       rawDailyTotals,
@@ -724,7 +733,7 @@ export async function GET(req) {
       stuckAdjustment: stuckAdjusted.stuckAdjustment ?? [],
       generatedAt: new Date().toISOString(),
       recovery: recoveryMeta,
-    };
+    }, gameAthSnapshot);
 
     const etag = makeEtag(basePayload);
 
