@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
 import {
+  calculateQuoteChangeFromDailyHistory,
   calculateQuoteChangePercent,
   resolveQuotePreviousClose,
 } from "@/lib/stockPriceChange";
@@ -11,6 +12,7 @@ import {
   applyMarketSessionBoundary,
   isMarketSessionCacheCompatible,
 } from "@/lib/stockMarketSession";
+import { normalizeYahooSessionQuote } from "@/lib/stockYahooSession";
 
 export const revalidate = 60;
 export const dynamic = "force-dynamic";
@@ -22,7 +24,7 @@ const RETRY_AFTER_SECONDS = 120;
 const OPEN_SHARED_CACHE_TTL_MS = 2 * 60 * 1000; // delad cache (KV) 2 min under öppet
 const CLOSED_SHARED_CACHE_TTL_MS = 15 * 60 * 1000; // delad cache (KV) 15 min när stängt
 const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istället för 500 (1h)
-const SHARED_KEY_PREFIX = "stock:quote:v5:";
+const SHARED_KEY_PREFIX = "stock:quote:v6:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vid 429: vila 10 min
 
@@ -314,13 +316,23 @@ async function fetchStooqDaily(symbol) {
 }
 
 async function fetchYahooChartDaily(symbol) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1y&interval=1d`;
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Yahoo chart request failed: ${response.status}`);
+  const encodedSymbol = encodeURIComponent(symbol);
+  const historyUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=1y&interval=1d`;
+  const sessionUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodedSymbol}?range=1d&interval=1d`;
+  const [historyResponse, sessionResponse] = await Promise.all([
+    fetch(historyUrl, { cache: "no-store" }),
+    fetch(sessionUrl, { cache: "no-store" }),
+  ]);
+  if (!historyResponse.ok || !sessionResponse.ok) {
+    const status = !sessionResponse.ok ? sessionResponse.status : historyResponse.status;
+    throw new Error(`Yahoo chart request failed: ${status}`);
   }
-  const data = await response.json();
+  const [data, sessionData] = await Promise.all([
+    historyResponse.json(),
+    sessionResponse.json(),
+  ]);
   const result = data?.chart?.result?.[0];
+  const sessionQuote = normalizeYahooSessionQuote(sessionData);
   const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
   const closes = Array.isArray(result?.indicators?.quote?.[0]?.close)
     ? result.indicators.quote[0].close
@@ -344,19 +356,19 @@ async function fetchYahooChartDaily(symbol) {
   }
   rows.sort((a, b) => a.date - b.date);
   const latest = rows[rows.length - 1];
-  const currentPrice = Number.isFinite(result?.meta?.regularMarketPrice)
-    ? Number(result.meta.regularMarketPrice)
-    : latest?.close ?? null;
-  const previousClose = toPositiveNumber(
-    result?.meta?.previousClose ?? result?.meta?.regularMarketPreviousClose
+  const currentPrice = sessionQuote.currentPrice ?? (
+    Number.isFinite(result?.meta?.regularMarketPrice)
+      ? Number(result.meta.regularMarketPrice)
+      : latest?.close ?? null
   );
-  const marketOpen = toPositiveNumber(result?.meta?.regularMarketOpen) ?? toPositiveNumber(latest?.open);
-  const changePercent = calculateQuoteChangePercent({
+  const marketOpen = sessionQuote.marketOpen ?? toPositiveNumber(latest?.open);
+  const historicalChange = calculateQuoteChangeFromDailyHistory({
     currentPrice,
-    previousClose,
     dailyRows: rows,
-    quoteTime: latest?.date,
+    quoteTime: sessionQuote.quoteTime ?? new Date(),
   });
+  const previousClose = sessionQuote.previousClose ?? historicalChange.previousClose;
+  const changePercent = calculateQuoteChangePercent({ currentPrice, previousClose });
   return { rows, currentPrice, changePercent, marketOpen, previousClose };
 }
 

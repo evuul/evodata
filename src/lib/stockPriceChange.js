@@ -94,13 +94,44 @@ export function resolveQuotePreviousClose({
   const dailySeriesIncludesQuoteSession = quoteDate
     ? quoteDate === latestRowDate
     : Number(currentPrice) === latestRow.close;
-  const fallbackPreviousClose = dailySeriesIncludesQuoteSession
-    ? rows.at(-2)?.close
-    : latestRow.close;
+  const fallbackRow = dailySeriesIncludesQuoteSession ? rows.at(-2) : latestRow;
+  const fallbackDate = toTradingDateKey(fallbackRow?.date);
+  if (
+    quoteDate &&
+    fallbackDate &&
+    countWeekdaysBetween(fallbackDate, quoteDate) > 0
+  ) {
+    return null;
+  }
+  const fallbackPreviousClose = fallbackRow?.close;
 
   return Number.isFinite(fallbackPreviousClose) && fallbackPreviousClose > 0
     ? fallbackPreviousClose
     : null;
+}
+
+export function calculateQuoteChangeFromDailyHistory({
+  currentPrice,
+  dailyRows,
+  quoteTime,
+}) {
+  if (currentPrice == null || currentPrice === "") {
+    return { previousClose: null, changePercent: null };
+  }
+  const price = Number(currentPrice);
+  if (!Number.isFinite(price)) {
+    return { previousClose: null, changePercent: null };
+  }
+  const previousClose = resolveQuotePreviousClose({
+    currentPrice: price,
+    dailyRows,
+    quoteTime,
+  });
+
+  return {
+    previousClose,
+    changePercent: calculatePercentChange(price, previousClose),
+  };
 }
 
 export function calculateQuoteChangePercent({

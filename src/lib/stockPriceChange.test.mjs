@@ -5,6 +5,7 @@ import test from "node:test";
 
 import {
   calculateDailyCloseChangePercent,
+  calculateQuoteChangeFromDailyHistory,
   calculateQuoteChangePercent,
   resolveQuotePreviousClose,
 } from "./stockPriceChange.js";
@@ -72,6 +73,43 @@ test("resolves the prior candle when today's daily candle is already present", (
   });
 
   assert.equal(previousClose, 737.2);
+});
+
+test("chart fallback derives both reference close and change from daily candles", () => {
+  const result = calculateQuoteChangeFromDailyHistory({
+    currentPrice: 733.4,
+    quoteTime: new Date("2026-07-31T07:49:00.000Z"),
+    dailyRows: [
+      { date: new Date("2026-07-29T07:00:00.000Z"), close: 751.2 },
+      { date: new Date("2026-07-30T07:00:00.000Z"), close: 737.2 },
+    ],
+  });
+
+  assert.equal(result.previousClose, 737.2);
+  assertApproximatelyEqual(result.changePercent, -0.5154639175257793);
+});
+
+test("chart fallback rejects a daily series that is one trading day stale", () => {
+  const result = calculateQuoteChangeFromDailyHistory({
+    currentPrice: 733.4,
+    quoteTime: new Date("2026-07-31T07:49:00.000Z"),
+    dailyRows: [{ date: new Date("2026-07-29T07:00:00.000Z"), close: 751.2 }],
+  });
+
+  assert.deepEqual(result, { previousClose: null, changePercent: null });
+});
+
+test("chart fallback rejects a missing candle between the last close and today's candle", () => {
+  const result = calculateQuoteChangeFromDailyHistory({
+    currentPrice: 733.4,
+    quoteTime: new Date("2026-07-31T07:49:00.000Z"),
+    dailyRows: [
+      { date: new Date("2026-07-29T07:00:00.000Z"), close: 751.2 },
+      { date: new Date("2026-07-31T07:00:00.000Z"), close: 733.4 },
+    ],
+  });
+
+  assert.deepEqual(result, { previousClose: null, changePercent: null });
 });
 
 test("quote change rejects a stale daily series without an explicit previous close", () => {

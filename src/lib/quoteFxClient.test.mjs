@@ -18,7 +18,7 @@ const jsonResponse = (data, status = 200) => ({
 });
 
 test("builds a normalized and encoded stock URL", () => {
-  assert.equal(buildStockQuoteUrl(" evo.st "), "/api/stock?symbol=EVO.ST&v=v5");
+  assert.equal(buildStockQuoteUrl(" evo.st "), "/api/stock?symbol=EVO.ST&v=v6");
   assert.throws(() => buildStockQuoteUrl("EVO ST"), /valid stock symbol/);
 });
 
