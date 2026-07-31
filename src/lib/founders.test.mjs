@@ -102,3 +102,33 @@ test("configured founders expose display names without publishing email addresse
 test("configured founders remain private until their account opts in", () => {
   assert.deepEqual(buildPublishedFounders(FOUNDERS, { publishedIds: new Set() }), []);
 });
+
+test("caps the public Founder directory at 30 people", () => {
+  const records = Array.from({ length: 31 }, (_, index) => ({
+    id: `founder-${index + 1}`,
+    displayName: `Founder ${String(index + 1).padStart(2, "0")}`,
+    recognizedAt: "2026-07-31",
+    qualified: true,
+    consentToPublish: true,
+  }));
+
+  const published = buildPublishedFounders(records);
+
+  assert.equal(published.length, 30);
+  assert.equal(published.some((founder) => founder.id === "founder-31"), false);
+});
+
+test("does not replace a private Founder slot with supporter 31", () => {
+  const records = Array.from({ length: 31 }, (_, index) => ({
+    id: `founder-${index + 1}`,
+    displayName: `Founder ${String(index + 1).padStart(2, "0")}`,
+    recognizedAt: "2026-07-31",
+    qualified: true,
+    consentToPublish: index !== 0,
+  }));
+
+  const published = buildPublishedFounders(records);
+
+  assert.equal(published.length, 29);
+  assert.equal(published.some((founder) => founder.id === "founder-31"), false);
+});

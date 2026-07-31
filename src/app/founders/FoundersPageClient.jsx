@@ -18,9 +18,12 @@ import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
 import OpenInNewRounded from "@mui/icons-material/OpenInNewRounded";
 import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
 import VerifiedRounded from "@mui/icons-material/VerifiedRounded";
+import DownloadRounded from "@mui/icons-material/DownloadRounded";
+import HistoryRounded from "@mui/icons-material/HistoryRounded";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { buildSupportUrl } from "@/lib/supportLinks";
+import { FOUNDER_BENEFITS } from "@/config/founderProgram";
 
 const SUPPORT_URL = buildSupportUrl("founders_page");
 const PAGE_MAX_WIDTH = 1180;
@@ -146,7 +149,14 @@ function FounderCard({ founder, locale, translate }) {
   );
 }
 
-export default function FoundersPageClient({ founders, minimumDonationSek }) {
+const benefitIcons = [HistoryRounded, DownloadRounded, WorkspacePremiumRounded];
+
+export default function FoundersPageClient({
+  founders,
+  minimumDonationSek,
+  maximumFounders,
+  qualifiedFounderCount,
+}) {
   const { locale } = useLocale();
   const translate = useTranslate();
   const amount = new Intl.NumberFormat(locale === "en" ? "en-US" : "sv-SE", {
@@ -278,6 +288,14 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
                   size="small"
                   sx={{ color: "#ddd6fe", backgroundColor: "rgba(168,85,247,0.08)", fontSize: 11.5 }}
                 />
+                <Chip
+                  label={translate(
+                    `${qualifiedFounderCount}/${maximumFounders} platser tagna`,
+                    `${qualifiedFounderCount}/${maximumFounders} places taken`
+                  )}
+                  size="small"
+                  sx={{ color: "#fde68a", backgroundColor: "rgba(245,158,11,0.08)", fontSize: 11.5 }}
+                />
               </Stack>
               <Typography
                 component="h1"
@@ -315,6 +333,32 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
             >
               {translate("Bli en Founder", "Become a Founder")}
             </Button>
+          </Box>
+
+          <Box sx={{ px: { xs: 2.5, sm: 3.5 }, py: 2.5, borderBottom: "1px solid rgba(100,116,139,0.2)" }}>
+            <Typography sx={{ color: "#38bdf8", fontSize: 10.5, fontWeight: 840, letterSpacing: "0.12em" }}>
+              {translate("DET HÄR INGÅR", "WHAT FOUNDERS GET")}
+            </Typography>
+            <Box sx={{ mt: 1.3, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 1.5 }}>
+              {FOUNDER_BENEFITS.map((benefit, index) => {
+                const Icon = benefitIcons[index];
+                return (
+                  <Stack key={benefit.id} direction="row" spacing={1.2} alignItems="flex-start">
+                    <Box sx={{ width: 32, height: 32, flexShrink: 0, borderRadius: "9px", display: "grid", placeItems: "center", color: "#fde68a", backgroundColor: "rgba(245,158,11,0.08)" }}>
+                      <Icon sx={{ fontSize: 17 }} />
+                    </Box>
+                    <Box>
+                      <Typography sx={{ color: "#f8fafc", fontSize: 13.5, fontWeight: 760 }}>
+                        {translate(benefit.title.sv, benefit.title.en)}
+                      </Typography>
+                      <Typography sx={{ color: "rgba(203,213,225,0.62)", fontSize: 11.5, lineHeight: 1.55, mt: 0.25 }}>
+                        {translate(benefit.description.sv, benefit.description.en)}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                );
+              })}
+            </Box>
           </Box>
 
           <Box

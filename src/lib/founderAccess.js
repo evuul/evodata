@@ -5,6 +5,7 @@ import {
   EXTENDED_HISTORY_MAX_DAYS,
   STANDARD_HISTORY_MAX_DAYS,
 } from "./historyRange.js";
+import { FOUNDER_PROGRAM } from "../config/founderProgram.js";
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
@@ -12,11 +13,13 @@ export function findFounderAccess(email, records = FOUNDERS) {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail || !Array.isArray(records)) return null;
 
-  const record = records.find(
-    (candidate) =>
-      candidate?.qualified === true &&
-      normalizeEmail(candidate?.accountEmail) === normalizedEmail
-  );
+  const record = records
+    .filter((candidate) => candidate?.qualified === true)
+    .slice(0, FOUNDER_PROGRAM.maximumFounders)
+    .find(
+      (candidate) =>
+        normalizeEmail(candidate?.accountEmail) === normalizedEmail
+    );
   if (!record) return null;
 
   return {

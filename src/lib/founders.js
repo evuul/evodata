@@ -1,5 +1,7 @@
 // Validates and prepares supporter records for the public Founders directory.
 
+import { FOUNDER_PROGRAM } from "../config/founderProgram.js";
+
 const MAX_NAME_LENGTH = 80;
 const MAX_ID_LENGTH = 64;
 
@@ -32,12 +34,14 @@ export function buildPublishedFounders(records, { publishedIds } = {}) {
 
   const seenIds = new Set();
   return records
+    .filter((record) => record?.qualified === true)
+    .slice(0, FOUNDER_PROGRAM.maximumFounders)
     .map((record) => {
       const hasRuntimeConsent = publishedIds instanceof Set;
       const approved = hasRuntimeConsent
         ? publishedIds.has(record?.id)
         : record?.consentToPublish === true;
-      if (record?.qualified !== true || !approved) return null;
+      if (!approved) return null;
       const id = normalizeText(record.id, MAX_ID_LENGTH);
       const displayName = normalizeText(record.displayName, MAX_NAME_LENGTH);
       const recognizedAt = normalizeDate(record.recognizedAt);

@@ -24,6 +24,11 @@ export default async function FoundersPage() {
     <FoundersPageClient
       founders={buildPublishedFounders(FOUNDERS, { publishedIds })}
       minimumDonationSek={FOUNDER_PROGRAM.minimumDonationSek}
+      maximumFounders={FOUNDER_PROGRAM.maximumFounders}
+      qualifiedFounderCount={Math.min(
+        FOUNDERS.filter((founder) => founder.qualified === true).length,
+        FOUNDER_PROGRAM.maximumFounders
+      )}
     />
   );
 }

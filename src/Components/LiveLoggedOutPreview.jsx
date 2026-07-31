@@ -22,8 +22,10 @@ import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
 import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
 import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
+import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { buildLandingPreviewModel } from "@/lib/landingPreview";
+import { FOUNDER_BENEFITS, FOUNDER_PROGRAM } from "@/config/founderProgram";
 
 const colors = {
   border: "rgba(148, 163, 184, 0.18)",
@@ -335,6 +337,30 @@ export default function LiveLoggedOutPreview() {
 
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 9, md: 13 } }}>
         <ReportPreview translate={translate} />
+      </Box>
+
+      <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 9, md: 13 } }}>
+        <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, px: { xs: 2.5, md: 4 }, py: { xs: 3, md: 3.5 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(230px, 0.7fr) minmax(0, 1.3fr) auto" }, gap: 2.5, alignItems: "center" }}>
+          <Box>
+            <Chip icon={<WorkspacePremiumRoundedIcon sx={{ fontSize: "15px!important" }} />} label={translate(`ENDAST ${FOUNDER_PROGRAM.maximumFounders} PLATSER`, `ONLY ${FOUNDER_PROGRAM.maximumFounders} PLACES`)} size="small" sx={{ color: "#fde68a", backgroundColor: "rgba(245,158,11,0.08)", fontWeight: 800, fontSize: 10 }} />
+            <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 24, md: 29 }, fontWeight: 780, mt: 1.2 }}>
+              {translate("Bli en av EvoTrackers Founders", "Become an EvoTracker Founder")}
+            </Typography>
+          </Box>
+          <Stack spacing={0.8}>
+            {FOUNDER_BENEFITS.map((benefit) => (
+              <Stack key={benefit.id} direction="row" spacing={0.8} alignItems="center">
+                <CheckRoundedIcon sx={{ color: "#fde68a", fontSize: 17 }} />
+                <Typography sx={{ color: colors.muted, fontSize: 13 }}>
+                  {translate(benefit.title.sv, benefit.title.en)}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+          <Button component={NextLink} href="/founders" variant="outlined" endIcon={<ArrowForwardRoundedIcon />} sx={{ color: "#fde68a", borderColor: "rgba(245,158,11,0.36)", textTransform: "none", fontWeight: 750, whiteSpace: "nowrap" }}>
+            {translate("Se Founder-programmet", "View Founder program")}
+          </Button>
+        </Box>
       </Box>
 
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: 6 }}>

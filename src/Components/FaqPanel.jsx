@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import { useTranslate } from "@/context/LocaleContext";
+import { FOUNDER_BENEFITS, FOUNDER_PROGRAM } from "@/config/founderProgram";
 
 const FaqPanel = () => {
   const translate = useTranslate();
@@ -50,6 +51,42 @@ const FaqPanel = () => {
             )}
           </Typography>
         </Box>
+
+        <Accordion
+          expanded={expanded === "faq-founders"}
+          onChange={handleChange("faq-founders")}
+          disableGutters
+          sx={{
+            borderRadius: "14px",
+            border: "1px solid rgba(245,158,11,0.3)",
+            background: "rgba(2,6,23,0.42)",
+            color: "#f8fafc",
+            boxShadow: "none",
+            "&:before": { display: "none" },
+          }}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreRounded sx={{ color: "rgba(226,232,240,0.8)" }} />} sx={{ px: { xs: 2, md: 2.4 } }}>
+            <Typography sx={{ fontWeight: 700 }}>
+              {translate("Vad får Founders och hur många platser finns?", "What do Founders get and how many places are available?")}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
+            <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
+              {translate(
+                `Founder-programmet är begränsat till ${FOUNDER_PROGRAM.maximumFounders} personer. Founder-status ger permanent tillgång till:`,
+                `The Founder program is limited to ${FOUNDER_PROGRAM.maximumFounders} people. Founder status provides permanent access to:`
+              )}
+            </Typography>
+            <Stack component="ul" spacing={0.7} sx={{ mt: 1.2, mb: 0, pl: 2.5 }}>
+              {FOUNDER_BENEFITS.map((benefit) => (
+                <Typography component="li" key={benefit.id} sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.65 }}>
+                  <strong>{translate(benefit.title.sv, benefit.title.en)}:</strong>{" "}
+                  {translate(benefit.description.sv, benefit.description.en)}
+                </Typography>
+              ))}
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
 
         <Accordion
           expanded={expanded === "faq-0"}

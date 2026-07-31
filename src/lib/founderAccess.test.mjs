@@ -50,3 +50,15 @@ test("allows both Founders and future Premium accounts", () => {
   assert.equal(hasExtendedDataAccess({ email: "other@example.com", isSubscriber: true }, records), true);
   assert.equal(hasExtendedDataAccess({ email: "other@example.com" }, records), false);
 });
+
+test("limits Founder access to the first 30 qualified supporters", () => {
+  const cappedRecords = Array.from({ length: 31 }, (_, index) => ({
+    id: `founder-${index + 1}`,
+    accountEmail: `founder-${index + 1}@example.com`,
+    recognizedAt: "2026-07-31",
+    qualified: true,
+  }));
+
+  assert.equal(isFounderEmail("founder-30@example.com", cappedRecords), true);
+  assert.equal(isFounderEmail("founder-31@example.com", cappedRecords), false);
+});
