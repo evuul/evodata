@@ -15,6 +15,7 @@ import {
   resolveUserFromToken,
 } from "@/lib/authSession";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
+import { findFounderAccess } from "@/lib/founderAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,6 +54,8 @@ export async function PUT(request) {
   user.updatedAt = new Date().toISOString();
   await setJson(getUserKey(user.email), user);
 
+  const founderAccess = findFounderAccess(user.email);
+
   return json({
     ok: true,
     user: {
@@ -61,6 +64,8 @@ export async function PUT(request) {
       lastName: user.lastName,
       isSubscriber: Boolean(user.isSubscriber),
       isAdmin: Boolean(user.isAdmin),
+      isFounder: Boolean(founderAccess),
+      founderSince: founderAccess?.recognizedAt ?? null,
       profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
     },
   });

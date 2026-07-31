@@ -12,15 +12,16 @@ export function normalizeOverviewDays(days) {
   return Math.max(7, Math.min(Math.floor(parsed), 365));
 }
 
-export function buildOverviewUrl(days) {
-  return `/api/casinoscores/lobby/overview?days=${normalizeOverviewDays(days)}`;
+export function buildOverviewUrl(days, { founderAccess = false } = {}) {
+  const access = founderAccess ? "&access=founder" : "";
+  return `/api/casinoscores/lobby/overview?days=${normalizeOverviewDays(days)}${access}`;
 }
 
-export function getOverviewResource(days) {
-  const key = String(normalizeOverviewDays(days));
+export function getOverviewResource(days, { founderAccess = false } = {}) {
+  const key = `${normalizeOverviewDays(days)}:${founderAccess ? "founder" : "standard"}`;
   if (!resources.has(key)) {
     resources.set(key, createClientJsonResource({
-      url: buildOverviewUrl(key),
+      url: buildOverviewUrl(days, { founderAccess }),
       cacheMs: 60 * 1000,
       timeoutMs: 10_000,
       retries: 1,
@@ -35,6 +36,6 @@ export async function fetchOverviewShared(days) {
 
 export async function fetchOverviewSharedWithOptions(days, options = {}) {
   const force = Boolean(options?.force);
-  const resource = getOverviewResource(days);
+  const resource = getOverviewResource(days, { founderAccess: Boolean(options?.founderAccess) });
   return force ? resource.refresh() : resource.load();
 }

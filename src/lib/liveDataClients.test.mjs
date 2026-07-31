@@ -12,6 +12,10 @@ test("normalizes lobby overview ranges to the API contract", () => {
   assert.equal(normalizeOverviewDays(1), 7);
   assert.equal(normalizeOverviewDays(999), 365);
   assert.equal(buildOverviewUrl(200), "/api/casinoscores/lobby/overview?days=200");
+  assert.equal(
+    buildOverviewUrl(365, { founderAccess: true }),
+    "/api/casinoscores/lobby/overview?days=365&access=founder"
+  );
 });
 
 test("separates public and hourly lobby stats resources", () => {

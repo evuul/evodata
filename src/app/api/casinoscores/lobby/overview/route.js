@@ -41,6 +41,8 @@ import {
   deserializeDailyAggregates,
   serializeDailyAggregates,
 } from "@/lib/dailyAggregatesSnapshot";
+import { resolveRequestUser } from "@/lib/authSession";
+import { findFounderAccess, normalizeHistoryDays } from "@/lib/founderAccess";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -258,10 +260,30 @@ function computeTodayPeak(perSlugSeries, today) {
 // ---------- GET med cache + tidsmätning ----------
 export async function GET(req) {
   const t0 = Date.now();
+  const requestUrl = new URL(req.url);
+  const founderAccessRequested = requestUrl.searchParams.get("access") === "founder";
+  const resolved = founderAccessRequested
+    ? await resolveRequestUser(req, { cache: false })
+    : null;
+  const hasFounderAccess = Boolean(resolved && findFounderAccess(resolved.user?.email));
+  if (founderAccessRequested && !hasFounderAccess) {
+    return resJSON({ ok: false, error: "Founder access required" }, 403, {
+      "Cache-Control": "private, no-store",
+      Vary: "Cookie, Authorization",
+    });
+  }
+  const responseCacheControl = founderAccessRequested
+    ? "private, no-store"
+    : RESPONSE_CACHE_CONTROL;
+  const respond = (data, status = 200, headers = {}) => resJSON(data, status, {
+    "Cache-Control": responseCacheControl,
+    ...(founderAccessRequested ? { Vary: "Cookie, Authorization" } : null),
+    ...headers,
+  });
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = requestUrl;
     const daysParam = Number(searchParams.get("days"));
-    const targetDays = Number.isFinite(daysParam) ? Math.max(7, Math.min(daysParam, 365)) : 45;
+    const targetDays = normalizeHistoryDays(daysParam, { isFounder: hasFounderAccess });
     const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
     const forceEffective = recoveryEnabled;
 
@@ -275,7 +297,8 @@ export async function GET(req) {
           status: 304,
           headers: {
             ETag: cachedEntry.etag,
-            "Cache-Control": RESPONSE_CACHE_CONTROL,
+            "Cache-Control": responseCacheControl,
+            ...(founderAccessRequested ? { Vary: "Cookie, Authorization" } : null),
           },
         });
       }
@@ -312,7 +335,7 @@ export async function GET(req) {
             : "cache",
       });
       const headers = cachedEntry.etag ? { ETag: cachedEntry.etag } : {};
-      return resJSON(payload, 200, headers);
+      return respond(payload, 200, headers);
     }
 
     const storedSnapshot = forceEffective ? null : await getOverviewSnapshot(targetDays);
@@ -363,7 +386,7 @@ export async function GET(req) {
           cached: true,
           totalMs,
         });
-        return resJSON(payload, 200, { ETag: etag });
+        return respond(payload, 200, { ETag: etag });
       }
     }
 
@@ -730,10 +753,10 @@ export async function GET(req) {
       aggMs,
       totalMs,
     });
-    return resJSON(payload, 200, { ETag: etag });
+    return respond(payload, 200, { ETag: etag });
   } catch (error) {
     logApiError({ route: "casinoscores-lobby-overview", stage: "build-overview", error });
-    return resJSON(
+    return respond(
       buildPublicErrorBody({ message: "Kunde inte hämta lobbyöversikten just nu." }),
       500,
       { "Cache-Control": "no-store" }

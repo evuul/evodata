@@ -23,6 +23,7 @@ test("allows restored sessions to use the current server-derived admin role", ()
   };
 
   assert.equal(buildSessionUser(user).isAdmin, false);
+  assert.equal(buildSessionUser(user).isFounder, false);
   const restored = buildSessionUser(user, { isAdmin: true });
   assert.equal(restored.isAdmin, true);
   assert.deepEqual(restored.notifications, {
@@ -30,6 +31,17 @@ test("allows restored sessions to use the current server-derived admin role", ()
     gameAthEmail: true,
     dailyAvgEmail: false,
   });
+});
+
+test("derives Founder access from the verified account directory", () => {
+  const founder = buildSessionUser({
+    email: "robinjonsson64@gmail.com",
+    notifications: {},
+    profile: {},
+  });
+
+  assert.equal(founder.isFounder, true);
+  assert.equal(founder.founderSince, "2026-07-31");
 });
 
 const request = ({ method = "GET", origin, cookie, authorization, secFetchSite } = {}) => ({

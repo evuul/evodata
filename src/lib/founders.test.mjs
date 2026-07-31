@@ -96,4 +96,5 @@ test("configured founders expose display names without publishing email addresse
   assert.equal(published.length, 1);
   assert.equal(published[0].displayName, "Robin Jonsson");
   assert.equal(published[0].displayName.includes("@"), false);
+  assert.equal("accountEmail" in published[0], false);
 });

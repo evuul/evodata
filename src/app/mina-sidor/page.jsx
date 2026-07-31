@@ -109,6 +109,8 @@ function MinaSidorContent() {
     profileIdentity, setProfileIdentity,
     effectiveIsAdmin,
     isSubscriber,
+    isFounder,
+    founderSince,
     lobbyAthEmailEnabled, setLobbyAthEmailEnabled,
     gameAthEmailEnabled, setGameAthEmailEnabled,
     dailyAvgEmailEnabled, setDailyAvgEmailEnabled,
@@ -424,6 +426,8 @@ function MinaSidorContent() {
               onPreviewUserSupportNotice={() => triggerSupportPreview("user")}
               onPreviewAdminSupportNotice={() => triggerSupportPreview("admin")}
               greetingName={greetingName}
+              isFounder={isFounder}
+              founderSince={founderSince}
               currentPrice={currentPrice}
               todaysChangePercent={todaysChangePercent}
               isTraderMode={isTraderMode}

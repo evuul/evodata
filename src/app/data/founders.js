@@ -9,6 +9,7 @@ export const FOUNDER_PROGRAM = Object.freeze({
 export const FOUNDERS = Object.freeze([
   {
     id: "robin-jonsson",
+    accountEmail: "robinjonsson64@gmail.com",
     displayName: "Robin Jonsson",
     recognizedAt: "2026-07-31",
     profileUrl: null,

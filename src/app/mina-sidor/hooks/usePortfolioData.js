@@ -38,6 +38,8 @@ export function usePortfolioData({
     const [profileIdentity, setProfileIdentity] = useState({ firstName: "", lastName: "", email: "" });
     const isAdminUser = Boolean(user?.isAdmin);
     const isSubscriber = Boolean(user?.isSubscriber);
+    const isFounder = Boolean(user?.isFounder);
+    const founderSince = typeof user?.founderSince === "string" ? user.founderSince : null;
     const [lobbyAthEmailEnabled, setLobbyAthEmailEnabled] = useState(false);
     const [gameAthEmailEnabled, setGameAthEmailEnabled] = useState(false);
     const [dailyAvgEmailEnabled, setDailyAvgEmailEnabled] = useState(false);
@@ -490,6 +492,8 @@ export function usePortfolioData({
         profileIdentity, setProfileIdentity,
         isAdminUser,
         isSubscriber,
+        isFounder,
+        founderSince,
         effectiveIsAdmin,
         lobbyAthEmailEnabled, setLobbyAthEmailEnabled,
         gameAthEmailEnabled, setGameAthEmailEnabled,

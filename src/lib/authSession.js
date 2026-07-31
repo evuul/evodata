@@ -9,6 +9,7 @@ import {
 } from "./authStore.js";
 import { normalizePortfolioProfile } from "./portfolioProfile.js";
 import { normalizePlayerAlertPreferences } from "./playerAlertPreferences.js";
+import { findFounderAccess } from "./founderAccess.js";
 
 export const SESSION_COOKIE_NAME = "evodata_session";
 export const COOKIE_SESSION_MARKER = "cookie-session";
@@ -93,12 +94,15 @@ export async function resolveRequestUser(request, options) {
 }
 
 export function buildSessionUser(user, { isAdmin = Boolean(user?.isAdmin) } = {}) {
+  const founderAccess = findFounderAccess(user?.email);
   return {
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin: Boolean(isAdmin),
+    isFounder: Boolean(founderAccess),
+    founderSince: founderAccess?.recognizedAt ?? null,
     notifications: normalizePlayerAlertPreferences(user?.notifications),
     profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   };

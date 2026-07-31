@@ -11,6 +11,7 @@ import {
 } from "@/lib/portfolioTransactions";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
+import { findFounderAccess } from "@/lib/founderAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -23,6 +24,11 @@ const json = (data, init = {}) =>
   });
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "alexander.ek@live.se").trim().toLowerCase();
+
+const founderFields = (email) => {
+  const access = findFounderAccess(email);
+  return { isFounder: Boolean(access), founderSince: access?.recognizedAt ?? null };
+};
 
 export async function GET(request) {
   const token = getToken(request);
@@ -39,6 +45,7 @@ export async function GET(request) {
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin,
+    ...founderFields(user.email),
     notifications: normalizePlayerAlertPreferences(user.notifications),
     profile: normalizePortfolioProfile(user.profile ?? { shares: 0, avgCost: 0 }),
   });
@@ -137,6 +144,7 @@ export async function PUT(request) {
         lastName: user.lastName ?? "",
         isSubscriber: Boolean(user.isSubscriber),
         isAdmin: Boolean(user.isAdmin),
+        ...founderFields(user.email),
         notifications: normalizePlayerAlertPreferences(user.notifications),
         profile,
       });
@@ -174,6 +182,7 @@ export async function PUT(request) {
     lastName: user.lastName ?? "",
     isSubscriber: Boolean(user.isSubscriber),
     isAdmin: Boolean(user.isAdmin),
+    ...founderFields(user.email),
     notifications: normalizePlayerAlertPreferences(user.notifications),
     profile: normalizedProfile,
   });

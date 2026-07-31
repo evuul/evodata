@@ -27,10 +27,12 @@ import {
 const ATH_FORCE_REFRESH_STORAGE_KEY = "ath_force_refresh_last_at";
 const ATH_FORCE_REFRESH_MS = 3 * 60 * 60 * 1000;
 
-const TREND_DAY_OPTIONS = [30, 60, 90, 180];
+const STANDARD_TREND_DAY_OPTIONS = [30, 60, 90, 180];
+const FOUNDER_TREND_DAY_OPTIONS = [...STANDARD_TREND_DAY_OPTIONS, 365];
 const MA_WINDOW_OPTIONS = [7, 14, 30];
 const TOP_GROWTH_DAYS = 90;
-const ATH_DAY_OPTIONS = [90, 180, 365];
+const STANDARD_ATH_DAY_OPTIONS = [90, 180];
+const FOUNDER_ATH_DAY_OPTIONS = [...STANDARD_ATH_DAY_OPTIONS, 365];
 const INITIAL_VISIBLE_LIVE = 10;
 const INITIAL_VISIBLE_ATH = 10;
 const ASIA_GAME_KEYS = [
@@ -146,6 +148,9 @@ export default function useLivePlayersControlPanelModel() {
   const { locale } = useLocale();
   const { user } = useAuth();
   const isAdminView = Boolean(user?.isAdmin);
+  const isFounder = Boolean(user?.isFounder);
+  const trendDayOptions = isFounder ? FOUNDER_TREND_DAY_OPTIONS : STANDARD_TREND_DAY_OPTIONS;
+  const athDayOptions = isFounder ? FOUNDER_ATH_DAY_OPTIONS : STANDARD_ATH_DAY_OPTIONS;
   const translate = useTranslate();
 
   const numberFormatter = useMemo(
@@ -165,8 +170,8 @@ export default function useLivePlayersControlPanelModel() {
   );
 
   const [detailView, setDetailView] = useState("trend");
-  const [trendDays, setTrendDays] = useState(TREND_DAY_OPTIONS[0]);
-  const [athDays, setAthDays] = useState(ATH_DAY_OPTIONS[1]);
+  const [trendDays, setTrendDays] = useState(STANDARD_TREND_DAY_OPTIONS[0]);
+  const [athDays, setAthDays] = useState(STANDARD_ATH_DAY_OPTIONS[1]);
 
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewError, setOverviewError] = useState("");
@@ -179,9 +184,9 @@ export default function useLivePlayersControlPanelModel() {
   const [yesterdayPeak, setYesterdayPeak] = useState(null);
   const [lobbyAth, setLobbyAth] = useState(null);
   const [gameTrendSlug, setGameTrendSlug] = useState(null);
-  const [gameTrendDays, setGameTrendDays] = useState(TREND_DAY_OPTIONS[0]);
+  const [gameTrendDays, setGameTrendDays] = useState(STANDARD_TREND_DAY_OPTIONS[0]);
   const [asiaTrackerSlug, setAsiaTrackerSlug] = useState(null);
-  const [asiaTrackerDays, setAsiaTrackerDays] = useState(TREND_DAY_OPTIONS[0]);
+  const [asiaTrackerDays, setAsiaTrackerDays] = useState(STANDARD_TREND_DAY_OPTIONS[0]);
   const [asiaViewMode, setAsiaViewMode] = useState("trend");
   const [asiaTrendMaOn, setAsiaTrendMaOn] = useState(false);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
@@ -195,7 +200,7 @@ export default function useLivePlayersControlPanelModel() {
 
   const fetchOverview = useCallback(async (range, options = {}) => {
     const force = Boolean(options?.force);
-    const cacheKey = `days_${range}${force ? "_force" : ""}`;
+    const cacheKey = `days_${range}_${isFounder ? "founder" : "standard"}${force ? "_force" : ""}`;
     const cached = force ? null : overviewCache.get(cacheKey);
     if (cached) {
       setOverviewError("");
@@ -225,7 +230,7 @@ export default function useLivePlayersControlPanelModel() {
     setOverviewLoading(true);
     setOverviewError("");
     try {
-      const json = await fetchOverviewSharedWithOptions(range, { force });
+      const json = await fetchOverviewSharedWithOptions(range, { force, founderAccess: isFounder });
 
       const totals = Array.isArray(json?.dailyTotals)
         ? json.dailyTotals
@@ -330,7 +335,7 @@ export default function useLivePlayersControlPanelModel() {
       setOverviewLoading(false);
       overviewCache.cleanup();
     }
-  }, []);
+  }, [isFounder]);
 
   useEffect(() => {
     const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
@@ -878,6 +883,7 @@ export default function useLivePlayersControlPanelModel() {
 
   return {
     translate,
+    isFounder,
     numberFormatter,
     percentFormatter,
     timeFormatter,
@@ -924,9 +930,9 @@ export default function useLivePlayersControlPanelModel() {
     yesterdayPeakMetaText,
     lobbyAthDisplay,
     showYesterdayPeakCard: SHOW_YESTERDAY_PEAK_CARD,
-    TREND_DAY_OPTIONS,
+    TREND_DAY_OPTIONS: trendDayOptions,
     MA_WINDOW_OPTIONS,
-    ATH_DAY_OPTIONS,
+    ATH_DAY_OPTIONS: athDayOptions,
     INITIAL_VISIBLE_ATH,
     gameTrendOptions,
     gameTrendSlug,

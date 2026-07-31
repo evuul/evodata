@@ -3,8 +3,10 @@
 // Trend chart card for live players overview.
 
 import React, { useCallback, useMemo } from "react";
+import NextLink from "next/link";
 import {
   Box,
+  Button,
   Chip,
   CircularProgress,
   Stack,
@@ -12,6 +14,8 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import DownloadRounded from "@mui/icons-material/DownloadRounded";
+import LockRounded from "@mui/icons-material/LockRounded";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
@@ -49,6 +53,8 @@ export default function LivePlayersControlPanelTrendSection({
   translate,
   percentFormatter,
   dayOptions,
+  isFounder,
+  exportHref,
 }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -236,6 +242,28 @@ export default function LivePlayersControlPanelTrendSection({
               </ToggleButton>
             ))}
           </ToggleButtonGroup>
+          {isFounder ? (
+            <Button
+              component="a"
+              href={exportHref}
+              download
+              size="small"
+              startIcon={<DownloadRounded />}
+              sx={{ color: "#fde68a", textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
+            >
+              {translate("Exportera CSV", "Export CSV")}
+            </Button>
+          ) : (
+            <Button
+              component={NextLink}
+              href="/founders"
+              size="small"
+              startIcon={<LockRounded />}
+              sx={{ color: "rgba(253,230,138,0.82)", textTransform: "none", fontWeight: 700, whiteSpace: "nowrap" }}
+            >
+              {translate("365 d · Founder", "365 d · Founder")}
+            </Button>
+          )}
         </Stack>
       </Stack>
 

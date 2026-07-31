@@ -8,6 +8,7 @@ import { Box, Button, Link, Stack, ToggleButton, ToggleButtonGroup, Typography, 
 import Switch from "@mui/material/Switch";
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded';
 import SettingsRoundedIcon from "@mui/icons-material/SettingsRounded";
+import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
 import { LOCALE_OPTIONS, useLocale } from "@/context/LocaleContext";
 import { liveDot, text } from "./styles";
 import { formatPercent, formatSek } from "./utils";
@@ -75,6 +76,8 @@ export default function MinaSidorHeader({
   onPreviewUserSupportNotice,
   onPreviewAdminSupportNotice,
   greetingName,
+  isFounder,
+  founderSince,
   currentPrice,
   todaysChangePercent,
   isTraderMode,
@@ -369,27 +372,50 @@ export default function MinaSidorHeader({
         {/* Left Column: Title, Greeting, Description, Actions */}
         <Stack spacing={1.5} sx={{ flex: "1 1 auto", width: "100%", maxWidth: { md: 720 } }}>
           <Box>
-            {greetingName ? (
-              <Box
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  px: 1.25,
-                  py: 0.45,
-                  borderRadius: "999px",
-                  border: "1px solid rgba(125,211,252,0.35)",
-                  background:
-                    "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(59,130,246,0.14))",
-                  boxShadow: "0 10px 24px rgba(14,116,144,0.2)",
-                  width: "fit-content",
-                  mb: 1
-                }}
-              >
-                <Typography sx={{ color: "#dbeafe", fontWeight: 700, fontSize: { xs: "0.9rem", md: "0.95rem" } }}>
-                  {translate(`Välkommen ${greetingName}`, `Welcome ${greetingName}`)}
-                </Typography>
-              </Box>
-            ) : null}
+            <Stack direction="row" spacing={0.8} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: greetingName || isFounder ? 1 : 0 }}>
+              {greetingName ? (
+                <Box
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    px: 1.25,
+                    py: 0.45,
+                    borderRadius: "999px",
+                    border: "1px solid rgba(125,211,252,0.35)",
+                    background:
+                      "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(59,130,246,0.14))",
+                    boxShadow: "0 10px 24px rgba(14,116,144,0.2)",
+                    width: "fit-content",
+                  }}
+                >
+                  <Typography sx={{ color: "#dbeafe", fontWeight: 700, fontSize: { xs: "0.9rem", md: "0.95rem" } }}>
+                    {translate(`Välkommen ${greetingName}`, `Welcome ${greetingName}`)}
+                  </Typography>
+                </Box>
+              ) : null}
+              {isFounder ? (
+                <Box
+                  title={founderSince ? translate(`Founder sedan ${founderSince}`, `Founder since ${founderSince}`) : "Founder"}
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 0.55,
+                    px: 1.05,
+                    py: 0.42,
+                    borderRadius: "999px",
+                    color: "#fde68a",
+                    border: "1px solid rgba(245,158,11,0.3)",
+                    backgroundColor: "rgba(245,158,11,0.08)",
+                    fontSize: "0.78rem",
+                    fontWeight: 800,
+                    letterSpacing: "0.04em",
+                  }}
+                >
+                  <WorkspacePremiumRoundedIcon sx={{ fontSize: 16 }} />
+                  FOUNDER
+                </Box>
+              ) : null}
+            </Stack>
 
             <Typography variant="h4" sx={{ fontWeight: 800, fontSize: { xs: "1.75rem", md: "2.125rem" } }}>
               {translate("Dina innehav", "Your holdings")}
