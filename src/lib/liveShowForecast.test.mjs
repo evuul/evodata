@@ -7,6 +7,7 @@ import {
   applyQuarterSnapshots,
   buildRobustGrowthProjection,
   buildAllowedPlayerPeriods,
+  buildForecastAccuracySummary,
   buildForecastRange,
   buildQuarterlyModelCheckPeriods,
   calculateMedianCalibrationFactor,
@@ -285,4 +286,50 @@ test("buildForecastRange uses a safe fallback and rejects invalid estimates", ()
   });
   assert.equal(buildForecastRange(null, []), null);
   assert.equal(buildForecastRange(-1, []), null);
+});
+
+test("buildForecastRange ignores rows without a real estimate", () => {
+  assert.deepEqual(buildForecastRange(500, [
+    { estimated: null, actual: 500 },
+    { estimated: 475, actual: 500 },
+  ]), {
+    low: 475,
+    high: 525,
+    uncertaintyPercent: 5,
+    sampleSize: 1,
+    source: "historical-error",
+  });
+});
+
+test("buildForecastAccuracySummary reports median error, bias, and interval hit rate", () => {
+  const summary = buildForecastAccuracySummary([
+    { estimated: 95, actual: 100 },
+    { estimated: 102, actual: 100 },
+    { estimated: 110, actual: 100 },
+    { estimated: null, actual: 100 },
+  ], { tolerancePercent: 5 });
+
+  assert.equal(summary.sampleSize, 3);
+  assert.equal(summary.medianAbsoluteErrorPercent, 5);
+  assert.ok(Math.abs(summary.meanBiasPercent - 2.3333333333333335) < 1e-9);
+  assert.equal(summary.withinRangeCount, 2);
+  assert.ok(Math.abs(summary.withinRangePercent - 66.66666666666666) < 1e-9);
+  assert.equal(summary.tolerancePercent, 5);
+});
+
+test("buildForecastAccuracySummary handles empty and even-sized samples", () => {
+  assert.deepEqual(buildForecastAccuracySummary([]), {
+    sampleSize: 0,
+    medianAbsoluteErrorPercent: null,
+    meanBiasPercent: null,
+    withinRangeCount: 0,
+    withinRangePercent: null,
+    tolerancePercent: 5,
+  });
+
+  const summary = buildForecastAccuracySummary([
+    { estimated: 99, actual: 100 },
+    { estimated: 105, actual: 100 },
+  ]);
+  assert.equal(summary.medianAbsoluteErrorPercent, 3);
 });

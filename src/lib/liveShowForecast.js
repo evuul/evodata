@@ -11,6 +11,12 @@ const uniquePeriods = (periods) => {
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 
+const toFiniteMetric = (value) => {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
 export function periodToIndex(period) {
   if (!period || typeof period !== "string") return null;
   const [yearValue, quarter] = period.split(" ");
@@ -307,8 +313,8 @@ export function buildForecastRange(pointEstimate, modelRows, options = {}) {
     : 12;
   const errors = (Array.isArray(modelRows) ? modelRows : [])
     .map((row) => {
-      const actual = Number(row?.actual);
-      const estimated = Number(row?.estimated);
+      const actual = toFiniteMetric(row?.actual);
+      const estimated = toFiniteMetric(row?.estimated);
       if (!Number.isFinite(actual) || actual <= 0 || !Number.isFinite(estimated)) {
         return null;
       }
@@ -332,5 +338,52 @@ export function buildForecastRange(pointEstimate, modelRows, options = {}) {
     uncertaintyPercent,
     sampleSize: errors.length,
     source: errors.length ? "historical-error" : "fallback",
+  };
+}
+
+export function buildForecastAccuracySummary(modelRows, options = {}) {
+  const tolerancePercent = Number.isFinite(options?.tolerancePercent)
+    ? Math.max(0, Number(options.tolerancePercent))
+    : 5;
+  const errors = (Array.isArray(modelRows) ? modelRows : [])
+    .map((row) => {
+      const actual = toFiniteMetric(row?.actual);
+      const estimated = toFiniteMetric(row?.estimated);
+      if (!Number.isFinite(actual) || actual <= 0 || !Number.isFinite(estimated)) return null;
+      const errorPercent = ((estimated - actual) / actual) * 100;
+      return { errorPercent, absoluteErrorPercent: Math.abs(errorPercent) };
+    })
+    .filter(Boolean);
+
+  if (!errors.length) {
+    return {
+      sampleSize: 0,
+      medianAbsoluteErrorPercent: null,
+      meanBiasPercent: null,
+      withinRangeCount: 0,
+      withinRangePercent: null,
+      tolerancePercent,
+    };
+  }
+
+  const sortedAbsoluteErrors = errors
+    .map((entry) => entry.absoluteErrorPercent)
+    .sort((a, b) => a - b);
+  const middle = Math.floor(sortedAbsoluteErrors.length / 2);
+  const medianAbsoluteErrorPercent = sortedAbsoluteErrors.length % 2 === 0
+    ? (sortedAbsoluteErrors[middle - 1] + sortedAbsoluteErrors[middle]) / 2
+    : sortedAbsoluteErrors[middle];
+  const meanBiasPercent = errors.reduce((sum, entry) => sum + entry.errorPercent, 0) / errors.length;
+  const withinRangeCount = errors.filter(
+    (entry) => entry.absoluteErrorPercent <= tolerancePercent,
+  ).length;
+
+  return {
+    sampleSize: errors.length,
+    medianAbsoluteErrorPercent,
+    meanBiasPercent,
+    withinRangeCount,
+    withinRangePercent: (withinRangeCount / errors.length) * 100,
+    tolerancePercent,
   };
 }

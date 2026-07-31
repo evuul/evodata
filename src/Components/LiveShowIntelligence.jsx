@@ -31,6 +31,7 @@ import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import {
   applyQuarterSnapshots,
   buildAllowedPlayerPeriods,
+  buildForecastAccuracySummary,
   buildForecastRange,
   buildQuarterlyModelCheckPeriods,
   buildRobustGrowthProjection,
@@ -41,6 +42,7 @@ import {
   resolvePlayersForEstimate,
 } from "@/lib/liveShowForecast";
 import { useTranslate } from "@/context/LocaleContext";
+import ForecastAccuracySummary from "./ForecastAccuracySummary";
 import RevenueForecastSummary from "./RevenueForecastSummary";
 
 const REPORT_LOOKBACK_DAYS = 200; // fångar föregående kvartal (t.ex. full Q4 när vi är i Q1)
@@ -223,6 +225,15 @@ const formatMillion = (value) =>
   Number.isFinite(value)
     ? value.toLocaleString("sv-SE", { maximumFractionDigits: 1 })
     : "–";
+const formatErrorPercent = (value) =>
+  Number.isFinite(value)
+    ? `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toFixed(1)}%`
+    : "–";
+const getAccuracyColor = (withinRange) => {
+  if (withinRange === true) return "#6ee7b7";
+  if (withinRange === false) return "#fca5a5";
+  return "rgba(226,232,240,0.85)";
+};
 
 const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const theme = useTheme();
@@ -604,6 +615,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           Number.isFinite(actualRevenue) && Number.isFinite(est)
             ? actualRevenue - est
             : null;
+        const errorPercent =
+          Number.isFinite(actualRevenue) && actualRevenue > 0 && Number.isFinite(est)
+            ? ((est - actualRevenue) / actualRevenue) * 100
+            : null;
 
         return {
           period,
@@ -613,6 +628,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           estimated: est,
           actual: actualRevenue,
           diff,
+          errorPercent,
           coverageDays: Number.isFinite(coverageDays) ? coverageDays : null,
           partialCoverage:
             Number.isFinite(actualRevenue) &&
@@ -733,6 +749,23 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         tableRows,
       ),
     [combinedForecastEstimate?.total, estimatedRevenue, tableRows],
+  );
+  const forecastAccuracy = useMemo(
+    () => buildForecastAccuracySummary(tableRows, {
+      tolerancePercent: forecastRange?.uncertaintyPercent,
+    }),
+    [forecastRange?.uncertaintyPercent, tableRows],
+  );
+  const accuracyTableRows = useMemo(
+    () => tableRows.map((row) => ({
+      ...row,
+      withinRange:
+        Number.isFinite(row.errorPercent) &&
+        Number.isFinite(forecastRange?.uncertaintyPercent)
+          ? Math.abs(row.errorPercent) <= forecastRange.uncertaintyPercent
+          : null,
+    })),
+    [forecastRange?.uncertaintyPercent, tableRows],
   );
 
   return (
@@ -973,19 +1006,23 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             {/* Tabell */}
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
-                {translate("Modellcheck per kvartal", "Quarterly model check")}
+                {translate("Historisk modellkontroll", "Historical model check")}
               </Typography>
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
-                {translate("Estimerad mot faktisk live-omsättning (Meuro)", "Estimated vs actual live revenue (M€)")}
+                {translate(
+                  "Backtest av dagens modell mot faktisk Live-omsättning. Det är inte tidigare låsta prognoser.",
+                  "Backtest of today's model against actual Live revenue. These are not previously locked forecasts.",
+                )}
               </Typography>
+              <ForecastAccuracySummary summary={forecastAccuracy} translate={translate} />
               {isMobile ? (
                 <Stack spacing={1.2}>
-                  {tableRows.length === 0 && (
+                  {accuracyTableRows.length === 0 && (
                     <Box sx={{ color: "rgba(148,163,184,0.75)", py: 1.5 }}>
                       {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
                     </Box>
                   )}
-                  {tableRows.map((row) => (
+                  {accuracyTableRows.map((row) => (
                     <Box
                       key={row.period}
                       sx={{
@@ -1019,7 +1056,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                         </Typography>
                       </Stack>
                       <Grid container spacing={1}>
-                        <Grid item xs={4}>
+                        <Grid item xs={3}>
                           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>
                             {translate("Est.", "Est.")}
                           </Typography>
@@ -1027,7 +1064,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                             {formatMillion(row.estimated)}
                           </Typography>
                         </Grid>
-                        <Grid item xs={4}>
+                        <Grid item xs={3}>
                           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>
                             {translate("Faktisk", "Actual")}
                           </Typography>
@@ -1035,12 +1072,25 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                             {formatMillion(row.actual)}
                           </Typography>
                         </Grid>
-                        <Grid item xs={4}>
+                        <Grid item xs={3}>
                           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>Δ</Typography>
-                          <Typography sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171", fontWeight: 700 }}>
+                          <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 700 }}>
                             {Number.isFinite(row.diff)
                               ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
                               : "–"}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={3}>
+                          <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.75rem" }}>
+                            {translate("Fel", "Error")}
+                          </Typography>
+                          <Typography
+                            sx={{
+                              color: getAccuracyColor(row.withinRange),
+                              fontWeight: 700,
+                            }}
+                          >
+                            {formatErrorPercent(row.errorPercent)}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -1056,17 +1106,18 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                       <TableCell align="right">{translate("Est.", "Est.")}</TableCell>
                       <TableCell align="right">{translate("Faktisk", "Actual")}</TableCell>
                       <TableCell align="right">Δ</TableCell>
+                      <TableCell align="right">{translate("Fel", "Error")}</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {tableRows.length === 0 && (
+                    {accuracyTableRows.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
+                        <TableCell colSpan={6} sx={{ color: "rgba(148,163,184,0.75)", py: 3 }}>
                           {translate("Ingen kvartalsdata tillgänglig ännu.", "No quarterly data available yet.")}
                         </TableCell>
                       </TableRow>
                     )}
-                    {tableRows.map((row) => (
+                    {accuracyTableRows.map((row) => (
                       <TableRow
                         key={row.period}
                         sx={{
@@ -1103,10 +1154,19 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                         <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
                           {formatMillion(row.actual)}
                         </TableCell>
-                        <TableCell align="right" sx={{ color: row.diff >= 0 ? "#34d399" : "#f87171" }}>
+                        <TableCell align="right" sx={{ color: "rgba(226,232,240,0.85)" }}>
                           {Number.isFinite(row.diff)
                             ? `${row.diff >= 0 ? "+" : "-"}${formatMillion(Math.abs(row.diff))}`
                             : "–"}
+                        </TableCell>
+                        <TableCell
+                          align="right"
+                          sx={{
+                            color: getAccuracyColor(row.withinRange),
+                            fontWeight: 700,
+                          }}
+                        >
+                          {formatErrorPercent(row.errorPercent)}
                         </TableCell>
                       </TableRow>
                     ))}
