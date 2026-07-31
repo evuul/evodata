@@ -3,7 +3,10 @@
 import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
-import { calculateQuoteChangePercent } from "@/lib/stockPriceChange";
+import {
+  calculateQuoteChangePercent,
+  resolveQuotePreviousClose,
+} from "@/lib/stockPriceChange";
 import {
   applyMarketSessionBoundary,
   isMarketSessionCacheCompatible,
@@ -19,7 +22,7 @@ const RETRY_AFTER_SECONDS = 120;
 const OPEN_SHARED_CACHE_TTL_MS = 2 * 60 * 1000; // delad cache (KV) 2 min under öppet
 const CLOSED_SHARED_CACHE_TTL_MS = 15 * 60 * 1000; // delad cache (KV) 15 min när stängt
 const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istället för 500 (1h)
-const SHARED_KEY_PREFIX = "stock:quote:v4:";
+const SHARED_KEY_PREFIX = "stock:quote:v5:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vid 429: vila 10 min
 
@@ -412,11 +415,14 @@ export async function GET(request) {
         source = "yahoo-chart";
       }
       const historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
-      changePercent = calculateQuoteChangePercent({
-        currentPrice,
+      previousClose = resolveQuotePreviousClose({
         previousClose,
         dailyRows: historicalData,
         quoteTime: now,
+      });
+      changePercent = calculateQuoteChangePercent({
+        currentPrice,
+        previousClose,
       });
       const payload = buildPayload({
         currentPrice,
@@ -526,11 +532,14 @@ export async function GET(request) {
         }
       }
 
-      changePercent = calculateQuoteChangePercent({
-        currentPrice,
+      previousClose = resolveQuotePreviousClose({
         previousClose,
         dailyRows: historicalData,
         quoteTime: now,
+      });
+      changePercent = calculateQuoteChangePercent({
+        currentPrice,
+        previousClose,
       });
 
       return {

@@ -67,19 +67,15 @@ export function calculateDailyCloseChangePercent(dailyRows) {
   return calculatePercentChange(rows.at(-1).close, rows.at(-2).close);
 }
 
-export function calculateQuoteChangePercent({
+export function resolveQuotePreviousClose({
   currentPrice,
   dailyRows,
   quoteTime,
   previousClose,
 }) {
-  if (currentPrice == null || currentPrice === "") return null;
-  const price = Number(currentPrice);
-  if (!Number.isFinite(price)) return null;
-
   const explicitPreviousClose = Number(previousClose);
   if (Number.isFinite(explicitPreviousClose) && explicitPreviousClose > 0) {
-    return calculatePercentChange(price, explicitPreviousClose);
+    return explicitPreviousClose;
   }
 
   const rows = normalizeDailyRows(dailyRows);
@@ -97,8 +93,31 @@ export function calculateQuoteChangePercent({
 
   const dailySeriesIncludesQuoteSession = quoteDate
     ? quoteDate === latestRowDate
-    : price === latestRow.close;
-  const fallbackPreviousClose = dailySeriesIncludesQuoteSession ? rows.at(-2)?.close : latestRow.close;
+    : Number(currentPrice) === latestRow.close;
+  const fallbackPreviousClose = dailySeriesIncludesQuoteSession
+    ? rows.at(-2)?.close
+    : latestRow.close;
 
-  return calculatePercentChange(price, fallbackPreviousClose);
+  return Number.isFinite(fallbackPreviousClose) && fallbackPreviousClose > 0
+    ? fallbackPreviousClose
+    : null;
+}
+
+export function calculateQuoteChangePercent({
+  currentPrice,
+  dailyRows,
+  quoteTime,
+  previousClose,
+}) {
+  if (currentPrice == null || currentPrice === "") return null;
+  const price = Number(currentPrice);
+  if (!Number.isFinite(price)) return null;
+  const resolvedPreviousClose = resolveQuotePreviousClose({
+    currentPrice: price,
+    dailyRows,
+    quoteTime,
+    previousClose,
+  });
+
+  return calculatePercentChange(price, resolvedPreviousClose);
 }

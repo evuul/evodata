@@ -6,6 +6,7 @@ import test from "node:test";
 import {
   calculateDailyCloseChangePercent,
   calculateQuoteChangePercent,
+  resolveQuotePreviousClose,
 } from "./stockPriceChange.js";
 
 function assertApproximatelyEqual(actual, expected) {
@@ -47,6 +48,30 @@ test("daily quote change matches the previous-close convention used by brokers",
   });
 
   assertApproximatelyEqual(changePercent, -0.37981551817688624);
+});
+
+test("resolves a missing previous close from the latest completed daily candle", () => {
+  const previousClose = resolveQuotePreviousClose({
+    quoteTime: new Date("2026-07-31T07:43:00.000Z"),
+    dailyRows: [
+      { date: new Date("2026-07-29T07:00:00.000Z"), close: 751.2 },
+      { date: new Date("2026-07-30T07:00:00.000Z"), close: 737.2 },
+    ],
+  });
+
+  assert.equal(previousClose, 737.2);
+});
+
+test("resolves the prior candle when today's daily candle is already present", () => {
+  const previousClose = resolveQuotePreviousClose({
+    quoteTime: new Date("2026-07-31T07:43:00.000Z"),
+    dailyRows: [
+      { date: new Date("2026-07-30T07:00:00.000Z"), close: 737.2 },
+      { date: new Date("2026-07-31T07:00:00.000Z"), close: 733 },
+    ],
+  });
+
+  assert.equal(previousClose, 737.2);
 });
 
 test("quote change rejects a stale daily series without an explicit previous close", () => {
