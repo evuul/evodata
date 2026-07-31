@@ -1,14 +1,11 @@
 "use client";
 
-// Remote header data loaders for top wins, lobby ATH and buyback summary.
+// Remote header data loaders for lobby ATH and buyback summary.
 
 import { useEffect, useMemo, useState } from "react";
-import { extractLatestTopWin } from "../lib/liveHeader.js";
 import { useBuybackData } from "./useBuybackData.js";
 import { fetchOverviewShared } from "../lib/csOverviewClient.js";
-import { fetchLiveTop3Shared } from "../lib/liveTop3Client.js";
 
-const TOP_WIN_REFRESH_INTERVAL = 15 * 60 * 1000;
 const BUYBACK_CASH_EUR = 2_000_000_000;
 const BUYBACK_MANDATE_START_DATE = "2026-05-18";
 const LOBBY_ATH_DAYS = 365;
@@ -54,8 +51,6 @@ export function buildBuybackSummary(data, fxRateNumber) {
 }
 
 export function useLiveHeaderRemoteData({ fxRateNumber }) {
-  const [latestTopWin, setLatestTopWin] = useState(null);
-  const [loadingLatestTopWin, setLoadingLatestTopWin] = useState(false);
   const [lobbyAth, setLobbyAth] = useState(null);
   const {
     data: buybackData,
@@ -70,8 +65,6 @@ export function useLiveHeaderRemoteData({ fxRateNumber }) {
 
   useEffect(() => {
     let isActive = true;
-    let latestRequestId = 0;
-
     const loadLobbyOverview = async () => {
       try {
         const data = await fetchOverviewShared(LOBBY_ATH_DAYS);
@@ -84,50 +77,24 @@ export function useLiveHeaderRemoteData({ fxRateNumber }) {
       }
     };
 
-    const loadLatestTopWin = async () => {
-      if (!isActive) return;
-      latestRequestId += 1;
-      const requestId = latestRequestId;
-      setLoadingLatestTopWin(true);
-      try {
-        const data = await fetchLiveTop3Shared();
-        if (!isActive || requestId !== latestRequestId) return;
-        const entries = data?.entries ?? [];
-        setLatestTopWin(extractLatestTopWin(entries));
-      } catch (error) {
-        if (!isActive || requestId !== latestRequestId) return;
-        console.warn("[LiveHeader] Failed to fetch latest top win:", error);
-        setLatestTopWin(null);
-      } finally {
-        if (!isActive || requestId !== latestRequestId) return;
-        setLoadingLatestTopWin(false);
-      }
-    };
-
     const handleFocus = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      loadLatestTopWin();
       loadLobbyOverview();
       reloadBuybacks().catch(() => {});
     };
 
-    loadLatestTopWin();
     loadLobbyOverview();
-    const intervalId = setInterval(loadLatestTopWin, TOP_WIN_REFRESH_INTERVAL);
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
 
     return () => {
       isActive = false;
-      clearInterval(intervalId);
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("visibilitychange", handleFocus);
     };
   }, [reloadBuybacks]);
 
   return {
-    latestTopWin,
-    loadingLatestTopWin,
     lobbyAth,
     buybackSummary,
   };

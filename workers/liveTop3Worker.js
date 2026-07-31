@@ -4,6 +4,8 @@ const DEFAULT_CURRENT_KEY = "liveTop3:current";
 const DEFAULT_HISTORY_KEY = "liveTop3:history";
 const DEFAULT_HISTORY_LIMIT = 288; // ~24h at 5 min intervals
 const DEFAULT_SNAPSHOT_LIMIT = 200; // how many entries to persist per fetch (use all if shorter)
+// Top-win tracking is paused until the feature is intentionally re-enabled.
+const TOP_WIN_TRACKING_ENABLED = false;
 
 // ✅ Evolution Game Show whitelist (UPPERCASE)
 const EVOLUTION_GAMES = [
@@ -199,6 +201,9 @@ async function writeToUpstash(env, snapshot) {
 }
 
 async function handleSync(env) {
+  if (!TOP_WIN_TRACKING_ENABLED) {
+    return { paused: true };
+  }
   const snapshot = await fetchLiveTop3(env);
   await writeToUpstash(env, snapshot);
   return snapshot;

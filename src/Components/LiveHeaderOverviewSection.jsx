@@ -205,7 +205,6 @@ export default function LiveHeaderOverviewSection({
   marketCap,
   marketStatusChip,
   buybackSummary,
-  latestTopWinLabelWithEmoji,
   top3,
   formatTime,
   compact = false,
@@ -590,29 +589,6 @@ export default function LiveHeaderOverviewSection({
           mt: { xs: -0.6, sm: -1, md: -1.3 },
         }}
       >
-        <Chip
-          size="small"
-          label={latestTopWinLabelWithEmoji}
-          sx={{
-            background: "transparent",
-            color: "#f1f5f9",
-            border: "none",
-            borderRadius: "999px",
-            fontWeight: 600,
-            px: 0,
-            py: 0,
-            height: "auto",
-            maxWidth: "100%",
-            "& .MuiChip-label": {
-              whiteSpace: "normal",
-              lineHeight: 1.35,
-              textAlign: "center",
-              fontSize: { xs: "0.92rem", sm: "1rem" },
-              px: 0,
-              py: 0,
-            },
-          }}
-        />
         <Typography
           variant="h3"
           sx={{

@@ -22,12 +22,7 @@ import { buildNextCalendarChip } from "@/lib/financialCalendar";
 import { buildSupportUrl } from "@/lib/supportLinks";
 import { isPrimaryAdminEmail } from "@/lib/adminAccess";
 import financialCalendarEvents from "@/app/data/financialCalendar";
-import {
-  formatLatestWinAmount,
-  formatLatestWinTime,
-  formatLobbyAthLabel,
-  prettifyGameShowName,
-} from "@/lib/liveHeader";
+import { formatLobbyAthLabel } from "@/lib/liveHeader";
 
 const SHOW_MY_PAGE_NEW_BADGE = true;
 const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
@@ -130,12 +125,7 @@ export function useLiveHeaderModel() {
     const parsed = Number(fxRate);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [fxRate]);
-  const {
-    latestTopWin,
-    loadingLatestTopWin,
-    lobbyAth,
-    buybackSummary,
-  } = useLiveHeaderRemoteData({ fxRateNumber });
+  const { lobbyAth, buybackSummary } = useLiveHeaderRemoteData({ fxRateNumber });
 
   const lobbyAthLabel = useMemo(() => formatLobbyAthLabel(lobbyAth, translate), [lobbyAth, translate]);
 
@@ -281,23 +271,6 @@ export function useLiveHeaderModel() {
     );
   }, [translate]);
 
-  const latestTopWinLabel = useMemo(() => {
-    if (loadingLatestTopWin) {
-      return translate("Storvinst: hämtar…", "Top win: loading…");
-    }
-    if (!latestTopWin) {
-      return translate("Storvinst: saknas", "Top win: unavailable");
-    }
-    const amountLabel = formatLatestWinAmount(latestTopWin.totalAmount, locale);
-    const timeLabel = formatLatestWinTime(latestTopWin.settledAt, locale);
-    const multiplierLabel = Number.isFinite(latestTopWin.multiplier) ? `x${latestTopWin.multiplier}` : null;
-    const parts = [prettifyGameShowName(latestTopWin.gameShow), amountLabel, multiplierLabel, timeLabel].filter(Boolean);
-    return `${translate("Storvinst", "Top win")}: ${parts.join(" · ")}`;
-  }, [latestTopWin, loadingLatestTopWin, translate, locale]);
-  const latestTopWinLabelWithEmoji = useMemo(() => {
-    if (!latestTopWinLabel) return latestTopWinLabel;
-    return `🏆 ${latestTopWinLabel}`;
-  }, [latestTopWinLabel]);
   const buybackSummaryDisplay = useMemo(() => {
     if (!buybackSummary) return null;
     return {
@@ -406,8 +379,6 @@ export function useLiveHeaderModel() {
     formatTime,
     shortPercent,
     loadingShort,
-    latestTopWin,
-    loadingLatestTopWin,
     lobbyAth,
     showDonationNudge,
     setShowDonationNudge,
@@ -448,9 +419,7 @@ export function useLiveHeaderModel() {
     accountBadge,
     isLiveMoneyPanel,
     isLivePanel,
-    latestTopWinLabelWithEmoji,
     top3,
-    latestTopWinLabel,
     supportUrl: buildSupportUrl("header"),
     donationNudgeUrl: buildSupportUrl("header_nudge"),
     showMyPageNewBadge: SHOW_MY_PAGE_NEW_BADGE,

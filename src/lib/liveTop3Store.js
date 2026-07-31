@@ -11,6 +11,7 @@ const DAILY_LIMIT_PER_DAY = (() => {
   const value = Number(process.env.LIVE_TOP3_DAILY_LIMIT ?? "48");
   return Number.isFinite(value) && value > 0 ? value : 48;
 })();
+const TOP_WIN_TRACKING_ENABLED = false;
 
 // ✅ Evolution Game Show whitelist (UPPERCASE)
 const EVOLUTION_GAMES = [
@@ -152,6 +153,7 @@ async function appendDailySnapshot(snapshot) {
 }
 
 export async function saveLiveTop3Snapshot(snapshot, options = {}) {
+  if (!TOP_WIN_TRACKING_ENABLED) return null;
   const normalized = normalizeSnapshot(snapshot);
   if (!normalized) return null;
   normalized.fetchedAt = normalized.fetchedAt ?? new Date().toISOString();

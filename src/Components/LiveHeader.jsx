@@ -59,7 +59,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     fmtCap,
     marketCap,
     marketStatusChip,
-    latestTopWinLabelWithEmoji,
     top3,
     formatTime,
     showDonationNudge,
@@ -230,7 +229,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           fmtCap={fmtCap}
           marketCap={marketCap}
           marketStatusChip={marketStatusChip}
-          latestTopWinLabelWithEmoji={latestTopWinLabelWithEmoji}
           top3={top3}
           formatTime={formatTime}
           compact={!isLivePanel}

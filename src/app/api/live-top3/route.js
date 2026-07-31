@@ -18,6 +18,7 @@ const DAILY_LIMIT_PER_DAY = (() => {
   const parsed = Number(process.env.LIVE_TOP3_DAILY_LIMIT ?? "48");
   return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : 48;
 })();
+const TOP_WIN_TRACKING_ENABLED = false;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_HISTORY_ITEMS = 2000;
@@ -229,6 +230,15 @@ function groupSnapshotsByDay(snapshots, days, perDay) {
 
 export async function GET(req) {
   try {
+    if (!TOP_WIN_TRACKING_ENABLED) {
+      return json({
+        ok: false,
+        paused: true,
+        entries: [],
+        todayEntries: [],
+        history: [],
+      });
+    }
     const now = Date.now();
     const { searchParams } = new URL(req.url);
     const { historyDays, historyPerDay } = normalizeLiveTop3Options({
