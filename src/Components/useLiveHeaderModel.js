@@ -20,6 +20,7 @@ import { buildLiveHeaderPlayerMetrics, buildMaintenanceWarningParts } from "@/li
 import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
 import { buildNextCalendarChip } from "@/lib/financialCalendar";
 import { buildSupportUrl } from "@/lib/supportLinks";
+import { isPrimaryAdminEmail } from "@/lib/adminAccess";
 import financialCalendarEvents from "@/app/data/financialCalendar";
 import {
   formatLatestWinAmount,
@@ -53,6 +54,18 @@ export function useLiveHeaderModel() {
   } = usePlayersLive();
   const { isAuthenticated, user, token, logout } = useAuth();
   const isAdminView = Boolean(user?.isAdmin);
+  const accountBadge = useMemo(() => {
+    if (isAdminView || isPrimaryAdminEmail(user?.email)) {
+      return { kind: "admin", label: "ADMIN", description: "Admin access" };
+    }
+    if (user?.isFounder) {
+      return { kind: "founder", label: "FOUNDER", description: "Founder" };
+    }
+    if (user?.isSubscriber) {
+      return { kind: "premium", label: "PREMIUM", description: "Premium" };
+    }
+    return null;
+  }, [isAdminView, user?.email, user?.isFounder, user?.isSubscriber]);
   const router = useRouter();
   const { locale, setLocale } = useLocale();
   const translate = useTranslate();
@@ -432,6 +445,7 @@ export function useLiveHeaderModel() {
     handlePanelChange,
     handleLogout,
     userNameLabel,
+    accountBadge,
     isLiveMoneyPanel,
     isLivePanel,
     latestTopWinLabelWithEmoji,

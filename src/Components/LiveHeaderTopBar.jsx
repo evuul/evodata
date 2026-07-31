@@ -26,6 +26,8 @@ import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import LogoutRounded from "@mui/icons-material/LogoutRounded";
 import CalendarMonthRounded from "@mui/icons-material/CalendarMonthRounded";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
+import AdminPanelSettingsRounded from "@mui/icons-material/AdminPanelSettingsRounded";
+import DiamondRounded from "@mui/icons-material/DiamondRounded";
 import NextLink from "next/link";
 import { LOCALE_OPTIONS } from "@/context/LocaleContext";
 
@@ -87,6 +89,7 @@ export default function LiveHeaderTopBar({
   donationNudgeUrl,
   isAuthenticated,
   userNameLabel,
+  accountBadge,
   isUserMenuOpen,
   userMenuAnchor,
   setUserMenuAnchor,
@@ -98,6 +101,18 @@ export default function LiveHeaderTopBar({
   const supportChipLabel = isMobileMenu
     ? translate("Stötta", "Support")
     : translate("Stötta sidan", "Support the site");
+  const badgeIcon = accountBadge?.kind === "admin"
+    ? <AdminPanelSettingsRounded sx={{ fontSize: 15 }} />
+    : accountBadge?.kind === "founder"
+      ? <WorkspacePremiumRounded sx={{ fontSize: 15 }} />
+      : accountBadge?.kind === "premium"
+        ? <DiamondRounded sx={{ fontSize: 15 }} />
+        : null;
+  const badgeColor = accountBadge?.kind === "admin"
+    ? "#7dd3fc"
+    : accountBadge?.kind === "founder"
+      ? "#fde68a"
+      : "#c4b5fd";
 
   return (
     <Box
@@ -462,10 +477,22 @@ export default function LiveHeaderTopBar({
                       borderColor: "rgba(148,163,184,0.45)",
                     },
                   }}
-                  startIcon={<PersonRounded sx={{ fontSize: 18 }} />}
-                >
-                  {userNameLabel}
-                </Button>
+                startIcon={<PersonRounded sx={{ fontSize: 18 }} />}
+              >
+                  <Stack direction="row" spacing={0.6} alignItems="center">
+                    <Box component="span">{userNameLabel}</Box>
+                    {accountBadge ? (
+                      <Box
+                        component="span"
+                        title={translate(accountBadge.description, accountBadge.description)}
+                        aria-label={translate(`${accountBadge.label}-ikon`, `${accountBadge.label} icon`)}
+                        sx={{ display: "inline-flex", color: badgeColor, lineHeight: 0 }}
+                      >
+                        {badgeIcon}
+                      </Box>
+                    ) : null}
+                  </Stack>
+              </Button>
                 <Menu
                   anchorEl={userMenuAnchor}
                   open={isUserMenuOpen}
