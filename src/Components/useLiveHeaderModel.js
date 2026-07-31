@@ -157,10 +157,10 @@ export function useLiveHeaderModel() {
     ? translate("0,00% inför öppning", "0.00% before open")
     : Number.isFinite(stockChangeValue)
     ? translate(
-        `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% sedan öppning`,
-        `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% since open`
+        `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% idag`,
+        `${stockChangeValue >= 0 ? "+" : ""}${stockChangeValue.toFixed(2)}% today`
       )
-    : translate("Saknar öppningskurs", "Opening price unavailable");
+    : translate("Saknar föregående stängningskurs", "Previous close unavailable");
   const changeColor = Number.isFinite(stockChangeValue)
     ? stockChangeValue > 0
       ? "#34d399"

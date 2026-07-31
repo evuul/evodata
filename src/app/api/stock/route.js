@@ -3,10 +3,9 @@
 import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 import { totalSharesData } from "@/Components/buybacks/utils";
-import { calculateMarketOpenChangePercent } from "@/lib/stockPriceChange";
+import { calculateQuoteChangePercent } from "@/lib/stockPriceChange";
 import {
   applyMarketSessionBoundary,
-  findIntradayMarketOpen,
   isMarketSessionCacheCompatible,
 } from "@/lib/stockMarketSession";
 
@@ -20,7 +19,7 @@ const RETRY_AFTER_SECONDS = 120;
 const OPEN_SHARED_CACHE_TTL_MS = 2 * 60 * 1000; // delad cache (KV) 2 min under öppet
 const CLOSED_SHARED_CACHE_TTL_MS = 15 * 60 * 1000; // delad cache (KV) 15 min när stängt
 const SHARED_STALE_MS = 60 * 60 * 1000; // få chans att svara med gammalt istället för 500 (1h)
-const SHARED_KEY_PREFIX = "stock:quote:v3:";
+const SHARED_KEY_PREFIX = "stock:quote:v4:";
 const MIN_FETCH_INTERVAL_MS = 2 * 60 * 1000; // slå inte Yahoo tätare än 2 min
 const RATE_LIMIT_COOLDOWN_MS = 10 * 60 * 1000; // vid 429: vila 10 min
 
@@ -81,6 +80,7 @@ function applySessionBoundaryToPayload(payload, now = new Date()) {
   const boundary = applyMarketSessionBoundary({
     changePercent: payload?.price?.regularMarketChangePercent?.raw,
     marketOpen: payload?.price?.regularMarketOpen,
+    previousClose: payload?.price?.regularMarketPreviousClose,
     generatedAt: payload?.generatedAt,
     now,
   });
@@ -208,21 +208,6 @@ function toPositiveNumber(value) {
   if (value == null || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-async function fetchYahooIntradayMarketOpen(symbol, now) {
-  if (!isMarketOpenStockholm(now)) return null;
-
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m`;
-  const response = await fetch(url, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Yahoo intraday request failed: ${response.status}`);
-
-  const result = (await response.json())?.chart?.result?.[0];
-  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
-  const opens = Array.isArray(result?.indicators?.quote?.[0]?.open)
-    ? result.indicators.quote[0].open
-    : [];
-  return findIntradayMarketOpen({ timestamps, opens, referenceDate: now });
 }
 
 function getState(symbol) {
@@ -363,9 +348,11 @@ async function fetchYahooChartDaily(symbol) {
     result?.meta?.previousClose ?? result?.meta?.regularMarketPreviousClose
   );
   const marketOpen = toPositiveNumber(result?.meta?.regularMarketOpen) ?? toPositiveNumber(latest?.open);
-  const changePercent = calculateMarketOpenChangePercent({
+  const changePercent = calculateQuoteChangePercent({
     currentPrice,
-    marketOpen,
+    previousClose,
+    dailyRows: rows,
+    quoteTime: latest?.date,
   });
   return { rows, currentPrice, changePercent, marketOpen, previousClose };
 }
@@ -415,7 +402,6 @@ export async function GET(request) {
         currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
         marketOpen = toPositiveNumber(latest?.open);
         previousClose = Number.isFinite(rows.at(-2)?.close) ? rows.at(-2).close : null;
-        changePercent = calculateMarketOpenChangePercent({ currentPrice, marketOpen });
       } catch {
         const chart = await fetchYahooChartDaily(symbol);
         rows = chart.rows;
@@ -426,6 +412,12 @@ export async function GET(request) {
         source = "yahoo-chart";
       }
       const historicalData = rows.filter((row) => row.date >= period1 && row.date <= now);
+      changePercent = calculateQuoteChangePercent({
+        currentPrice,
+        previousClose,
+        dailyRows: historicalData,
+        quoteTime: now,
+      });
       const payload = buildPayload({
         currentPrice,
         changePercent,
@@ -512,11 +504,6 @@ export async function GET(request) {
         currentPrice = Number(quote?.regularMarketPrice);
         marketOpen = toPositiveNumber(quote?.regularMarketOpen);
         previousClose = toPositiveNumber(quote?.regularMarketPreviousClose);
-        const calculatedOpenChange = calculateMarketOpenChangePercent({
-          currentPrice,
-          marketOpen,
-        });
-        changePercent = Number.isFinite(calculatedOpenChange) ? calculatedOpenChange : null;
       } catch (err) {
         const normalized = normalizeError(err);
         yahooRateLimited = normalized.rateLimited;
@@ -527,7 +514,6 @@ export async function GET(request) {
           currentPrice = Number.isFinite(latest?.close) ? latest.close : null;
           marketOpen = toPositiveNumber(latest?.open);
           previousClose = Number.isFinite(rows.at(-2)?.close) ? rows.at(-2).close : null;
-          changePercent = calculateMarketOpenChangePercent({ currentPrice, marketOpen });
           source = "stooq";
         } catch (stooqErr) {
           const chart = await fetchYahooChartDaily(symbol);
@@ -540,15 +526,12 @@ export async function GET(request) {
         }
       }
 
-      if (isMarketOpenStockholm(now)) {
-        try {
-          marketOpen = await fetchYahooIntradayMarketOpen(symbol, now);
-        } catch (error) {
-          console.warn("[stock] kunde inte hämta dagens öppningskurs från intradagsdata:", error);
-          marketOpen = null;
-        }
-      }
-      changePercent = calculateMarketOpenChangePercent({ currentPrice, marketOpen });
+      changePercent = calculateQuoteChangePercent({
+        currentPrice,
+        previousClose,
+        dailyRows: historicalData,
+        quoteTime: now,
+      });
 
       return {
         payload: buildPayload({
