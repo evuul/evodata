@@ -115,10 +115,8 @@ export default function RevenueForecastSummary({
               height: "100%",
               p: { xs: 2.4, sm: 3, md: 3.5 },
               borderRadius: "18px",
-              border: "1px solid rgba(56,189,248,0.3)",
-              background:
-                "radial-gradient(circle at top right, rgba(56,189,248,0.15), transparent 42%), linear-gradient(145deg, rgba(15,23,42,0.82), rgba(14,116,144,0.2))",
-              boxShadow: "0 18px 45px rgba(2,6,23,0.28)",
+              border: "1px solid rgba(148,163,184,0.16)",
+              background: "rgba(15,23,42,0.58)",
             }}
           >
             <Stack
@@ -130,7 +128,7 @@ export default function RevenueForecastSummary({
               <Box>
                 <Typography
                   sx={{
-                    color: "#7dd3fc",
+                    color: "rgba(226,232,240,0.72)",
                     fontSize: "0.78rem",
                     fontWeight: 800,
                     letterSpacing: 1,
@@ -148,7 +146,11 @@ export default function RevenueForecastSummary({
               <Chip
                 size="small"
                 label={translate("Exakt modellvärde", "Exact model output")}
-                sx={{ color: "#bae6fd", bgcolor: "rgba(14,165,233,0.14)", fontWeight: 700 }}
+                sx={{
+                  color: "rgba(226,232,240,0.82)",
+                  bgcolor: "rgba(148,163,184,0.12)",
+                  fontWeight: 700,
+                }}
               />
             </Stack>
 
