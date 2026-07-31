@@ -9,7 +9,6 @@ import {
   Grid,
   Divider,
   Chip,
-  LinearProgress,
   Table,
   TableBody,
   TableCell,
@@ -28,11 +27,11 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from "recharts";
-import { GAMES as GAME_LIST, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewShared } from "@/lib/csOverviewClient";
 import {
   applyQuarterSnapshots,
   buildAllowedPlayerPeriods,
+  buildForecastRange,
   buildQuarterlyModelCheckPeriods,
   buildRobustGrowthProjection,
   calculateMedianCalibrationFactor,
@@ -42,6 +41,7 @@ import {
   resolvePlayersForEstimate,
 } from "@/lib/liveShowForecast";
 import { useTranslate } from "@/context/LocaleContext";
+import RevenueForecastSummary from "./RevenueForecastSummary";
 
 const REPORT_LOOKBACK_DAYS = 200; // fångar föregående kvartal (t.ex. full Q4 när vi är i Q1)
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
@@ -223,8 +223,6 @@ const formatMillion = (value) =>
   Number.isFinite(value)
     ? value.toLocaleString("sv-SE", { maximumFractionDigits: 1 })
     : "–";
-const findGameBySlug = (slug) =>
-  GAME_LIST.find((game) => game.id === slug || game.apiSlug === slug) || null;
 
 const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const theme = useTheme();
@@ -258,7 +256,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   );
 
   const [dynamicPlayers, setDynamicPlayers] = useState([]);
-  const [slugAverages, setSlugAverages] = useState([]);
   const [overviewError, setOverviewError] = useState("");
   const [overviewLoading, setOverviewLoading] = useState(false);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
@@ -286,18 +283,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           }))
           .filter((row) => row?.Datum && Number.isFinite(row?.Players));
 
-        const averages = Array.isArray(json?.slugAverages)
-          ? json.slugAverages
-              .map((row) => ({
-                slug: row?.slug,
-                avgPlayers: Number(row?.avgPlayers),
-              }))
-              .filter((row) => typeof row.slug === "string" && Number.isFinite(row.avgPlayers))
-          : [];
-
         if (!cancelled) {
           setDynamicPlayers(rows);
-          setSlugAverages(averages);
           setOverviewGeneratedAt(json?.generatedAt || null);
         }
       } catch (error) {
@@ -583,10 +570,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     ? Math.round(baseAveragePlayers * baselineRevenuePerPlayer * forecastCalibrationFactor * 10) / 10
     : null;
 
-  const revenueSoFar = Number.isFinite(estimatedRevenue)
-    ? Math.round((estimatedRevenue * quarterProgress.elapsedDays) / Math.max(quarterProgress.totalDays, 1) * 10) / 10
-    : null;
-
   const yoyReferenceRevenue = Number.isFinite(revenueData[lastYearSameQuarterPeriod])
     ? revenueData[lastYearSameQuarterPeriod]
     : null;
@@ -653,35 +636,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     quarterlyPlayers,
     revenueData,
   ]);
-
-  const topGames = useMemo(() => {
-    if (!slugAverages.length) return [];
-    const totalPlayers = slugAverages.reduce(
-      (sum, row) => sum + (Number.isFinite(row.avgPlayers) ? row.avgPlayers : 0),
-      0
-    );
-    if (totalPlayers <= 0) return [];
-    return slugAverages
-      .map((row) => {
-        const game = findGameBySlug(row.slug);
-        const avgPlayers = Number.isFinite(row.avgPlayers) ? row.avgPlayers : 0;
-        return {
-          id: game?.id || row.slug,
-          label: game?.label || row.slug,
-          avgPlayers: Math.round(avgPlayers),
-          share: avgPlayers / totalPlayers,
-          color: GAME_COLORS[game?.id] || "#38bdf8",
-        };
-      })
-      .sort((a, b) => b.avgPlayers - a.avgPlayers)
-      .slice(0, 3)
-      .map((item) => ({
-        ...item,
-        estimatedRevenue: Number.isFinite(estimatedRevenue)
-          ? Math.round(estimatedRevenue * item.share * 10) / 10
-          : null,
-      }));
-  }, [slugAverages, estimatedRevenue]);
 
   const overviewGeneratedLabel = useMemo(() => {
     if (!overviewGeneratedAt) return null;
@@ -772,18 +726,26 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
     rngForecast,
     totalRevenueData,
   ]);
+  const forecastRange = useMemo(
+    () =>
+      buildForecastRange(
+        combinedForecastEstimate?.total ?? estimatedRevenue,
+        tableRows,
+      ),
+    [combinedForecastEstimate?.total, estimatedRevenue, tableRows],
+  );
 
   return (
     <Box
       sx={{
         background: "linear-gradient(135deg, #111827, #0f172a)",
-        borderRadius: { xs: 0, md: "18px" },
+        width: "100%",
+        maxWidth: 1180,
+        mx: "auto",
+        borderRadius: { xs: "14px", md: "18px" },
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
         color: "#f8fafc",
-
-        // === FULLBREDD / BLEED ===
-        mx: { xs: -2, sm: -3, md: -4 },
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 4 },
         overflow: "visible",
@@ -891,210 +853,22 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         </Box>
       )}
 
-      {combinedForecastEstimate && (
-        <Box
-          sx={{
-            mt: { xs: 2, md: 3 },
-            p: { xs: 1.5, md: 2 },
-            borderRadius: { xs: "12px", md: "14px" },
-            border: "1px solid rgba(56,189,248,0.25)",
-            background:
-              "linear-gradient(135deg, rgba(56,189,248,0.12), rgba(14,165,233,0.08))",
-            color: "#e2e8f0",
-          }}
-        >
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={{ xs: 1, sm: 2 }}
-            alignItems={{ xs: "flex-start", sm: "center" }}
-            justifyContent="space-between"
-          >
-            <Stack spacing={0.4}>
-              <Typography variant="overline" sx={{ letterSpacing: 1 }}>
-                {translate(
-                  `${combinedForecastEstimate.period} forecast`,
-                  `${combinedForecastEstimate.period} forecast`
-                )}
-              </Typography>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                {combinedForecastEstimate.period}
-              </Typography>
-              <Typography sx={{ color: "rgba(226,232,240,0.78)" }}>
-                {translate(
-                  "Live och RNG visas som separat bidrag till totalen.",
-                  "Live and RNG are shown as separate contributions to the total."
-                )}
-              </Typography>
-            </Stack>
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={{ xs: 1, sm: 1.5 }}
-              alignItems={{ xs: "flex-start", sm: "center" }}
-            >
-              <Chip
-                label={`${translate("Live", "Live")}: ${formatMillion(combinedForecastEstimate.live)} €M`}
-                size="small"
-                sx={{ backgroundColor: "rgba(59,130,246,0.15)", color: "#bfdbfe" }}
-              />
-              <Chip
-                label={`${translate("RNG prognos", "RNG forecast")}: ${formatMillion(
-                  combinedForecastEstimate.rng
-                )} €M (${combinedForecastEstimate.rngGrowth?.toFixed(1) ?? "1.5"}% QoQ)`}
-                size="small"
-                sx={{ backgroundColor: "rgba(234,179,8,0.18)", color: "#facc15" }}
-              />
-              <Chip
-                label={`${translate("Summa", "Total")}: ${formatMillion(combinedForecastEstimate.total)} €M`}
-                size="small"
-                sx={{ backgroundColor: "rgba(16,185,129,0.2)", color: "#4ade80", fontWeight: 700 }}
-              />
-              {combinedForecastEstimate.priorPeriodLabel && Number.isFinite(combinedForecastEstimate.delta) && (
-                <Chip
-                  label={`${translate("Mot", "Vs")} ${combinedForecastEstimate.priorPeriodLabel}: ${combinedForecastEstimate.delta >= 0 ? "+" : "–"}${formatMillion(Math.abs(combinedForecastEstimate.delta))} €M (${combinedForecastEstimate.deltaPct != null ? `${combinedForecastEstimate.deltaPct >= 0 ? "+" : "–"}${Math.abs(combinedForecastEstimate.deltaPct).toFixed(1)}%` : "–"})`}
-                  size="small"
-                  sx={{ backgroundColor: "rgba(148,163,184,0.18)", color: "#e2e8f0" }}
-                />
-              )}
-            </Stack>
-          </Stack>
-        </Box>
-      )}
+      <RevenueForecastSummary
+        forecast={combinedForecastEstimate}
+        liveForecast={estimatedRevenue}
+        range={forecastRange}
+        quarterProgress={quarterProgress}
+        playerCoverage={playerCoverage}
+        averagePlayers={baseAveragePlayers}
+        forecastPeriodLabel={labelFromPeriod(forecastPeriod)}
+        isCurrentForecastPeriod={isCurrentForecastPeriod}
+        trendText={trendText}
+        trendTextColor={trendTextColor}
+        translate={translate}
+      />
 
       <Box component="div">
           <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
-
-          {/* KPI-kort */}
-          <Grid container spacing={isMobile ? 2 : 3} justifyContent="center">
-            {/* Kvartalsprogress */}
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  background: "rgba(15,23,42,0.55)",
-                  borderRadius: "14px",
-                  border: "1px solid rgba(148,163,184,0.18)",
-                  p: 3,
-                  height: "100%",
-                  textAlign: "center",
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate(
-                    isCurrentForecastPeriod ? "Pågående kvartal" : "Stängt kvartal väntar på utfall",
-                    isCurrentForecastPeriod ? "Current quarter" : "Closed quarter awaiting actuals"
-                  )}{" "}
-                  · {labelFromPeriod(forecastPeriod)}
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-                  {translate(
-                    `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} dagar`,
-                    `${quarterProgress.elapsedDays}/${quarterProgress.totalDays} days`
-                  )}
-                </Typography>
-                <Typography sx={{ color: "rgba(226,232,240,0.7)", fontSize: "0.95rem", mt: 0.5 }}>
-                  {translate(
-                    `${quarterProgress.progressPercent}% av kvartalet avklarat`,
-                    `${quarterProgress.progressPercent}% of the quarter completed`
-                  )}
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={quarterProgress.progressPercent}
-                  sx={{
-                    mt: 2,
-                    height: 6,
-                    borderRadius: 4,
-                    backgroundColor: "rgba(148,163,184,0.25)",
-                    "& .MuiLinearProgress-bar": { background: "linear-gradient(90deg, #34d399, #38bdf8)" },
-                  }}
-                />
-              </Box>
-            </Grid>
-
-            {/* Spelare */}
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  background: "rgba(26,46,89,0.55)",
-                  borderRadius: "14px",
-                  border: "1px solid rgba(96,165,250,0.3)",
-                  p: 3,
-                  height: "100%",
-                  textAlign: "center",
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Spelare", "Players")}
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, mt: 1, color: "#93c5fd" }}>
-                  {baseAveragePlayers.toLocaleString("sv-SE")}
-                </Typography>
-                <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.95rem", mt: 0.5 }}>
-                  {liveAveragePlayersRaw
-                    ? translate(
-                        `Live-snitt ${liveAveragePlayersRaw.toLocaleString("sv-SE")} spelare`,
-                        `Live avg ${liveAveragePlayersRaw.toLocaleString("sv-SE")} players`
-                      )
-                    : forecastQuarterPlayersRaw
-                    ? translate(
-                        `Kvartalssnitt ${forecastQuarterPlayersRaw?.toLocaleString("sv-SE")} spelare`,
-                        `Quarter avg ${forecastQuarterPlayersRaw?.toLocaleString("sv-SE")} players`
-                      )
-                    : translate("Inväntar kvartalsdata", "Waiting for quarterly data")}
-                </Typography>
-              </Box>
-            </Grid>
-
-            {/* Uppskattad omsättning (YoY) */}
-            <Grid item xs={12} md={4}>
-              <Box
-                sx={{
-                  background: "rgba(14,116,144,0.55)",
-                  borderRadius: "14px",
-                  border: "1px solid rgba(45,212,191,0.28)",
-                  p: 3,
-                  height: "100%",
-                  textAlign: "center",
-                }}
-              >
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontWeight: 600 }}>
-                  {translate("Forecastomsättning", "Forecast revenue")}
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-                  {formatMillion(estimatedRevenue)} €M
-                </Typography>
-
-                <Typography
-                  sx={{
-                    color:
-                      changeYoY.percent == null
-                        ? "rgba(226,232,240,0.75)"
-                        : changeYoY.percent >= 0
-                        ? "#34d399"
-                        : "#f87171",
-                    fontSize: "0.95rem",
-                    mt: 0.5,
-                  }}
-                >
-                  {changeYoY.percent == null
-                    ? translate("Inväntar jämförelsedata", "Waiting for comparison data")
-                    : translate(
-                        `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`,
-                        `${changeYoY.value >= 0 ? "+" : "-"}${formatMillion(Math.abs(changeYoY.value))} €M (${changeYoY.value >= 0 ? "+" : "-"}${Math.abs(changeYoY.percent).toFixed(1)}%) vs ${labelFromPeriod(lastYearSameQuarterPeriod)}`
-                      )}
-                </Typography>
-
-                {Number.isFinite(revenueSoFar) && (
-                  <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem", mt: 1 }}>
-                    {translate("Takt hittills", "Run-rate so far")}: {formatMillion(revenueSoFar)} €M
-                  </Typography>
-                )}
-              </Box>
-            </Grid>
-          </Grid>
-
-          <Typography sx={{ color: trendTextColor, mt: { xs: 3, md: 4 }, textAlign: "center" }}>
-            {trendText}
-          </Typography>
 
           {/* Graf */}
           <Box
@@ -1342,92 +1116,6 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             </Box>
           </Box>
 
-          {/* Topp 3-spel */}
-          {topGames.length > 0 && (
-              <Box
-              sx={{
-                mt: { xs: 3, md: 4 },
-                background: "rgba(15,23,42,0.55)",
-                borderRadius: "14px",
-                border: "1px solid rgba(148,163,184,0.18)",
-                p: { xs: 2, md: 3 },
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  justifyContent: "space-between",
-                  flexWrap: "wrap",
-                  gap: 1.5,
-                  mb: 2,
-                }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  {translate(
-                    `Topp 3 senaste ${REPORT_LOOKBACK_DAYS} dagarna`,
-                    `Top 3 over the past ${REPORT_LOOKBACK_DAYS} days`
-                  )}
-                </Typography>
-                <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
-                  {translate("Andelar baserat på lobby-snitt", "Shares based on lobby average")}
-                </Typography>
-              </Box>
-
-              <Grid container spacing={isMobile ? 2 : 3}>
-                {topGames.map((game) => (
-                  <Grid item xs={12} md={4} key={game.id}>
-                    <Box
-                      sx={{
-                        borderRadius: "12px",
-                        border: `1px solid ${game.color}33`,
-                        background: "rgba(15,23,42,0.65)",
-                        p: 2,
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 0.75,
-                      }}
-                    >
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: "50%",
-                            backgroundColor: game.color,
-                            boxShadow: `0 0 0 3px ${game.color}22`,
-                          }}
-                        />
-                        <Typography sx={{ fontWeight: 600, color: "#f8fafc" }}>
-                          {game.label}
-                        </Typography>
-                      </Stack>
-                      <Typography sx={{ color: "rgba(226,232,240,0.75)", fontSize: "0.9rem" }}>
-                        {translate(
-                          `${game.avgPlayers.toLocaleString("sv-SE")} snittspelare`,
-                          `${game.avgPlayers.toLocaleString("sv-SE")} avg players`
-                        )}
-                      </Typography>
-                      <Typography sx={{ color: "#93c5fd", fontSize: "0.9rem" }}>
-                        {translate(
-                          `${(game.share * 100).toFixed(1)}% av lobbyvolymen`,
-                          `${(game.share * 100).toFixed(1)}% of lobby volume`
-                        )}
-                      </Typography>
-                      <Typography sx={{ color: "#34d399", fontSize: "0.9rem" }}>
-                        {Number.isFinite(game.estimatedRevenue)
-                          ? translate(
-                              `${formatMillion(game.estimatedRevenue)} €M i takt`,
-                              `${formatMillion(game.estimatedRevenue)} €M run-rate`
-                            )
-                          : translate("Omsättning estimeras", "Revenue being estimated")}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-          )}
       </Box>
     </Box>
   );

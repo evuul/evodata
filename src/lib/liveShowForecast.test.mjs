@@ -1,3 +1,5 @@
+// Verifies forecast period selection, calibration, and uncertainty helpers.
+
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -5,6 +7,7 @@ import {
   applyQuarterSnapshots,
   buildRobustGrowthProjection,
   buildAllowedPlayerPeriods,
+  buildForecastRange,
   buildQuarterlyModelCheckPeriods,
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
@@ -254,4 +257,32 @@ test("calculateMedianCalibrationFactor learns the median actual-to-estimate bias
   assert.equal(calibration.source, "median-actuals");
   assert.equal(calibration.sampleSize, 3);
   assert.equal(Math.round(calibration.factor * 1000) / 1000, 1.1);
+});
+
+test("buildForecastRange keeps the exact point estimate and uses historical model error", () => {
+  const range = buildForecastRange(500, [
+    { estimated: 475, actual: 500 },
+    { estimated: 515, actual: 500 },
+    { estimated: 560, actual: 500 },
+  ]);
+
+  assert.deepEqual(range, {
+    low: 475,
+    high: 525,
+    uncertaintyPercent: 5,
+    sampleSize: 3,
+    source: "historical-error",
+  });
+});
+
+test("buildForecastRange uses a safe fallback and rejects invalid estimates", () => {
+  assert.deepEqual(buildForecastRange(500, []), {
+    low: 475,
+    high: 525,
+    uncertaintyPercent: 5,
+    sampleSize: 0,
+    source: "fallback",
+  });
+  assert.equal(buildForecastRange(null, []), null);
+  assert.equal(buildForecastRange(-1, []), null);
 });

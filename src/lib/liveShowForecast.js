@@ -290,3 +290,47 @@ export function calculateMedianCalibrationFactor(entries, options = {}) {
     sampleSize: ratios.length,
   };
 }
+
+export function buildForecastRange(pointEstimate, modelRows, options = {}) {
+  if (pointEstimate == null) return null;
+  const point = Number(pointEstimate);
+  if (!Number.isFinite(point) || point < 0) return null;
+
+  const fallbackPercent = Number.isFinite(options?.fallbackPercent)
+    ? options.fallbackPercent
+    : 5;
+  const minPercent = Number.isFinite(options?.minPercent)
+    ? options.minPercent
+    : 3;
+  const maxPercent = Number.isFinite(options?.maxPercent)
+    ? options.maxPercent
+    : 12;
+  const errors = (Array.isArray(modelRows) ? modelRows : [])
+    .map((row) => {
+      const actual = Number(row?.actual);
+      const estimated = Number(row?.estimated);
+      if (!Number.isFinite(actual) || actual <= 0 || !Number.isFinite(estimated)) {
+        return null;
+      }
+      return (Math.abs(actual - estimated) / actual) * 100;
+    })
+    .filter(Number.isFinite)
+    .sort((a, b) => a - b);
+
+  const historicalPercent = errors.length
+    ? errors[Math.floor(errors.length / 2)]
+    : fallbackPercent;
+  const uncertaintyPercent = Math.min(
+    maxPercent,
+    Math.max(minPercent, historicalPercent),
+  );
+  const uncertaintyAmount = point * (uncertaintyPercent / 100);
+
+  return {
+    low: Math.round(Math.max(0, point - uncertaintyAmount) * 10) / 10,
+    high: Math.round((point + uncertaintyAmount) * 10) / 10,
+    uncertaintyPercent,
+    sampleSize: errors.length,
+    source: errors.length ? "historical-error" : "fallback",
+  };
+}
