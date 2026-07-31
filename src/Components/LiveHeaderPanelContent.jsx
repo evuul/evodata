@@ -21,6 +21,8 @@ export default function LiveHeaderPanelContent({
 }) {
   if (activePanel === "live") return <panels.LivePlayersControlPanel />;
 
+  if (activePanel === "releases") return <panels.GameReleasesPanel />;
+
   if (activePanel === "financial") {
     if (!financialReports || !dividendData) {
       return (

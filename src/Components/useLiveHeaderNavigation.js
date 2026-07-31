@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 const LIVE_HEADER_OVERVIEW_CARDS = 4;
 const PANEL_VALUE_LIST = [
   "live",
+  "releases",
   "financial",
   "calendar",
   "gameshow",
@@ -29,7 +30,10 @@ export function useLiveHeaderNavigation({ isMobileMenu, translate }) {
       {
         id: "business",
         label: translate("Verksamheten", "Business"),
-        options: [{ value: "live", label: translate("Gameshows", "Gameshows") }],
+        options: [
+          { value: "live", label: translate("Gameshows", "Gameshows") },
+          { value: "releases", label: translate("Spelsläpp", "Game releases") },
+        ],
       },
       {
         id: "financial",
