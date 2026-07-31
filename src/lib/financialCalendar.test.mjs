@@ -3,6 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildCalendarHighlights,
   buildNextCalendarChip,
   filterCalendarEvents,
   prepareFinancialCalendar,
@@ -41,6 +42,33 @@ test("filterCalendarEvents keeps the selected category", () => {
   const result = prepareFinancialCalendar(events, "2026-07-16");
   assert.deepEqual(filterCalendarEvents(result.all, "report").map((event) => event.id), ["next", "later"]);
   assert.equal(filterCalendarEvents(result.all, "all").length, 4);
+});
+
+test("buildCalendarHighlights selects the next report and non-report event", () => {
+  const highlights = buildCalendarHighlights(
+    [
+      { id: "report-later", date: "2026-10-23", category: "report" },
+      { id: "industry-next", date: "2026-08-10", category: "industry" },
+      { id: "report-next", date: "2026-07-17", category: "report" },
+      { id: "governance-past", date: "2026-04-24", category: "governance" },
+    ],
+    "2026-07-16"
+  );
+
+  assert.equal(highlights.nextReport?.id, "report-next");
+  assert.equal(highlights.nextReport?.daysUntil, 1);
+  assert.equal(highlights.nextEvent?.id, "industry-next");
+  assert.equal(highlights.nextEvent?.daysUntil, 25);
+});
+
+test("buildCalendarHighlights returns null for a missing category", () => {
+  const highlights = buildCalendarHighlights(
+    [{ id: "report", date: "2026-10-23", category: "report" }],
+    "2026-07-16"
+  );
+
+  assert.equal(highlights.nextReport?.id, "report");
+  assert.equal(highlights.nextEvent, null);
 });
 
 test("buildNextCalendarChip creates concise desktop and mobile labels", () => {

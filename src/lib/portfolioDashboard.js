@@ -81,7 +81,6 @@ export const buildPortfolioTimeline = ({
   transactions,
   lots,
   historicalDividends,
-  calendarEvents,
   todayYmd,
   historyLimit = 8,
 } = {}) => {
@@ -118,19 +117,12 @@ export const buildPortfolioTimeline = ({
     })
     .filter(Boolean);
 
-  const upcoming = (Array.isArray(calendarEvents) ? calendarEvents : [])
-    .map((event) => ({ ...event, date: normalizeYmd(event?.date) }))
-    .filter((event) => event.date && today && event.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 2);
-
   const history = [...transactionItems, ...dividendItems]
     .filter((item) => !today || item.date <= today)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, Math.max(1, Number(historyLimit) || 8));
 
   return {
-    upcoming,
     history,
     source: normalizedTransactions.length ? "transactions" : sourceTransactions.length ? "lots" : "none",
   };

@@ -38,6 +38,28 @@ export function filterCalendarEvents(events, category = "all") {
   return rows.filter((event) => event.category === category);
 }
 
+export function buildCalendarHighlights(events, todayYmd) {
+  const calendar = prepareFinancialCalendar(events, todayYmd);
+  const toHighlight = (event) => {
+    if (!event) return null;
+    return {
+      ...event,
+      daysUntil: Math.max(0, Math.round(
+        (toUtcDay(event.date) - toUtcDay(calendar.todayYmd)) / 86_400_000
+      )),
+    };
+  };
+
+  return {
+    nextReport: toHighlight(
+      calendar.upcoming.find((event) => event.category === "report") ?? null
+    ),
+    nextEvent: toHighlight(
+      calendar.upcoming.find((event) => event.category !== "report") ?? null
+    ),
+  };
+}
+
 function formatChipDate(ymd, locale) {
   const language = locale === "en" ? "en-GB" : "sv-SE";
   return new Intl.DateTimeFormat(language, { day: "numeric", month: "short" })

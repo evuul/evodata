@@ -48,12 +48,10 @@ test("buildPortfolioTimeline combines eligible dividends and transactions", () =
       { exDate: "2024-04-29", paymentDate: "2024-05-08", dividendPerShare: 30 },
       { exDate: "2025-05-12", paymentDate: "2025-05-20", dividendPerShare: 32 },
     ],
-    calendarEvents: [{ id: "q3", date: "2026-10-23", titleSv: "Q3" }],
     todayYmd: "2026-07-16",
   });
 
   assert.equal(result.source, "transactions");
-  assert.equal(result.upcoming[0].id, "q3");
   assert.equal(result.history.find((item) => item.exDate === "2025-05-12").cash, 3_200);
 });
 

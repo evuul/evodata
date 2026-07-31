@@ -1,10 +1,9 @@
 "use client";
 
-// Combines portfolio transactions, eligible dividends and upcoming company events.
+// Presents portfolio transactions and eligible dividend history.
 
 import { useMemo } from "react";
 import { Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
-import CalendarMonthRounded from "@mui/icons-material/CalendarMonthRounded";
 import ReceiptLongRounded from "@mui/icons-material/ReceiptLongRounded";
 import { buildPortfolioTimeline } from "@/lib/portfolioDashboard";
 import { cardBase, text } from "./styles";
@@ -20,7 +19,6 @@ export default function PortfolioTimelineCard({
   locale,
   profile,
   historicalDividends,
-  calendarEvents,
   todayYmd,
   onManage,
   onManageTransactions,
@@ -30,10 +28,9 @@ export default function PortfolioTimelineCard({
       transactions: profile?.transactions,
       lots: profile?.lots,
       historicalDividends,
-      calendarEvents,
       todayYmd,
     }),
-    [calendarEvents, historicalDividends, profile?.lots, profile?.transactions, todayYmd]
+    [historicalDividends, profile?.lots, profile?.transactions, todayYmd]
   );
 
   const historyLabel = (item) => {
@@ -51,7 +48,7 @@ export default function PortfolioTimelineCard({
             <Typography sx={{ color: text.heading, fontWeight: 850 }}>{translate("Din ägartidslinje", "Your ownership timeline")}</Typography>
           </Stack>
           <Typography sx={{ color: text.muted, fontSize: "0.82rem", mt: 0.5 }}>
-            {translate("Köp, försäljningar, utdelningar och nästa bolagshändelse.", "Purchases, sales, dividends and the next company event.")}
+            {translate("Köp, försäljningar och utdelningar i kronologisk ordning.", "Purchases, sales and dividends in chronological order.")}
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
@@ -72,25 +69,6 @@ export default function PortfolioTimelineCard({
           </Button>
         </Stack>
       </Stack>
-
-      {timeline.upcoming.length ? (
-        <Box sx={{ mt: 2.3 }}>
-          <Typography sx={{ color: text.muted, fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8 }}>
-            {translate("Nästa händelser", "Next events")}
-          </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" }, gap: 1.2, mt: 1 }}>
-            {timeline.upcoming.map((event) => (
-              <Stack key={event.id} direction="row" spacing={1.2} sx={{ p: 1.4, borderRadius: "12px", background: "rgba(124,58,237,0.09)", border: "1px solid rgba(167,139,250,0.22)" }}>
-                <CalendarMonthRounded sx={{ color: "#c4b5fd", fontSize: 20, mt: 0.1 }} />
-                <Box>
-                  <Typography sx={{ color: text.heading, fontWeight: 800, fontSize: "0.9rem" }}>{locale === "en" ? event.titleEn : event.titleSv}</Typography>
-                  <Typography sx={{ color: text.muted, fontSize: "0.78rem" }}>{formatDate(event.date, locale)}</Typography>
-                </Box>
-              </Stack>
-            ))}
-          </Box>
-        </Box>
-      ) : null}
 
       <Box sx={{ mt: 2.3 }}>
         <Typography sx={{ color: text.muted, fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8 }}>

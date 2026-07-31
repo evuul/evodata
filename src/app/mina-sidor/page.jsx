@@ -17,6 +17,7 @@ import ReturnBreakdownCard from "@/Components/MinaSidor/ReturnBreakdownCard";
 import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import MinaSidorSectionNav from "@/Components/MinaSidor/MinaSidorSectionNav";
+import UpcomingCalendarHighlights from "@/Components/MinaSidor/UpcomingCalendarHighlights";
 import DeferredSection from "@/Components/DeferredSection";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 
@@ -525,6 +526,15 @@ function MinaSidorContent() {
           </Box>
 
           <Box sx={contentWrapSx}>
+            <UpcomingCalendarHighlights
+              events={financialCalendarEvents}
+              todayYmd={dashboardTodayYmd}
+              locale={locale}
+              translate={translate}
+            />
+          </Box>
+
+          <Box sx={contentWrapSx}>
             <MinaSidorSectionNav
               activeView={activeView}
               isAdmin={effectiveIsAdmin}
@@ -574,7 +584,6 @@ function MinaSidorContent() {
                     historicalDividends={
                       Array.isArray(dividendData?.historicalDividends) ? dividendData.historicalDividends : []
                     }
-                    calendarEvents={financialCalendarEvents}
                     todayYmd={dashboardTodayYmd}
                     onManage={handleOpenManage}
                     onManageTransactions={() => setTransactionsOpen(true)}
