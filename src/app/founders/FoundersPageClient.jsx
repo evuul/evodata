@@ -1,6 +1,6 @@
 "use client";
 
-// Renders the public recognition wall and explains how Founders status works.
+// Renders the public Founders wall as a compact EvoTracker dashboard view.
 
 import NextLink from "next/link";
 import {
@@ -14,8 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
-import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
-import FavoriteBorderRounded from "@mui/icons-material/FavoriteBorderRounded";
 import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
 import OpenInNewRounded from "@mui/icons-material/OpenInNewRounded";
 import QueryStatsRounded from "@mui/icons-material/QueryStatsRounded";
@@ -25,16 +23,17 @@ import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext
 import { buildSupportUrl } from "@/lib/supportLinks";
 
 const SUPPORT_URL = buildSupportUrl("founders_page");
-const PAGE_MAX_WIDTH = 1120;
+const PAGE_MAX_WIDTH = 1180;
 
-const cardSx = {
-  border: "1px solid rgba(148,163,184,0.17)",
-  backgroundColor: "rgba(15,23,42,0.72)",
-  boxShadow: "0 20px 45px rgba(2,8,23,0.22)",
+const panelSx = {
+  border: "1px solid rgba(100,116,139,0.28)",
+  backgroundColor: "rgba(15,23,42,0.78)",
+  boxShadow: "0 18px 48px rgba(2,8,23,0.18)",
 };
 
 function LocalePicker() {
   const { locale, setLocale } = useLocale();
+
   return (
     <ToggleButtonGroup
       exclusive
@@ -56,7 +55,10 @@ function LocalePicker() {
           fontSize: 12,
           fontWeight: 750,
         },
-        "& .Mui-selected": { color: "#0f172a!important", backgroundColor: "#f8fafc!important" },
+        "& .Mui-selected": {
+          color: "#0f172a!important",
+          backgroundColor: "#f8fafc!important",
+        },
       }}
     >
       {LOCALE_OPTIONS.map((option) => (
@@ -79,63 +81,59 @@ function FounderCard({ founder, locale, translate }) {
   return (
     <Box
       sx={{
-        border: "1px solid rgba(245,158,11,0.18)",
-        borderRadius: "20px",
-        backgroundColor: "rgba(15,23,42,0.42)",
-        p: { xs: 3, sm: 3.5 },
-        minHeight: 228,
-        textAlign: "center",
+        border: "1px solid rgba(168,85,247,0.28)",
+        borderRadius: "16px",
+        backgroundColor: "rgba(17,24,39,0.68)",
+        p: 2.25,
       }}
     >
-      <Stack spacing={1.4} alignItems="center">
+      <Stack direction="row" spacing={1.6} alignItems="center">
         <Box
           aria-hidden="true"
           sx={{
-            width: 58,
-            height: 58,
-            borderRadius: "50%",
+            width: 48,
+            height: 48,
+            flexShrink: 0,
+            borderRadius: "14px",
             display: "grid",
             placeItems: "center",
             color: "#fde68a",
             backgroundColor: "rgba(245,158,11,0.08)",
-            border: "1px solid rgba(245,158,11,0.22)",
+            border: "1px solid rgba(245,158,11,0.25)",
             fontWeight: 850,
-            fontSize: 20,
+            fontSize: 18,
           }}
         >
           {initial}
         </Box>
-        <Box sx={{ minWidth: 0, width: "100%" }}>
-          <Stack direction="row" spacing={0.7} alignItems="center" justifyContent="center">
-            <Typography sx={{ color: "#f8fafc", fontWeight: 780, fontSize: 18 }} noWrap>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Stack direction="row" spacing={0.7} alignItems="center">
+            <Typography sx={{ color: "#f8fafc", fontWeight: 790, fontSize: 17 }} noWrap>
               {founder.displayName}
             </Typography>
             <VerifiedRounded sx={{ color: "#fbbf24", fontSize: 18 }} />
           </Stack>
-          <Typography sx={{ color: "rgba(226,232,240,0.5)", fontSize: 12.5, mt: 0.35 }}>
+          <Typography sx={{ color: "#c4b5fd", fontSize: 12.5, mt: 0.15 }}>
             {translate("Founding supporter", "Founding supporter")}
           </Typography>
         </Box>
-      </Stack>
-      <Divider sx={{ borderColor: "rgba(148,163,184,0.11)", my: 2.1 }} />
-      <Stack spacing={0.7} alignItems="center">
-        <Typography sx={{ color: "rgba(226,232,240,0.62)", fontSize: 12.5 }}>
-          {translate(`Founder sedan ${recognizedAt}`, `Recognized since ${recognizedAt}`)}
-        </Typography>
         {founder.profileUrl ? (
           <Button
             component="a"
             href={founder.profileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            endIcon={<OpenInNewRounded sx={{ fontSize: "14px!important" }} />}
-            size="small"
-            sx={{ color: "#bae6fd", textTransform: "none", fontSize: 12, minHeight: 28 }}
+            aria-label={translate(`Öppna profil för ${founder.displayName}`, `Open profile for ${founder.displayName}`)}
+            sx={{ minWidth: 36, width: 36, height: 36, p: 0, color: "#7dd3fc" }}
           >
-            {translate("Profil", "Profile")}
+            <OpenInNewRounded sx={{ fontSize: 18 }} />
           </Button>
         ) : null}
       </Stack>
+      <Divider sx={{ borderColor: "rgba(148,163,184,0.12)", my: 1.6 }} />
+      <Typography sx={{ color: "rgba(203,213,225,0.62)", fontSize: 12.5 }}>
+        {translate(`Founder sedan ${recognizedAt}`, `Recognized since ${recognizedAt}`)}
+      </Typography>
     </Box>
   );
 }
@@ -154,24 +152,24 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
       number: "01",
       title: translate("Stötta projektet", "Support the project"),
       text: translate(
-        `När dina donationer når totalt ${amount} kvalificerar du dig för Founders-väggen.`,
-        `Once your total support reaches ${amount}, you qualify for the Founders wall.`
+        `När dina donationer når totalt ${amount} kvalificerar du dig.`,
+        `Once your total support reaches ${amount}, you qualify.`
       ),
     },
     {
       number: "02",
       title: translate("Välj hur du syns", "Choose how you appear"),
       text: translate(
-        "Du väljer själv visningsnamn och om en offentlig profil ska länkas. Exakta belopp visas aldrig.",
-        "You choose your display name and whether to link a public profile. Exact amounts are never shown."
+        "Du väljer visningsnamn och eventuell profillänk. Belopp visas aldrig.",
+        "You choose your display name and optional profile link. Amounts are never shown."
       ),
     },
     {
       number: "03",
       title: translate("Permanent erkännande", "Permanent recognition"),
       text: translate(
-        "Founders-statusen ligger kvar som ett tack till dem som hjälpte EvoTracker tidigt.",
-        "Founder status remains as a thank-you to those who helped EvoTracker early."
+        "Statusen ligger kvar som tack för att du stöttade EvoTracker tidigt.",
+        "Your status remains as thanks for supporting EvoTracker early."
       ),
     },
   ];
@@ -182,7 +180,7 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
         minHeight: "100vh",
         color: "#e2e8f0",
         background:
-          "radial-gradient(circle at 50% -10%, rgba(245,158,11,0.08), transparent 34%), #0b1220",
+          "radial-gradient(circle at 15% 0%, rgba(14,165,233,0.07), transparent 30%), radial-gradient(circle at 85% 10%, rgba(168,85,247,0.06), transparent 28%), #0b1220",
       }}
     >
       <Box
@@ -192,7 +190,7 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
           maxWidth: PAGE_MAX_WIDTH,
           mx: "auto",
           px: { xs: 2, sm: 3 },
-          py: 2.5,
+          py: 2,
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -206,8 +204,8 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
               borderRadius: "10px",
               display: "grid",
               placeItems: "center",
-              color: "#82c1ff",
-              border: "1px solid rgba(130,193,255,0.34)",
+              color: "#38bdf8",
+              border: "1px solid rgba(56,189,248,0.3)",
               backgroundColor: "rgba(15,23,42,0.8)",
             }}
           >
@@ -230,37 +228,62 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
         </Stack>
       </Box>
 
-      <Box component="main">
-        <Box
-          component="section"
-          sx={{ maxWidth: 850, mx: "auto", px: { xs: 2, sm: 3 }, pt: { xs: 6, md: 9 }, pb: { xs: 6, md: 8 }, textAlign: "center" }}
-        >
-          <Chip
-            icon={<WorkspacePremiumRounded />}
-            label="EVOTRACKER FOUNDERS"
+      <Box component="main" sx={{ maxWidth: PAGE_MAX_WIDTH, mx: "auto", px: { xs: 2, sm: 3 }, pb: 3 }}>
+        <Box sx={{ ...panelSx, borderRadius: { xs: "18px", md: "22px" }, overflow: "hidden" }}>
+          <Box
+            component="section"
             sx={{
-              color: "#fde68a",
-              backgroundColor: "rgba(245,158,11,0.08)",
-              border: "1px solid rgba(245,158,11,0.24)",
-              fontWeight: 820,
-              letterSpacing: "0.08em",
-              fontSize: 11,
-              "& .MuiChip-icon": { color: "#fbbf24" },
+              px: { xs: 2.5, sm: 4 },
+              py: { xs: 3, md: 3.5 },
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) auto" },
+              gap: { xs: 2.5, md: 4 },
+              alignItems: "center",
+              borderBottom: "1px solid rgba(100,116,139,0.24)",
+              background: "linear-gradient(100deg, rgba(14,165,233,0.055), rgba(168,85,247,0.04))",
             }}
-          />
-          <Typography
-            component="h1"
-            sx={{ mt: 2.5, color: "#f8fafc", fontSize: { xs: 40, sm: 56, md: 64 }, lineHeight: 1.04, letterSpacing: "-0.045em", fontWeight: 820 }}
           >
-            {translate("Byggt med stöd från dem som trodde tidigt.", "Built with those who believed early.")}
-          </Typography>
-          <Typography sx={{ mt: 2.5, mx: "auto", maxWidth: 690, color: "rgba(226,232,240,0.66)", fontSize: { xs: 16, sm: 18 }, lineHeight: 1.75 }}>
-            {translate(
-              "EvoTracker är ett oberoende projekt. Founders är personerna som hjälper till att hålla livedata, databas och utveckling igång — och som gör att sidan kan fortsätta vara öppen för alla.",
-              "EvoTracker is an independent project. Founders help keep live data, databases, and development running — making it possible to keep the site open to everyone."
-            )}
-          </Typography>
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.4} justifyContent="center" sx={{ mt: 3.5 }}>
+            <Box>
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <Chip
+                  icon={<WorkspacePremiumRounded />}
+                  label="EVOTRACKER FOUNDERS"
+                  size="small"
+                  sx={{
+                    height: 27,
+                    color: "#fde68a",
+                    backgroundColor: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.24)",
+                    fontWeight: 820,
+                    letterSpacing: "0.07em",
+                    fontSize: 10.5,
+                    "& .MuiChip-icon": { color: "#fbbf24" },
+                  }}
+                />
+                <Chip
+                  label={translate(`Gräns ${amount}`, `Threshold ${amount}`)}
+                  size="small"
+                  sx={{ color: "#bae6fd", backgroundColor: "rgba(14,165,233,0.08)", fontSize: 11.5 }}
+                />
+                <Chip
+                  label={translate("Permanent", "Permanent")}
+                  size="small"
+                  sx={{ color: "#ddd6fe", backgroundColor: "rgba(168,85,247,0.08)", fontSize: 11.5 }}
+                />
+              </Stack>
+              <Typography
+                component="h1"
+                sx={{ mt: 1.8, color: "#f8fafc", fontSize: { xs: 32, sm: 39, md: 43 }, lineHeight: 1.08, letterSpacing: "-0.035em", fontWeight: 820 }}
+              >
+                {translate("Tack till dem som trodde tidigt.", "Thank you to those who believed early.")}
+              </Typography>
+              <Typography sx={{ mt: 1.2, maxWidth: 690, color: "rgba(203,213,225,0.68)", fontSize: { xs: 14, sm: 15 }, lineHeight: 1.65 }}>
+                {translate(
+                  "Founders hjälper EvoTracker att hålla livedata, databaser och utveckling igång — samtidigt som kärninnehållet förblir öppet för alla.",
+                  "Founders help EvoTracker keep live data, databases, and development running—while core content remains open to everyone."
+                )}
+              </Typography>
+            </Box>
             <Button
               component="a"
               href={SUPPORT_URL}
@@ -268,159 +291,101 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
               rel="noopener noreferrer"
               variant="contained"
               startIcon={<LocalCafeRounded />}
-              endIcon={<ArrowForwardRounded />}
               sx={{
-                minHeight: 48,
-                px: 2.8,
-                color: "#111827",
-                backgroundColor: "#fbbf24",
+                minHeight: 44,
+                px: 2.4,
+                justifySelf: { md: "end" },
+                width: { xs: "100%", sm: "auto" },
+                color: "#082f49",
+                backgroundColor: "#7dd3fc",
                 boxShadow: "none",
                 textTransform: "none",
                 fontWeight: 820,
-                borderRadius: "12px",
-                "&:hover": { backgroundColor: "#fcd34d", boxShadow: "none" },
+                borderRadius: "11px",
+                "&:hover": { backgroundColor: "#bae6fd", boxShadow: "none" },
               }}
             >
               {translate("Bli en Founder", "Become a Founder")}
             </Button>
-            <Button
-              component={NextLink}
-              href="#founders"
-              variant="outlined"
-              sx={{ minHeight: 48, px: 2.8, color: "#e2e8f0", borderColor: "rgba(148,163,184,0.28)", textTransform: "none", fontWeight: 740, borderRadius: "12px" }}
-            >
-              {translate("Se Founders-väggen", "View the Founders wall")}
-            </Button>
-          </Stack>
-        </Box>
+          </Box>
 
-        <Box sx={{ maxWidth: PAGE_MAX_WIDTH, mx: "auto", px: { xs: 2, sm: 3 } }}>
           <Box
             sx={{
-              ...cardSx,
-              borderRadius: "20px",
+              p: { xs: 2.5, sm: 3.5 },
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
-              mb: { xs: 7, md: 10 },
+              gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.08fr) minmax(340px, 0.92fr)" },
+              gap: 2.5,
+              alignItems: "start",
             }}
           >
-            {[
-              [translate("Grundad på", "Built on"), translate("Oberoende", "Independence")],
-              [translate("Founder-gräns", "Founder threshold"), amount],
-              [translate("Erkännande", "Recognition"), translate("Permanent", "Permanent")],
-            ].map(([label, value], index) => (
-              <Box key={label} sx={{ px: 3, py: 2.8, textAlign: "center", borderLeft: { xs: 0, sm: index ? "1px solid rgba(148,163,184,0.14)" : 0 }, borderTop: { xs: index ? "1px solid rgba(148,163,184,0.14)" : 0, sm: 0 } }}>
-                <Typography sx={{ color: "rgba(226,232,240,0.5)", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>{label}</Typography>
-                <Typography sx={{ color: "#f8fafc", fontSize: 20, fontWeight: 790, mt: 0.65 }}>{value}</Typography>
-              </Box>
-            ))}
-          </Box>
+            <Box id="founders" component="section" sx={{ scrollMarginTop: 24 }}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={2} sx={{ mb: 1.6 }}>
+                <Box>
+                  <Typography sx={{ color: "#a78bfa", fontSize: 10.5, fontWeight: 840, letterSpacing: "0.12em" }}>
+                    {translate("FOUNDERS-VÄGGEN", "THE FOUNDERS WALL")}
+                  </Typography>
+                  <Typography component="h2" sx={{ color: "#f8fafc", fontSize: { xs: 21, sm: 24 }, fontWeight: 790, letterSpacing: "-0.02em", mt: 0.35 }}>
+                    {translate("De som gör EvoTracker möjligt", "Those making EvoTracker possible")}
+                  </Typography>
+                </Box>
+                <Chip
+                  label={founders.length === 1 ? "1 Founder" : `${founders.length} Founders`}
+                  size="small"
+                  sx={{ flexShrink: 0, color: "#cbd5e1", backgroundColor: "rgba(148,163,184,0.08)", border: "1px solid rgba(148,163,184,0.14)", fontSize: 11.5 }}
+                />
+              </Stack>
 
-          <Box id="founders" component="section" sx={{ scrollMarginTop: 24, pb: { xs: 8, md: 11 } }}>
-            <Stack spacing={1.5} alignItems="center" textAlign="center" sx={{ mb: 3.5 }}>
-              <Box sx={{ maxWidth: 760 }}>
-                <Typography sx={{ color: "#fbbf24", fontSize: 11, fontWeight: 840, letterSpacing: "0.12em" }}>
-                  {translate("FOUNDERS-VÄGGEN", "THE FOUNDERS WALL")}
-                </Typography>
-                <Typography component="h2" sx={{ color: "#f8fafc", fontSize: { xs: 29, md: 38 }, fontWeight: 800, letterSpacing: "-0.03em", mt: 0.8 }}>
-                  {translate("Tack för att ni gör EvoTracker möjligt.", "Thank you for making EvoTracker possible.")}
-                </Typography>
-              </Box>
-              <Chip
-                label={
-                  founders.length === 1
-                    ? translate("1 Founder", "1 Founder")
-                    : translate(`${founders.length} Founders`, `${founders.length} Founders`)
-                }
-                sx={{
-                  height: 26,
-                  color: "rgba(226,232,240,0.68)",
-                  backgroundColor: "rgba(148,163,184,0.06)",
-                  border: "1px solid rgba(148,163,184,0.14)",
-                  "& .MuiChip-label": { px: 1.2, fontSize: 12, fontWeight: 700 },
-                }}
-              />
-            </Stack>
+              {founders.length ? (
+                <Stack spacing={1.25}>
+                  {founders.map((founder) => (
+                    <FounderCard key={founder.id} founder={founder} locale={locale} translate={translate} />
+                  ))}
+                </Stack>
+              ) : (
+                <Box sx={{ border: "1px dashed rgba(148,163,184,0.24)", borderRadius: "16px", py: 4, px: 2, textAlign: "center" }}>
+                  <WorkspacePremiumRounded sx={{ color: "#a78bfa" }} />
+                  <Typography sx={{ color: "#f8fafc", fontWeight: 760, mt: 1 }}>
+                    {translate("Den första platsen väntar.", "The first place is waiting.")}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
 
-            {founders.length ? (
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: founders.length === 1 ? "minmax(0, 520px)" : { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
-                  justifyContent: "center",
-                  maxWidth: founders.length === 1 ? 520 : 900,
-                  mx: "auto",
-                  gap: 2,
-                }}
-              >
-                {founders.map((founder) => (
-                  <FounderCard key={founder.id} founder={founder} locale={locale} translate={translate} />
+            <Box component="section" sx={{ border: "1px solid rgba(100,116,139,0.24)", borderRadius: "16px", backgroundColor: "rgba(2,6,23,0.18)", p: 2.25 }}>
+              <Typography sx={{ color: "#38bdf8", fontSize: 10.5, fontWeight: 840, letterSpacing: "0.12em" }}>
+                {translate("SÅ FUNGERAR DET", "HOW IT WORKS")}
+              </Typography>
+              <Stack divider={<Divider flexItem sx={{ borderColor: "rgba(148,163,184,0.12)" }} />} sx={{ mt: 0.7 }}>
+                {steps.map((step) => (
+                  <Stack key={step.number} direction="row" spacing={1.5} sx={{ py: 1.35 }}>
+                    <Typography sx={{ color: "#a78bfa", fontSize: 11, fontWeight: 850, pt: 0.25 }}>{step.number}</Typography>
+                    <Box>
+                      <Typography sx={{ color: "#f8fafc", fontWeight: 760, fontSize: 14 }}>{step.title}</Typography>
+                      <Typography sx={{ color: "rgba(203,213,225,0.59)", fontSize: 12.5, lineHeight: 1.55, mt: 0.35 }}>{step.text}</Typography>
+                    </Box>
+                  </Stack>
                 ))}
-              </Box>
-            ) : (
-              <Box sx={{ ...cardSx, borderRadius: "20px", py: { xs: 5, md: 7 }, px: 3, textAlign: "center" }}>
-                <Box sx={{ width: 54, height: 54, mx: "auto", display: "grid", placeItems: "center", borderRadius: "16px", color: "#fbbf24", backgroundColor: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-                  <WorkspacePremiumRounded />
-                </Box>
-                <Typography sx={{ color: "#f8fafc", fontSize: 21, fontWeight: 780, mt: 2 }}>
-                  {translate("Den första platsen väntar.", "The first place is waiting.")}
-                </Typography>
-                <Typography sx={{ color: "rgba(226,232,240,0.58)", lineHeight: 1.7, maxWidth: 520, mx: "auto", mt: 1 }}>
-                  {translate(
-                    "Founders läggs till personligen efter verifierat stöd och godkännande att synas offentligt.",
-                    "Founders are added personally after support is verified and permission for public recognition is confirmed."
-                  )}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-
-          <Box component="section" sx={{ pb: { xs: 8, md: 11 } }}>
-            <Typography component="h2" sx={{ color: "#f8fafc", fontSize: { xs: 28, md: 36 }, fontWeight: 790, letterSpacing: "-0.03em", textAlign: "center" }}>
-              {translate("Så fungerar det", "How it works")}
-            </Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2, mt: 3 }}>
-              {steps.map((step) => (
-                <Box key={step.number} sx={{ ...cardSx, borderRadius: "18px", p: 2.6 }}>
-                  <Typography sx={{ color: "#fbbf24", fontSize: 12, fontWeight: 850, letterSpacing: "0.08em" }}>{step.number}</Typography>
-                  <Typography sx={{ color: "#f8fafc", fontWeight: 780, fontSize: 18, mt: 1.4 }}>{step.title}</Typography>
-                  <Typography sx={{ color: "rgba(226,232,240,0.6)", fontSize: 14, lineHeight: 1.7, mt: 1 }}>{step.text}</Typography>
-                </Box>
-              ))}
+              </Stack>
             </Box>
           </Box>
 
-          <Box component="section" sx={{ ...cardSx, borderRadius: "22px", p: { xs: 3, sm: 4.5 }, mb: 6 }}>
-            <Stack direction={{ xs: "column", md: "row" }} spacing={3} justifyContent="space-between" alignItems={{ xs: "flex-start", md: "center" }}>
-              <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ maxWidth: 700 }}>
-                <Box sx={{ color: "#fbbf24", mt: 0.3 }}><FavoriteBorderRounded /></Box>
-                <Box>
-                  <Typography sx={{ color: "#f8fafc", fontSize: 21, fontWeight: 790 }}>
-                    {translate("Stöd ska kännas som ett tack — inte ett krav.", "Support should feel like thanks — never a requirement.")}
-                  </Typography>
-                  <Typography sx={{ color: "rgba(226,232,240,0.6)", lineHeight: 1.75, mt: 0.8 }}>
-                    {translate(
-                      "EvoTrackers kärninnehåll fortsätter vara tillgängligt oavsett om du donerar. Founders-väggen är ett frivilligt erkännande, inte investeringsrådgivning, ägande eller en betald rekommendation.",
-                      "EvoTracker’s core content remains available whether you donate or not. The Founders wall is voluntary recognition—not investment advice, ownership, or a paid endorsement."
-                    )}
-                  </Typography>
-                </Box>
-              </Stack>
-              <Button component="a" href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" startIcon={<LocalCafeRounded />} sx={{ flexShrink: 0, color: "#111827", backgroundColor: "#fbbf24", textTransform: "none", fontWeight: 820, borderRadius: "12px", px: 2.6, py: 1.2, "&:hover": { backgroundColor: "#fcd34d" } }}>
-                {translate("Stötta EvoTracker", "Support EvoTracker")}
-              </Button>
-            </Stack>
+          <Box sx={{ px: { xs: 2.5, sm: 3.5 }, py: 1.7, borderTop: "1px solid rgba(100,116,139,0.2)", backgroundColor: "rgba(2,6,23,0.2)" }}>
+            <Typography sx={{ color: "rgba(148,163,184,0.66)", fontSize: 11.5, lineHeight: 1.55, textAlign: "center" }}>
+              {translate(
+                "Stöd är helt frivilligt. Founders-väggen innebär inte ägande, investeringsrådgivning eller en betald rekommendation.",
+                "Support is entirely voluntary. The Founders wall does not imply ownership, investment advice, or a paid endorsement."
+              )}
+            </Typography>
           </Box>
         </Box>
       </Box>
 
-      <Box component="footer" sx={{ borderTop: "1px solid rgba(148,163,184,0.12)" }}>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="center" spacing={1.5} sx={{ maxWidth: PAGE_MAX_WIDTH, mx: "auto", px: { xs: 2, sm: 3 }, py: 3.5 }}>
-          <Typography sx={{ color: "rgba(148,163,184,0.55)", fontSize: 12 }}>© {new Date().getFullYear()} EvoTracker</Typography>
-          <Stack direction="row" spacing={2}>
-            <Button component={NextLink} href="/" size="small" sx={{ color: "rgba(203,213,225,0.65)", textTransform: "none" }}>{translate("Startsidan", "Home")}</Button>
-            <Button component={NextLink} href="/disclaimer" size="small" sx={{ color: "rgba(203,213,225,0.65)", textTransform: "none" }}>Disclaimer</Button>
-          </Stack>
+      <Box component="footer">
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ maxWidth: PAGE_MAX_WIDTH, mx: "auto", px: { xs: 2, sm: 3 }, py: 2 }}>
+          <Typography sx={{ color: "rgba(148,163,184,0.48)", fontSize: 11.5 }}>© {new Date().getFullYear()} EvoTracker</Typography>
+          <Button component={NextLink} href="/disclaimer" size="small" sx={{ color: "rgba(203,213,225,0.58)", textTransform: "none", fontSize: 11.5 }}>
+            Disclaimer
+          </Button>
         </Stack>
       </Box>
     </Box>
