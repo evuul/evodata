@@ -81,42 +81,51 @@ function FounderCard({ founder, locale, translate }) {
   return (
     <Box
       sx={{
-        border: "1px solid rgba(168,85,247,0.28)",
-        borderRadius: "16px",
-        backgroundColor: "rgba(17,24,39,0.68)",
-        p: 2.25,
+        px: { xs: 0.25, sm: 0.5 },
+        py: 1.35,
+        borderBottom: "1px solid rgba(148,163,184,0.14)",
       }}
     >
       <Stack direction="row" spacing={1.6} alignItems="center">
         <Box
           aria-hidden="true"
           sx={{
-            width: 48,
-            height: 48,
+            width: 38,
+            height: 38,
             flexShrink: 0,
-            borderRadius: "14px",
+            borderRadius: "11px",
             display: "grid",
             placeItems: "center",
             color: "#fde68a",
             backgroundColor: "rgba(245,158,11,0.08)",
             border: "1px solid rgba(245,158,11,0.25)",
             fontWeight: 850,
-            fontSize: 18,
+            fontSize: 15,
           }}
         >
           {initial}
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
           <Stack direction="row" spacing={0.7} alignItems="center">
-            <Typography sx={{ color: "#f8fafc", fontWeight: 790, fontSize: 17 }} noWrap>
+            <Typography sx={{ color: "#f8fafc", fontWeight: 770, fontSize: 15.5 }} noWrap>
               {founder.displayName}
             </Typography>
             <VerifiedRounded sx={{ color: "#fbbf24", fontSize: 18 }} />
           </Stack>
-          <Typography sx={{ color: "#c4b5fd", fontSize: 12.5, mt: 0.15 }}>
+          <Typography sx={{ color: "rgba(196,181,253,0.82)", fontSize: 11.5, mt: 0.1 }}>
             {translate("Founding supporter", "Founding supporter")}
           </Typography>
         </Box>
+        <Typography
+          sx={{
+            display: { xs: "none", sm: "block" },
+            color: "rgba(148,163,184,0.64)",
+            fontSize: 11.5,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {translate(`Sedan ${recognizedAt}`, `Since ${recognizedAt}`)}
+        </Typography>
         {founder.profileUrl ? (
           <Button
             component="a"
@@ -130,9 +139,8 @@ function FounderCard({ founder, locale, translate }) {
           </Button>
         ) : null}
       </Stack>
-      <Divider sx={{ borderColor: "rgba(148,163,184,0.12)", my: 1.6 }} />
-      <Typography sx={{ color: "rgba(203,213,225,0.62)", fontSize: 12.5 }}>
-        {translate(`Founder sedan ${recognizedAt}`, `Recognized since ${recognizedAt}`)}
+      <Typography sx={{ display: { xs: "block", sm: "none" }, color: "rgba(148,163,184,0.64)", fontSize: 11.5, ml: 6.7, mt: 0.4 }}>
+        {translate(`Sedan ${recognizedAt}`, `Since ${recognizedAt}`)}
       </Typography>
     </Box>
   );
@@ -314,7 +322,7 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
               p: { xs: 2.5, sm: 3.5 },
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1.08fr) minmax(340px, 0.92fr)" },
-              gap: 2.5,
+              gap: { xs: 3, md: 4 },
               alignItems: "start",
             }}
           >
@@ -328,15 +336,13 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
                     {translate("De som gör EvoTracker möjligt", "Those making EvoTracker possible")}
                   </Typography>
                 </Box>
-                <Chip
-                  label={founders.length === 1 ? "1 Founder" : `${founders.length} Founders`}
-                  size="small"
-                  sx={{ flexShrink: 0, color: "#cbd5e1", backgroundColor: "rgba(148,163,184,0.08)", border: "1px solid rgba(148,163,184,0.14)", fontSize: 11.5 }}
-                />
+                <Typography sx={{ flexShrink: 0, color: "rgba(148,163,184,0.68)", fontSize: 11.5, fontWeight: 700 }}>
+                  {founders.length === 1 ? "1 Founder" : `${founders.length} Founders`}
+                </Typography>
               </Stack>
 
               {founders.length ? (
-                <Stack spacing={1.25}>
+                <Stack>
                   {founders.map((founder) => (
                     <FounderCard key={founder.id} founder={founder} locale={locale} translate={translate} />
                   ))}
@@ -351,7 +357,15 @@ export default function FoundersPageClient({ founders, minimumDonationSek }) {
               )}
             </Box>
 
-            <Box component="section" sx={{ border: "1px solid rgba(100,116,139,0.24)", borderRadius: "16px", backgroundColor: "rgba(2,6,23,0.18)", p: 2.25 }}>
+            <Box
+              component="section"
+              sx={{
+                pl: { xs: 0, md: 3.5 },
+                pt: { xs: 2.5, md: 0 },
+                borderLeft: { xs: 0, md: "1px solid rgba(148,163,184,0.14)" },
+                borderTop: { xs: "1px solid rgba(148,163,184,0.14)", md: 0 },
+              }}
+            >
               <Typography sx={{ color: "#38bdf8", fontSize: 10.5, fontWeight: 840, letterSpacing: "0.12em" }}>
                 {translate("SÅ FUNGERAR DET", "HOW IT WORKS")}
               </Typography>
