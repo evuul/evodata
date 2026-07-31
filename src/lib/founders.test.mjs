@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildPublishedFounders } from "./founders.js";
+import { FOUNDERS } from "../app/data/founders.js";
 
 test("publishes only qualified supporters who approved public recognition", () => {
   const result = buildPublishedFounders([
@@ -87,4 +88,12 @@ test("sorts founders by recognition date and then display name", () => {
     buildPublishedFounders(records).map((founder) => founder.id),
     ["a", "b", "c"]
   );
+});
+
+test("configured founders expose display names without publishing email addresses", () => {
+  const published = buildPublishedFounders(FOUNDERS);
+
+  assert.equal(published.length, 1);
+  assert.equal(published[0].displayName, "Robin Jonsson");
+  assert.equal(published[0].displayName.includes("@"), false);
 });

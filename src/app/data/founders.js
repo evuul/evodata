@@ -6,4 +6,13 @@ export const FOUNDER_PROGRAM = Object.freeze({
 });
 
 // Add a record only after the supporter has qualified and approved publication.
-export const FOUNDERS = Object.freeze([]);
+export const FOUNDERS = Object.freeze([
+  {
+    id: "robin-jonsson",
+    displayName: "Robin Jonsson",
+    recognizedAt: "2026-07-31",
+    profileUrl: null,
+    qualified: true,
+    consentToPublish: true,
+  },
+]);
