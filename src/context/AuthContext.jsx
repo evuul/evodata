@@ -36,14 +36,18 @@ const createAuthError = (message, { status, code } = {}) => {
   return error;
 };
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children, restoreSession = true }) {
   const [authState, setAuthState] = useState(() => ({ ...GUEST_AUTH_STATE }));
 
   useEffect(() => {
     if (AUTH_DISABLED) return;
     if (typeof window === "undefined") return;
+    if (!restoreSession) {
+      setAuthState((current) => ({ ...current, initialized: true }));
+      return;
+    }
     let active = true;
-    const restoreSession = async () => {
+    const restoreSessionFromServer = async () => {
       let legacyToken = null;
       try {
         const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -77,9 +81,9 @@ export function AuthProvider({ children }) {
       if (active) setAuthState({ token: null, user: null, accessExpiresAt: null, initialized: true });
     };
 
-    restoreSession();
+    restoreSessionFromServer();
     return () => { active = false; };
-  }, []);
+  }, [restoreSession]);
 
   const login = useCallback(async ({ email, password }) => {
     if (AUTH_DISABLED) {

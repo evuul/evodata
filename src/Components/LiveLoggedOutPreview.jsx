@@ -290,6 +290,7 @@ export default function LiveLoggedOutPreview() {
       <Box component="nav" aria-label={translate("Huvudnavigation", "Main navigation")} sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, py: 2.2, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <BrandMark />
         <Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center">
+          <Button component={NextLink} href="/founders" variant="text" sx={{ display: { xs: "none", md: "inline-flex" }, color: "#fde68a", textTransform: "none", fontWeight: 700 }}>{translate("Founders", "Founders")}</Button>
           <LocalePicker />
           <Button component={NextLink} href="/login" variant="text" sx={{ display: { xs: "none", sm: "inline-flex" }, color: "#dbe7f2", textTransform: "none", fontWeight: 700 }}>{translate("Logga in", "Log in")}</Button>
           <Button component={NextLink} href="/register" variant="outlined" sx={{ px: { xs: 1.25, sm: 2 }, color: colors.text, borderColor: "rgba(148,163,184,0.36)", borderRadius: "10px", textTransform: "none", whiteSpace: "nowrap", fontSize: { xs: 12, sm: 14 }, fontWeight: 750, "&:hover": { borderColor: "rgba(130,193,255,0.72)", backgroundColor: "rgba(74,144,226,0.08)" } }}>{translate("Skapa konto", "Create account")}</Button>
@@ -347,6 +348,7 @@ export default function LiveLoggedOutPreview() {
         <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="center" spacing={2} sx={{ pt: 4, color: "#64748b" }}>
           <BrandMark />
           <Typography sx={{ fontSize: 11.5, textAlign: "center" }}>{translate("Oberoende analystjänst · Inte finansiell rådgivning", "Independent analytics service · Not financial advice")}</Typography>
+          <Button component={NextLink} href="/founders" size="small" sx={{ color: "#94a3b8", textTransform: "none", fontSize: 11.5 }}>{translate("Founders", "Founders")}</Button>
         </Stack>
       </Box>
     </Box>

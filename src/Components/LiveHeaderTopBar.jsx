@@ -25,6 +25,7 @@ import PersonRounded from "@mui/icons-material/PersonRounded";
 import ExpandMoreRounded from "@mui/icons-material/ExpandMoreRounded";
 import LogoutRounded from "@mui/icons-material/LogoutRounded";
 import CalendarMonthRounded from "@mui/icons-material/CalendarMonthRounded";
+import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 import NextLink from "next/link";
 import { LOCALE_OPTIONS } from "@/context/LocaleContext";
 
@@ -239,6 +240,23 @@ export default function LiveHeaderTopBar({
                     }}
                   />
                 ) : null}
+                <Chip
+                  component={NextLink}
+                  href="/founders"
+                  clickable
+                  size="small"
+                  icon={<WorkspacePremiumRounded />}
+                  label={translate("Founders", "Founders")}
+                  sx={{
+                    backgroundColor: "rgba(245,158,11,0.1)",
+                    color: "#fde68a",
+                    borderRadius: "999px",
+                    border: "1px solid rgba(245,158,11,0.24)",
+                    height: { xs: 22, sm: 28 },
+                    "& .MuiChip-label": { px: { xs: 0.6, sm: 1 }, fontSize: { xs: "0.62rem", sm: "0.76rem" }, fontWeight: 750 },
+                    "& .MuiChip-icon": { color: "#fbbf24", fontSize: "1rem" },
+                  }}
+                />
                 <Chip
                   component={NextLink}
                   href="/disclaimer"
@@ -562,6 +580,22 @@ export default function LiveHeaderTopBar({
                   boxShadow: "0 14px 32px rgba(0,0,0,0.42)",
                   background: "rgba(8,15,30,0.96)",
                 },
+              }}
+            />
+            <Chip
+              component={NextLink}
+              href="/founders"
+              clickable
+              size="small"
+              label={translate("Founders", "Founders")}
+              sx={{
+                flex: "0 0 auto",
+                backgroundColor: "rgba(245,158,11,0.08)",
+                color: "#fde68a",
+                borderRadius: "999px",
+                border: "1px solid rgba(245,158,11,0.2)",
+                height: 22,
+                "& .MuiChip-label": { px: 0.55, fontSize: "0.56rem", fontWeight: 900 },
               }}
             />
             <Chip
