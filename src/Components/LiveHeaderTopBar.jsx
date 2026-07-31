@@ -426,7 +426,8 @@ export default function LiveHeaderTopBar({
               sx={{
                 backgroundColor: "rgba(15,23,42,0.55)",
                 borderRadius: "999px",
-                p: 0.25,
+                height: { xs: 32, sm: 40 },
+                p: 0.2,
                 border: "1px solid rgba(148,163,184,0.2)",
                 backdropFilter: "blur(8px)",
               }}
@@ -440,9 +441,10 @@ export default function LiveHeaderTopBar({
                     border: 0,
                     borderRadius: "999px!important",
                     color: "rgba(226,232,240,0.75)",
-                    fontSize: { xs: "0.6rem", sm: "0.78rem" },
-                    minHeight: 26,
-                    px: 1,
+                    fontSize: { xs: "0.58rem", sm: "0.7rem" },
+                    minHeight: 0,
+                    height: "100%",
+                    px: { xs: 0.75, sm: 0.9 },
                     "&.Mui-selected": {
                       color: "#0f172a",
                       backgroundColor: "#f8fafc",
