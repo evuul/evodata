@@ -18,6 +18,7 @@ import TraderPnlRow from "@/Components/MinaSidor/TraderPnlRow";
 import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import MinaSidorSectionNav from "@/Components/MinaSidor/MinaSidorSectionNav";
 import UpcomingCalendarHighlights from "@/Components/MinaSidor/UpcomingCalendarHighlights";
+import SupportCallout from "@/Components/SupportCallout";
 import DeferredSection from "@/Components/DeferredSection";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 
@@ -711,6 +712,8 @@ function MinaSidorContent() {
                 </Stack>
               </Stack>
             ) : null}
+
+            {activeView !== "admin" ? <SupportCallout placement="mina_sidor" /> : null}
           </Box>
 
           <Divider sx={sectionDivider} />

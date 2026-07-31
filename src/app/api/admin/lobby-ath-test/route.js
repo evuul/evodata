@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 import { buildLobbyAthTestEmail } from "@/lib/lobbyAthTestEmail";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,7 +37,7 @@ export async function POST(request) {
   const { subject, html, testValues } = buildLobbyAthTestEmail({
     email: actorEmail,
     firstName: resolved.user?.firstName || "Admin",
-    coffeeUrl: process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul",
+    coffeeUrl: process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL,
   });
 
   try {

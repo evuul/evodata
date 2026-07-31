@@ -9,6 +9,7 @@ import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
 import { buildDailyAvgPlayersEmail } from "@/lib/emailTemplates";
 import { shouldRunScheduledAggregation } from "@/lib/upstashCostPolicy";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 import {
   applyRecoveryForDate,
   resolveRecoveryDate,
@@ -375,7 +376,7 @@ async function handler(req) {
         const waitMs = Math.max(0, RESEND_MIN_GAP_MS - (now - lastSendAt));
         if (waitMs > 0) await sleep(waitMs);
 
-        const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+        const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL;
         const { subject, html } = buildDailyAvgPlayersEmail({
           email: r.email,
           firstName: r.firstName || "there",

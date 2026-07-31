@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { buildResetPasswordEmail, buildWelcomeEmail } from "@/lib/emailTemplates";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -40,7 +41,7 @@ export async function GET(request) {
     payload = buildWelcomeEmail({
       email: actorEmail,
       firstName,
-      coffeeUrl: process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul",
+      coffeeUrl: process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL,
     });
   }
 

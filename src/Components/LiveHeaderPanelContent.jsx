@@ -4,8 +4,18 @@
 
 import React from "react";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import SupportCallout from "./SupportCallout";
 
 const BUYBACK_CASH_EUR = 2_000_000_000;
+
+function PanelWithSupport({ children, placement }) {
+  return (
+    <Box sx={{ width: "100%" }}>
+      {children}
+      <SupportCallout placement={placement} />
+    </Box>
+  );
+}
 
 export default function LiveHeaderPanelContent({
   activePanel,
@@ -21,7 +31,13 @@ export default function LiveHeaderPanelContent({
 }) {
   if (activePanel === "live") return <panels.LivePlayersControlPanel />;
 
-  if (activePanel === "releases") return <panels.GameReleasesPanel />;
+  if (activePanel === "releases") {
+    return (
+      <PanelWithSupport placement="game_releases">
+        <panels.GameReleasesPanel />
+      </PanelWithSupport>
+    );
+  }
 
   if (activePanel === "financial") {
     if (!financialReports || !dividendData) {
@@ -32,9 +48,9 @@ export default function LiveHeaderPanelContent({
       );
     }
     return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <PanelWithSupport placement="financial_overview">
         <panels.FinancialOverviewPanel financialReports={financialReports} dividendData={dividendData} />
-      </Box>
+      </PanelWithSupport>
     );
   }
 
@@ -50,11 +66,13 @@ export default function LiveHeaderPanelContent({
       );
     }
     return (
-      <panels.LiveAiFairValuePanel
-        reports={reports}
-        buybackData={buybackData}
-        sharesData={sharesData}
-      />
+      <PanelWithSupport placement="fair_value">
+        <panels.LiveAiFairValuePanel
+          reports={reports}
+          buybackData={buybackData}
+          sharesData={sharesData}
+        />
+      </PanelWithSupport>
     );
   }
 
@@ -124,7 +142,11 @@ export default function LiveHeaderPanelContent({
         </Box>
       );
     }
-    return <panels.GameshowEarningsPanel financialReports={financialReports} averagePlayersData={averagePlayersData} />;
+    return (
+      <PanelWithSupport placement="gameshow_forecast">
+        <panels.GameshowEarningsPanel financialReports={financialReports} averagePlayersData={averagePlayersData} />
+      </PanelWithSupport>
+    );
   }
 
   if (activePanel === "report") {

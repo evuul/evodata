@@ -17,8 +17,9 @@ import ArrowBackRounded from "@mui/icons-material/ArrowBackRounded";
 import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
 import TwitterIcon from "@mui/icons-material/Twitter";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
+import { buildSupportUrl } from "@/lib/supportLinks";
 
-const SUPPORT_URL = "https://www.buymeacoffee.com/alexanderek";
+const SUPPORT_URL = buildSupportUrl("disclaimer");
 const TWITTER_URL = "https://twitter.com/alexand93085679";
 
 export default function DisclaimerPage() {

@@ -6,6 +6,7 @@ import { Box, Typography, Stack, Chip, Grid, Divider } from "@mui/material";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import reportCommentary from "@/app/data/reportCommentary.json";
 import yearSummaries from "@/app/data/yearSummaries.json";
+import { buildSupportUrl } from "@/lib/supportLinks";
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const quarterToIndex = (year, quarter) => {
@@ -248,7 +249,7 @@ export default function ReportView({ financialReports }) {
       "I run the site in my spare time alongside my studies. The goal is to keep all statistics and live tracking free for everyone. Would you like to help cover server costs and buy a coffee as a thank you? It’s greatly appreciated!"
     ),
     cta: translate("☕ Bjud på en kaffe här", "☕ Buy me a coffee here"),
-    href: "https://buymeacoffee.com/evuul",
+    href: buildSupportUrl("report_analysis"),
   };
 
   const yearVoteId = summaryYear ? `year-${summaryYear}` : null;

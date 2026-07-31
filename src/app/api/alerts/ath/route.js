@@ -20,6 +20,7 @@ import {
   filterAthEventsForPreferences,
 } from "@/lib/athAlertEvents";
 import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -243,7 +244,7 @@ async function handler(req) {
     for (const delivery of deliveries) {
       const { user } = delivery;
       try {
-        const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+        const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL;
         const { subject, html } = buildAthAlertEmail({
           email: user.email,
           firstName: user.firstName || "there",

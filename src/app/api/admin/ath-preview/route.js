@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { buildAthAlertEmail } from "@/lib/emailTemplates";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -45,7 +46,7 @@ export async function GET(request) {
   const events = Array.isArray(dryRunPayload?.events) ? dryRunPayload.events : [];
   const topTrends = Array.isArray(dryRunPayload?.topTrends) ? dryRunPayload.topTrends : [];
 
-  const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+  const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL;
   const firstName = resolved.user?.firstName || "Alexander";
 
   if (!events.length) {

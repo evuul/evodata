@@ -67,6 +67,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     donationNudgeClickLabel,
     handleDismissDonationNudge,
     supportUrl,
+    donationNudgeUrl,
     isAuthenticated,
     userNameLabel,
     venueChipLabel,
@@ -157,6 +158,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           donationNudgeClickLabel={donationNudgeClickLabel}
           handleDismissDonationNudge={handleDismissDonationNudge}
           supportUrl={supportUrl}
+          donationNudgeUrl={donationNudgeUrl}
           isAuthenticated={isAuthenticated}
           userNameLabel={userNameLabel}
           isUserMenuOpen={isUserMenuOpen}

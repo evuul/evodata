@@ -83,6 +83,7 @@ export default function LiveHeaderTopBar({
   donationNudgeClickLabel,
   handleDismissDonationNudge,
   supportUrl,
+  donationNudgeUrl,
   isAuthenticated,
   userNameLabel,
   isUserMenuOpen,
@@ -269,14 +270,14 @@ export default function LiveHeaderTopBar({
                   {showDonationNudge ? (
                     <Box
                       component="a"
-                      href={supportUrl}
+                      href={donationNudgeUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={handleDismissDonationNudge}
                       sx={{
-                        position: "absolute",
-                        top: "calc(100% + 12px)",
-                        left: -8,
-                        right: "auto",
+                        position: "fixed",
+                        right: { xs: 16, sm: 24 },
+                        bottom: { xs: 16, sm: 24 },
                         display: "flex",
                         background: "rgba(8,15,30,0.95)",
                         border: "1px solid rgba(56,189,248,0.32)",
@@ -286,7 +287,7 @@ export default function LiveHeaderTopBar({
                         py: 1.15,
                         maxWidth: 260,
                         minWidth: 210,
-                        zIndex: 5,
+                        zIndex: 1300,
                         flexDirection: "column",
                         gap: 0.6,
                         backdropFilter: "blur(12px)",
@@ -340,18 +341,6 @@ export default function LiveHeaderTopBar({
                           <CloseRounded fontSize="small" />
                         </IconButton>
                       </Stack>
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: -7,
-                          left: 32,
-                          width: 16,
-                          height: 16,
-                          transform: "rotate(45deg)",
-                          background: "rgba(8,15,30,0.95)",
-                          border: "1px solid rgba(56,189,248,0.32)",
-                        }}
-                      />
                     </Box>
                   ) : null}
 
@@ -360,6 +349,7 @@ export default function LiveHeaderTopBar({
                     href={supportUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={handleDismissDonationNudge}
                     clickable
                     size="small"
                     icon={<LocalCafeRounded sx={{ color: "#f9a8d4" }} />}
@@ -545,6 +535,7 @@ export default function LiveHeaderTopBar({
               href={supportUrl}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={handleDismissDonationNudge}
               clickable
               size="small"
               icon={null}

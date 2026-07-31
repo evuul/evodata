@@ -10,6 +10,7 @@ import {
   resolveRecoveryDate,
   shouldUseLiveTrackerRecovery,
 } from "@/lib/liveTrackerRecovery";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -124,7 +125,7 @@ export async function GET(request) {
         avgPlayers: 52000 + Math.round(Math.sin(i / 7) * 2400) + i * 55,
       }));
 
-  const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+  const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL;
   const { subject, html } = buildDailyAvgPlayersEmail({
     email: actorEmail,
     firstName: resolved.user?.firstName || "Alexander",

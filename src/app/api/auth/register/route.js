@@ -11,6 +11,7 @@ import { createAccountWithSession, runRegistrationAfterCommit } from "@/lib/regi
 import { buildSessionUser, isTrustedSessionRequest, setSessionCookie } from "@/lib/authSession";
 import { checkAuthRateLimit, rateLimitResponseHeaders } from "@/lib/authRateLimit";
 import { validatePassword } from "@/lib/passwordPolicy";
+import { DEFAULT_SUPPORT_URL } from "@/lib/supportLinks";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -76,7 +77,7 @@ export async function POST(request) {
 
     const sendWelcome = async () => {
       if (isMailerConfigured()) {
-        const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || "https://buymeacoffee.com/evuul";
+        const coffeeUrl = process.env.DONATE_BUYMEACOFFEE_URL || DEFAULT_SUPPORT_URL;
         const { subject, html } = buildWelcomeEmail({
           email,
           firstName,

@@ -19,6 +19,7 @@ import { COLORS as GAME_COLORS } from "@/config/games";
 import { buildLiveHeaderPlayerMetrics, buildMaintenanceWarningParts } from "@/lib/liveHeaderPlayers";
 import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
 import { buildNextCalendarChip } from "@/lib/financialCalendar";
+import { buildSupportUrl } from "@/lib/supportLinks";
 import financialCalendarEvents from "@/app/data/financialCalendar";
 import {
   formatLatestWinAmount,
@@ -27,7 +28,6 @@ import {
   prettifyGameShowName,
 } from "@/lib/liveHeader";
 
-const SUPPORT_URL = "https://buymeacoffee.com/evuul";
 const SHOW_MY_PAGE_NEW_BADGE = true;
 const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
@@ -437,7 +437,8 @@ export function useLiveHeaderModel() {
     latestTopWinLabelWithEmoji,
     top3,
     latestTopWinLabel,
-    supportUrl: SUPPORT_URL,
+    supportUrl: buildSupportUrl("header"),
+    donationNudgeUrl: buildSupportUrl("header_nudge"),
     showMyPageNewBadge: SHOW_MY_PAGE_NEW_BADGE,
     stuckLiveGamesCount,
     buybackSummary: buybackSummaryDisplay,

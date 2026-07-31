@@ -1,6 +1,7 @@
 // HTML email templates and account display helpers for outbound auth emails.
 
 import { isConfiguredAdminEmail } from "./adminAccess.js";
+import { buildSupportUrl } from "./supportLinks.js";
 
 const escapeHtml = (value) =>
   String(value ?? "")
@@ -60,7 +61,7 @@ const shell = ({ title, body, preheader = "" }) => `
 export const buildWelcomeEmail = ({ email, firstName, coffeeUrl }) => {
   const safeName = escapeHtml(firstName || "there");
   const safeEmail = escapeHtml(email);
-  const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
+  const safeCoffeeUrl = escapeHtml(buildSupportUrl("email_welcome", coffeeUrl));
   const body = `
     <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:16px;">Hi ${safeName}, welcome aboard.</p>
     <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
@@ -193,7 +194,7 @@ export const buildAthAlertEmail = ({
 }) => {
   const safeName = escapeHtml(firstName || "there");
   const safeAccount = escapeHtml(resolveAccountDisplay({ email, firstName }));
-  const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
+  const safeCoffeeUrl = escapeHtml(buildSupportUrl("email_ath", coffeeUrl));
   const formatAthAt = (value) => {
     if (!value) return "";
     try {
@@ -304,10 +305,13 @@ export const buildAthAlertEmail = ({
       You can manage lobby ATH and game ATH emails separately from <strong>My page</strong>.
     </p>
 
+    <p style="margin:0 0 14px 0;color:#94a3b8;font-size:14px;line-height:1.6;">
+      This alert was sent automatically by EvoTracker. If it saved you time, you can help fund continued data collection and email delivery.
+    </p>
     <p style="margin:0 0 18px 0;">
       <a href="${safeCoffeeUrl}" target="_blank" rel="noopener"
          style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;text-decoration:none;font-weight:800;">
-         Support EvoTracker
+         Help keep live tracking running
       </a>
     </p>
     <p style="margin:0;color:#94a3b8;font-size:14px;">/ Alexander</p>
@@ -337,7 +341,7 @@ export const buildDailyAvgPlayersEmail = ({
 }) => {
   const safeName = escapeHtml(firstName || "there");
   const safeAccount = escapeHtml(resolveAccountDisplay({ email, firstName }));
-  const safeCoffeeUrl = escapeHtml(coffeeUrl || "https://buymeacoffee.com/evuul");
+  const safeCoffeeUrl = escapeHtml(buildSupportUrl("email_daily_avg", coffeeUrl));
 
   const totalLabel = Number.isFinite(totalAvgPlayers)
     ? Math.round(totalAvgPlayers).toLocaleString("sv-SE")
@@ -487,10 +491,13 @@ export const buildDailyAvgPlayersEmail = ({
       Note: “AVG players” is based on tracked games and does not include an estimated uplift for the rest of the lobby.
     </p>
 
+    <p style="margin:0 0 14px 0;color:#94a3b8;font-size:14px;line-height:1.6;">
+      This daily summary was generated automatically by EvoTracker. If it is useful, you can help cover the data, database, and email costs behind it.
+    </p>
     <p style="margin:0 0 18px 0;">
       <a href="${safeCoffeeUrl}" target="_blank" rel="noopener"
          style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#111827;text-decoration:none;font-weight:800;">
-         Support EvoTracker
+         Help keep daily tracking running
       </a>
     </p>
     <p style="margin:0;color:#94a3b8;font-size:14px;">/ Alexander</p>
