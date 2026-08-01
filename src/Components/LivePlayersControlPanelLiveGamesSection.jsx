@@ -2,8 +2,8 @@
 
 // Live games grid for the live players control panel.
 
-import React from "react";
-import { Box, Chip, CircularProgress, Grid, Stack, Typography } from "@mui/material";
+import React, { useEffect, useMemo, useState } from "react";
+import { Box, Chip, CircularProgress, FormControl, Grid, InputLabel, MenuItem, Select, Stack, Typography } from "@mui/material";
 
 export default function LivePlayersControlPanelLiveGamesSection({
   translate,
@@ -15,6 +15,46 @@ export default function LivePlayersControlPanelLiveGamesSection({
   showAllLive,
   onToggleShowAllLive,
 }) {
+  const [selectedGameId, setSelectedGameId] = useState("");
+  const selectedGame = useMemo(
+    () => liveGamesList.find((item) => String(item.id) === selectedGameId) ?? liveGamesList[0] ?? null,
+    [liveGamesList, selectedGameId]
+  );
+  const selectedGameIndex = selectedGame ? liveGamesList.findIndex((item) => item.id === selectedGame.id) : -1;
+
+  useEffect(() => {
+    if (!liveGamesList.length) {
+      setSelectedGameId("");
+    } else if (!liveGamesList.some((item) => String(item.id) === selectedGameId)) {
+      setSelectedGameId(String(liveGamesList[0].id));
+    }
+  }, [liveGamesList, selectedGameId]);
+
+  const renderPlayersLabel = (item) =>
+    item.stuck
+      ? translate(`Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim(), `Stuck ${Number.isFinite(item.stuckDays) ? `${item.stuckDays}d` : ""}`.trim())
+      : Number.isFinite(item.players)
+      ? numberFormatter.format(item.players)
+      : "—";
+
+  const renderUpdatedLabel = (item) =>
+    item.stuck
+      ? translate(item.stuckSince ? `Stuck sedan ${timeFormatter.format(new Date(item.stuckSince))}` : "Ingen ny mätdata ännu", item.stuckSince ? `Stuck since ${timeFormatter.format(new Date(item.stuckSince))}` : "No fresh datapoints yet")
+      : item.updated
+      ? translate(`Senast ${timeFormatter.format(new Date(item.updated))}`, `Last updated ${timeFormatter.format(new Date(item.updated))}`)
+      : translate("Ingen tidsstämpel", "No timestamp");
+
+  const gameCard = (item, index, compact = false) => (
+    <Box sx={{ background: "rgba(15,23,42,0.65)", borderRadius: compact ? "12px" : "14px", border: `1px solid ${item.color}55`, p: compact ? { xs: 1.5, sm: 2 } : 2, display: "flex", flexDirection: "column", gap: 0.75 }}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="overline" sx={{ color: "rgba(226,232,240,0.8)", fontWeight: 600 }}>#{index + 1}</Typography>
+        <Chip size="small" label={renderPlayersLabel(item)} sx={{ backgroundColor: item.stuck ? "rgba(120,53,15,0.28)" : "rgba(15,23,42,0.55)", color: item.stuck ? "#fbbf24" : item.color, border: `1px solid ${item.stuck ? "rgba(251,191,36,0.4)" : `${item.color}55`}`, borderRadius: "999px", fontWeight: 700 }} />
+      </Stack>
+      <Typography variant="h6" sx={{ fontWeight: 700, color: "#f8fafc", fontSize: compact ? "1.05rem" : undefined }}>{item.label}</Typography>
+      <Typography variant="caption" sx={{ color: item.stuck ? "#fbbf24" : "rgba(148,163,184,0.7)" }}>{renderUpdatedLabel(item)}</Typography>
+    </Box>
+  );
+
   return (
     <Box sx={{ width: "100%" }}>
       <Box
@@ -38,7 +78,42 @@ export default function LivePlayersControlPanelLiveGamesSection({
               : translate(`Totalt ${liveGamesList.length} spel`, `Total ${liveGamesList.length} games`)}
           </Typography>
         </Stack>
-        <Grid container spacing={1.5}>
+        <Box sx={{ display: { xs: "block", sm: "none" } }}>
+          {loadingLive ? (
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, py: 1 }}>
+              <CircularProgress size={18} sx={{ color: "#22c55e" }} />
+              <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
+                {translate("Hämtar live-data…", "Fetching live data…")}
+              </Typography>
+            </Box>
+          ) : liveGamesList.length && selectedGame ? (
+            <Stack spacing={1.1}>
+              <FormControl fullWidth size="small">
+                <InputLabel id="live-game-select-label">{translate("Välj spel", "Choose game")}</InputLabel>
+                <Select
+                  labelId="live-game-select-label"
+                  value={String(selectedGame.id)}
+                  label={translate("Välj spel", "Choose game")}
+                  onChange={(event) => setSelectedGameId(event.target.value)}
+                  sx={{ color: "#f8fafc", borderRadius: "10px", backgroundColor: "rgba(15,23,42,0.72)", ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.25)" } }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+                >
+                  {liveGamesList.map((item, index) => (
+                    <MenuItem key={item.id} value={String(item.id)}>
+                      #{index + 1} · {item.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              {gameCard(selectedGame, selectedGameIndex < 0 ? 0 : selectedGameIndex, true)}
+            </Stack>
+          ) : (
+            <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)", textAlign: "center" }}>
+              {translate("Ingen live-data tillgänglig just nu.", "No live data available right now.")}
+            </Typography>
+          )}
+        </Box>
+        <Grid container spacing={1.5} sx={{ display: { xs: "none", sm: "flex" } }}>
           {loadingLive && (
             <Grid item xs={12}>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
