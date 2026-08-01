@@ -24,6 +24,7 @@ import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } f
 
 import dividendData from "@/app/data/dividendData.json";
 import financialCalendarEvents from "@/app/data/financialCalendar";
+import gameReleases from "@/app/data/gameReleases";
 import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
 
 import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
@@ -50,6 +51,7 @@ const AccountSettingsDialog = dynamic(() =>
 const AdminSupportInboxDialog = dynamic(() =>
   import("@/app/mina-sidor/components/AdminSupportInboxDialog").then((module) => module.AdminSupportInboxDialog)
 );
+const NotificationCenterCard = dynamic(() => import("@/app/mina-sidor/components/NotificationCenterCard"));
 
 const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
 
@@ -175,7 +177,6 @@ function MinaSidorContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [supportOpen, setSupportOpen] = useState(false);
   const [adminSupportInboxOpen, setAdminSupportInboxOpen] = useState(false);
-  const [privateMessagesOpen, setPrivateMessagesOpen] = useState(false);
 
   // Manage Modal State (local to page or extract? keeping local as it's UI state)
   const [buyShares, setBuyShares] = useState("");
@@ -230,16 +231,12 @@ function MinaSidorContent() {
     setSupportOpen(true);
   }, [adminTools, effectiveIsAdmin]);
 
-  const showPrivateMessagesBox = Boolean(privateMessages.length);
-
   const handleOpenPrivateMessages = useCallback(async () => {
-    setPrivateMessagesOpen(true);
     await markPrivateMessagesRead();
   }, [markPrivateMessagesRead]);
 
   const handleDeletePrivateMessages = useCallback(async () => {
     await dismissPrivateMessages();
-    setPrivateMessagesOpen(false);
   }, [dismissPrivateMessages]);
 
   useEffect(() => {
@@ -461,91 +458,20 @@ function MinaSidorContent() {
 
             {privateMessagesLoading ? (
               <Typography sx={{ color: "rgba(226,232,240,0.7)", mt: 1 }}>
-                {translate("Laddar privata meddelanden...", "Loading private messages...")}
+                {translate("Laddar notiser...", "Loading notifications...")}
               </Typography>
-            ) : showPrivateMessagesBox ? (
-              <Box
-                sx={{
-                  mt: 1.2,
-                  borderRadius: "14px",
-                  border: "1px solid rgba(59,130,246,0.28)",
-                  background: "rgba(30,58,138,0.14)",
-                  p: { xs: 1.2, md: 1.4 },
-                }}
-              >
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  justifyContent="space-between"
-                  alignItems={{ xs: "stretch", sm: "center" }}
-                  sx={{ mb: privateMessagesOpen ? 0.9 : 0, gap: 1 }}
-                >
-                  <Typography sx={{ color: "#bfdbfe", fontWeight: 800 }}>
-                    {translate("Personliga meddelanden från admin", "Personal messages from admin")}
-                    {privateMessagesUnread > 0
-                      ? ` (${translate(`${privateMessagesUnread} nya`, `${privateMessagesUnread} new`)})`
-                      : ""}
-                  </Typography>
-                  <Stack direction="row" spacing={1}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={privateMessagesOpen
-                        ? () => setPrivateMessagesOpen(false)
-                        : handleOpenPrivateMessages}
-                      sx={{
-                        textTransform: "none",
-                        borderColor: "rgba(96,165,250,0.55)",
-                        color: "#dbeafe",
-                        minWidth: "auto",
-                        px: 1.2,
-                        py: 0.35,
-                      }}
-                    >
-                      {privateMessagesOpen
-                        ? translate("Dölj", "Hide")
-                        : translate("Visa meddelanden", "View messages")}
-                    </Button>
-                    {privateMessagesOpen ? (
-                      <Button
-                        size="small"
-                        variant="text"
-                        onClick={handleDeletePrivateMessages}
-                        sx={{ textTransform: "none", color: "rgba(226,232,240,0.78)", minWidth: "auto" }}
-                      >
-                        {translate("Ta bort", "Delete")}
-                      </Button>
-                    ) : null}
-                  </Stack>
-                </Stack>
-                {privateMessagesOpen ? <Stack spacing={0.9}>
-                  {privateMessages.slice(0, 3).map((item) => (
-                    <Box
-                      key={item?.id || item?.createdAt}
-                      sx={{
-                        borderRadius: "10px",
-                        border: "1px solid rgba(148,163,184,0.2)",
-                        background: "rgba(15,23,42,0.45)",
-                        p: 1,
-                      }}
-                    >
-                      <Typography sx={{ color: "#f8fafc", fontWeight: 700, fontSize: "0.92rem" }}>
-                        {item?.subject || "—"}
-                      </Typography>
-                      <Typography sx={{ color: "rgba(226,232,240,0.88)", whiteSpace: "pre-wrap", mt: 0.35 }}>
-                        {item?.message || "—"}
-                      </Typography>
-                      <Typography sx={{ color: "rgba(148,163,184,0.72)", fontSize: "0.78rem", mt: 0.45 }}>
-                        {(item?.fromName || item?.fromEmail || "Admin")}
-                        {" • "}
-                        {item?.createdAt
-                          ? new Date(item.createdAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
-                          : "—"}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack> : null}
-              </Box>
             ) : null}
+            <NotificationCenterCard
+              privateMessages={privateMessages}
+              unreadCount={privateMessagesUnread}
+              calendarEvents={financialCalendarEvents}
+              gameReleases={gameReleases}
+              todayYmd={dashboardTodayYmd}
+              locale={locale}
+              translate={translate}
+              onMarkRead={handleOpenPrivateMessages}
+              onDelete={handleDeletePrivateMessages}
+            />
             {privateMessagesError ? (
               <Typography sx={{ color: statusColors.warning, mt: 1 }}>
                 {privateMessagesError}
