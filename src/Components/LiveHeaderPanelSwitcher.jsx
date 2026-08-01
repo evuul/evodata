@@ -95,7 +95,13 @@ export default function LiveHeaderPanelSwitcher({
         sx={{
           width: "100%",
           mt: { xs: 1, sm: 1.5 },
-          mx: isLiveMoneyPanel ? "auto" : isLivePanel ? "auto" : { xs: -3, sm: -5, md: -6 },
+          mx: isLiveMoneyPanel
+            ? "auto"
+            : isLivePanel
+              ? "auto"
+              : activePanel === "releases"
+                ? { xs: 0, sm: -5, md: -6 }
+                : { xs: -3, sm: -5, md: -6 },
           maxWidth: isLiveMoneyPanel ? "min(1700px, 100%)" : isLivePanel ? "100%" : "none",
           display: isLiveMoneyPanel || isLivePanel ? "flex" : "block",
           justifyContent: isLiveMoneyPanel || isLivePanel ? "center" : "flex-start",

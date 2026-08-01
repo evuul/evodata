@@ -160,7 +160,7 @@ export default function GameReleasesPanel() {
     <Box
       sx={{
         width: "100%",
-        mx: { xs: -2, sm: -3, md: -4 },
+        mx: { xs: 0, sm: -3, md: -4 },
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 4 },
         color: "#f8fafc",
