@@ -57,11 +57,11 @@ function HeaderMetricCard({ title, dotColor, children, dataStatus, locale, trans
 
 function CompactMetric({ label, value, detail, color = "#f8fafc" }) {
   return (
-    <Box sx={{ minWidth: 0, px: { xs: 1.1, sm: 1.5 }, py: 1, borderRadius: "12px", background: "rgba(15,23,42,0.42)", border: "1px solid rgba(148,163,184,0.14)" }}>
-      <Typography variant="caption" sx={{ display: "block", color: "rgba(148,163,184,0.76)", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.7, whiteSpace: "nowrap" }}>
+    <Box sx={{ minWidth: 0, px: { xs: 1.25, sm: 1.5 }, py: { xs: 1.2, sm: 1 }, borderRadius: "12px", background: "rgba(15,23,42,0.42)", border: "1px solid rgba(148,163,184,0.14)" }}>
+      <Typography variant="caption" sx={{ display: "block", color: "rgba(148,163,184,0.76)", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.7, fontSize: { xs: "0.63rem", sm: "0.7rem" }, whiteSpace: "nowrap" }}>
         {label}
       </Typography>
-      <Typography sx={{ color, fontWeight: 800, fontSize: { xs: "0.94rem", sm: "1.05rem" }, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+      <Typography sx={{ color, fontWeight: 850, fontSize: { xs: "1.08rem", sm: "1.05rem" }, lineHeight: 1.35, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
         {value}
       </Typography>
       {detail ? <Typography variant="caption" sx={{ display: { xs: "none", sm: "block" }, color: "rgba(148,163,184,0.62)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{detail}</Typography> : null}

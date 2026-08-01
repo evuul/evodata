@@ -234,6 +234,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           <LiveHeaderPanelSwitcher
             activePanel={activePanel}
             isMobileMenu={isMobileMenu}
+            hideDefaultMobileContent={isMobileMenu && isLivePanel}
             panelGroups={panelGroups}
             handlePanelChange={handlePanelChange}
             panelContent={panelContent}
