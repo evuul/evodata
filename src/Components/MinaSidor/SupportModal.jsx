@@ -214,7 +214,7 @@ export default function SupportModal({ open, onClose, translate, token, identity
             sx={{
               borderRadius: "14px",
               border: "1px solid rgba(56,189,248,0.28)",
-              background: "linear-gradient(135deg, rgba(2,132,199,0.12), rgba(15,23,42,0.5))",
+              background: "rgba(15,23,42,0.5)",
               p: { xs: 1.4, md: 1.8 },
             }}
           >
