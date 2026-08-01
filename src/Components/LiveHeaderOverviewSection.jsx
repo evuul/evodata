@@ -234,25 +234,30 @@ export default function LiveHeaderOverviewSection({
   if (compact) {
     return (
       <Stack spacing={1} sx={{ width: "100%" }}>
-        {isMobileMenu && playerDataAttentionLabel ? (
+        {isMobileMenu && Number.isFinite(buybackSummary?.estimatedTotalSharesAtCurrentPrice) ? (
           <Box
-            role="status"
-            aria-live="polite"
             sx={{
               display: "flex",
-              gap: 0.8,
-              alignItems: "flex-start",
+              alignItems: "center",
+              justifyContent: "space-between",
               width: "100%",
-              px: { xs: 1.1, sm: 1.4 },
-              py: 0.9,
+              px: { xs: 1.2, sm: 1.4 },
+              py: 1,
               borderRadius: "12px",
-              border: "1px solid rgba(245,158,11,0.32)",
-              backgroundColor: "rgba(120,53,15,0.18)",
+              border: "1px solid rgba(52,211,153,0.28)",
+              backgroundColor: "rgba(6,78,59,0.18)",
             }}
           >
-            <WarningAmberRounded sx={{ color: "#fbbf24", fontSize: 19, flexShrink: 0, mt: 0.1 }} />
-            <Typography variant="caption" sx={{ color: "#fef3c7", fontWeight: 700, lineHeight: 1.45 }}>
-              {playerDataAttentionLabel}
+            <Stack spacing={0.05}>
+              <Typography variant="caption" sx={{ color: "rgba(167,243,208,0.78)", fontWeight: 800, letterSpacing: 0.65, textTransform: "uppercase" }}>
+                {translate("Est. återköp vid fullt mandat", "Est. buybacks at full mandate")}
+              </Typography>
+              <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.7)" }}>
+                {translate("Baserat på aktuell aktiekurs", "Based on the current share price")}
+              </Typography>
+            </Stack>
+            <Typography sx={{ color: "#6ee7b7", fontSize: "1.2rem", fontWeight: 850, whiteSpace: "nowrap" }}>
+              ≈ {formatCompactShares(buybackSummary.estimatedTotalSharesAtCurrentPrice)}
             </Typography>
           </Box>
         ) : null}
@@ -290,6 +295,14 @@ export default function LiveHeaderOverviewSection({
             detail={buybackSummary?.remainingLabel ? `${translate("Kvar", "Remaining")}: ${buybackSummary.remainingLabel}` : null}
           />
         </Box>
+        {isMobileMenu && playerDataAttentionLabel ? (
+          <Stack direction="row" spacing={0.6} alignItems="flex-start" sx={{ px: 0.2 }} role="status" aria-live="polite">
+            <WarningAmberRounded sx={{ color: "rgba(251,191,36,0.85)", fontSize: 15, flexShrink: 0, mt: 0.1 }} />
+            <Typography variant="caption" sx={{ color: "rgba(254,243,199,0.78)", lineHeight: 1.4 }}>
+              {playerDataAttentionLabel}
+            </Typography>
+          </Stack>
+        ) : null}
       </Stack>
     );
   }

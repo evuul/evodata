@@ -25,7 +25,7 @@ export function buildBuybackFallbackSummary(fxRateNumber, error) {
   };
 }
 
-export function buildBuybackSummary(data, fxRateNumber) {
+export function buildBuybackSummary(data, fxRateNumber, stockPriceValue) {
   const currentRows = Array.isArray(data?.current) ? data.current : [];
   const mandateRows = currentRows.filter(
     (row) => row?.Datum && row.Datum >= BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0
@@ -35,6 +35,10 @@ export function buildBuybackSummary(data, fxRateNumber) {
   const budgetSek = Number.isFinite(fxRateNumber) ? BUYBACK_CASH_EUR * fxRateNumber : null;
   const remainingSek = Number.isFinite(budgetSek) ? Math.max(budgetSek - usedSek, 0) : null;
   const remainingEur = Number.isFinite(fxRateNumber) ? Math.max(BUYBACK_CASH_EUR - usedSek / fxRateNumber, 0) : null;
+  const estimatedTotalSharesAtCurrentPrice =
+    Number.isFinite(stockPriceValue) && stockPriceValue > 0 && Number.isFinite(remainingSek)
+      ? sharesRepurchased + remainingSek / stockPriceValue
+      : null;
 
   return {
     mandateStart: BUYBACK_MANDATE_START_DATE,
@@ -44,13 +48,14 @@ export function buildBuybackSummary(data, fxRateNumber) {
     remainingSek,
     remainingEur,
     sharesRepurchased,
+    estimatedTotalSharesAtCurrentPrice,
     updatedAt: data?.updatedAt || new Date().toISOString(),
     syncError: data?.syncError || null,
     fallback: Boolean(data?.fallback),
   };
 }
 
-export function useLiveHeaderRemoteData({ fxRateNumber }) {
+export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
   const [lobbyAth, setLobbyAth] = useState(null);
   const {
     data: buybackData,
@@ -58,10 +63,10 @@ export function useLiveHeaderRemoteData({ fxRateNumber }) {
     reload: reloadBuybacks,
   } = useBuybackData({ refreshIntervalMs: 30 * 60 * 1000 });
   const buybackSummary = useMemo(() => {
-    if (buybackData) return buildBuybackSummary(buybackData, fxRateNumber);
+    if (buybackData) return buildBuybackSummary(buybackData, fxRateNumber, stockPriceValue);
     if (buybackError) return buildBuybackFallbackSummary(fxRateNumber, buybackError);
     return null;
-  }, [buybackData, buybackError, fxRateNumber]);
+  }, [buybackData, buybackError, fxRateNumber, stockPriceValue]);
 
   useEffect(() => {
     let isActive = true;

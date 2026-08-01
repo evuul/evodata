@@ -16,7 +16,8 @@ test("buildBuybackSummary uses mandate rows and fx rate", () => {
         { Datum: "2026-05-19", Antal_aktier: "30", Transaktionsvärde: "300" },
       ],
     },
-    11
+    11,
+    100
   );
 
   assert.equal(summary.mandateStart, "2026-05-18");
@@ -26,8 +27,15 @@ test("buildBuybackSummary uses mandate rows and fx rate", () => {
   assert.equal(summary.usedEur, 500 / 11);
   assert.equal(summary.remainingSek, 22_000_000_000 - 500);
   assert.equal(summary.remainingEur, 2_000_000_000 - 500 / 11);
+  assert.equal(summary.estimatedTotalSharesAtCurrentPrice, 50 + (22_000_000_000 - 500) / 100);
   assert.equal(summary.updatedAt, "2026-06-10T10:00:00.000Z");
   assert.equal(summary.fallback, false);
+});
+
+test("buildBuybackSummary omits the mandate-share estimate without a valid market price", () => {
+  const summary = buildBuybackSummary({ current: [] }, 11, 0);
+
+  assert.equal(summary.estimatedTotalSharesAtCurrentPrice, null);
 });
 
 test("buildBuybackFallbackSummary keeps mandate budget when upstream fails", () => {

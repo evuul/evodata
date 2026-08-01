@@ -125,7 +125,8 @@ export function useLiveHeaderModel() {
     const parsed = Number(fxRate);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [fxRate]);
-  const { lobbyAth, buybackSummary } = useLiveHeaderRemoteData({ fxRateNumber });
+  const stockPriceValue = stockPrice?.price?.regularMarketPrice?.raw;
+  const { lobbyAth, buybackSummary } = useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue });
 
   const lobbyAthLabel = useMemo(() => formatLobbyAthLabel(lobbyAth, translate), [lobbyAth, translate]);
 
@@ -140,7 +141,6 @@ export function useLiveHeaderModel() {
   );
   const { top3, playersValue, zeroPlayerGames, stuckLiveGamesCount } = playerMetrics;
 
-  const stockPriceValue = stockPrice?.price?.regularMarketPrice?.raw;
   const stockChangeValue = stockPrice?.price?.regularMarketChangePercent?.raw;
   const stockMarketSessionPhase = stockPrice?.marketSessionPhase ?? null;
   const stockSymbol = stockPrice?.price?.symbol ?? "EVO.ST";
