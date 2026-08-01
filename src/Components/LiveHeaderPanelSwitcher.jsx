@@ -32,13 +32,18 @@ export default function LiveHeaderPanelSwitcher({
                 border: "1px solid rgba(148,163,184,0.2)",
                 "& .MuiSelect-select": { py: 1.1, pl: 2.2 },
               }}
+              MenuProps={{
+                PaperProps: {
+                  sx: { color: "#f8fafc", backgroundColor: "#111c2f" },
+                },
+              }}
             >
               {panelGroups.flatMap((group) => [
-                <ListSubheader key={`${group.id}-header`} sx={{ lineHeight: "32px", fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8 }}>
+                <ListSubheader key={`${group.id}-header`} sx={{ lineHeight: "32px", fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8, color: "rgba(148,163,184,0.82)", backgroundColor: "#111c2f" }}>
                   {group.label}
                 </ListSubheader>,
                 ...group.options.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>{option.label}</MenuItem>
+                  <MenuItem key={option.value} value={option.value} sx={{ color: "#f8fafc" }}>{option.label}</MenuItem>
                 )),
               ])}
             </Select>
@@ -95,14 +100,10 @@ export default function LiveHeaderPanelSwitcher({
         sx={{
           width: "100%",
           mt: { xs: 1, sm: 1.5 },
-          mx: isLiveMoneyPanel
-            ? "auto"
-            : isLivePanel
-              ? "auto"
-              : activePanel === "releases"
-                ? { xs: 0, sm: -5, md: -6 }
-                : { xs: -3, sm: -5, md: -6 },
+          mx: isLiveMoneyPanel ? "auto" : isLivePanel ? "auto" : { xs: 0, sm: -5, md: -6 },
           maxWidth: isLiveMoneyPanel ? "min(1700px, 100%)" : isLivePanel ? "100%" : "none",
+          boxSizing: "border-box",
+          overflowX: "hidden",
           display: isLiveMoneyPanel || isLivePanel ? "flex" : "block",
           justifyContent: isLiveMoneyPanel || isLivePanel ? "center" : "flex-start",
           "& > *": {

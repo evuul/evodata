@@ -31,9 +31,11 @@ const FaqPanel = () => {
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
         color: "#f8fafc",
-        mx: { xs: -2, sm: -3, md: -4 },
+        mx: { xs: 0, sm: -3, md: -4 },
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 4 },
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <Stack spacing={2.2} sx={{ maxWidth: 980, mx: "auto" }}>

@@ -156,12 +156,14 @@ export default function FinancialCalendarPanel() {
     <Box
       sx={{
         width: "100%",
-        mx: { xs: -2, sm: -3, md: -4 },
+        mx: { xs: 0, sm: -3, md: -4 },
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 4 },
         borderRadius: { xs: 0, md: "18px" },
         background: "linear-gradient(135deg, #0f172a, #111c2f)",
         color: "#f8fafc",
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <Stack spacing={{ xs: 2.2, md: 3 }} sx={{ maxWidth: 1060, mx: "auto" }}>

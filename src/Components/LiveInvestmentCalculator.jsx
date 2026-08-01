@@ -491,13 +491,15 @@ export default function LiveInvestmentCalculator({ dividendData }) {
         width: "100%",
         maxWidth: "1200px",
         // fullbleed horisontellt: matcha sidans padding (t.ex. p={2|3|4})
-        mx: { xs: -2, sm: -3, md: -4 },
+        mx: { xs: 0, sm: -3, md: -4 },
         px: { xs: 2, sm: 3, md: 4 },
         my: 2,
         py: { xs: 3, md: 4 },
         display: "flex",
         flexDirection: "column",
         gap: { xs: 3, md: 3.5 },
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <Stack spacing={1.5}>
