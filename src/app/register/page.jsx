@@ -59,7 +59,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (initialized && isAuthenticated) {
-      router.replace("/");
+      router.replace("/?onboarding=1");
     }
   }, [initialized, isAuthenticated, router]);
 

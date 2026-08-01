@@ -6,8 +6,10 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
+import { useTranslate } from "@/context/LocaleContext";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
 import { dashboardVariantForAuth, resolveHomeDashboardView } from "@/lib/homeDashboardState";
+import OnboardingGuide from "@/Components/OnboardingGuide";
 
 const LiveHeader = dynamic(() => import("@/Components/LiveHeader"), {
   ssr: false,
@@ -115,8 +117,30 @@ function ErrorState({ onRetry }) {
 
 export default function HomeClient() {
   const { isAuthenticated, initialized } = useAuth();
+  const translate = useTranslate();
   const [dashboardData, setDashboardData] = useState(emptyDataState);
   const [retryKey, setRetryKey] = useState(0);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  useEffect(() => {
+    if (!initialized || !isAuthenticated || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("onboarding") !== "1") return;
+    if (window.localStorage.getItem("evotracker_onboarding_seen") === "1") return;
+    setOnboardingOpen(true);
+    params.delete("onboarding");
+    const nextUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", nextUrl);
+  }, [initialized, isAuthenticated]);
+
+  const closeOnboarding = () => {
+    try {
+      window.localStorage.setItem("evotracker_onboarding_seen", "1");
+    } catch {
+      // The guide still closes when storage is unavailable.
+    }
+    setOnboardingOpen(false);
+  };
 
   useEffect(() => {
     if (!initialized) return undefined;
@@ -162,8 +186,11 @@ export default function HomeClient() {
   }
 
   return (
-    <main>
-      <LiveHeader {...dashboardData.value} />
-    </main>
+    <>
+      <main>
+        <LiveHeader {...dashboardData.value} />
+      </main>
+      <OnboardingGuide open={onboardingOpen} onClose={closeOnboarding} translate={translate} />
+    </>
   );
 }
