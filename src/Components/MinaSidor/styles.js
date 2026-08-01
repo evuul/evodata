@@ -24,10 +24,10 @@ export const compactCard = {
 };
 
 export const gradientCards = {
-  liveValue: "linear-gradient(135deg, rgba(30,58,138,0.45), rgba(15,23,42,0.7))",
-  costBasis: "linear-gradient(135deg, rgba(15,118,110,0.35), rgba(15,23,42,0.7))",
-  valueChange: "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(15,23,42,0.7))",
-  dividend: "linear-gradient(135deg, rgba(16,185,129,0.25), rgba(15,23,42,0.7))",
+  liveValue: "rgba(15,23,42,0.62)",
+  costBasis: "rgba(15,23,42,0.62)",
+  valueChange: "rgba(15,23,42,0.62)",
+  dividend: "rgba(15,23,42,0.62)",
 };
 
 export const text = {
@@ -105,7 +105,7 @@ export const actionCard = {
 };
 
 export const pageShell = {
-  background: "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(17,28,47,0.98))",
+  background: "#0f172a",
   borderRadius: { xs: 2, md: 3 },
   border: "1px solid rgba(148,163,184,0.16)",
   boxShadow: "0 28px 60px rgba(15,23,42,0.55)",
@@ -151,7 +151,7 @@ export const inputSx = {
 export const inputLabelSx = { color: "rgba(226,232,240,0.65)" };
 
 export const buttonStyles = {
-  primary: { fontWeight: 700, background: "linear-gradient(135deg, #38bdf8, #3b82f6)" },
+  primary: { fontWeight: 700, background: "#2563eb", "&:hover": { background: "#1d4ed8" } },
   reset: { color: statusColors.warning, fontWeight: 600 },
   outlineDanger: {
     borderColor: "rgba(248,113,113,0.5)",

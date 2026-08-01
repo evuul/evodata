@@ -44,9 +44,8 @@ export default function PortfolioHeroCard({
         overflow: "hidden",
         position: "relative",
         p: { xs: 2.2, md: 3.2 },
-        background:
-          "radial-gradient(circle at 85% 0%, rgba(56,189,248,0.18), transparent 32%), linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,39,67,0.88))",
-        boxShadow: "0 24px 60px rgba(2,6,23,0.32)",
+        background: "rgba(15,23,42,0.62)",
+        boxShadow: "none",
       }}
     >
       <Stack direction={{ xs: "column", md: "row" }} spacing={{ xs: 2.2, md: 4 }} justifyContent="space-between">
@@ -89,10 +88,10 @@ export default function PortfolioHeroCard({
           </Typography>
           <Typography sx={{ color: returnColor, fontWeight: 800 }}>{formatPercent(totalReturnPct)}</Typography>
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={<EditRounded />}
             onClick={onManage}
-            sx={{ mt: 1.5, textTransform: "none", fontWeight: 800, borderRadius: "999px", px: 2.1 }}
+            sx={{ mt: 1.5, textTransform: "none", fontWeight: 750, borderRadius: "9px", px: 1.6, color: "#e2e8f0", borderColor: "rgba(148,163,184,0.35)", "&:hover": { borderColor: "rgba(125,211,252,0.68)", background: "rgba(56,189,248,0.08)" } }}
           >
             {translate("Hantera innehav", "Manage holdings")}
           </Button>

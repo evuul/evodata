@@ -43,7 +43,7 @@ export default function MinaSidorSectionNav({ activeView, isAdmin, onChange, tra
           border: "1px solid rgba(148,163,184,0.2)",
           background: "rgba(10,18,34,0.88)",
           backdropFilter: "blur(16px)",
-          boxShadow: "0 12px 30px rgba(2,6,23,0.28)",
+          boxShadow: "none",
           "& .MuiToggleButtonGroup-grouped": {
             flex: { md: 1 },
             minWidth: { xs: 112, md: 0 },
@@ -57,11 +57,11 @@ export default function MinaSidorSectionNav({ activeView, isAdmin, onChange, tra
             whiteSpace: "nowrap",
             "&.Mui-selected": {
               color: "#f8fafc",
-              background: "linear-gradient(135deg, rgba(14,165,233,0.3), rgba(59,130,246,0.24))",
+              background: "rgba(30,64,175,0.36)",
               boxShadow: "inset 0 0 0 1px rgba(125,211,252,0.24)",
             },
             "&.Mui-selected:hover": {
-              background: "linear-gradient(135deg, rgba(14,165,233,0.36), rgba(59,130,246,0.3))",
+              background: "rgba(30,64,175,0.48)",
             },
           },
         }}

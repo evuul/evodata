@@ -381,18 +381,13 @@ export default function MinaSidorHeader({
                   sx={{
                     display: "inline-flex",
                     alignItems: "center",
-                    px: 1.25,
-                    py: 0.45,
-                    borderRadius: "999px",
-                    border: "1px solid rgba(125,211,252,0.35)",
-                    background:
-                      "linear-gradient(135deg, rgba(56,189,248,0.16), rgba(59,130,246,0.14))",
-                    boxShadow: "0 10px 24px rgba(14,116,144,0.2)",
+                    px: 0,
+                    py: 0,
                     width: "fit-content",
                   }}
                 >
                   <Typography sx={{ color: "#dbeafe", fontWeight: 700, fontSize: { xs: "0.9rem", md: "0.95rem" } }}>
-                    {translate(`Välkommen ${greetingName}`, `Welcome ${greetingName}`)}
+                    {greetingName}
                   </Typography>
                 </Box>
               ) : null}
@@ -467,23 +462,29 @@ export default function MinaSidorHeader({
           </Stack>
         </Stack>
 
-        {/* Right Column: Live Data (Stacks below on mobile but positioned here for desktop) */}
+        {/* Live market snapshot */}
         <Stack
           direction={{ xs: "column", md: "column" }}
           spacing={1.5}
           sx={{
-            minWidth: 240,
-            alignItems: { xs: "center", md: "flex-end" }, // Center on mobile, Right on Desktop
-            justifyContent: { xs: "flex-start", md: "flex-start" },
+            minWidth: { md: 300 },
+            alignItems: "stretch",
+            justifyContent: "flex-start",
             flexWrap: "wrap",
-            mt: { xs: 1.5, md: 0 }, // REDUCED MT for mobile
-            mb: { xs: 0.5, md: 0 }, // Reduced bottom margin on mobile
+            mt: { xs: 1.5, md: 0 },
+            mb: { xs: 0.5, md: 0 },
             width: { xs: "100%", md: "auto" },
-            flexShrink: 0
+            flexShrink: 0,
+            p: 1.35,
+            borderRadius: "12px",
+            border: "1px solid rgba(148,163,184,0.18)",
+            background: "rgba(15,23,42,0.46)",
           }}
         >
-          {/* Centered Live Players - Increased Sizes */}
-          <Stack spacing={0.25} alignItems={{ xs: "center", md: "flex-end" }} sx={{ mb: { xs: 1.5, md: 0 } }}>
+          <Typography sx={{ color: "rgba(148,163,184,0.7)", fontWeight: 800, fontSize: "0.68rem", letterSpacing: 1, textTransform: "uppercase" }}>
+            {translate("Liveöversikt", "Live overview")}
+          </Typography>
+          <Stack spacing={0.25} alignItems="flex-start" sx={{ mb: 0.15 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <Box sx={liveDot} />
               <Typography sx={{ color: text.subtle, fontSize: { xs: "0.95rem", md: "0.85rem" } }}>
@@ -516,8 +517,8 @@ export default function MinaSidorHeader({
                 color: hourlyChip.color,
                 background: hourlyChip.bg,
                 border: hourlyChip.border,
-                alignSelf: { xs: "center", md: "flex-end" },
-                mb: 0.6,
+                alignSelf: "flex-start",
+                mb: 0.15,
               }}
             >
               {hourlyChip.label}
@@ -529,7 +530,7 @@ export default function MinaSidorHeader({
             direction="row"
             spacing={1}
             flexWrap="wrap"
-            sx={{ justifyContent: { xs: "center", md: "flex-end" } }}
+            sx={{ justifyContent: "flex-start" }}
           >
             <Box
               sx={{

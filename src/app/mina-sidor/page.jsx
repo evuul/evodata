@@ -24,7 +24,6 @@ import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } f
 
 import dividendData from "@/app/data/dividendData.json";
 import financialCalendarEvents from "@/app/data/financialCalendar";
-import gameReleases from "@/app/data/gameReleases";
 import { getStockholmTodayYmd } from "@/lib/livePlayersControlPanel";
 
 import { usePortfolioData } from "@/app/mina-sidor/hooks/usePortfolioData";
@@ -71,7 +70,7 @@ const PageFallback = () => (
       minHeight: "100vh",
       display: "grid",
       placeItems: "center",
-      background: "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(17,28,47,0.98))",
+      background: "#0b1220",
     }}
   >
     <CircularProgress size={30} sx={{ color: "#7dd3fc" }} />
@@ -388,7 +387,7 @@ function MinaSidorContent() {
         py: 0,
         px: 0,
         minHeight: "100vh",
-        background: "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(17,28,47,0.98))",
+        background: "#0b1220",
       }}
     >
       <Box
@@ -461,17 +460,16 @@ function MinaSidorContent() {
                 {translate("Laddar notiser...", "Loading notifications...")}
               </Typography>
             ) : null}
-            <NotificationCenterCard
-              privateMessages={privateMessages}
-              unreadCount={privateMessagesUnread}
-              calendarEvents={financialCalendarEvents}
-              gameReleases={gameReleases}
-              todayYmd={dashboardTodayYmd}
-              locale={locale}
-              translate={translate}
-              onMarkRead={handleOpenPrivateMessages}
-              onDelete={handleDeletePrivateMessages}
-            />
+            {privateMessages.length ? (
+              <NotificationCenterCard
+                privateMessages={privateMessages}
+                unreadCount={privateMessagesUnread}
+                locale={locale}
+                translate={translate}
+                onMarkRead={handleOpenPrivateMessages}
+                onDelete={handleDeletePrivateMessages}
+              />
+            ) : null}
             {privateMessagesError ? (
               <Typography sx={{ color: statusColors.warning, mt: 1 }}>
                 {privateMessagesError}

@@ -44,19 +44,14 @@ function HighlightCard({ type, event, locale, translate }) {
         borderRadius: "13px",
         color: "inherit",
         textDecoration: "none",
-        background: isReport
-          ? "linear-gradient(135deg, rgba(14,116,144,0.18), rgba(30,41,59,0.42))"
-          : "linear-gradient(135deg, rgba(124,58,237,0.16), rgba(30,41,59,0.42))",
+        background: "rgba(15,23,42,0.42)",
         border: isReport
           ? "1px solid rgba(56,189,248,0.28)"
           : "1px solid rgba(167,139,250,0.28)",
-        transition: "transform 160ms ease, border-color 160ms ease, background 160ms ease",
+        transition: "border-color 160ms ease, background 160ms ease",
         "&:hover": {
-          transform: "translateY(-1px)",
           borderColor: isReport ? "rgba(125,211,252,0.55)" : "rgba(196,181,253,0.55)",
-          background: isReport
-            ? "linear-gradient(135deg, rgba(14,116,144,0.26), rgba(30,41,59,0.52))"
-            : "linear-gradient(135deg, rgba(124,58,237,0.24), rgba(30,41,59,0.52))",
+          background: "rgba(30,41,59,0.62)",
         },
         "&:focus-visible": {
           outline: "2px solid #7dd3fc",
