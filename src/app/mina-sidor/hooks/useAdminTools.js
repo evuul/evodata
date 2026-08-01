@@ -11,7 +11,10 @@ const ADMIN_SUPPORT_REFRESH_MS = 60 * 60 * 1000;
 const ADMIN_COST_REFRESH_MS = 5 * 60 * 1000;
 
 export function useAdminTools({ token, identity, effectiveIsAdmin, locale, translate }) {
-  const [adminPanel, setAdminPanel] = useState("tools");
+  const [adminPanel, setAdminPanel] = useState("overview");
+  const [adminOverviewLoading, setAdminOverviewLoading] = useState(false);
+  const [adminOverviewError, setAdminOverviewError] = useState("");
+  const [adminOverview, setAdminOverview] = useState(null);
   
   // Mail Test & Preview
   const [mailTestLoading, setMailTestLoading] = useState(false);
@@ -522,6 +525,21 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
     }
   }, [authFetchJson, token, translate]);
 
+  const loadAdminOverview = useCallback(async () => {
+    if (!token) return;
+    try {
+      setAdminOverviewLoading(true);
+      setAdminOverviewError("");
+      const payload = await authFetchJson("/api/admin/overview?hours=72", { cache: "no-store" });
+      setAdminOverview(payload || null);
+    } catch {
+      setAdminOverview(null);
+      setAdminOverviewError(translate("Kunde inte läsa adminöversikten.", "Could not load admin overview."));
+    } finally {
+      setAdminOverviewLoading(false);
+    }
+  }, [authFetchJson, token, translate]);
+
   const saveAlertsSettings = async (next) => {
     if (!token) return;
     try {
@@ -543,6 +561,15 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
   };
 
   // --- Effects ---
+
+  useEffect(() => {
+    if (!effectiveIsAdmin || !token || adminPanel !== "overview") return;
+    let cancelled = false;
+    const load = async () => { if (!cancelled) await loadAdminOverview(); };
+    load();
+    const id = setInterval(load, ADMIN_COST_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [adminPanel, effectiveIsAdmin, loadAdminOverview, token]);
 
   useEffect(() => {
     if (!effectiveIsAdmin || !token || adminPanel !== "activity") return;
@@ -613,6 +640,7 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
 
   return {
     adminPanel, setAdminPanel,
+    adminOverviewLoading, adminOverviewError, adminOverview, loadAdminOverview,
     mailTestLoading, lobbyAthTestLoading, mailTestMessage,
     previewLoading, previewOpen, setPreviewOpen, previewTitle, previewHtml,
     adminActivityLoading, adminActivityError, adminActivityRows, adminActivityGeoSummary, loadAdminActivity,

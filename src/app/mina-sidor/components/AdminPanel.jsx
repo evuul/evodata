@@ -21,6 +21,10 @@ import { FOUNDER_PROGRAM } from "@/config/founderProgram";
 
 export function AdminPanel({
     adminPanel, setAdminPanel,
+    adminOverviewLoading,
+    adminOverviewError,
+    adminOverview,
+    loadAdminOverview,
     translate, locale,
     // Actions
     handleAdminMailTest,
@@ -102,25 +106,25 @@ const exactEmailMatch = useMemo(
     const summaryCards = [
         {
             label: translate("Användare", "Users"),
-            value: adminUsersTotal || adminUsersRows.length || "—",
+            value: adminOverview?.totals?.users ?? (adminUsersTotal || adminUsersRows.length || "—"),
             detail: adminUsersRows.length ? translate("Registererade konton", "Registered accounts") : translate("Öppna fliken för att läsa in", "Open the tab to load"),
             color: "#a78bfa",
         },
         {
             label: translate("Aktiva nu", "Active now"),
-            value: adminActivityRows.length || "—",
+            value: adminOverview?.totals?.activeUsers ?? (adminActivityRows.length || "—"),
             detail: adminActivityRows.length ? translate("Senaste aktivitet", "Recent activity") : translate("Öppna fliken för att läsa in", "Open the tab to load"),
             color: "#34d399",
         },
         {
             label: translate("Upstash reads", "Upstash reads"),
-            value: adminCostData?.totals?.upstashReads ?? "—",
+            value: adminOverview?.cost?.totals?.upstashReads ?? adminCostData?.totals?.upstashReads ?? "—",
             detail: translate("Senaste 72 timmarna", "Last 72 hours"),
             color: "#38bdf8",
         },
         {
             label: translate("Upstash writes", "Upstash writes"),
-            value: adminCostData?.totals?.upstashWrites ?? "—",
+            value: adminOverview?.cost?.totals?.upstashWrites ?? adminCostData?.totals?.upstashWrites ?? "—",
             detail: translate("Skrivningar att hålla nere", "Writes to keep low"),
             color: "#fbbf24",
         },
@@ -160,6 +164,32 @@ const exactEmailMatch = useMemo(
                     </Box>
                 ))}
             </Box>
+            {adminPanel === "overview" ? (
+                <Stack spacing={1.4} sx={{ width: "100%", maxWidth: 1180 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1, alignItems: "center" }}>
+                        <Typography sx={{ color: "#f8fafc", fontWeight: 850, fontSize: "1.1rem" }}>
+                            {translate("Systemöversikt", "System overview")}
+                        </Typography>
+                        <Button size="small" variant="outlined" onClick={loadAdminOverview} disabled={adminOverviewLoading} sx={{ textTransform: "none" }}>
+                            {adminOverviewLoading ? translate("Laddar...", "Loading...") : translate("Uppdatera", "Refresh")}
+                        </Button>
+                    </Box>
+                    {adminOverviewError ? <Typography sx={{ color: statusColors.warning }}>{adminOverviewError}</Typography> : null}
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" }, gap: 1 }}>
+                        {[
+                            [translate("Prenumeranter", "Subscribers"), adminOverview?.totals?.subscribers ?? "—", "#a78bfa"],
+                            [translate("Founders", "Founders"), adminOverview?.totals?.founders ?? "—", "#fbbf24"],
+                            [translate("Öppna supportärenden", "Open support tickets"), adminOverview?.totals?.openTickets ?? "—", "#fb7185"],
+                            [translate("ATH-notiser", "ATH alerts"), adminOverview?.alerts ? adminOverview.alerts.lobbyAth + adminOverview.alerts.gameAth : "—", "#34d399"],
+                        ].map(([label, value, color]) => (
+                            <Box key={label} sx={{ p: 1.35, borderRadius: "12px", background: "rgba(15,23,42,0.35)", border: "1px solid rgba(148,163,184,0.14)" }}>
+                                <Typography sx={{ color, fontSize: "0.7rem", fontWeight: 800, textTransform: "uppercase" }}>{label}</Typography>
+                                <Typography sx={{ color: "#f8fafc", fontSize: "1.25rem", fontWeight: 900 }}>{value}</Typography>
+                            </Box>
+                        ))}
+                    </Box>
+                </Stack>
+            ) : null}
             <ToggleButtonGroup
                 value={adminPanel}
                 exclusive
@@ -171,6 +201,12 @@ const exactEmailMatch = useMemo(
                     p: 0.5,
                 }}
             >
+                <ToggleButton
+                    value="overview"
+                    sx={{ textTransform: "none", border: 0, borderRadius: "999px!important", px: 1.4, color: "rgba(226,232,240,0.8)", "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.25)" } }}
+                >
+                    {translate("Översikt", "Overview")}
+                </ToggleButton>
                 <ToggleButton
                     value="tools"
                     sx={{
