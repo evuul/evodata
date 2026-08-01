@@ -164,9 +164,11 @@ export default function GameReleasesPanel() {
         px: { xs: 2, sm: 3, md: 4 },
         py: { xs: 3, md: 4 },
         color: "#f8fafc",
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
-      <Stack spacing={{ xs: 3, md: 4 }} sx={{ maxWidth: 1180, mx: "auto" }}>
+      <Stack spacing={{ xs: 3, md: 4 }} sx={{ width: "100%", maxWidth: 1180, mx: "auto" }}>
         <Stack spacing={0.9} alignItems="center" textAlign="center">
           <SportsEsportsRounded sx={{ color: "#fcd34d", fontSize: 36 }} />
           <Typography variant="h3" sx={{ fontWeight: 900, fontSize: { xs: "1.9rem", sm: "2.5rem" } }}>
@@ -180,10 +182,10 @@ export default function GameReleasesPanel() {
           </Typography>
         </Stack>
 
-        <Stack spacing={1.4}>
-          <Stack direction="row" gap={0.8} alignItems="center">
+        <Stack spacing={1.4} sx={{ width: "100%" }}>
+          <Stack direction="row" gap={0.8} alignItems="center" justifyContent="center">
             <AutoAwesomeRounded sx={{ color: "#fcd34d", fontSize: 21 }} />
-            <Typography variant="h5" sx={{ fontWeight: 850 }}>
+            <Typography variant="h5" sx={{ fontWeight: 850, textAlign: "center" }}>
               {translate("Kommande", "Upcoming")}
             </Typography>
           </Stack>
@@ -191,11 +193,14 @@ export default function GameReleasesPanel() {
             <Box
               sx={{
                 display: "grid",
+                width: "100%",
+                maxWidth: schedule.upcoming.length > 1 ? 1180 : 760,
                 gridTemplateColumns:
                   schedule.upcoming.length > 1
                     ? { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }
                     : "minmax(0, 760px)",
                 justifyContent: "center",
+                mx: "auto",
                 gap: 2,
               }}
             >
@@ -217,11 +222,11 @@ export default function GameReleasesPanel() {
         </Stack>
 
         {schedule.released.length ? (
-          <Stack spacing={1.4}>
-            <Typography variant="h5" sx={{ fontWeight: 850 }}>
+          <Stack spacing={1.4} sx={{ width: "100%" }}>
+            <Typography variant="h5" sx={{ fontWeight: 850, textAlign: "center" }}>
               {translate("Nyligen lanserade", "Recently released")}
             </Typography>
-            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
+            <Box sx={{ display: "grid", width: "100%", gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" }, gap: 2 }}>
               {schedule.released.map((release) => (
                 <ReleaseCard key={release.id} release={release} locale={locale} translate={translate} />
               ))}
