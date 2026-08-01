@@ -29,6 +29,7 @@ import { FOUNDER_BENEFITS, FOUNDER_PROGRAM } from "@/config/founderProgram";
 
 const colors = {
   border: "rgba(148, 163, 184, 0.18)",
+  surface: "#111c2e",
   text: "#f8fafc",
   muted: "rgba(226, 232, 240, 0.68)",
   cyan: "#82c1ff",
@@ -37,8 +38,8 @@ const colors = {
 
 const panelSx = {
   border: `1px solid ${colors.border}`,
-  background: "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,28,47,0.96))",
-  boxShadow: "0 24px 50px rgba(0,0,0,0.28)",
+  backgroundColor: colors.surface,
+  boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
 };
 
 const primaryButtonSx = {
@@ -218,7 +219,7 @@ function FeatureCard({ feature, index }) {
   const Icon = featureIcons[index];
   const accent = colors.cyan;
   return (
-    <Box sx={{ ...panelSx, borderRadius: 3, p: { xs: 2.5, md: 3 }, minHeight: 238, transition: "transform 180ms ease, border-color 180ms ease", "&:hover": { transform: "translateY(-4px)", borderColor: `${accent}55` } }}>
+    <Box sx={{ ...panelSx, borderRadius: 3, p: { xs: 2.25, md: 3 }, minHeight: { xs: 220, md: 238 }, transition: "transform 180ms ease, border-color 180ms ease", "&:hover": { transform: "translateY(-4px)", borderColor: `${accent}55` } }}>
       <Box sx={{ width: 44, height: 44, borderRadius: 2, display: "grid", placeItems: "center", color: accent, backgroundColor: `${accent}16`, border: `1px solid ${accent}25` }}>
         <Icon />
       </Box>
@@ -235,7 +236,7 @@ function FeatureCard({ feature, index }) {
 function ReportPreview({ translate }) {
   const rows = [78, 64, 88, 53];
   return (
-    <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, p: { xs: 2.5, sm: 3.5, md: 4.5 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "0.85fr 1.15fr" }, gap: { xs: 3, md: 6 }, alignItems: "center" }}>
+    <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, p: { xs: 2.25, sm: 3.5, md: 4.5 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "0.85fr 1.15fr" }, gap: { xs: 2.5, md: 5 }, alignItems: "center" }}>
       <Box>
         <Chip label={translate("RAPPORTINTELLIGENS", "REPORT INTELLIGENCE")} size="small" sx={{ color: "#cbd5e1", backgroundColor: "rgba(148,163,184,0.10)", border: `1px solid ${colors.border}`, fontWeight: 800, letterSpacing: "0.08em", fontSize: 10 }} />
         <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 28, md: 36 }, lineHeight: 1.15, fontWeight: 780, mt: 2 }}>
@@ -288,7 +289,7 @@ export default function LiveLoggedOutPreview() {
   const model = buildLandingPreviewModel(locale);
 
   return (
-    <Box sx={{ minHeight: "100vh", background: `radial-gradient(circle at 78% 8%, rgba(74,144,226,0.07), transparent 28%), linear-gradient(180deg, #151719, #111315 70%, #151719)`, color: colors.text, overflow: "hidden" }}>
+    <Box sx={{ minHeight: "100vh", background: `radial-gradient(circle at 78% 8%, rgba(74,144,226,0.09), transparent 28%), linear-gradient(180deg, #0b1424, #0f1b2c 70%, #0b1424)`, color: colors.text, overflow: "hidden" }}>
       <Box component="nav" aria-label={translate("Huvudnavigation", "Main navigation")} sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, py: { xs: 1.5, sm: 1.8 }, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <BrandMark />
         <Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center">
@@ -302,21 +303,21 @@ export default function LiveLoggedOutPreview() {
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pt: { xs: 4.5, md: 7 }, pb: { xs: 5.5, md: 8 }, display: "grid", gridTemplateColumns: { xs: "1fr", lg: "0.88fr 1.12fr" }, gap: { xs: 4.5, lg: 6 }, alignItems: "center" }}>
         <Box>
           <Chip icon={<PublicRoundedIcon sx={{ fontSize: "15px !important" }} />} label={translate("EVOLUTION DATA · SAMLAD PÅ ETT STÄLLE", "EVOLUTION DATA · ALL IN ONE PLACE")} size="small" sx={{ color: "#dbe7f2", bgcolor: "rgba(148,163,184,0.08)", border: `1px solid ${colors.border}`, fontWeight: 800, letterSpacing: "0.06em", fontSize: 10 }} />
-          <Typography component="h1" sx={{ mt: 2.5, fontSize: { xs: 42, sm: 58, lg: 64 }, lineHeight: 1.02, letterSpacing: "-0.045em", fontWeight: 800, maxWidth: 610 }}>
+          <Typography component="h1" sx={{ mt: 2.25, fontSize: { xs: 38, sm: 56, lg: 62 }, lineHeight: 1.04, letterSpacing: "-0.045em", fontWeight: 800, maxWidth: 610 }}>
             {translate("Från live-lobby till", "From live lobby to")} <Box component="span">{translate("kvartalsforecast.", "quarterly forecast.")}</Box>
           </Typography>
           <Typography sx={{ mt: 2.5, color: "#a6b5c6", fontSize: { xs: 17, sm: 19 }, lineHeight: 1.65, maxWidth: 580 }}>
             {translate("EvoTracker samlar lobbyaktivitet, spelartrender och finansiella rapporter i en tydlig vy — så att du snabbare ser vad som förändras och varför det spelar roll.", "EvoTracker brings lobby activity, player trends and financial reports into one clear view — helping you see what is changing and why it matters.")}
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 2.8, alignItems: { xs: "stretch", sm: "center" } }}>
-            <Button component={NextLink} href="/register" size="large" variant="contained" endIcon={<ArrowForwardRoundedIcon />} sx={{ ...primaryButtonSx, minHeight: 52, px: 3, borderRadius: "12px" }}>{translate("Skapa kostnadsfritt konto", "Create free account")}</Button>
+            <Button component={NextLink} href="/register" size="large" variant="contained" endIcon={<ArrowForwardRoundedIcon />} sx={{ ...primaryButtonSx, minHeight: 50, px: 3, borderRadius: "12px" }}>{translate("Skapa kostnadsfritt konto", "Create free account")}</Button>
             <Button
               component={NextLink}
               href="/login"
               size="large"
               variant="outlined"
               sx={{
-                minHeight: 52,
+                minHeight: 50,
                 px: 2.5,
                 color: "#dbe7f2",
                 borderColor: "rgba(148,163,184,0.42)",
@@ -348,7 +349,7 @@ export default function LiveLoggedOutPreview() {
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 5.5, md: 8 } }}>
         <Box sx={{ textAlign: "center", maxWidth: 710, mx: "auto", mb: { xs: 3.5, md: 4 } }}>
           <Typography sx={{ color: "#cbd5e1", fontSize: 11, fontWeight: 850, letterSpacing: "0.14em" }}>{translate("BYGGT FÖR ATT HITTA SAMBAND", "BUILT TO CONNECT THE DOTS")}</Typography>
-          <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 30, md: 42 }, fontWeight: 780, letterSpacing: "-0.03em", mt: 1.5 }}>{translate("Mer signal. Mindre brus.", "More signal. Less noise.")}</Typography>
+          <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 28, md: 42 }, fontWeight: 780, letterSpacing: "-0.03em", mt: 1.3 }}>{translate("Mer signal. Mindre brus.", "More signal. Less noise.")}</Typography>
           <Typography sx={{ color: colors.muted, mt: 1.4, lineHeight: 1.7 }}>{translate("Från vad som händer i lobbyn just nu till hur utvecklingen kan slå igenom i nästa kvartal.", "From what is happening in the lobby right now to how the trend may flow through to the next quarter.")}</Typography>
         </Box>
         <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 2.2 }}>
@@ -391,7 +392,7 @@ export default function LiveLoggedOutPreview() {
       </Box>
 
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: 4 }}>
-        <Box sx={{ borderRadius: { xs: 3, md: 4 }, px: { xs: 2.5, md: 7 }, py: { xs: 3.5, md: 5 }, textAlign: "center", border: `1px solid ${colors.border}`, background: "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(17,28,47,0.96))", boxShadow: "0 24px 50px rgba(0,0,0,0.24)" }}>
+        <Box sx={{ borderRadius: { xs: 3, md: 4 }, px: { xs: 2.25, md: 7 }, py: { xs: 3.25, md: 5 }, textAlign: "center", border: `1px solid ${colors.border}`, backgroundColor: colors.surface, boxShadow: "0 18px 40px rgba(0,0,0,0.2)" }}>
           <AutoGraphRoundedIcon sx={{ color: colors.cyan, fontSize: 34 }} />
           <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 29, md: 40 }, fontWeight: 780, letterSpacing: "-0.03em", mt: 1.5 }}>{translate("Se hela bilden bakom Evolution.", "See the full picture behind Evolution.")}</Typography>
           <Typography sx={{ color: colors.muted, mt: 1.3, maxWidth: 590, mx: "auto", lineHeight: 1.7 }}>{translate("Skapa ett konto för korrekta livevärden, kompletta grafer, historiska rapporter och EvoTrackers kvartalsforecast.", "Create an account for accurate live values, complete charts, historical reports and EvoTracker's quarterly forecast.")}</Typography>
