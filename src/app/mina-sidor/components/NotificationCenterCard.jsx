@@ -1,6 +1,6 @@
 // Presents personal messages without duplicating the calendar and release roadmap.
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 
 const CATEGORY_STYLES = {
@@ -15,17 +15,29 @@ export default function NotificationCenterCard({
   onMarkRead,
   onDelete,
 }) {
+  const [showAll, setShowAll] = useState(false);
   const notifications = useMemo(() => {
-    const messages = privateMessages.map((item) => ({
-      id: `message-${item?.id || item?.createdAt}`,
-      category: "message",
-      title: item?.subject || translate("Meddelande från admin", "Message from admin"),
-      description: item?.message || "—",
-      date: item?.createdAt || null,
-      unread: !item?.readAt,
-    }));
+    const seen = new Set();
+    const messages = privateMessages.reduce((items, item) => {
+      const title = item?.subject || translate("Meddelande från admin", "Message from admin");
+      const description = item?.message || "—";
+      const identity = String(item?.id || `${title}|${description}|${item?.createdAt || ""}`);
+      if (seen.has(identity)) return items;
+      seen.add(identity);
+      items.push({
+        id: `message-${identity}`,
+        category: "message",
+        title,
+        description,
+        date: item?.createdAt || null,
+        unread: !item?.readAt,
+      });
+      return items;
+    }, []);
     return messages.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
   }, [privateMessages, translate]);
+
+  const visibleNotifications = showAll ? notifications : notifications.slice(0, 3);
 
   const formatDate = (value) => {
     if (!value || !/^\d{4}-\d{2}-\d{2}/.test(String(value))) return value || "—";
@@ -40,12 +52,13 @@ export default function NotificationCenterCard({
             {translate("Notiscenter", "Notification center")}
           </Typography>
           <Typography sx={{ color: "rgba(226,232,240,0.6)", fontSize: "0.78rem" }}>
-            {unreadCount > 0 ? translate(`${unreadCount} olästa meddelanden`, `${unreadCount} unread messages`) : translate("Allt är läst", "Everything is read")}
+            {unreadCount > 0 ? translate(`${unreadCount} olästa · ${notifications.length} totalt`, `${unreadCount} unread · ${notifications.length} total`) : translate(`${notifications.length} meddelanden`, `${notifications.length} messages`)}
           </Typography>
         </Box>
+        <Chip size="small" label={translate("Meddelanden", "Messages")} sx={{ alignSelf: { xs: "flex-start", sm: "center" }, color: "#93c5fd", bgcolor: "rgba(59,130,246,0.12)", fontWeight: 750 }} />
       </Stack>
       <Stack spacing={0.7} sx={{ mt: 1.2 }}>
-        {notifications.length ? notifications.map((item) => {
+        {visibleNotifications.length ? visibleNotifications.map((item) => {
           const style = CATEGORY_STYLES[item.category];
           return (
             <Box key={item.id} sx={{ display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 1, alignItems: "start", p: 1, borderRadius: "10px", background: item.unread ? "rgba(37,99,235,0.13)" : "rgba(15,23,42,0.28)", border: "1px solid rgba(148,163,184,0.12)" }}>
@@ -59,6 +72,11 @@ export default function NotificationCenterCard({
           );
         }) : <Typography sx={{ color: "rgba(226,232,240,0.58)", py: 1 }}>{translate("Inga meddelanden just nu.", "No messages right now.")}</Typography>}
       </Stack>
+      {notifications.length > 3 ? (
+        <Button size="small" onClick={() => setShowAll((current) => !current)} sx={{ mt: 0.7, px: 0, textTransform: "none", color: "#93c5fd", fontWeight: 750 }}>
+          {showAll ? translate("Visa färre", "Show less") : translate(`Visa alla (${notifications.length})`, `View all (${notifications.length})`)}
+        </Button>
+      ) : null}
       {privateMessages.length ? (
         <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
           {unreadCount > 0 ? <Button size="small" onClick={onMarkRead} sx={{ textTransform: "none", color: "#bfdbfe" }}>{translate("Markera som lästa", "Mark as read")}</Button> : null}
