@@ -4,6 +4,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFxRateShared, shouldPersistFxPayload } from "@/lib/quoteFxClient";
+import { subscribeLiveDataSource } from "@/lib/liveDataCoordinator";
 
 const DEFAULT_META = { base: "EUR", quote: "SEK", source: "fallback" };
 const STORAGE_KEY = "evodata:fx:eursek";
@@ -134,16 +135,11 @@ export const FxRateProvider = ({
       fetchRate();
     }
 
-    let id;
-    if (refreshInterval > 0) {
-      id = setInterval(
-        () => fetchRate({ silent: true, force: true }),
-        refreshInterval
-      );
-    }
-    return () => {
-      if (id) clearInterval(id);
-    };
+    return subscribeLiveDataSource(
+      "fx:eursek",
+      () => fetchRate({ silent: true, force: true }),
+      refreshInterval
+    );
   }, [enabled, fetchRate, refreshInterval]);
 
   const value = useMemo(

@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { buybackDataResource } from "../lib/buybackDataClient.js";
+import { subscribeLiveDataSource } from "../lib/liveDataCoordinator.js";
 
 export function useBuybackData({ enabled = true, refreshIntervalMs = 0 } = {}) {
   const snapshot = useSyncExternalStore(
@@ -27,11 +28,9 @@ export function useBuybackData({ enabled = true, refreshIntervalMs = 0 } = {}) {
     buybackDataResource.load().catch(() => {});
     if (!Number.isFinite(refreshIntervalMs) || refreshIntervalMs <= 0) return undefined;
 
-    const intervalId = window.setInterval(() => {
+    return subscribeLiveDataSource("buybacks", () => {
       buybackDataResource.refresh().catch(() => {});
     }, refreshIntervalMs);
-
-    return () => window.clearInterval(intervalId);
   }, [enabled, refreshIntervalMs]);
 
   return {

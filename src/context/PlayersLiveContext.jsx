@@ -10,6 +10,7 @@ import {
   fetchLatestPlayersShared,
   fetchLobbyStatsShared,
 } from "@/lib/casinoScoresClient";
+import { subscribeLiveDataSource } from "@/lib/liveDataCoordinator";
 
 export const GAMES = GAME_CONFIG;
 
@@ -194,14 +195,12 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     const onVis = () => fetchAll(false);
     window.addEventListener("focus", onFocus);
     window.addEventListener("visibilitychange", onVis);
-    const id = setInterval(() => {
-      if (document.visibilityState === "visible" && navigator.onLine) fetchAll(false);
-    }, PLAYERS_POLL_INTERVAL_MS);
+    const unsubscribe = subscribeLiveDataSource("players", () => fetchAll(false), PLAYERS_POLL_INTERVAL_MS);
     return () => {
       active = false;
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("visibilitychange", onVis);
-      clearInterval(id);
+      unsubscribe();
     };
   }, [enabled, fetchAll, hydrateFromCache]);
 

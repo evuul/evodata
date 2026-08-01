@@ -4,6 +4,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { fetchStockQuoteShared } from '@/lib/quoteFxClient';
+import { subscribeLiveDataSource } from '@/lib/liveDataCoordinator';
 
 const StockPriceContext = createContext();
 
@@ -49,12 +50,12 @@ export const StockPriceProvider = ({ children, stockSymbol = 'EVO.ST', updateInt
     }
 
     fetchStockPrice();
-    const interval = setInterval(
+    return subscribeLiveDataSource(
+      `stock:${stockSymbol}`,
       () => fetchStockPrice({ force: true, silent: true }),
       updateInterval
     );
-    return () => clearInterval(interval);
-  }, [enabled, fetchStockPrice, updateInterval]);
+  }, [enabled, fetchStockPrice, stockSymbol, updateInterval]);
 
   return (
     <StockPriceContext.Provider

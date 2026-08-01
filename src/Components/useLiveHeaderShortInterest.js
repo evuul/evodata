@@ -4,6 +4,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchLatestShortPercent } from "@/lib/shortSnapshotClient";
+import { subscribeLiveDataSource } from "@/lib/liveDataCoordinator";
 
 const REFRESH_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -32,11 +33,15 @@ export function useLiveHeaderShortInterest() {
     const handleFocus = () => refreshShortInterest();
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
-    const id = setInterval(() => refreshShortInterest(true), REFRESH_INTERVAL_MS);
+    const unsubscribe = subscribeLiveDataSource(
+      "short-interest",
+      () => refreshShortInterest(true),
+      REFRESH_INTERVAL_MS
+    );
     return () => {
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("visibilitychange", handleFocus);
-      clearInterval(id);
+      unsubscribe();
     };
   }, [refreshShortInterest]);
 
