@@ -8,7 +8,6 @@ import { Box, FormControl, ListSubheader, MenuItem, Select, Stack, ToggleButton,
 export default function LiveHeaderPanelSwitcher({
   activePanel,
   isMobileMenu,
-  hideDefaultMobileContent = false,
   panelGroups,
   handlePanelChange,
   panelContent,
@@ -92,7 +91,6 @@ export default function LiveHeaderPanelSwitcher({
         )}
       </Box>
 
-      {!hideDefaultMobileContent ? (
       <Box
         sx={{
           width: "100%",
@@ -110,7 +108,6 @@ export default function LiveHeaderPanelSwitcher({
       >
         {panelContent}
       </Box>
-      ) : null}
     </>
   );
 }
