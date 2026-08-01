@@ -4,7 +4,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { Box, Button, CircularProgress, Divider, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, CircularProgress, Divider, Stack, Typography } from "@mui/material";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -165,7 +165,6 @@ function MinaSidorContent() {
   const inboxIdentity = profileIdentity?.email || user?.email || "";
   const adminTools = useAdminTools({ token, identity: inboxIdentity, effectiveIsAdmin, locale, translate });
   const {
-    adminMode, setAdminMode,
     adminPanel, setAdminPanel
   } = adminTools;
 
@@ -689,56 +688,15 @@ function MinaSidorContent() {
             {activeView === "admin" && effectiveIsAdmin ? (
               <Stack spacing={{ xs: 2, md: 4 }}>
                 <SectionHeading>{translate("Admin", "Admin")}</SectionHeading>
-                <Stack spacing={2} alignItems="center">
-                  <ToggleButtonGroup
-                    value={adminMode ? "on" : "off"}
-                    exclusive
-                    onChange={(_, value) => {
-                      if (!value) return;
-                      setAdminMode(value === "on");
-                    }}
-                    size="small"
-                    sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.5 }}
-                  >
-                    <ToggleButton
-                      value="off"
-                      sx={{
-                        textTransform: "none",
-                        border: 0,
-                        borderRadius: "999px!important",
-                        px: 1.6,
-                        color: "rgba(226,232,240,0.8)",
-                        "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.25)" },
-                      }}
-                    >
-                      {translate("Admin vy av", "Admin view off")}
-                    </ToggleButton>
-                    <ToggleButton
-                      value="on"
-                      sx={{
-                        textTransform: "none",
-                        border: 0,
-                        borderRadius: "999px!important",
-                        px: 1.6,
-                        color: "rgba(226,232,240,0.8)",
-                        "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(34,197,94,0.28)" },
-                      }}
-                    >
-                      {translate("Admin vy på", "Admin view on")}
-                    </ToggleButton>
-                  </ToggleButtonGroup>
-                  {adminMode ? (
-                    <AdminPanel
-                      adminPanel={adminPanel}
-                      setAdminPanel={setAdminPanel}
-                      translate={translate}
-                      locale={locale}
-                      {...adminTools}
-                      profileIdentity={profileIdentity}
-                      user={user}
-                    />
-                  ) : null}
-                </Stack>
+                <AdminPanel
+                  adminPanel={adminPanel}
+                  setAdminPanel={setAdminPanel}
+                  translate={translate}
+                  locale={locale}
+                  {...adminTools}
+                  profileIdentity={profileIdentity}
+                  user={user}
+                />
               </Stack>
             ) : null}
 

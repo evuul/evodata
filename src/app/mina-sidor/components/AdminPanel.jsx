@@ -86,7 +86,7 @@ export function AdminPanel({
             String(row?.email || "").toLowerCase().includes(normalizedUserEmailFilter)
         );
     }, [adminUsersRows, normalizedUserEmailFilter]);
-    const exactEmailMatch = useMemo(
+const exactEmailMatch = useMemo(
         () =>
             adminUsersRows.find(
                 (row) => String(row?.email || "").toLowerCase() === normalizedUserEmailFilter
@@ -99,8 +99,67 @@ export function AdminPanel({
     const dailyAvgOffCount = adminUsersRows.length - dailyAvgOnCount;
     const mailActionLoading = Boolean(mailTestLoading || lobbyAthTestLoading);
 
+    const summaryCards = [
+        {
+            label: translate("Användare", "Users"),
+            value: adminUsersTotal || adminUsersRows.length || "—",
+            detail: adminUsersRows.length ? translate("Registererade konton", "Registered accounts") : translate("Öppna fliken för att läsa in", "Open the tab to load"),
+            color: "#a78bfa",
+        },
+        {
+            label: translate("Aktiva nu", "Active now"),
+            value: adminActivityRows.length || "—",
+            detail: adminActivityRows.length ? translate("Senaste aktivitet", "Recent activity") : translate("Öppna fliken för att läsa in", "Open the tab to load"),
+            color: "#34d399",
+        },
+        {
+            label: translate("Upstash reads", "Upstash reads"),
+            value: adminCostData?.totals?.upstashReads ?? "—",
+            detail: translate("Senaste 72 timmarna", "Last 72 hours"),
+            color: "#38bdf8",
+        },
+        {
+            label: translate("Upstash writes", "Upstash writes"),
+            value: adminCostData?.totals?.upstashWrites ?? "—",
+            detail: translate("Skrivningar att hålla nere", "Writes to keep low"),
+            color: "#fbbf24",
+        },
+    ];
+
     return (
-        <Stack spacing={1.1} alignItems="center">
+        <Stack spacing={2} alignItems="center" sx={{ width: "100%" }}>
+            <Box
+                sx={{
+                    width: "100%",
+                    maxWidth: 1180,
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
+                    gap: 1,
+                }}
+            >
+                {summaryCards.map((card) => (
+                    <Box
+                        key={card.label}
+                        sx={{
+                            p: { xs: 1.2, sm: 1.5 },
+                            borderRadius: "14px",
+                            border: "1px solid rgba(148,163,184,0.18)",
+                            background: "rgba(15,23,42,0.5)",
+                            minWidth: 0,
+                        }}
+                    >
+                        <Typography sx={{ color: card.color, fontSize: "0.68rem", fontWeight: 800, letterSpacing: 1, textTransform: "uppercase" }}>
+                            {card.label}
+                        </Typography>
+                        <Typography sx={{ color: "#f8fafc", fontWeight: 900, fontSize: { xs: "1.2rem", sm: "1.45rem" }, lineHeight: 1.2, mt: 0.35 }}>
+                            {typeof card.value === "number" ? card.value.toLocaleString(locale === "sv" ? "sv-SE" : "en-US") : card.value}
+                        </Typography>
+                        <Typography sx={{ color: "rgba(226,232,240,0.58)", fontSize: "0.72rem", mt: 0.4 }}>
+                            {card.detail}
+                        </Typography>
+                    </Box>
+                ))}
+            </Box>
             <ToggleButtonGroup
                 value={adminPanel}
                 exclusive
@@ -1168,6 +1227,36 @@ export function AdminPanel({
                                 {translate("Upstash writes", "Upstash writes")}: {Number(adminCostData?.totals?.upstashWrites || 0)}
                             </Typography>
                         </Stack>
+                    ) : null}
+
+                    {Array.isArray(adminCostData?.hours) && adminCostData.hours.length ? (
+                        <Box
+                            sx={{
+                                border: "1px solid rgba(148,163,184,0.18)",
+                                borderRadius: "14px",
+                                background: "rgba(15,23,42,0.42)",
+                                p: { xs: 1.4, sm: 2 },
+                            }}
+                        >
+                            <Typography sx={{ color: "#e2e8f0", fontWeight: 800, mb: 1.3 }}>
+                                {translate("Upstash-anrop per timme", "Upstash requests per hour")}
+                            </Typography>
+                            <Box sx={{ height: 150, display: "flex", alignItems: "end", gap: { xs: 0.35, sm: 0.7 }, overflow: "hidden" }}>
+                                {adminCostData.hours.slice(-24).map((row) => {
+                                    const max = Math.max(...adminCostData.hours.slice(-24).map((item) => Number(item.upstashRequests || 0)), 1);
+                                    const total = Number(row.upstashRequests || 0);
+                                    const height = Math.max(4, (total / max) * 100);
+                                    return (
+                                        <Box key={row.hour} sx={{ flex: 1, minWidth: 4, height: "100%", display: "flex", alignItems: "end" }} title={`${row.hour}: ${total}`}>
+                                            <Box sx={{ width: "100%", height: `${height}%`, minHeight: 4, borderRadius: "4px 4px 1px 1px", background: "linear-gradient(180deg, #38bdf8, #2563eb)" }} />
+                                        </Box>
+                                    );
+                                })}
+                            </Box>
+                            <Typography sx={{ color: "rgba(148,163,184,0.65)", fontSize: "0.72rem", mt: 0.8 }}>
+                                {translate("Senaste 24 timmar med registrerad trafik. Håll muspekaren över staplarna för detaljer.", "Latest 24 hours with recorded traffic. Hover bars for details.")}
+                            </Typography>
+                        </Box>
                     ) : null}
 
                     {Array.isArray(adminCostData?.endpoints) && adminCostData.endpoints.length ? (

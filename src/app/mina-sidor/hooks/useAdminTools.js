@@ -11,7 +11,6 @@ const ADMIN_SUPPORT_REFRESH_MS = 60 * 60 * 1000;
 const ADMIN_COST_REFRESH_MS = 5 * 60 * 1000;
 
 export function useAdminTools({ token, identity, effectiveIsAdmin, locale, translate }) {
-  const [adminMode, setAdminMode] = useState(false);
   const [adminPanel, setAdminPanel] = useState("tools");
   
   // Mail Test & Preview
@@ -546,7 +545,7 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
   // --- Effects ---
 
   useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "activity") return;
+    if (!effectiveIsAdmin || !token || adminPanel !== "activity") return;
     let cancelled = false;
     const load = async () => {
       if (cancelled) return;
@@ -558,10 +557,10 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
       cancelled = true;
       clearInterval(id);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminActivity, token]);
+  }, [adminPanel, effectiveIsAdmin, loadAdminActivity, token]);
 
   useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "users") return;
+    if (!effectiveIsAdmin || !token || adminPanel !== "users") return;
     let cancelled = false;
     const load = async () => {
       if (cancelled) return;
@@ -573,10 +572,10 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
       cancelled = true;
       clearInterval(id);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminUsers, token]);
+  }, [adminPanel, effectiveIsAdmin, loadAdminUsers, token]);
 
   useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "support") return;
+    if (!effectiveIsAdmin || !token || adminPanel !== "support") return;
     let cancelled = false;
     const load = async () => {
       if (cancelled || document.visibilityState === "hidden") return;
@@ -590,15 +589,15 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
       clearInterval(id);
       document.removeEventListener("visibilitychange", load);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, loadAdminSupport, token]);
+  }, [adminPanel, effectiveIsAdmin, loadAdminSupport, token]);
 
   useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "tools") return;
+    if (!effectiveIsAdmin || !token || adminPanel !== "tools") return;
     loadAlertsSettings();
-  }, [adminMode, adminPanel, effectiveIsAdmin, loadAlertsSettings, token]);
+  }, [adminPanel, effectiveIsAdmin, loadAlertsSettings, token]);
 
   useEffect(() => {
-    if (!effectiveIsAdmin || !adminMode || !token || adminPanel !== "cost") return;
+    if (!effectiveIsAdmin || !token || adminPanel !== "cost") return;
     let cancelled = false;
     const load = async () => {
       if (cancelled) return;
@@ -610,10 +609,9 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
       cancelled = true;
       clearInterval(id);
     };
-  }, [adminMode, adminPanel, effectiveIsAdmin, token, loadAdminCost]);
+  }, [adminPanel, effectiveIsAdmin, token, loadAdminCost]);
 
   return {
-    adminMode, setAdminMode,
     adminPanel, setAdminPanel,
     mailTestLoading, lobbyAthTestLoading, mailTestMessage,
     previewLoading, previewOpen, setPreviewOpen, previewTitle, previewHtml,
