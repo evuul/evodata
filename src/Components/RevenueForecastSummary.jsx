@@ -101,7 +101,7 @@ export default function RevenueForecastSummary({
       : 100;
 
   return (
-    <Box sx={{ mt: { xs: 2.5, md: 3.5 } }}>
+    <Box sx={{ mt: { xs: 1.8, md: 3.5 } }}>
       <Box
         sx={{
           display: "grid",
@@ -113,7 +113,7 @@ export default function RevenueForecastSummary({
           <Box
             sx={{
               height: "100%",
-              p: { xs: 2.4, sm: 3, md: 3.5 },
+              p: { xs: 1.65, sm: 3, md: 3.5 },
               borderRadius: "18px",
               border: "1px solid rgba(148,163,184,0.16)",
               background: "rgba(15,23,42,0.58)",
@@ -158,7 +158,7 @@ export default function RevenueForecastSummary({
               component="p"
               sx={{
                 color: "#f8fafc",
-                fontSize: { xs: "2.7rem", sm: "3.5rem", md: "4rem" },
+                fontSize: { xs: "2.35rem", sm: "3.5rem", md: "4rem" },
                 fontWeight: 850,
                 lineHeight: 1,
                 letterSpacing: "-0.045em",
@@ -222,7 +222,7 @@ export default function RevenueForecastSummary({
           <Box
             sx={{
               height: "100%",
-              p: { xs: 2.4, sm: 3, md: 3.5 },
+              p: { xs: 1.65, sm: 3, md: 3.5 },
               borderRadius: "18px",
               border: "1px solid rgba(148,163,184,0.16)",
               background: "rgba(15,23,42,0.58)",
@@ -243,7 +243,7 @@ export default function RevenueForecastSummary({
               sx={{
                 display: "flex",
                 height: 12,
-                mt: 3,
+                mt: { xs: 2, md: 3 },
                 overflow: "hidden",
                 borderRadius: 999,
                 bgcolor: "rgba(148,163,184,0.14)",
@@ -289,12 +289,12 @@ export default function RevenueForecastSummary({
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(3, minmax(0, 1fr))" },
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" },
           gap: { xs: 1.5, md: 2 },
           mt: { xs: 2, md: 2.5 },
         }}
       >
-        <Box>
+        <Box sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
           <StatusCard
             label={translate("Kvartalsstatus", "Quarter status")}
             value={`${quarterProgress.progressPercent}%`}

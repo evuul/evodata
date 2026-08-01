@@ -779,8 +779,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         border: "1px solid rgba(148,163,184,0.18)",
         boxShadow: "0 20px 45px rgba(15, 23, 42, 0.45)",
         color: "#f8fafc",
-        px: { xs: 2, sm: 3, md: 4 },
-        py: { xs: 3, md: 4 },
+        px: { xs: 1.25, sm: 3, md: 4 },
+        py: { xs: 2.25, md: 4 },
         overflow: "visible",
         position: "relative",
       }}
@@ -792,7 +792,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 2,
+          gap: { xs: 1.2, md: 2 },
           textAlign: "center",
         }}
       >
@@ -813,8 +813,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
             sx={{
               color: "rgba(226,232,240,0.65)",
               maxWidth: 460,
-              mt: 1,
+              mt: { xs: 0.6, md: 1 },
               mx: "auto",
+              fontSize: { xs: "0.9rem", md: "1rem" },
+              lineHeight: 1.45,
             }}
           >
             {translate(
@@ -864,10 +866,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           role="status"
           aria-live="polite"
           sx={{
-            mt: 2,
+            mt: { xs: 1.2, md: 2 },
             mx: "auto",
-            px: 1.6,
-            py: 1,
+            px: { xs: 1.1, md: 1.6 },
+            py: { xs: 0.8, md: 1 },
             borderRadius: "999px",
             border: "1px solid rgba(245,158,11,0.28)",
             background: "rgba(120,53,15,0.22)",
@@ -901,7 +903,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       />
 
       <Box component="div">
-          <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 3, md: 4 } }} />
+          <Divider sx={{ borderColor: "rgba(148,163,184,0.2)", my: { xs: 2.2, md: 4 } }} />
 
           {/* Graf */}
           <Box
@@ -909,11 +911,11 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               background: "rgba(15,23,42,0.55)",
               borderRadius: "16px",
               border: "1px solid rgba(148,163,184,0.18)",
-              p: { xs: 2, md: 3 },
-              mt: { xs: 3, md: 4 },
+              p: { xs: 1.25, md: 3 },
+              mt: { xs: 2, md: 4 },
               display: "flex",
               flexDirection: "column",
-              gap: { xs: 2, md: 3 },
+              gap: { xs: 1.5, md: 3 },
             }}
           >
             <Box
@@ -925,7 +927,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                 gap: 1.5,
               }}
             >
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, fontSize: { xs: "1.05rem", md: "1.25rem" } }}>
                 {translate("Live-spelare över tid", "Live players over time")} · {labelFromPeriod(forecastPeriod)}
               </Typography>
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
@@ -935,7 +937,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               </Typography>
             </Box>
 
-            <Box sx={{ height: isMobile ? 260 : 320 }}>
+            <Box sx={{ height: isMobile ? 220 : 320 }}>
               {qData.length ? (
                 <ResponsiveContainer>
                   <AreaChart data={qData} margin={{ top: 10, right: 16, left: -10, bottom: 0 }}>
@@ -1029,7 +1031,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                         borderRadius: "14px",
                         border: "1px solid rgba(148,163,184,0.16)",
                         background: row.highlight ? "rgba(37,99,235,0.12)" : "rgba(15,23,42,0.45)",
-                        p: 1.6,
+                        p: { xs: 1.2, md: 1.6 },
                       }}
                     >
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
