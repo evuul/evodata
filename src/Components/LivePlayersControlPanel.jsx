@@ -2,8 +2,8 @@
 
 // Live players control panel view, fed by a separate model hook.
 
-import React from "react";
-import { Box, Typography, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import React, { useState } from "react";
+import { Box, FormControl, MenuItem, Select, Typography, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import TrendSection from "./LivePlayersControlPanelTrendSection";
 import GameTrendSection from "./LivePlayersControlPanelGameTrendView";
 import AsiaTrackerSection from "./LivePlayersControlPanelAsiaTrackerSection";
@@ -14,6 +14,7 @@ import LiveGamesSection from "./LivePlayersControlPanelLiveGamesSection";
 import useLivePlayersControlPanelModel from "./useLivePlayersControlPanelModel";
 
 const LivePlayersControlPanel = () => {
+  const [mobileSection, setMobileSection] = useState("overview");
   const {
     translate,
     hasExtendedAccess,
@@ -96,6 +97,16 @@ const LivePlayersControlPanel = () => {
     formatDateTime,
   } = useLivePlayersControlPanelModel();
 
+  const handleMobileSectionChange = (event) => {
+    const nextSection = event.target.value;
+    setMobileSection(nextSection);
+    if (["trend", "gameTrend", "asia", "ranking", "ath"].includes(nextSection)) {
+      setDetailView(nextSection);
+    }
+  };
+
+  const mobileSectionDisplay = (section) => ({ xs: mobileSection === section ? "block" : "none", sm: "block" });
+
   return (
     <Box
       sx={{
@@ -123,38 +134,77 @@ const LivePlayersControlPanel = () => {
           </Typography>
         </Stack>
 
+        <FormControl size="small" sx={{ display: { xs: "block", sm: "none" }, width: "100%" }}>
+          <Select
+            value={mobileSection}
+            onChange={handleMobileSectionChange}
+            inputProps={{ "aria-label": translate("Välj gameshow-vy", "Choose gameshow view") }}
+            sx={{
+              width: "100%",
+              color: "#f8fafc",
+              fontWeight: 700,
+              borderRadius: "12px",
+              backgroundColor: "rgba(15,23,42,0.72)",
+              "& .MuiSelect-icon": { color: "rgba(226,232,240,0.75)" },
+              "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(56,189,248,0.4)" },
+              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(56,189,248,0.7)" },
+            }}
+            MenuProps={{
+              PaperProps: {
+                sx: {
+                  maxHeight: 360,
+                  color: "#f8fafc",
+                  backgroundColor: "#111c2f",
+                },
+              },
+            }}
+          >
+            <MenuItem value="overview">{translate("Översikt", "Overview")}</MenuItem>
+            <MenuItem value="liveGames">{translate("Livespel just nu", "Live games now")}</MenuItem>
+            <MenuItem value="gameTrend">{translate("Speltrend", "Game trend")}</MenuItem>
+            <MenuItem value="trend">{translate("Lobbytrend", "Lobby trend")}</MenuItem>
+            <MenuItem value="ath">{translate("ATH", "All-time highs")}</MenuItem>
+            <MenuItem value="ranking">{translate("Ranking", "Ranking")}</MenuItem>
+            <MenuItem value="asia">{translate("Asia Tracker", "Asia Tracker")}</MenuItem>
+          </Select>
+        </FormControl>
+
         <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
-          <OverviewSection
-            translate={translate}
-            numberFormatter={numberFormatter}
-            percentFormatter={percentFormatter}
-            loadingLive={loadingLive}
-            totalLiveDisplayValue={totalLiveDisplayValue}
-            playersUpdatedText={playersUpdatedText}
-            hourlyComparisonMeta={hourlyComparisonMeta}
-            overviewLoading={overviewLoading}
-            todayPeakDisplayValue={todayPeakDisplayValue}
-            todayPeakMetaText={todayPeakMetaText}
-            yesterdayPeakDisplayValue={yesterdayPeakDisplayValue}
-            yesterdayPeakMetaText={yesterdayPeakMetaText}
-            showYesterdayPeakCard={showYesterdayPeakCard}
-            lobbyAthDisplay={lobbyAthDisplay}
-            topGrowthDisplay={topGrowthDisplay}
-            topGrowthUseMa={topGrowthUseMa}
-            topGrowthDays={TOP_GROWTH_DAYS}
-            hourlyByHourRows={hourlyByHourRows}
-            stuckLiveGamesCount={stuckLiveGamesCount}
-          />
-          <LiveGamesSection
-            translate={translate}
-            numberFormatter={numberFormatter}
-            timeFormatter={timeFormatter}
-            loadingLive={loadingLive}
-            liveGamesList={liveGamesList}
-            visibleLiveGames={visibleLiveGames}
-            showAllLive={showAllLive}
-            onToggleShowAllLive={() => setShowAllLive((prev) => !prev)}
-          />
+          <Box sx={{ display: mobileSectionDisplay("overview") }}>
+            <OverviewSection
+              translate={translate}
+              numberFormatter={numberFormatter}
+              percentFormatter={percentFormatter}
+              loadingLive={loadingLive}
+              totalLiveDisplayValue={totalLiveDisplayValue}
+              playersUpdatedText={playersUpdatedText}
+              hourlyComparisonMeta={hourlyComparisonMeta}
+              overviewLoading={overviewLoading}
+              todayPeakDisplayValue={todayPeakDisplayValue}
+              todayPeakMetaText={todayPeakMetaText}
+              yesterdayPeakDisplayValue={yesterdayPeakDisplayValue}
+              yesterdayPeakMetaText={yesterdayPeakMetaText}
+              showYesterdayPeakCard={showYesterdayPeakCard}
+              lobbyAthDisplay={lobbyAthDisplay}
+              topGrowthDisplay={topGrowthDisplay}
+              topGrowthUseMa={topGrowthUseMa}
+              topGrowthDays={TOP_GROWTH_DAYS}
+              hourlyByHourRows={hourlyByHourRows}
+              stuckLiveGamesCount={stuckLiveGamesCount}
+            />
+          </Box>
+          <Box sx={{ display: mobileSectionDisplay("liveGames") }}>
+            <LiveGamesSection
+              translate={translate}
+              numberFormatter={numberFormatter}
+              timeFormatter={timeFormatter}
+              loadingLive={loadingLive}
+              liveGamesList={liveGamesList}
+              visibleLiveGames={visibleLiveGames}
+              showAllLive={showAllLive}
+              onToggleShowAllLive={() => setShowAllLive((prev) => !prev)}
+            />
+          </Box>
         </Stack>
 
         <ToggleButtonGroup
@@ -162,6 +212,7 @@ const LivePlayersControlPanel = () => {
           exclusive
           onChange={(_, value) => value && setDetailView(value)}
           sx={{
+            display: { xs: "none", sm: "flex" },
             backgroundColor: "rgba(148,163,184,0.12)",
             borderRadius: "999px",
             p: 0.5,
@@ -241,7 +292,8 @@ const LivePlayersControlPanel = () => {
         </ToggleButtonGroup>
 
         {detailView === "trend" && (
-          <TrendSection
+          <Box sx={{ display: mobileSectionDisplay("trend") }}>
+            <TrendSection
             overviewLoading={overviewLoading}
             overviewError={overviewError}
             trendChartData={trendChartData}
@@ -259,12 +311,14 @@ const LivePlayersControlPanel = () => {
             percentFormatter={percentFormatter}
             dayOptions={TREND_DAY_OPTIONS}
             hasExtendedAccess={hasExtendedAccess}
-            exportHref={`/api/data/export?scope=lobby&days=${trendDays}`}
-          />
+              exportHref={`/api/data/export?scope=lobby&days=${trendDays}`}
+            />
+          </Box>
         )}
 
         {detailView === "gameTrend" && (
-          <GameTrendSection
+          <Box sx={{ display: mobileSectionDisplay("gameTrend") }}>
+            <GameTrendSection
             overviewLoading={overviewLoading}
             overviewError={overviewError}
             options={gameTrendOptions}
@@ -286,12 +340,14 @@ const LivePlayersControlPanel = () => {
             translate={translate}
             percentFormatter={percentFormatter}
             hasExtendedAccess={hasExtendedAccess}
-            exportHref={gameTrendSlug ? `/api/data/export?scope=game&game=${encodeURIComponent(gameTrendSlug)}&days=${gameTrendDays}` : null}
-          />
+              exportHref={gameTrendSlug ? `/api/data/export?scope=game&game=${encodeURIComponent(gameTrendSlug)}&days=${gameTrendDays}` : null}
+            />
+          </Box>
         )}
 
         {detailView === "asia" && (
-          <AsiaTrackerSection
+          <Box sx={{ display: mobileSectionDisplay("asia") }}>
+            <AsiaTrackerSection
             overviewLoading={overviewLoading}
             overviewError={overviewError}
             lastUpdatedLabel={trendUpdatedLabel}
@@ -319,21 +375,25 @@ const LivePlayersControlPanel = () => {
             numberFormatter={numberFormatter}
             translate={translate}
             percentFormatter={percentFormatter}
-            hasExtendedAccess={hasExtendedAccess}
-          />
+              hasExtendedAccess={hasExtendedAccess}
+            />
+          </Box>
         )}
 
         {detailView === "ranking" && (
-          <RankingSection
-            rankingRows={rankingRows}
-            overviewLoading={overviewLoading}
-            numberFormatter={numberFormatter}
-            translate={translate}
-          />
+          <Box sx={{ display: mobileSectionDisplay("ranking") }}>
+            <RankingSection
+              rankingRows={rankingRows}
+              overviewLoading={overviewLoading}
+              numberFormatter={numberFormatter}
+              translate={translate}
+            />
+          </Box>
         )}
 
         {detailView === "ath" && (
-          <AthSection
+          <Box sx={{ display: mobileSectionDisplay("ath") }}>
+            <AthSection
             athRows={athRows}
             athDays={athDays}
             dayOptions={ATH_DAY_OPTIONS}
@@ -346,8 +406,9 @@ const LivePlayersControlPanel = () => {
             numberFormatter={numberFormatter}
             translate={translate}
             formatDateTime={formatDateTime}
-            hasExtendedAccess={hasExtendedAccess}
-          />
+              hasExtendedAccess={hasExtendedAccess}
+            />
+          </Box>
         )}
       </Stack>
     </Box>

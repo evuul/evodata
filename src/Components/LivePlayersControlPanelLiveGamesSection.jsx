@@ -89,14 +89,27 @@ export default function LivePlayersControlPanelLiveGamesSection({
           ) : liveGamesList.length && selectedGame ? (
             <Stack spacing={1.1}>
               <FormControl fullWidth size="small">
-                <InputLabel id="live-game-select-label">{translate("Välj spel", "Choose game")}</InputLabel>
+                <InputLabel
+                  id="live-game-select-label"
+                  sx={{ color: "rgba(248,250,252,0.82)", "&.Mui-focused": { color: "#f8fafc" } }}
+                >
+                  {translate("Välj spel", "Choose game")}
+                </InputLabel>
                 <Select
                   labelId="live-game-select-label"
                   value={String(selectedGame.id)}
                   label={translate("Välj spel", "Choose game")}
                   onChange={(event) => setSelectedGameId(event.target.value)}
                   sx={{ color: "#f8fafc", borderRadius: "10px", backgroundColor: "rgba(15,23,42,0.72)", ".MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.25)" } }}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+                  MenuProps={{
+                    PaperProps: {
+                      sx: {
+                        maxHeight: 320,
+                        color: "#f8fafc",
+                        backgroundColor: "#111c2f",
+                      },
+                    },
+                  }}
                 >
                   {liveGamesList.map((item, index) => (
                     <MenuItem key={item.id} value={String(item.id)}>
