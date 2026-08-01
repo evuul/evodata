@@ -2,9 +2,8 @@
 
 // Panel selector and content wrapper for the live header dashboard area.
 
-import React, { useState } from "react";
-import { Box, FormControl, IconButton, ListSubheader, MenuItem, Select, Snackbar, Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from "@mui/material";
-import ShareRounded from "@mui/icons-material/ShareRounded";
+import React from "react";
+import { Box, FormControl, ListSubheader, MenuItem, Select, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 
 export default function LiveHeaderPanelSwitcher({
   activePanel,
@@ -15,30 +14,9 @@ export default function LiveHeaderPanelSwitcher({
   isLiveMoneyPanel,
   isLivePanel,
 }) {
-  const [shareNotice, setShareNotice] = useState(false);
-  const activeLabel = panelGroups.flatMap((group) => group.options).find((option) => option.value === activePanel)?.label ?? activePanel;
-
-  const handleShare = async () => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (activePanel === "live") url.searchParams.delete("panel");
-    else url.searchParams.set("panel", activePanel);
-    const shareUrl = url.toString();
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: `EvoTracker · ${activeLabel}`, url: shareUrl });
-      } else if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
-        setShareNotice(true);
-      }
-    } catch {
-      // Sharing can be cancelled by the user; no error state is needed.
-    }
-  };
-
   return (
     <>
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 0.8, width: "100%" }}>
+      <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
         {isMobileMenu ? (
           <FormControl fullWidth size="small" sx={{ maxWidth: 260 }}>
             <Select
@@ -116,19 +94,7 @@ export default function LiveHeaderPanelSwitcher({
             ))}
           </Box>
         )}
-        <Tooltip title={activePanel === "live" ? "Share EvoTracker" : `Share ${activeLabel}`}>
-          <IconButton
-            onClick={handleShare}
-            aria-label={activePanel === "live" ? "Share EvoTracker" : `Share ${activeLabel}`}
-            size="small"
-            sx={{ color: "#7dd3fc", border: "1px solid rgba(125,211,252,0.35)", backgroundColor: "rgba(56,189,248,0.1)", "&:hover": { backgroundColor: "rgba(56,189,248,0.2)" } }}
-          >
-            <ShareRounded fontSize="small" />
-          </IconButton>
-        </Tooltip>
       </Box>
-
-      <Snackbar open={shareNotice} autoHideDuration={2200} onClose={() => setShareNotice(false)} message="Link copied" />
 
       <Box
         sx={{
