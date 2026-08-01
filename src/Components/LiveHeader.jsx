@@ -171,7 +171,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           showMyPageNewBadge={showMyPageNewBadge}
         />
 
-        {isLivePanel ? <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
+        {isLivePanel && !isMobileMenu ? <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
           <Typography
             variant="overline"
             sx={{
@@ -184,23 +184,19 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           >
             {translate("Evolution Control Center", "Evolution Control Center")}
           </Typography>
-          {!isMobileMenu && (
-            <>
-              <Typography
-                variant="h3"
-                sx={{
-                  fontWeight: 800,
-                  fontSize: { xs: "1.9rem", sm: "2.4rem", md: "2.9rem" },
-                  color: "#f8fafc",
-                }}
-              >
-                {translate(
-                  "Spårning i realtid för kurs, lobby och blankning",
-                  "Real-time tracking for price, lobby, and short interest"
-                )}
-              </Typography>
-            </>
-          )}
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              fontSize: { xs: "1.9rem", sm: "2.4rem", md: "2.9rem" },
+              color: "#f8fafc",
+            }}
+          >
+            {translate(
+              "Spårning i realtid för kurs, lobby och blankning",
+              "Real-time tracking for price, lobby, and short interest"
+            )}
+          </Typography>
         </Stack> : null}
 
         <LiveHeaderOverviewSection
@@ -231,7 +227,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
           marketStatusChip={marketStatusChip}
           top3={top3}
           formatTime={formatTime}
-          compact={!isLivePanel}
+          compact={!isLivePanel || isMobileMenu}
         />
 
         <Stack spacing={{ xs: 1.6, sm: 1.9 }} alignItems="stretch">

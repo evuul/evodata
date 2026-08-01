@@ -206,11 +206,6 @@ export default function LiveHeaderTopBar({
                     },
                   }}
                 />
-                <NextEventChip
-                  event={nextCalendarEventChip}
-                  mobile
-                  onClick={() => handlePanelChange(null, "calendar")}
-                />
               </>
             ) : null}
 
@@ -572,9 +567,9 @@ export default function LiveHeaderTopBar({
               flexDirection: "row",
               gap: 0.5,
               width: "100%",
-              mt: 0.6,
+              mt: 0.15,
               alignItems: "center",
-              flexWrap: "nowrap",
+              justifyContent: "center",
             }}
           >
             <Chip
@@ -588,13 +583,11 @@ export default function LiveHeaderTopBar({
               icon={null}
               label={supportChipLabel}
               sx={{
-                flex: "1 1 0",
-                minWidth: 0,
+                flex: "0 0 auto",
                 background: "rgba(8,15,30,0.9)",
                 color: "#f8fafc",
                 borderRadius: "999px",
                 border: "1px solid rgba(236,72,153,0.28)",
-                boxShadow: "0 12px 28px rgba(0,0,0,0.26)",
                 height: 22,
                 "& .MuiChip-label": {
                   px: 0.55,
@@ -609,38 +602,6 @@ export default function LiveHeaderTopBar({
                   boxShadow: "0 14px 32px rgba(0,0,0,0.42)",
                   background: "rgba(8,15,30,0.96)",
                 },
-              }}
-            />
-            <Chip
-              component={NextLink}
-              href="/founders"
-              clickable
-              size="small"
-              label={translate("Founders", "Founders")}
-              sx={{
-                flex: "0 0 auto",
-                backgroundColor: "rgba(245,158,11,0.08)",
-                color: "#fde68a",
-                borderRadius: "999px",
-                border: "1px solid rgba(245,158,11,0.2)",
-                height: 22,
-                "& .MuiChip-label": { px: 0.55, fontSize: "0.56rem", fontWeight: 900 },
-              }}
-            />
-            <Chip
-              component={NextLink}
-              href="/disclaimer"
-              clickable
-              size="small"
-              label={translate("Disclaimer", "Disclaimer")}
-              sx={{
-                flex: "0 0 auto",
-                backgroundColor: "rgba(56,189,248,0.12)",
-                color: "#7dd3fc",
-                borderRadius: "999px",
-                border: "1px solid rgba(56,189,248,0.22)",
-                height: 22,
-                "& .MuiChip-label": { px: 0.55, fontSize: "0.56rem", fontWeight: 900 },
               }}
             />
           </Box>

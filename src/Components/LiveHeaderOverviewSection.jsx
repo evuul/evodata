@@ -233,40 +233,64 @@ export default function LiveHeaderOverviewSection({
   });
   if (compact) {
     return (
-      <Box
-        aria-label={translate("Marknadsöversikt", "Market overview")}
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
-          gap: 0.8,
-          maxWidth: 1180,
-          width: "100%",
-          alignSelf: "center",
-          mx: "auto",
-        }}
-      >
-        <CompactMetric
-          label={translate("Live spelare", "Live players")}
-          value={Number.isFinite(playersValue) ? playersValue.toLocaleString("sv-SE") : "—"}
-          detail={playersUpdatedLabel ? translate(`Uppdaterad ${playersUpdatedLabel}`, `Updated ${playersUpdatedLabel}`) : null}
-        />
-        <CompactMetric
-          label={translate("Aktiekurs", "Stock price")}
-          value={loadingPrice ? "—" : priceDisplay}
-          detail={changeDisplay}
-          color={changeColor}
-        />
-        <CompactMetric
-          label={translate("Marknadsvärde", "Market cap")}
-          value={fmtCap(marketCap)}
-          detail={marketStatusChip.label}
-        />
-        <CompactMetric
-          label={translate("Återköpta aktier", "Shares repurchased")}
-          value={formatCompactShares(buybackSummary?.sharesRepurchased)}
-          detail={buybackSummary?.remainingLabel ? `${translate("Kvar", "Remaining")}: ${buybackSummary.remainingLabel}` : null}
-        />
-      </Box>
+      <Stack spacing={1} sx={{ width: "100%" }}>
+        {isMobileMenu && playerDataAttentionLabel ? (
+          <Box
+            role="status"
+            aria-live="polite"
+            sx={{
+              display: "flex",
+              gap: 0.8,
+              alignItems: "flex-start",
+              width: "100%",
+              px: { xs: 1.1, sm: 1.4 },
+              py: 0.9,
+              borderRadius: "12px",
+              border: "1px solid rgba(245,158,11,0.32)",
+              backgroundColor: "rgba(120,53,15,0.18)",
+            }}
+          >
+            <WarningAmberRounded sx={{ color: "#fbbf24", fontSize: 19, flexShrink: 0, mt: 0.1 }} />
+            <Typography variant="caption" sx={{ color: "#fef3c7", fontWeight: 700, lineHeight: 1.45 }}>
+              {playerDataAttentionLabel}
+            </Typography>
+          </Box>
+        ) : null}
+        <Box
+          aria-label={translate("Marknadsöversikt", "Market overview")}
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(4, minmax(0, 1fr))" },
+            gap: 0.8,
+            maxWidth: 1180,
+            width: "100%",
+            alignSelf: "center",
+            mx: "auto",
+          }}
+        >
+          <CompactMetric
+            label={translate("Live spelare", "Live players")}
+            value={Number.isFinite(playersValue) ? playersValue.toLocaleString("sv-SE") : "—"}
+            detail={playersUpdatedLabel ? translate(`Uppdaterad ${playersUpdatedLabel}`, `Updated ${playersUpdatedLabel}`) : null}
+          />
+          <CompactMetric
+            label={translate("Aktiekurs", "Stock price")}
+            value={loadingPrice ? "—" : priceDisplay}
+            detail={changeDisplay}
+            color={changeColor}
+          />
+          <CompactMetric
+            label={translate("Marknadsvärde", "Market cap")}
+            value={fmtCap(marketCap)}
+            detail={marketStatusChip.label}
+          />
+          <CompactMetric
+            label={translate("Återköpta aktier", "Shares repurchased")}
+            value={formatCompactShares(buybackSummary?.sharesRepurchased)}
+            detail={buybackSummary?.remainingLabel ? `${translate("Kvar", "Remaining")}: ${buybackSummary.remainingLabel}` : null}
+          />
+        </Box>
+      </Stack>
     );
   }
   return (
