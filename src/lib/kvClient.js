@@ -65,6 +65,21 @@ export async function kvRestRequest(path, init = {}, options = {}) {
   const method = init.method || "GET";
   const errorPrefix = options.errorCodePrefix || "KV_REST";
   const serviceName = options.serviceName || "Upstash";
+  const operation = /\/(get|mget|lrange|smembers|hget|hgetall|exists|ttl)(?:\/|$)/i.test(path)
+    ? "read"
+    : "write";
+
+  try {
+    const { recordCostEvent } = await import("@/lib/csCostTracker");
+    recordCostEvent({
+      endpoint: `upstash:${serviceName}`,
+      upstashOperation: operation,
+      serviceName,
+      countAsRequest: false,
+    });
+  } catch {
+    // Cost telemetry must never block a data request.
+  }
 
   try {
     const res = await fetch(requestUrl, {

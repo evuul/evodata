@@ -31,6 +31,10 @@ function ensureBucket(state, hourKey) {
       includeHourlyRequests: 0,
       sampleWrites: 0,
       sampleWriteAvoided: 0,
+      upstashRequests: 0,
+      upstashReads: 0,
+      upstashWrites: 0,
+      upstashByService: {},
       byEndpoint: {},
     };
   }
@@ -43,13 +47,16 @@ export function recordCostEvent({
   includeHourly = false,
   sampleWrites = 0,
   sampleWriteAvoided = 0,
+  upstashOperation = null,
+  serviceName = "Upstash",
+  countAsRequest = true,
 } = {}) {
   const state = g.__CS_COST_TRACKER__;
   keepRecentBuckets(state);
   const hourKey = toHourKey();
   const bucket = ensureBucket(state, hourKey);
 
-  bucket.totalRequests += 1;
+  if (countAsRequest) bucket.totalRequests += 1;
   if (isCron) bucket.cronRequests += 1;
   if (includeHourly) bucket.includeHourlyRequests += 1;
   if (Number.isFinite(sampleWrites) && sampleWrites > 0) {
@@ -59,9 +66,18 @@ export function recordCostEvent({
     bucket.sampleWriteAvoided += Math.round(sampleWriteAvoided);
   }
 
-  const endpointKey = String(endpoint || "unknown").trim() || "unknown";
-  if (!bucket.byEndpoint[endpointKey]) bucket.byEndpoint[endpointKey] = 0;
-  bucket.byEndpoint[endpointKey] += 1;
+  if (upstashOperation === "read" || upstashOperation === "write") {
+    bucket.upstashRequests += 1;
+    bucket[`upstash${upstashOperation === "read" ? "Reads" : "Writes"}`] += 1;
+    const serviceKey = String(serviceName || "Upstash").trim() || "Upstash";
+    bucket.upstashByService[serviceKey] = (bucket.upstashByService[serviceKey] || 0) + 1;
+  }
+
+  if (countAsRequest) {
+    const endpointKey = String(endpoint || "unknown").trim() || "unknown";
+    if (!bucket.byEndpoint[endpointKey]) bucket.byEndpoint[endpointKey] = 0;
+    bucket.byEndpoint[endpointKey] += 1;
+  }
 }
 
 export function getCostSnapshot(hoursRaw = WINDOW_HOURS_DEFAULT) {
@@ -87,6 +103,10 @@ export function getCostSnapshot(hoursRaw = WINDOW_HOURS_DEFAULT) {
     includeHourlyRequests: 0,
     sampleWrites: 0,
     sampleWriteAvoided: 0,
+    upstashRequests: 0,
+    upstashReads: 0,
+    upstashWrites: 0,
+    upstashByService: {},
   };
   const endpointTotals = {};
 
@@ -96,6 +116,12 @@ export function getCostSnapshot(hoursRaw = WINDOW_HOURS_DEFAULT) {
     totals.includeHourlyRequests += Number(row.includeHourlyRequests || 0);
     totals.sampleWrites += Number(row.sampleWrites || 0);
     totals.sampleWriteAvoided += Number(row.sampleWriteAvoided || 0);
+    totals.upstashRequests += Number(row.upstashRequests || 0);
+    totals.upstashReads += Number(row.upstashReads || 0);
+    totals.upstashWrites += Number(row.upstashWrites || 0);
+    for (const [service, count] of Object.entries(row.upstashByService || {})) {
+      totals.upstashByService[service] = (totals.upstashByService[service] || 0) + Number(count || 0);
+    }
     const byEndpoint = row.byEndpoint && typeof row.byEndpoint === "object" ? row.byEndpoint : {};
     for (const [endpoint, count] of Object.entries(byEndpoint)) {
       endpointTotals[endpoint] = (endpointTotals[endpoint] || 0) + Number(count || 0);

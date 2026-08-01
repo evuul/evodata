@@ -1161,6 +1161,12 @@ export function AdminPanel({
                             <Typography sx={{ color: "rgba(226,232,240,0.75)", fontWeight: 700 }}>
                                 {translate("Hourly-jämförelse anrop", "Hourly comparison calls")}: {Number(adminCostData?.totals?.includeHourlyRequests || 0)}
                             </Typography>
+                            <Typography sx={{ color: "rgba(191,219,254,0.95)", fontWeight: 700 }}>
+                                {translate("Upstash reads", "Upstash reads")}: {Number(adminCostData?.totals?.upstashReads || 0)}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(251,191,36,0.95)", fontWeight: 700 }}>
+                                {translate("Upstash writes", "Upstash writes")}: {Number(adminCostData?.totals?.upstashWrites || 0)}
+                            </Typography>
                         </Stack>
                     ) : null}
 
