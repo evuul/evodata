@@ -98,9 +98,6 @@ export default function LiveHeaderTopBar({
   setLocale,
   showMyPageNewBadge,
 }) {
-  const supportChipLabel = isMobileMenu
-    ? translate("Stötta", "Support")
-    : translate("Stötta sidan", "Support the site");
   const badgeIcon = accountBadge?.kind === "admin"
     ? <AdminPanelSettingsRounded sx={{ fontSize: 15 }} />
     : accountBadge?.kind === "founder"
@@ -560,52 +557,6 @@ export default function LiveHeaderTopBar({
           </Stack>
         </Box>
 
-        {isMobileMenu ? (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "row",
-              gap: 0.5,
-              width: "100%",
-              mt: 0.15,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Chip
-              component="a"
-              href={supportUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleDismissDonationNudge}
-              clickable
-              size="small"
-              icon={null}
-              label={supportChipLabel}
-              sx={{
-                flex: "0 0 auto",
-                background: "rgba(8,15,30,0.9)",
-                color: "#f8fafc",
-                borderRadius: "999px",
-                border: "1px solid rgba(236,72,153,0.28)",
-                height: 22,
-                "& .MuiChip-label": {
-                  px: 0.55,
-                  fontSize: "0.56rem",
-                  fontWeight: 800,
-                  letterSpacing: 0.15,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                },
-                "&:hover": {
-                  boxShadow: "0 14px 32px rgba(0,0,0,0.42)",
-                  background: "rgba(8,15,30,0.96)",
-                },
-              }}
-            />
-          </Box>
-        ) : null}
       </Box>
     </Box>
   );

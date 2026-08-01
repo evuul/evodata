@@ -5,10 +5,36 @@
 import { useEffect, useMemo, useState } from "react";
 import { useBuybackData } from "./useBuybackData.js";
 import { fetchOverviewShared } from "../lib/csOverviewClient.js";
+import { fetchShortActivityShared } from "../lib/marketDataClient.js";
+import {
+  buildBuybackComplianceSeries,
+  buildBuybackWeeklyEstimate as calculateWeeklyBuybackEstimate,
+} from "../lib/buybackCompliance.js";
 
 const BUYBACK_CASH_EUR = 2_000_000_000;
 const BUYBACK_MANDATE_START_DATE = "2026-05-18";
 const LOBBY_ATH_DAYS = 365;
+
+function toTradingVolumeMap(items) {
+  const volumeByDate = new Map();
+  for (const item of Array.isArray(items) ? items : []) {
+    const date = String(item?.date || "").slice(0, 10);
+    const volume = Number(item?.volumeShares);
+    if (date && Number.isFinite(volume) && volume > 0) volumeByDate.set(date, volume);
+  }
+  return volumeByDate;
+}
+
+export function buildHeaderWeeklyBuybackEstimate(buybackData, activityItems) {
+  const currentRows = Array.isArray(buybackData?.current) ? buybackData.current : [];
+  const volumeByDate = toTradingVolumeMap(activityItems);
+  if (!currentRows.length || !volumeByDate.size) return null;
+
+  const complianceSeries = buildBuybackComplianceSeries(currentRows, volumeByDate, {
+    startDate: BUYBACK_MANDATE_START_DATE,
+  });
+  return calculateWeeklyBuybackEstimate(complianceSeries, volumeByDate);
+}
 
 export function buildBuybackFallbackSummary(fxRateNumber, error) {
   return {
@@ -57,6 +83,7 @@ export function buildBuybackSummary(data, fxRateNumber, stockPriceValue) {
 
 export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
   const [lobbyAth, setLobbyAth] = useState(null);
+  const [activityItems, setActivityItems] = useState([]);
   const {
     data: buybackData,
     error: buybackError,
@@ -67,6 +94,27 @@ export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
     if (buybackError) return buildBuybackFallbackSummary(fxRateNumber, buybackError);
     return null;
   }, [buybackData, buybackError, fxRateNumber, stockPriceValue]);
+  const weeklyBuybackEstimate = useMemo(
+    () => buildHeaderWeeklyBuybackEstimate(buybackData, activityItems),
+    [activityItems, buybackData]
+  );
+
+  useEffect(() => {
+    if (!buybackData) return undefined;
+    let isActive = true;
+
+    fetchShortActivityShared(365)
+      .then((data) => {
+        if (isActive) setActivityItems(Array.isArray(data?.items) ? data.items : []);
+      })
+      .catch(() => {
+        if (isActive) setActivityItems([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [buybackData]);
 
   useEffect(() => {
     let isActive = true;
@@ -101,6 +149,6 @@ export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
 
   return {
     lobbyAth,
-    buybackSummary,
+    buybackSummary: buybackSummary ? { ...buybackSummary, weeklyBuybackEstimate } : null,
   };
 }

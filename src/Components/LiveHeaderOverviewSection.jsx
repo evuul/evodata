@@ -234,7 +234,7 @@ export default function LiveHeaderOverviewSection({
   if (compact) {
     return (
       <Stack spacing={1} sx={{ width: "100%" }}>
-        {isMobileMenu && Number.isFinite(buybackSummary?.estimatedTotalSharesAtCurrentPrice) ? (
+        {isMobileMenu && Number.isFinite(buybackSummary?.weeklyBuybackEstimate?.estimatedShares) ? (
           <Box
             sx={{
               display: "flex",
@@ -250,14 +250,17 @@ export default function LiveHeaderOverviewSection({
           >
             <Stack spacing={0.05}>
               <Typography variant="caption" sx={{ color: "rgba(167,243,208,0.78)", fontWeight: 800, letterSpacing: 0.65, textTransform: "uppercase" }}>
-                {translate("Est. återköp vid fullt mandat", "Est. buybacks at full mandate")}
+                {translate("Est. återköp denna vecka", "Est. buybacks this week")}
               </Typography>
               <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.7)" }}>
-                {translate("Baserat på aktuell aktiekurs", "Based on the current share price")}
+                {translate(
+                  `Baserat på ${buybackSummary.weeklyBuybackEstimate.tradingDays} handelsdagar och senaste volymer`,
+                  `Based on ${buybackSummary.weeklyBuybackEstimate.tradingDays} trading days and recent volumes`
+                )}
               </Typography>
             </Stack>
             <Typography sx={{ color: "#6ee7b7", fontSize: "1.2rem", fontWeight: 850, whiteSpace: "nowrap" }}>
-              ≈ {formatCompactShares(buybackSummary.estimatedTotalSharesAtCurrentPrice)}
+              ≈ {formatCompactShares(buybackSummary.weeklyBuybackEstimate.estimatedShares)}
             </Typography>
           </Box>
         ) : null}

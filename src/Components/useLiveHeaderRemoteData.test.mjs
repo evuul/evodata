@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   buildBuybackFallbackSummary,
+  buildHeaderWeeklyBuybackEstimate,
   buildBuybackSummary,
 } from "./useLiveHeaderRemoteData.js";
 
@@ -30,6 +31,10 @@ test("buildBuybackSummary uses mandate rows and fx rate", () => {
   assert.equal(summary.estimatedTotalSharesAtCurrentPrice, 50 + (22_000_000_000 - 500) / 100);
   assert.equal(summary.updatedAt, "2026-06-10T10:00:00.000Z");
   assert.equal(summary.fallback, false);
+});
+
+test("buildHeaderWeeklyBuybackEstimate fails safely without usable market activity", () => {
+  assert.equal(buildHeaderWeeklyBuybackEstimate({ current: [{ Datum: "2026-05-18" }] }, []), null);
 });
 
 test("buildBuybackSummary omits the mandate-share estimate without a valid market price", () => {
