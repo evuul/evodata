@@ -178,10 +178,18 @@ export function AuthProvider({ children, restoreSession = true }) {
         payload?.error ||
         payload?.errors?.[0] ||
         "Registreringen misslyckades. Försök igen.";
-      throw new Error(message);
+      const error = createAuthError(message, {
+        status: response.status,
+        code: payload?.code || "REGISTRATION_FAILED",
+      });
+      throw error;
     }
 
-    if (!payload?.user) throw new Error("Registreringsservern returnerade ett ogiltigt svar.");
+    if (!payload?.user) {
+      throw createAuthError("Registreringsservern returnerade ett ogiltigt svar.", {
+        code: "REGISTRATION_INVALID_RESPONSE",
+      });
+    }
     const token = COOKIE_SESSION_MARKER;
     const user = payload.user;
     const accessExpiresAt = payload?.accessExpiresAt ?? null;

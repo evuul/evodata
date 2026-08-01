@@ -57,6 +57,35 @@ export default function RegisterPage() {
   const hasAccountLabel = translate("Har du redan ett konto?", "Already have an account?");
   const loginHereLabel = translate("Logga in här", "Log in here");
 
+  const formatRegistrationError = (error) => {
+    switch (error?.code) {
+      case "EMAIL_ALREADY_REGISTERED":
+        return translate(
+          "Det finns redan ett konto med den e-postadressen. Logga in eller använd en annan e-postadress.",
+          "An account already exists with that email address. Log in or use another email address."
+        );
+      case "REGISTRATION_RATE_LIMITED":
+        return translate(
+          "För många försök från denna anslutning. Vänta en stund innan du försöker igen.",
+          "Too many attempts from this connection. Please wait before trying again."
+        );
+      case "INVALID_REGISTRATION":
+        return translate(
+          "Kontrollera namn, e-postadress och att lösenordet uppfyller kraven.",
+          "Check your name, email address, and that the password meets the requirements."
+        );
+      case "REGISTRATION_SERVICE_UNAVAILABLE":
+      case "REGISTRATION_INVALID_RESPONSE":
+      case "REGISTRATION_NETWORK_ERROR":
+        return translate(
+          "Registreringen kunde inte slutföras just nu. Kontrollera din anslutning och försök igen om en stund.",
+          "Registration could not be completed right now. Check your connection and try again shortly."
+        );
+      default:
+        return error?.message || defaultRegisterError;
+    }
+  };
+
   useEffect(() => {
     if (initialized && isAuthenticated) {
       router.replace("/?onboarding=1");
@@ -106,7 +135,8 @@ export default function RegisterPage() {
       });
       router.replace("/");
     } catch (err) {
-      setError(err?.message || defaultRegisterError);
+      const normalizedError = err?.code ? err : { ...err, code: "REGISTRATION_NETWORK_ERROR" };
+      setError(formatRegistrationError(normalizedError));
     } finally {
       setSubmitting(false);
     }

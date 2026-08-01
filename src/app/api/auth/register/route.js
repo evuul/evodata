@@ -45,13 +45,13 @@ export async function POST(request) {
     emailDomain = email.includes("@") ? email.split("@").pop() : null;
 
     if (!email || !validatePassword(password).valid || !firstName || !lastName) {
-      return json({ error: "Ogiltig registrering." }, { status: 400 });
+      return json({ error: "Ogiltig registrering.", code: "INVALID_REGISTRATION" }, { status: 400 });
     }
 
     const rateLimit = await checkAuthRateLimit({ request, scope: "register", account: email });
     if (!rateLimit.allowed) {
       return json(
-        { error: "För många registreringsförsök. Försök igen senare." },
+        { error: "För många registreringsförsök. Försök igen senare.", code: "REGISTRATION_RATE_LIMITED" },
         { status: 429, headers: rateLimitResponseHeaders(rateLimit) }
       );
     }
@@ -59,7 +59,7 @@ export async function POST(request) {
     stage = "check-existing-user";
     const existing = await getJson(getUserKey(email));
     if (existing) {
-      return json({ error: "E-postadressen är redan registrerad." }, { status: 409 });
+      return json({ error: "E-postadressen är redan registrerad.", code: "EMAIL_ALREADY_REGISTERED" }, { status: 409 });
     }
 
     stage = "prepare-user-record";
@@ -119,7 +119,7 @@ export async function POST(request) {
   } catch (error) {
     logAuthError({ route: "register", stage, error, context: { emailDomain } });
     return json(
-      { error: "Registreringsservern svarar inte just nu. Försök igen om en stund." },
+      { error: "Registreringsservern svarar inte just nu. Försök igen om en stund.", code: "REGISTRATION_SERVICE_UNAVAILABLE" },
       { status: 500 }
     );
   }
