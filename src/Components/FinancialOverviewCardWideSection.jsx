@@ -2,7 +2,7 @@
 
 // Full-width deep-dive view for the financial overview card.
 
-import { Box, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, FormControl, InputLabel, MenuItem, Select, Stack, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -339,10 +339,12 @@ export default function FinancialOverviewCardWideSection({
     <Box
       sx={{
         mt: { xs: 3, md: 4 },
-        width: "100vw",
-        mx: "calc(50% - 50vw)",
+        width: { xs: "100%", sm: "100vw" },
+        mx: { xs: 0, sm: "calc(50% - 50vw)" },
         px: { xs: 2, sm: 3, md: 4, lg: 6 },
         py: { xs: 3, md: 4 },
+        boxSizing: "border-box",
+        overflowX: "hidden",
       }}
     >
       <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%", maxWidth: 1700, mx: "auto" }}>
@@ -366,12 +368,47 @@ export default function FinancialOverviewCardWideSection({
           spacing={{ xs: 1.2, md: 1.5 }}
           alignItems="stretch"
         >
+          <FormControl size="small" fullWidth sx={{ display: { xs: "flex", sm: "none" } }}>
+            <InputLabel
+              id="financial-metric-select-label"
+              sx={{ color: "rgba(248,250,252,0.82)", "&.Mui-focused": { color: "#f8fafc" } }}
+            >
+              {translate("Välj mätvärde", "Choose metric")}
+            </InputLabel>
+            <Select
+              labelId="financial-metric-select-label"
+              value={wideMetric}
+              label={translate("Välj mätvärde", "Choose metric")}
+              onChange={(event) => setWideMetric(event.target.value)}
+              sx={{
+                color: "#f8fafc",
+                fontWeight: 700,
+                borderRadius: "12px",
+                backgroundColor: "rgba(15,23,42,0.72)",
+                "& .MuiSelect-icon": { color: "rgba(226,232,240,0.75)" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(148,163,184,0.25)" },
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: { color: "#f8fafc", backgroundColor: "#111c2f" },
+                },
+              }}
+            >
+              {metricToggleOptions.map((option) => (
+                <MenuItem key={`mobile-metric-${option.value}`} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
           <ToggleButtonGroup
             value={wideMetric}
             exclusive
             onChange={(_e, v) => v && setWideMetric(v)}
             size="small"
             sx={{
+              display: { xs: "none", sm: "inline-flex" },
               backgroundColor: BUYBACK_CONTROL,
               borderRadius: "999px",
               p: 0.5,
