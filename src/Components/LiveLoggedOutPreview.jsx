@@ -310,7 +310,28 @@ export default function LiveLoggedOutPreview() {
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} sx={{ mt: 3.5, alignItems: { xs: "stretch", sm: "center" } }}>
             <Button component={NextLink} href="/register" size="large" variant="contained" endIcon={<ArrowForwardRoundedIcon />} sx={{ ...primaryButtonSx, minHeight: 52, px: 3, borderRadius: "12px" }}>{translate("Skapa kostnadsfritt konto", "Create free account")}</Button>
-            <Button component={NextLink} href="/login" size="large" variant="text" sx={{ minHeight: 52, px: 2, color: "#dbe7f2", textTransform: "none", fontWeight: 700 }}>{translate("Jag har redan ett konto", "I already have an account")}</Button>
+            <Button
+              component={NextLink}
+              href="/login"
+              size="large"
+              variant="outlined"
+              sx={{
+                minHeight: 52,
+                px: 2.5,
+                color: "#dbe7f2",
+                borderColor: "rgba(148,163,184,0.42)",
+                borderRadius: "12px",
+                textTransform: "none",
+                fontWeight: 750,
+                whiteSpace: "nowrap",
+                "&:hover": {
+                  borderColor: "rgba(130,193,255,0.78)",
+                  backgroundColor: "rgba(74,144,226,0.1)",
+                },
+              }}
+            >
+              {translate("Jag har redan ett konto", "I already have an account")}
+            </Button>
           </Stack>
           <Stack direction="row" flexWrap="wrap" gap={1.8} sx={{ mt: 3 }}>
             {[translate("Live-lobby", "Live lobby"), translate("Trendgrafer", "Trend charts"), translate("Rapporter & forecast", "Reports & forecast")].map((item) => (
