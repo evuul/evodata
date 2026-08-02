@@ -1134,8 +1134,8 @@ export async function setGameAthSnapshot(snapshot) {
 
 export async function updateGameAthSnapshot(items, updatedAt = new Date().toISOString()) {
   const current = await getGameAthSnapshot();
-  // A missing snapshot must be seeded from historical daily aggregates first.
-  if (!current || current.source !== "daily-history") return null;
+  // A missing snapshot must be seeded first, but a live-observed seed remains safe to extend.
+  if (!current) return null;
   const merged = mergeGameAthSnapshot(current, items, updatedAt);
   if (!merged.changed) return merged.snapshot;
   return setGameAthSnapshot(merged.snapshot);

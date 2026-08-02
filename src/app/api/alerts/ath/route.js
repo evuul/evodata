@@ -10,7 +10,7 @@ import {
   getLatestPlayersSnapshot,
   setGameAthSnapshot,
 } from "@/lib/csStore";
-import { buildGameAthSnapshot } from "@/lib/gameAthSnapshot";
+import { buildGameAthSnapshot, mergeGameAthSnapshot } from "@/lib/gameAthSnapshot";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
@@ -135,7 +135,13 @@ async function handler(req) {
   let athSnapshot = await getGameAthSnapshot().catch(() => null);
   if (!athSnapshot || athSnapshot.source !== "daily-history") {
     dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, ATH_BASELINE_DAYS).catch(() => new Map());
-    athSnapshot = buildGameAthSnapshot(dailyAgg, SERIES_SLUGS);
+    const historicalSnapshot = buildGameAthSnapshot(dailyAgg, SERIES_SLUGS);
+    const observedRecords = Object.entries(athSnapshot?.games ?? {}).map(([id, entry]) => ({
+      id,
+      players: entry?.value,
+      fetchedAt: entry?.at,
+    }));
+    athSnapshot = mergeGameAthSnapshot(historicalSnapshot, observedRecords).snapshot;
     await setGameAthSnapshot(athSnapshot).catch(() => null);
   }
   const [latestSnapshot, lobbyAth] = await Promise.all([

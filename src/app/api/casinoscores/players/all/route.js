@@ -8,11 +8,14 @@ import {
   normalizePlayers,
   getLatestSample,
   getOrBuildBaseline,
+  getGameAthSnapshot,
   getLatestPlayersSnapshot,
+  updateGameAthSnapshot,
   bucketLabelFromTs,
 } from "@/lib/csStore";
 import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
+import { selectLiveAthCandidates } from "@/lib/liveAthGuard";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const LOBBY_API = process.env.EVO_PROXY_URL ?? "https://evo-lobby-proxy.alexander-ek.workers.dev";
@@ -31,10 +34,45 @@ const SOURCE_STALE_AFTER_MS = 20 * 60 * 1000;
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=60";
 const BASELINE_DAYS = 30;
 const BASELINE_BUCKET_MS = 5 * 60 * 1000;
+const LIVE_ATH_SNAPSHOT_REFRESH_MS = 5 * 60 * 1000;
 
 const g = globalThis;
 if (!g.__CS_LOBBY_CACHE__) {
   g.__CS_LOBBY_CACHE__ = { ts: 0, data: null };
+}
+if (!g.__CS_LIVE_ATH_GUARD__) {
+  g.__CS_LIVE_ATH_GUARD__ = { snapshot: null, refreshedAt: 0, initialized: false, refreshPromise: null };
+}
+
+async function syncObservedLiveAth(items, updatedAt) {
+  const guard = g.__CS_LIVE_ATH_GUARD__;
+  const now = Date.now();
+
+  if (!guard.initialized || now - guard.refreshedAt >= LIVE_ATH_SNAPSHOT_REFRESH_MS) {
+    if (!guard.refreshPromise) {
+      guard.refreshPromise = getGameAthSnapshot()
+        .then((snapshot) => {
+          guard.snapshot = snapshot;
+          guard.refreshedAt = Date.now();
+          guard.initialized = true;
+          return snapshot;
+        })
+        .finally(() => {
+          guard.refreshPromise = null;
+        });
+    }
+    await guard.refreshPromise;
+  }
+
+  const candidates = selectLiveAthCandidates(guard.snapshot, items);
+  if (!candidates.length) return;
+
+  const updated = await updateGameAthSnapshot(candidates, updatedAt);
+  if (updated) {
+    guard.snapshot = updated;
+    guard.refreshedAt = Date.now();
+    guard.initialized = true;
+  }
 }
 
 function resJSON(data, status = 200) {
@@ -211,6 +249,13 @@ export async function GET(req) {
     entry.stuckRunLength = Number.isFinite(Number(stored?.stuckRunLength))
       ? Number(stored.stuckRunLength)
       : 0;
+  }
+
+  // Only an actual record triggers a KV write; ordinary live page reads remain write-free.
+  try {
+    await syncObservedLiveAth(items, newestTs ? new Date(newestTs).toISOString() : new Date().toISOString());
+  } catch {
+    // The live response must remain available if optional ATH persistence fails.
   }
 
   let baseline = null;

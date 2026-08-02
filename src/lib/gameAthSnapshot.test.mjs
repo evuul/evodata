@@ -65,6 +65,23 @@ test("mergeGameAthSnapshot updates only genuine new records", () => {
   });
 });
 
+test("mergeGameAthSnapshot preserves a live-observed record during historical seeding", () => {
+  const historical = {
+    version: 1,
+    source: "daily-history",
+    games: {
+      "ice-fishing": { value: 42_884, at: "2026-08-02T15:23:00.000Z" },
+    },
+  };
+
+  const merged = mergeGameAthSnapshot(historical, [
+    { id: "ice-fishing", players: 48_775, fetchedAt: "2026-08-02T15:12:00.000Z" },
+  ]);
+
+  assert.equal(merged.snapshot.source, "daily-history");
+  assert.equal(merged.snapshot.games["ice-fishing"].value, 48_775);
+});
+
 test("normalizeGameAthSnapshot rejects malformed entries", () => {
   const snapshot = normalizeGameAthSnapshot({
     games: {
