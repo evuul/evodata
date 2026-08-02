@@ -9,13 +9,17 @@ import {
   getLatestSample,
   getOrBuildBaseline,
   getGameAthSnapshot,
+  getGlobalLobbyAth,
   getLatestPlayersSnapshot,
+  maybeUpdateDailyLobbyPeak,
+  setGlobalLobbyAth,
   updateGameAthSnapshot,
   bucketLabelFromTs,
 } from "@/lib/csStore";
 import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { selectLiveAthCandidates } from "@/lib/liveAthGuard";
+import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const LOBBY_API = process.env.EVO_PROXY_URL ?? "https://evo-lobby-proxy.alexander-ek.workers.dev";
@@ -72,6 +76,24 @@ async function syncObservedLiveAth(items, updatedAt) {
     guard.snapshot = updated;
     guard.refreshedAt = Date.now();
     guard.initialized = true;
+  }
+}
+
+async function syncObservedLobbyPeak(items) {
+  const observed = summarizeObservedLobby(items);
+  if (!Number.isFinite(observed.totalPlayers) || !observed.measuredAt) return;
+
+  const measuredAt = Date.parse(observed.measuredAt);
+  if (!Number.isFinite(measuredAt)) return;
+
+  const dailyPeak = await maybeUpdateDailyLobbyPeak(observed.totalPlayers, measuredAt);
+  const currentAth = await getGlobalLobbyAth();
+  if (!Number.isFinite(Number(currentAth?.value)) || observed.totalPlayers > Number(currentAth.value)) {
+    await setGlobalLobbyAth({
+      value: observed.totalPlayers,
+      date: dailyPeak?.date ?? observed.measuredAt.slice(0, 10),
+      at: observed.measuredAt,
+    });
   }
 }
 
@@ -256,6 +278,11 @@ export async function GET(req) {
     await syncObservedLiveAth(items, newestTs ? new Date(newestTs).toISOString() : new Date().toISOString());
   } catch {
     // The live response must remain available if optional ATH persistence fails.
+  }
+  try {
+    await syncObservedLobbyPeak(items);
+  } catch {
+    // The live response must remain available if optional peak persistence fails.
   }
 
   let baseline = null;
