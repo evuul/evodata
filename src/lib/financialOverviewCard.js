@@ -210,11 +210,11 @@ const buildRegulatedQuarterlySeries = (reportsAscending, formatQuarterAxisLabel)
       quarter: report.quarter,
       totalRevenue: Number.isFinite(report.operatingRevenues) ? report.operatingRevenues : null,
       regulatedShare: Number.isFinite(report.regulatedMarket) ? report.regulatedMarket : null,
-      operatingMargin: Number.isFinite(report.adjustedOperatingMargin)
-        ? report.adjustedOperatingMargin
+      ebitdaMargin: Number.isFinite(report.adjustedEBITDAMargin)
+        ? report.adjustedEBITDAMargin
         : null,
     }))
-    .filter((row) => Number.isFinite(row.totalRevenue) || Number.isFinite(row.regulatedShare));
+    .filter((row) => Number.isFinite(row.regulatedShare));
 
 const buildRegulatedAnnualSeries = (reportsAscending) => {
   const map = new Map();
@@ -226,42 +226,93 @@ const buildRegulatedAnnualSeries = (reportsAscending) => {
         year,
         totalRevenue: 0,
         regulatedRevenue: 0,
-        adjustedOperatingProfit: 0,
+        regulatedRevenueBase: 0,
+        adjustedEbitda: 0,
         marginRevenue: 0,
         quarters: new Set(),
+        regulatedQuarters: new Set(),
+        marginQuarters: new Set(),
       });
     }
     const entry = map.get(year);
     if (QUARTERS.includes(report.quarter)) entry.quarters.add(report.quarter);
-    const total = Number(report.operatingRevenues);
-    const regulatedPct = Number(report.regulatedMarket);
+    const total = report.operatingRevenues;
+    const regulatedPct = report.regulatedMarket;
     if (Number.isFinite(total)) entry.totalRevenue += total;
     if (Number.isFinite(total) && Number.isFinite(regulatedPct)) {
       entry.regulatedRevenue += (total * regulatedPct) / 100;
+      entry.regulatedRevenueBase += total;
+      if (QUARTERS.includes(report.quarter)) entry.regulatedQuarters.add(report.quarter);
     }
-    const operatingMargin = Number(report.adjustedOperatingMargin);
-    if (Number.isFinite(total) && Number.isFinite(operatingMargin)) {
-      entry.adjustedOperatingProfit += (total * operatingMargin) / 100;
+    const ebitdaMargin = report.adjustedEBITDAMargin;
+    if (Number.isFinite(total) && Number.isFinite(ebitdaMargin)) {
+      entry.adjustedEbitda += (total * ebitdaMargin) / 100;
       entry.marginRevenue += total;
+      if (QUARTERS.includes(report.quarter)) entry.marginQuarters.add(report.quarter);
     }
   });
 
   return Array.from(map.values())
-    .filter((entry) => entry.quarters.size === QUARTERS.length)
+    .filter(
+      (entry) =>
+        entry.quarters.size === QUARTERS.length &&
+        entry.regulatedQuarters.size === QUARTERS.length &&
+        entry.marginQuarters.size === QUARTERS.length
+    )
     .map((entry) => ({
       year: entry.year,
       totalRevenue: entry.totalRevenue,
       regulatedRevenue: entry.regulatedRevenue,
       regulatedShare:
-        Number.isFinite(entry.totalRevenue) && entry.totalRevenue > 0
-          ? (entry.regulatedRevenue / entry.totalRevenue) * 100
+        Number.isFinite(entry.regulatedRevenueBase) && entry.regulatedRevenueBase > 0
+          ? (entry.regulatedRevenue / entry.regulatedRevenueBase) * 100
           : null,
-      operatingMargin:
+      ebitdaMargin:
         Number.isFinite(entry.marginRevenue) && entry.marginRevenue > 0
-          ? (entry.adjustedOperatingProfit / entry.marginRevenue) * 100
+          ? (entry.adjustedEbitda / entry.marginRevenue) * 100
           : null,
     }))
     .sort((a, b) => a.year - b.year);
+};
+
+const buildRegulatedRelationshipStats = (series) => {
+  const points = safeList(series).filter(
+    (row) => Number.isFinite(row?.regulatedShare) && Number.isFinite(row?.ebitdaMargin)
+  );
+  if (!points.length) {
+    return { points: [], correlation: null, xDomain: [0, 100], yDomain: [0, 100] };
+  }
+
+  const xValues = points.map((row) => Number(row.regulatedShare));
+  const yValues = points.map((row) => Number(row.ebitdaMargin));
+  const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  const xMean = mean(xValues);
+  const yMean = mean(yValues);
+  const covariance = xValues.reduce(
+    (sum, value, index) => sum + (value - xMean) * (yValues[index] - yMean),
+    0
+  );
+  const denominator = Math.sqrt(
+    xValues.reduce((sum, value) => sum + (value - xMean) ** 2, 0) *
+      yValues.reduce((sum, value) => sum + (value - yMean) ** 2, 0)
+  );
+
+  const buildFocusedDomain = (values, minimumSpan) => {
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const rawSpan = Math.max(max - min, minimumSpan);
+    const padding = Math.max(1, rawSpan * 0.12);
+    const center = (min + max) / 2;
+    const halfSpan = rawSpan / 2 + padding;
+    return [Math.max(0, Math.floor(center - halfSpan)), Math.min(100, Math.ceil(center + halfSpan))];
+  };
+
+  return {
+    points,
+    correlation: denominator > 0 ? covariance / denominator : null,
+    xDomain: buildFocusedDomain(xValues, 10),
+    yDomain: buildFocusedDomain(yValues, 10),
+  };
 };
 
 const buildDividendSeries = (dividendData, fxRate) => {
@@ -612,6 +663,7 @@ export {
   buildAnnualFinancialSeries,
   buildRegulatedQuarterlySeries,
   buildRegulatedAnnualSeries,
+  buildRegulatedRelationshipStats,
   buildDividendSeries,
   buildGeoQuarterlySeries,
   buildGeoAnnualSeries,

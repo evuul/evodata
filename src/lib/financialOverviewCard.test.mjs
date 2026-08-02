@@ -11,6 +11,7 @@ import {
   buildProductMixAnnualSeries,
   buildRegulatedAnnualSeries,
   buildRegulatedQuarterlySeries,
+  buildRegulatedRelationshipStats,
   filterFinancialSeriesByRange,
   formatFinancialXAxisTick,
 } from "./financialOverviewCard.js";
@@ -81,6 +82,7 @@ test("annual financial views exclude incomplete reporting years", () => {
       quarter: row.quarter,
       operatingRevenues: row.revenue,
       regulatedMarket: 50,
+      adjustedEBITDAMargin: 60,
     }))
   );
 
@@ -92,16 +94,43 @@ test("annual financial views exclude incomplete reporting years", () => {
 
 test("regulated series includes quarterly margin and revenue-weighted annual margin", () => {
   const reports = [
-    { year: 2025, quarter: "Q1", operatingRevenues: 100, regulatedMarket: 40, adjustedOperatingMargin: 50 },
-    { year: 2025, quarter: "Q2", operatingRevenues: 300, regulatedMarket: 60, adjustedOperatingMargin: 70 },
-    { year: 2025, quarter: "Q3", operatingRevenues: 100, regulatedMarket: 50, adjustedOperatingMargin: 60 },
-    { year: 2025, quarter: "Q4", operatingRevenues: 100, regulatedMarket: 50, adjustedOperatingMargin: 60 },
+    { year: 2025, quarter: "Q1", operatingRevenues: 100, regulatedMarket: 40, adjustedEBITDAMargin: 50 },
+    { year: 2025, quarter: "Q2", operatingRevenues: 300, regulatedMarket: 60, adjustedEBITDAMargin: 70 },
+    { year: 2025, quarter: "Q3", operatingRevenues: 100, regulatedMarket: 50, adjustedEBITDAMargin: 60 },
+    { year: 2025, quarter: "Q4", operatingRevenues: 100, regulatedMarket: 50, adjustedEBITDAMargin: 60 },
   ];
 
   const quarterly = buildRegulatedQuarterlySeries(reports, (year, quarter) => `${quarter}-${year}`);
   const annual = buildRegulatedAnnualSeries(reports);
 
-  assert.equal(quarterly[0].operatingMargin, 50);
-  assert.equal(Math.round(annual[0].operatingMargin * 10) / 10, 63.3);
+  assert.equal(quarterly[0].ebitdaMargin, 50);
+  assert.equal(Math.round(annual[0].ebitdaMargin * 10) / 10, 63.3);
   assert.equal(Math.round(annual[0].regulatedShare * 10) / 10, 53.3);
+});
+
+test("regulated series excludes missing regulated observations instead of plotting false zeroes", () => {
+  const reports = ["Q1", "Q2", "Q3", "Q4"].map((quarter) => ({
+    year: 2019,
+    quarter,
+    operatingRevenues: 100,
+    adjustedEBITDAMargin: 60,
+  }));
+
+  assert.deepEqual(buildRegulatedQuarterlySeries(reports, () => "2019"), []);
+  assert.deepEqual(buildRegulatedAnnualSeries(reports), []);
+});
+
+test("relationship stats calculate correlation and focus both percentage axes", () => {
+  const stats = buildRegulatedRelationshipStats([
+    { regulatedShare: 30, ebitdaMargin: 50 },
+    { regulatedShare: 40, ebitdaMargin: 60 },
+    { regulatedShare: 50, ebitdaMargin: 70 },
+    { regulatedShare: null, ebitdaMargin: 80 },
+  ]);
+
+  assert.equal(stats.points.length, 3);
+  assert.ok(Math.abs(stats.correlation - 1) < 1e-12);
+  assert.ok(stats.xDomain[0] < 30 && stats.xDomain[1] > 50);
+  assert.ok(stats.yDomain[0] < 50 && stats.yDomain[1] > 70);
+  assert.notDeepEqual(stats.xDomain, [0, 100]);
 });

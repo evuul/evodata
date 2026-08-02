@@ -41,6 +41,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     widePeak,
     wideTrendText,
     regulatedSeries,
+    regulatedRelationshipStats,
     regulatedView,
     setRegulatedView,
     regulatedPlotMode,
@@ -97,6 +98,7 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         wideTrendText={wideTrendText}
         financialReports={financialReports}
         regulatedSeries={regulatedSeries}
+        regulatedRelationshipStats={regulatedRelationshipStats}
         regulatedView={regulatedView}
         onChangeRegulatedView={setRegulatedView}
         regulatedPlotMode={regulatedPlotMode}

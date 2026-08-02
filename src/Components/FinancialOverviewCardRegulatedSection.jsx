@@ -27,6 +27,7 @@ export default function FinancialOverviewCardRegulatedSection({
   translate,
   formatMillion,
   regulatedSeries,
+  regulatedRelationshipStats,
   regulatedView,
   onChangeRegulatedView,
   regulatedPlotMode,
@@ -40,16 +41,33 @@ export default function FinancialOverviewCardRegulatedSection({
   embedded = false,
 }) {
   const comparesMargin = regulatedComparison === "margin";
-  const comparisonKey = comparesMargin ? "operatingMargin" : "totalRevenue";
+  const comparisonKey = comparesMargin ? "ebitdaMargin" : "totalRevenue";
   const comparisonLabel = comparesMargin
-    ? translate("Rörelsemarginal (justerad)", "Operating margin (adjusted)")
+    ? translate("Justerad EBITDA-marginal", "Adjusted EBITDA margin")
     : translate("Total intäkt", "Total revenue");
   const formatTooltipValue = (value, dataKey) => {
-    if (dataKey === "regulatedShare" || dataKey === "operatingMargin") {
+    if (dataKey === "regulatedShare" || dataKey === "ebitdaMargin") {
       return `${Number(value).toFixed(1)}%`;
     }
     return `${formatMillion(Number(value), 1)} €M`;
   };
+  const correlation = regulatedRelationshipStats?.correlation;
+  const correlationStrength = Number.isFinite(correlation)
+    ? Math.abs(correlation) < 0.2
+      ? translate("mycket svagt", "very weak")
+      : Math.abs(correlation) < 0.4
+        ? translate("svagt", "weak")
+        : Math.abs(correlation) < 0.6
+          ? translate("måttligt", "moderate")
+          : Math.abs(correlation) < 0.8
+            ? translate("starkt", "strong")
+            : translate("mycket starkt", "very strong")
+    : translate("ej tillgängligt", "unavailable");
+  const correlationDirection = Number.isFinite(correlation)
+    ? correlation >= 0
+      ? translate("positivt", "positive")
+      : translate("negativt", "negative")
+    : "";
 
   return (
     <Box
@@ -74,19 +92,32 @@ export default function FinancialOverviewCardRegulatedSection({
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {comparesMargin
-              ? translate("Reglerad andel vs rörelsemarginal", "Regulated share vs operating margin")
-              : translate("Reglerade intäkter vs total (YoY)", "Regulated revenue vs total (YoY)")}
+              ? translate("Reglerad andel vs EBITDA-marginal", "Regulated share vs EBITDA margin")
+              : translate("Reglerad andel vs total intäkt", "Regulated share vs total revenue")}
           </Typography>
           <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem" }}>
             {translate(
               comparesMargin
-                ? "Jämför reglerad andel med justerad rörelsemarginal. Sambandet visar samvariation, inte orsakssamband."
-                : "Årlig utveckling av reglerade marknader jämfört med total intäkt.",
+                ? "Jämför reglerad andel med justerad EBITDA-marginal. Sambandet visar samvariation, inte orsakssamband."
+                : "Utvecklingen av reglerad intäktsandel jämfört med total intäkt.",
               comparesMargin
-                ? "Compares regulated share with adjusted operating margin. The relationship shows correlation, not causation."
-                : "Annual regulated-market revenue compared with total revenue."
+                ? "Compares regulated share with adjusted EBITDA margin. The relationship shows correlation, not causation."
+                : "Development of regulated revenue share compared with total revenue."
             )}
           </Typography>
+          {comparesMargin && regulatedPlotMode === "relationship" ? (
+            <Typography sx={{ color: "rgba(186,230,253,0.9)", fontSize: "0.78rem", mt: 0.55 }}>
+              {Number.isFinite(correlation)
+                ? translate(
+                    `Fokuserade axlar · Pearson r ${correlation.toFixed(2)} · ${regulatedRelationshipStats.points.length} observationer · ${correlationStrength} ${correlationDirection} samband`,
+                    `Focused axes · Pearson r ${correlation.toFixed(2)} · ${regulatedRelationshipStats.points.length} observations · ${correlationStrength} ${correlationDirection} relationship`
+                  )
+                : translate(
+                    "För få observationer för att beräkna korrelation.",
+                    "Too few observations to calculate correlation."
+                  )}
+            </Typography>
+          ) : null}
         </Box>
         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
           <ToggleButtonGroup
@@ -200,8 +231,7 @@ export default function FinancialOverviewCardRegulatedSection({
                 type="number"
                 dataKey="regulatedShare"
                 name={translate("Reglerad andel", "Regulated share")}
-                domain={[0, 100]}
-                ticks={[0, 25, 50, 75, 100]}
+                domain={regulatedRelationshipStats?.xDomain || [0, 100]}
                 tickFormatter={(value) => `${value}%`}
                 tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
@@ -210,16 +240,15 @@ export default function FinancialOverviewCardRegulatedSection({
               />
               <YAxis
                 type="number"
-                dataKey="operatingMargin"
+                dataKey="ebitdaMargin"
                 name={comparisonLabel}
-                domain={[0, 100]}
-                ticks={[0, 25, 50, 75, 100]}
+                domain={regulatedRelationshipStats?.yDomain || [0, 100]}
                 tickFormatter={(value) => `${value}%`}
                 tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                 width={isMobile ? 38 : 52}
-                label={{ value: translate("Rörelsemarginal", "Operating margin"), angle: -90, position: "insideLeft", fill: "rgba(148,163,184,0.8)", fontSize: isMobile ? 10 : 12 }}
+                label={{ value: translate("EBITDA-marginal", "EBITDA margin"), angle: -90, position: "insideLeft", fill: "rgba(148,163,184,0.8)", fontSize: isMobile ? 10 : 12 }}
               />
               <ZAxis range={[isMobile ? 42 : 58, isMobile ? 42 : 58]} />
               <RechartsTooltip
@@ -232,8 +261,10 @@ export default function FinancialOverviewCardRegulatedSection({
               />
               <Scatter
                 name={translate("Kvartal/år", "Quarter/year")}
-                data={regulatedSeries.filter((row) => Number.isFinite(row.regulatedShare) && Number.isFinite(row.operatingMargin))}
+                data={regulatedRelationshipStats?.points || []}
                 fill="#34d399"
+                line={{ stroke: "#60a5fa", strokeWidth: 2, strokeDasharray: "6 5" }}
+                lineType="fitting"
               />
             </ScatterChart>
           ) : regulatedChartType === "line" ? (

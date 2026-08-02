@@ -54,6 +54,7 @@ export default function FinancialOverviewCardWideSection({
   widePeak,
   wideTrendText,
   regulatedSeries,
+  regulatedRelationshipStats,
   regulatedView,
   onChangeRegulatedView,
   regulatedPlotMode,
@@ -77,6 +78,7 @@ export default function FinancialOverviewCardWideSection({
           translate={translate}
           formatMillion={formatMillion}
           regulatedSeries={regulatedSeries}
+          regulatedRelationshipStats={regulatedRelationshipStats}
           regulatedView={regulatedView}
           onChangeRegulatedView={onChangeRegulatedView}
           regulatedPlotMode={regulatedPlotMode}

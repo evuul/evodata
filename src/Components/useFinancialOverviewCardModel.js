@@ -16,6 +16,7 @@ import {
   buildQuarterlyFinancialSeries,
   buildRegulatedAnnualSeries,
   buildRegulatedQuarterlySeries,
+  buildRegulatedRelationshipStats,
   computeCurrentYearProfit,
   METRIC_TOGGLE_OPTIONS,
   REGION_OPTIONS,
@@ -41,7 +42,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
   const [wideMetric, setWideMetric] = useState("revenue");
   const [wideViewMode, setWideViewMode] = useState("quarterly");
   const [wideRange, setWideRange] = useState("5y");
-  const [regulatedView, setRegulatedView] = useState("annual");
+  const [regulatedView, setRegulatedView] = useState("quarterly");
   const [regulatedPlotMode, setRegulatedPlotMode] = useState("relationship");
   const [regulatedChartType, setRegulatedChartType] = useState("line");
   const [regulatedComparison, setRegulatedComparison] = useState("revenue");
@@ -131,6 +132,10 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
   );
 
   const regulatedSeries = regulatedView === "quarterly" ? regulatedQuarterlySeries : regulatedAnnualSeries;
+  const regulatedRelationshipStats = useMemo(
+    () => buildRegulatedRelationshipStats(regulatedSeries),
+    [regulatedSeries]
+  );
 
   const dividendSeries = useMemo(() => buildDividendSeries(dividendData, fxRate), [dividendData, fxRate]);
 
@@ -645,6 +650,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     regulatedQuarterlySeries,
     regulatedAnnualSeries,
     regulatedSeries,
+    regulatedRelationshipStats,
     dividendSeries,
     selectedSeries,
     wideSelectedSeries,

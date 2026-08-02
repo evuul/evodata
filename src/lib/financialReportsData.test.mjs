@@ -54,6 +54,22 @@ test("Q2 2026 contains the published headline and per-share figures", () => {
   );
 });
 
+test("2024 adjusted EBITDA excludes non-recurring other operating revenue", () => {
+  const q3 = reports.find((report) => report.year === 2024 && report.quarter === "Q3");
+  const q4 = reports.find((report) => report.year === 2024 && report.quarter === "Q4");
+
+  assert.deepEqual(
+    [q3, q4].map(({ adjustedEBITDA, adjustedEBITDAMargin }) => ({
+      adjustedEBITDA,
+      adjustedEBITDAMargin,
+    })),
+    [
+      { adjustedEBITDA: 355.607, adjustedEBITDAMargin: 68.5 },
+      { adjustedEBITDA: 363.557, adjustedEBITDAMargin: 68.1 },
+    ],
+  );
+});
+
 test("Q2 2026 product and geographic revenue reconcile with total revenue", () => {
   assertClose(latest.liveCasino + latest.rng, latest.operatingRevenues);
 
