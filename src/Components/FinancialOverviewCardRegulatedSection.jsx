@@ -224,7 +224,10 @@ export default function FinancialOverviewCardRegulatedSection({
               <ZAxis range={[isMobile ? 42 : 58, isMobile ? 42 : 58]} />
               <RechartsTooltip
                 cursor={{ strokeDasharray: "4 4" }}
-                contentStyle={{ background: "rgba(15,23,42,0.94)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 12, color: "#f8fafc" }}
+                wrapperStyle={{ zIndex: 20, outline: "none" }}
+                contentStyle={{ backgroundColor: "#0f172a", opacity: 1, border: "1px solid rgba(125,211,252,0.55)", borderRadius: 12, color: "#f8fafc", boxShadow: "0 12px 28px rgba(0,0,0,0.38)" }}
+                labelStyle={{ color: "#f8fafc", fontWeight: 700, marginBottom: 4 }}
+                itemStyle={{ color: "#dbeafe", fontWeight: 600 }}
                 formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name]}
               />
               <Scatter
