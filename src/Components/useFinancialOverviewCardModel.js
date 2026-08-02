@@ -42,6 +42,7 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
   const [wideViewMode, setWideViewMode] = useState("quarterly");
   const [wideRange, setWideRange] = useState("5y");
   const [regulatedView, setRegulatedView] = useState("annual");
+  const [regulatedPlotMode, setRegulatedPlotMode] = useState("relationship");
   const [regulatedChartType, setRegulatedChartType] = useState("line");
   const [regulatedComparison, setRegulatedComparison] = useState("revenue");
 
@@ -624,6 +625,8 @@ export function useFinancialOverviewCardModel({ financialReports, dividendData, 
     setWideRange,
     regulatedView,
     setRegulatedView,
+    regulatedPlotMode,
+    setRegulatedPlotMode,
     regulatedChartType,
     setRegulatedChartType,
     regulatedComparison,

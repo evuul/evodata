@@ -56,6 +56,8 @@ export default function FinancialOverviewCardWideSection({
   regulatedSeries,
   regulatedView,
   onChangeRegulatedView,
+  regulatedPlotMode,
+  onChangeRegulatedPlotMode,
   regulatedChartType,
   onChangeRegulatedChartType,
   regulatedComparison,
@@ -77,6 +79,8 @@ export default function FinancialOverviewCardWideSection({
           regulatedSeries={regulatedSeries}
           regulatedView={regulatedView}
           onChangeRegulatedView={onChangeRegulatedView}
+          regulatedPlotMode={regulatedPlotMode}
+          onChangeRegulatedPlotMode={onChangeRegulatedPlotMode}
           regulatedChartType={regulatedChartType}
           onChangeRegulatedChartType={onChangeRegulatedChartType}
           regulatedComparison={regulatedComparison}

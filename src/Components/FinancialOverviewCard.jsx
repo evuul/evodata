@@ -43,6 +43,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
     regulatedSeries,
     regulatedView,
     setRegulatedView,
+    regulatedPlotMode,
+    setRegulatedPlotMode,
     regulatedChartType,
     setRegulatedChartType,
     regulatedComparison,
@@ -97,6 +99,8 @@ const FinancialOverviewCard = ({ financialReports, dividendData }) => {
         regulatedSeries={regulatedSeries}
         regulatedView={regulatedView}
         onChangeRegulatedView={setRegulatedView}
+        regulatedPlotMode={regulatedPlotMode}
+        onChangeRegulatedPlotMode={setRegulatedPlotMode}
         regulatedChartType={regulatedChartType}
         onChangeRegulatedChartType={setRegulatedChartType}
         regulatedComparison={regulatedComparison}

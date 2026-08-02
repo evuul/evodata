@@ -9,6 +9,9 @@ import {
   Line,
   BarChart,
   Bar,
+  ScatterChart,
+  Scatter,
+  ZAxis,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -26,6 +29,8 @@ export default function FinancialOverviewCardRegulatedSection({
   regulatedSeries,
   regulatedView,
   onChangeRegulatedView,
+  regulatedPlotMode,
+  onChangeRegulatedPlotMode,
   regulatedChartType,
   onChangeRegulatedChartType,
   regulatedComparison,
@@ -132,8 +137,24 @@ export default function FinancialOverviewCardRegulatedSection({
               {translate("År", "Year")}
             </ToggleButton>
           </ToggleButtonGroup>
+          {comparesMargin ? (
+            <ToggleButtonGroup
+              value={regulatedPlotMode}
+              exclusive
+              onChange={(_e, value) => value && onChangeRegulatedPlotMode(value)}
+              size="small"
+              sx={{ backgroundColor: "rgba(148,163,184,0.12)", borderRadius: "999px", p: 0.4 }}
+            >
+              <ToggleButton value="relationship" sx={{ textTransform: "none", color: "rgba(226,232,240,0.8)", border: 0, borderRadius: "999px!important", px: { xs: 1.2, md: 1.6 }, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}>
+                {translate("Samband", "Relationship")}
+              </ToggleButton>
+              <ToggleButton value="time" sx={{ textTransform: "none", color: "rgba(226,232,240,0.8)", border: 0, borderRadius: "999px!important", px: { xs: 1.2, md: 1.6 }, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(56,189,248,0.28)" } }}>
+                {translate("Över tid", "Over time")}
+              </ToggleButton>
+            </ToggleButtonGroup>
+          ) : null}
 
-          <ToggleButtonGroup
+          {(!comparesMargin || regulatedPlotMode === "time") ? <ToggleButtonGroup
             value={regulatedChartType}
             exclusive
             onChange={(_e, v) => v && onChangeRegulatedChartType(v)}
@@ -166,13 +187,53 @@ export default function FinancialOverviewCardRegulatedSection({
             >
               {translate("Stapel", "Bar")}
             </ToggleButton>
-          </ToggleButtonGroup>
+          </ToggleButtonGroup> : null}
         </Stack>
       </Stack>
 
       <Box sx={{ height: isMobile ? 230 : 290, mx: { xs: -1, md: 0 } }}>
         <ResponsiveContainer width="100%" height="100%">
-          {regulatedChartType === "line" ? (
+          {comparesMargin && regulatedPlotMode === "relationship" ? (
+            <ScatterChart margin={isMobile ? { top: 8, right: 8, left: -6, bottom: 8 } : { top: 8, right: 16, left: 4, bottom: 8 }}>
+              <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
+              <XAxis
+                type="number"
+                dataKey="regulatedShare"
+                name={translate("Reglerad andel", "Regulated share")}
+                domain={[0, 100]}
+                ticks={[0, 25, 50, 75, 100]}
+                tickFormatter={(value) => `${value}%`}
+                tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                label={{ value: translate("Reglerad andel", "Regulated share"), position: "insideBottom", offset: -2, fill: "rgba(148,163,184,0.8)", fontSize: isMobile ? 10 : 12 }}
+              />
+              <YAxis
+                type="number"
+                dataKey="operatingMargin"
+                name={comparisonLabel}
+                domain={[0, 100]}
+                ticks={[0, 25, 50, 75, 100]}
+                tickFormatter={(value) => `${value}%`}
+                tick={{ fontSize: isMobile ? 10 : 12, fill: "rgba(148,163,184,0.75)" }}
+                tickLine={false}
+                axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
+                width={isMobile ? 38 : 52}
+                label={{ value: translate("Rörelsemarginal", "Operating margin"), angle: -90, position: "insideLeft", fill: "rgba(148,163,184,0.8)", fontSize: isMobile ? 10 : 12 }}
+              />
+              <ZAxis range={[isMobile ? 42 : 58, isMobile ? 42 : 58]} />
+              <RechartsTooltip
+                cursor={{ strokeDasharray: "4 4" }}
+                contentStyle={{ background: "rgba(15,23,42,0.94)", border: "1px solid rgba(96,165,250,0.25)", borderRadius: 12, color: "#f8fafc" }}
+                formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name]}
+              />
+              <Scatter
+                name={translate("Kvartal/år", "Quarter/year")}
+                data={regulatedSeries.filter((row) => Number.isFinite(row.regulatedShare) && Number.isFinite(row.operatingMargin))}
+                fill="#34d399"
+              />
+            </ScatterChart>
+          ) : regulatedChartType === "line" ? (
             <LineChart
               data={regulatedSeries}
               margin={isMobile ? { top: 5, right: 2, left: -8, bottom: 0 } : { top: 5, right: 10, left: 0, bottom: 0 }}
