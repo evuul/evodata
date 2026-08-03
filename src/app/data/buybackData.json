@@ -1530,40 +1530,40 @@
   {
     "Datum": "2026-07-13",
     "Antal_aktier": 199874,
-    "Transaktionsvärde": 138253985,
-    "Snittkurs": 691.71,
+    "Transaktionsvärde": 138253985.08,
+    "Snittkurs": 691.7057,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   },
   {
     "Datum": "2026-07-14",
     "Antal_aktier": 197376,
-    "Transaktionsvärde": 136309306,
-    "Snittkurs": 690.61,
+    "Transaktionsvärde": 136309306.44,
+    "Snittkurs": 690.6073,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   },
   {
     "Datum": "2026-07-15",
     "Antal_aktier": 194853,
-    "Transaktionsvärde": 135524334,
-    "Snittkurs": 695.52,
+    "Transaktionsvärde": 135524333.93,
+    "Snittkurs": 695.5209,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   },
   {
     "Datum": "2026-07-16",
     "Antal_aktier": 204616,
-    "Transaktionsvärde": 141290847,
-    "Snittkurs": 690.52,
+    "Transaktionsvärde": 141290846.93,
+    "Snittkurs": 690.5171,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   },
   {
     "Datum": "2026-07-17",
     "Antal_aktier": 206048,
-    "Transaktionsvärde": 141616213,
-    "Snittkurs": 687.3,
+    "Transaktionsvärde": 141616213.47,
+    "Snittkurs": 687.2972,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   },
@@ -1604,6 +1604,46 @@
     "Antal_aktier": 199644,
     "Transaktionsvärde": 138584320.04,
     "Snittkurs": 694.1572,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-07-27",
+    "Antal_aktier": 196356,
+    "Transaktionsvärde": 143350581.4,
+    "Snittkurs": 730.0545,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-07-28",
+    "Antal_aktier": 206451,
+    "Transaktionsvärde": 152900026.08,
+    "Snittkurs": 740.6117,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-07-29",
+    "Antal_aktier": 205366,
+    "Transaktionsvärde": 153615390.39,
+    "Snittkurs": 748.0079,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-07-30",
+    "Antal_aktier": 204818,
+    "Transaktionsvärde": 152749536.71,
+    "Snittkurs": 745.7818,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-07-31",
+    "Antal_aktier": 204943,
+    "Transaktionsvärde": 150137778.26,
+    "Snittkurs": 732.5831,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
   }

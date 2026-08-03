@@ -156,8 +156,9 @@ function extractBuybackUrls(html, maxUrls = 5) {
   return urls;
 }
 
-function parseBuybackFromMfnHtml(html) {
-  const tableMatch = html.match(/<div class=\"table-wrapper\">[\s\S]*?<table>([\s\S]*?)<\/table>/i);
+export function parseBuybackFromMfnHtml(html) {
+  // MFN adds presentation attributes to newer tables; accept both old and new markup.
+  const tableMatch = html.match(/<div class=\"table-wrapper\">[\s\S]*?<table\b[^>]*>([\s\S]*?)<\/table>/i);
   if (!tableMatch) return [];
   const tableHtml = tableMatch[1];
   const rowMatches = Array.from(tableHtml.matchAll(/<tr>([\s\S]*?)<\/tr>/gi)).map((r) => r[1]);
@@ -171,15 +172,23 @@ function parseBuybackFromMfnHtml(html) {
     const avgText = stripTags(cells[2]);
     const txText = stripTags(cells[3] || '');
     const Datum = ymd(dateText);
-    const Antal_aktier = parseSvNumber(volText) ? Math.round(parseSvNumber(volText)) : null;
-    const Snittkurs = parseSvNumber(avgText);
-    const Transaktionsvärde = parseSvNumber(txText)
-      ? Math.round(parseSvNumber(txText))
+    const parsedVolume = parseSvNumber(volText);
+    const parsedAveragePrice = parseSvNumber(avgText);
+    const parsedTransactionValue = parseSvNumber(txText);
+    const Antal_aktier = parsedVolume ? Math.round(parsedVolume) : null;
+    const Snittkurs = parsedAveragePrice;
+    const Transaktionsvärde = parsedTransactionValue
+      ? parsedTransactionValue
       : Antal_aktier && Snittkurs
-      ? Math.round(Antal_aktier * Snittkurs)
+      ? Antal_aktier * Snittkurs
       : null;
     if (!Datum || !Antal_aktier || !Snittkurs || !Transaktionsvärde) continue;
-    rows.push({ Datum, Antal_aktier, Snittkurs: +Snittkurs.toFixed(2), Transaktionsvärde });
+    rows.push({
+      Datum,
+      Antal_aktier,
+      Snittkurs: +Snittkurs.toFixed(4),
+      Transaktionsvärde: +Transaktionsvärde.toFixed(2),
+    });
   }
   return rows;
 }
