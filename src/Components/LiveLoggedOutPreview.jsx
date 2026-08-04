@@ -296,7 +296,27 @@ export default function LiveLoggedOutPreview() {
           <Button component={NextLink} href="/founders" variant="text" sx={{ display: { xs: "none", md: "inline-flex" }, color: "#fde68a", textTransform: "none", fontWeight: 700 }}>{translate("Founders", "Founders")}</Button>
           <LocalePicker />
           <Button component={NextLink} href="/login" variant="text" sx={{ display: { xs: "none", sm: "inline-flex" }, color: "#dbe7f2", textTransform: "none", fontWeight: 700 }}>{translate("Logga in", "Log in")}</Button>
-          <Button component={NextLink} href="/register" variant="outlined" sx={{ px: { xs: 1.25, sm: 2 }, color: colors.text, borderColor: "rgba(148,163,184,0.36)", borderRadius: "10px", textTransform: "none", whiteSpace: "nowrap", fontSize: { xs: 12, sm: 14 }, fontWeight: 750, "&:hover": { borderColor: "rgba(130,193,255,0.72)", backgroundColor: "rgba(74,144,226,0.08)" } }}>{translate("Skapa konto", "Create account")}</Button>
+          <Button
+            component={NextLink}
+            href="/register"
+            variant="contained"
+            size="small"
+            endIcon={<ArrowForwardRoundedIcon sx={{ fontSize: "16px !important" }} />}
+            sx={{
+              ...primaryButtonSx,
+              minHeight: { xs: 36, sm: 40 },
+              px: { xs: 1.35, sm: 2.1 },
+              borderRadius: "10px",
+              fontSize: { xs: 12, sm: 14 },
+              whiteSpace: "nowrap",
+              "&:hover": {
+                ...primaryButtonSx["&:hover"],
+                transform: "translateY(-1px)",
+              },
+            }}
+          >
+            {translate("Skapa konto", "Create account")}
+          </Button>
         </Stack>
       </Box>
 
