@@ -35,6 +35,16 @@ async function collectRows(page, sourceUrl, timeoutMs) {
   );
 }
 
+async function createConfiguredPage(browser, context) {
+  const page = context ? await context.newPage() : await browser.newPage();
+  await page.setViewport?.({ width: 1440, height: 1000 });
+  await page.setViewportSize?.({ width: 1440, height: 1000 });
+  await page.setUserAgent?.(
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+  );
+  return page;
+}
+
 async function launchBrowser() {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
     const [{ default: chromium }, { default: puppeteer }] = await Promise.all([
@@ -66,7 +76,7 @@ async function launchBrowser() {
 export async function collectUnibetPilotSample({
   sourceUrls = parseSourceUrls(process.env.UNIBET_PILOT_URLS || process.env.UNIBET_PILOT_URL),
   sourceUrl,
-  timeoutMs = 25_000,
+  timeoutMs = 18_000,
 } = {}) {
   const urls = parseSourceUrls(sourceUrl || sourceUrls);
   const resolvedUrls = urls.length ? urls : DEFAULT_UNIBET_PILOT_URLS;
@@ -74,27 +84,30 @@ export async function collectUnibetPilotSample({
   let context = null;
   try {
     context = typeof browser.newContext === "function" ? await browser.newContext() : null;
-    const page = context ? await context.newPage() : await browser.newPage();
-    await page.setViewport?.({ width: 1440, height: 1000 });
-    await page.setViewportSize?.({ width: 1440, height: 1000 });
-    await page.setUserAgent?.(
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
+    const results = await Promise.all(
+      resolvedUrls.map(async (url) => {
+        let page = null;
+        try {
+          page = await createConfiguredPage(browser, context);
+          const rows = await collectRows(page, url, timeoutMs);
+          return { url, rows };
+        } catch (error) {
+          return {
+            url,
+            error: String(error instanceof Error ? error.message : error).slice(0, 160),
+          };
+        } finally {
+          await page?.close();
+        }
+      })
     );
-    const rows = [];
-    const successfulUrls = [];
-    const failedSources = [];
 
-    for (const url of resolvedUrls) {
-      try {
-        rows.push(...(await collectRows(page, url, timeoutMs)));
-        successfulUrls.push(url);
-      } catch (error) {
-        failedSources.push({
-          url,
-          error: String(error instanceof Error ? error.message : error).slice(0, 160),
-        });
-      }
-    }
+    const successfulResults = results.filter((result) => Array.isArray(result.rows));
+    const rows = successfulResults.flatMap((result) => result.rows);
+    const successfulUrls = successfulResults.map((result) => result.url);
+    const failedSources = results
+      .filter((result) => result.error)
+      .map(({ url, error }) => ({ url, error }));
 
     const sample = createUnibetPilotSample({ rows, sourceUrls: successfulUrls });
     sample.failedSources = failedSources;
