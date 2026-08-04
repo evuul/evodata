@@ -9,10 +9,17 @@ export const DEFAULT_UNIBET_PILOT_API_URLS = [
   "livecasinogameshowslobbynonpagev2",
   "livecasinoroulettelobbynonpagev2",
   "livecasinobaccaratlobbynonpagev2",
+  "livecasinoblackjackdynamiclobbyv2onairmix",
+  "livecasinopokerlobbynonpagev2",
 ].map((listId) => `${UNIBET_GAME_LIST_BASE_URL}${listId}`);
 export const DEFAULT_UNIBET_PILOT_TIMEOUT_MS = 8_000;
 
-const EXCLUDED_GAME_TYPES = new Set(["blackjack", "poker"]);
+const RECOVERY_TABLES = new Map([
+  ["blackjack_TABLE-FreeBet000000001@evolution", {
+    id: "free-bet-blackjack",
+    name: "Free Bet Blackjack",
+  }],
+]);
 
 const cleanText = (value) => String(value || "").replace(/\s+/g, " ").trim();
 
@@ -29,10 +36,14 @@ export function extractUnibetPilotRows(payload) {
   return games.flatMap((game) => {
     const liveCasino = game?.liveCasino;
     const gameType = cleanText(liveCasino?.gameType).toLowerCase();
-    if (!isEvolutionGame(game) || !liveCasino || EXCLUDED_GAME_TYPES.has(gameType)) return [];
+    const gameName = cleanText(liveCasino?.gameName);
+    const recoveryTable = RECOVERY_TABLES.get(cleanText(game?.gameId));
+    const isBlackjackTable = /\bblackjack\b|\bbj\b/i.test(`${gameType} ${gameName}`);
+    if (!isEvolutionGame(game) || !liveCasino || (!recoveryTable && isBlackjackTable)) return [];
 
     return [{
-      name: cleanText(liveCasino.gameName),
+      ...(recoveryTable ? { id: recoveryTable.id } : {}),
+      name: recoveryTable?.name || gameName,
       provider: "Evolution",
       players: liveCasino.players,
       href: cleanText(game.gameId),

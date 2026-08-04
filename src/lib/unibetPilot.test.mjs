@@ -22,6 +22,16 @@ test("normalizes Evolution games and ignores other providers", () => {
   ]);
 });
 
+test("uses a configured game id when a source table maps to one tracked game", () => {
+  const games = normalizeUnibetPilotGames([
+    { id: "free-bet-blackjack", name: "Infinite Free Bet Blackjack", provider: "Evolution", players: 108 },
+  ]);
+
+  assert.deepEqual(games.map(({ id, name, players }) => ({ id, name, players })), [
+    { id: "free-bet-blackjack", name: "Infinite Free Bet Blackjack", players: 108 },
+  ]);
+});
+
 test("creates a standalone sample with a calculated total", () => {
   const sample = createUnibetPilotSample({
     collectedAt: "2026-08-04T10:00:00.000Z",

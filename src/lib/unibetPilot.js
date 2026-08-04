@@ -31,7 +31,7 @@ export function normalizeUnibetPilotGames(rows) {
     if (!name || provider.toLowerCase() !== "evolution" || players == null) continue;
 
     const href = cleanText(row?.href).split("#")[0];
-    const id = slugify(name);
+    const id = slugify(row?.id) || slugify(name);
     if (!id) continue;
 
     const existing = byId.get(id);
