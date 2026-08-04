@@ -2,13 +2,24 @@
 
 import { createUnibetPilotSample } from "./unibetPilot.js";
 
-export const DEFAULT_UNIBET_PILOT_API_URL =
-  "https://www.unibet.mt/gamelistservice-rest-api/games/non-paginated/gamelist.json?listId=livecasinogameshowslobbynonpagev2&brand=unibet&jurisdiction=MT&locale=en_GB&deviceGroup=desktop&application=polopoly";
+const UNIBET_GAME_LIST_BASE_URL =
+  "https://www.unibet.mt/gamelistservice-rest-api/games/non-paginated/gamelist.json?brand=unibet&jurisdiction=MT&locale=en_GB&deviceGroup=desktop&application=polopoly&listId=";
+
+export const DEFAULT_UNIBET_PILOT_API_URLS = [
+  "livecasinogameshowslobbynonpagev2",
+  "livecasinoroulettelobbynonpagev2",
+  "livecasinobaccaratlobbynonpagev2",
+].map((listId) => `${UNIBET_GAME_LIST_BASE_URL}${listId}`);
 export const DEFAULT_UNIBET_PILOT_TIMEOUT_MS = 8_000;
 
 const EXCLUDED_GAME_TYPES = new Set(["blackjack", "poker"]);
 
 const cleanText = (value) => String(value || "").replace(/\s+/g, " ").trim();
+
+const parseApiUrls = (value) => {
+  const urls = Array.isArray(value) ? value : String(value || "").split(",");
+  return urls.map(cleanText).filter(Boolean);
+};
 
 const isEvolutionGame = (game) => /@evolution$/i.test(cleanText(game?.gameId));
 
@@ -39,21 +50,48 @@ async function fetchUnibetGameList(url, { fetchImpl, timeoutMs }) {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) throw new Error(`Unibet returned HTTP ${response.status}`);
-    return response.json();
+    const payload = await response.json();
+    if (!Array.isArray(payload?.gameList)) throw new Error("Unibet returned an invalid game list");
+    return payload;
   } finally {
     clearTimeout(timeout);
   }
 }
 
 export async function collectUnibetPilotSample({
-  apiUrl = process.env.UNIBET_PILOT_API_URL || DEFAULT_UNIBET_PILOT_API_URL,
+  apiUrls = parseApiUrls(process.env.UNIBET_PILOT_API_URLS || process.env.UNIBET_PILOT_API_URL),
+  apiUrl,
   timeoutMs = DEFAULT_UNIBET_PILOT_TIMEOUT_MS,
   fetchImpl = fetch,
 } = {}) {
-  const resolvedUrl = cleanText(apiUrl) || DEFAULT_UNIBET_PILOT_API_URL;
+  const configuredUrls = parseApiUrls(apiUrl || apiUrls);
+  const resolvedUrls = configuredUrls.length ? configuredUrls : DEFAULT_UNIBET_PILOT_API_URLS;
   const safeTimeoutMs = Math.max(1_000, Math.round(Number(timeoutMs) || DEFAULT_UNIBET_PILOT_TIMEOUT_MS));
-  const payload = await fetchUnibetGameList(resolvedUrl, { fetchImpl, timeoutMs: safeTimeoutMs });
-  const rows = extractUnibetPilotRows(payload);
+  const results = await Promise.allSettled(
+    resolvedUrls.map(async (url) => ({
+      url,
+      payload: await fetchUnibetGameList(url, { fetchImpl, timeoutMs: safeTimeoutMs }),
+    }))
+  );
+  const successful = results
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value);
+  if (!successful.length) {
+    const failure = results.find((result) => result.status === "rejected");
+    throw failure?.reason || new Error("Unibet game lists could not be fetched");
+  }
+  const rows = successful.flatMap(({ payload }) => extractUnibetPilotRows(payload));
+  const sample = createUnibetPilotSample({
+    rows,
+    sourceUrls: successful.map(({ url }) => url),
+  });
+  sample.failedSources = results
+    .map((result, index) => ({ result, url: resolvedUrls[index] }))
+    .filter(({ result }) => result.status === "rejected")
+    .map(({ result, url }) => ({
+      url,
+      error: cleanText(result.reason instanceof Error ? result.reason.message : result.reason).slice(0, 160),
+    }));
 
-  return createUnibetPilotSample({ rows, sourceUrls: [resolvedUrl] });
+  return sample;
 }
