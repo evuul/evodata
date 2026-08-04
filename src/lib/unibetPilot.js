@@ -36,7 +36,17 @@ export function normalizeUnibetPilotGames(rows) {
 
     const existing = byId.get(id);
     if (!existing || players > existing.players) {
-      byId.set(id, { id, name, provider: "Evolution", players, href: href || null });
+      const category = row?.category === "blackjack" || row?.category === "poker"
+        ? row.category
+        : null;
+      byId.set(id, {
+        id,
+        name,
+        provider: "Evolution",
+        players,
+        href: href || null,
+        ...(category ? { category } : {}),
+      });
     }
   }
 

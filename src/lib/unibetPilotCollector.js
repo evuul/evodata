@@ -38,15 +38,23 @@ export function extractUnibetPilotRows(payload) {
     const gameType = cleanText(liveCasino?.gameType).toLowerCase();
     const gameName = cleanText(liveCasino?.gameName);
     const recoveryTable = RECOVERY_TABLES.get(cleanText(game?.gameId));
-    const isBlackjackTable = /\bblackjack\b|\bbj\b/i.test(`${gameType} ${gameName}`);
-    if (!isEvolutionGame(game) || !liveCasino || (!recoveryTable && isBlackjackTable)) return [];
+    const gameIdentity = `${gameType} ${gameName} ${cleanText(game?.gameId)}`;
+    const isBlackjackTable = /\bblackjack\b|\bbj\b|freebet|always6|betstacker|funfun21|easybj/i.test(gameIdentity);
+    const isPokerTable = /\bpoker\b|hold.?em|teen.?patti/i.test(gameIdentity);
+    if (!isEvolutionGame(game) || !liveCasino) return [];
+    const category = isBlackjackTable ? "blackjack" : isPokerTable ? "poker" : null;
 
     return [{
-      ...(recoveryTable ? { id: recoveryTable.id } : {}),
+      ...(recoveryTable
+        ? { id: recoveryTable.id }
+        : category
+          ? { id: cleanText(game.gameId) }
+          : {}),
       name: recoveryTable?.name || gameName,
       provider: "Evolution",
       players: liveCasino.players,
       href: cleanText(game.gameId),
+      ...(category ? { category } : {}),
     }];
   });
 }

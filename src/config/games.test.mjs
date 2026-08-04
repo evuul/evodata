@@ -33,3 +33,9 @@ test("does not add known Pragmatic Play games to Evolution tracking", () => {
     assert.equal(gameIds.has(gameId), false, `${gameId} should not be tracked as Evolution`);
   }
 });
+
+test("keeps Blackjack and Poker outside the Gameshows view", () => {
+  const gameIds = new Set(GAMES.map((game) => game.id));
+
+  assert.equal(gameIds.has("free-bet-blackjack"), false);
+});

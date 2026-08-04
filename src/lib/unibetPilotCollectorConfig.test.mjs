@@ -15,7 +15,7 @@ test("uses a short timeout for the direct Unibet APIs", () => {
   assert.equal(DEFAULT_UNIBET_PILOT_API_URLS.length, 5);
 });
 
-test("keeps poker and only the verified Free Bet Blackjack recovery table", () => {
+test("keeps all Blackjack and Poker games while preserving the verified recovery id", () => {
   const rows = extractUnibetPilotRows({
     gameList: [
       { gameId: "icefishing_TABLE-1@evolution", liveCasino: { gameName: "Ice Fishing", gameType: "icefishing", players: 24_000 } },
@@ -32,16 +32,26 @@ test("keeps poker and only the verified Free Bet Blackjack recovery table", () =
     players: 24_000,
     href: "icefishing_TABLE-1@evolution",
   }, {
+    id: "blackjack_TABLE-1@evolution",
+    name: "Blackjack",
+    provider: "Evolution",
+    players: 150,
+    href: "blackjack_TABLE-1@evolution",
+    category: "blackjack",
+  }, {
     id: "free-bet-blackjack",
     name: "Free Bet Blackjack",
     provider: "Evolution",
     players: 108,
     href: "blackjack_TABLE-FreeBet000000001@evolution",
+    category: "blackjack",
   }, {
+    id: "poker_TABLE-1@evolution",
     name: "Casino Hold'em",
     provider: "Evolution",
     players: 20,
     href: "poker_TABLE-1@evolution",
+    category: "poker",
   }]);
 });
 

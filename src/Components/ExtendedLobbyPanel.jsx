@@ -8,12 +8,15 @@ import {
   Box,
   Button,
   CircularProgress,
+  InputAdornment,
   Stack,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import LockRounded from "@mui/icons-material/LockRounded";
+import SearchRounded from "@mui/icons-material/SearchRounded";
 import StyleRounded from "@mui/icons-material/StyleRounded";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -61,6 +64,7 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
     ? Boolean(user?.isAdmin || user?.isFounder || user?.isSubscriber || isPrimaryAdminEmail(user?.email))
     : Boolean(accessGranted);
   const [category, setCategory] = useState("blackjack");
+  const [query, setQuery] = useState("");
   const [state, setState] = useState({ loading: hasAccess, error: "", data: null });
 
   useEffect(() => {
@@ -79,8 +83,18 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
 
   const games = useMemo(() => {
     const rows = state.data?.categories?.[category];
-    return Array.isArray(rows) ? rows : [];
-  }, [category, state.data]);
+    if (!Array.isArray(rows)) return [];
+    const normalizedQuery = query.trim().toLocaleLowerCase(locale === "sv" ? "sv-SE" : "en-US");
+    if (!normalizedQuery) return rows;
+    return rows.filter((game) => game.name.toLocaleLowerCase(locale === "sv" ? "sv-SE" : "en-US").includes(normalizedQuery));
+  }, [category, locale, query, state.data]);
+
+  const categorySummary = state.data?.summary
+    ? {
+        games: category === "blackjack" ? state.data.categories?.blackjack?.length : state.data.categories?.poker?.length,
+        players: category === "blackjack" ? state.data.summary.blackjackPlayers : state.data.summary.pokerPlayers,
+      }
+    : null;
 
   if (!hasAccess) return <LockedExtendedLobby translate={translate} />;
 
@@ -110,15 +124,31 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
           </Typography>
         </Stack>
 
-        <ToggleButtonGroup value={category} exclusive onChange={(_, value) => value && setCategory(value)} size="small" sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, p: 0.45, borderRadius: "12px", backgroundColor: "rgba(30,41,59,0.75)", "& .MuiToggleButton-root": { flex: { xs: 1, sm: "none" }, minWidth: { sm: 130 }, border: 0, borderRadius: "9px!important", color: "rgba(226,232,240,0.7)", textTransform: "none", fontWeight: 750, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(14,116,144,0.48)" } } }}>
-          <ToggleButton value="blackjack">Blackjack</ToggleButton>
-          <ToggleButton value="poker">Poker</ToggleButton>
-        </ToggleButtonGroup>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} justifyContent="space-between">
+          <ToggleButtonGroup value={category} exclusive onChange={(_, value) => value && setCategory(value)} size="small" sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, p: 0.45, borderRadius: "12px", backgroundColor: "rgba(30,41,59,0.75)", "& .MuiToggleButton-root": { flex: { xs: 1, sm: "none" }, minWidth: { sm: 130 }, border: 0, borderRadius: "9px!important", color: "rgba(226,232,240,0.7)", textTransform: "none", fontWeight: 750, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(14,116,144,0.48)" } } }}>
+            <ToggleButton value="blackjack">Blackjack</ToggleButton>
+            <ToggleButton value="poker">Poker</ToggleButton>
+          </ToggleButtonGroup>
+          <TextField
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={translate("Sök spel", "Search games")}
+            size="small"
+            slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchRounded sx={{ color: "rgba(148,163,184,0.72)", fontSize: 19 }} /></InputAdornment> } }}
+            sx={{ width: { xs: "100%", sm: 260 }, "& .MuiOutlinedInput-root": { color: "#f8fafc", borderRadius: "11px", backgroundColor: "rgba(15,23,42,0.62)", "& fieldset": { borderColor: "rgba(148,163,184,0.2)" } } }}
+          />
+        </Stack>
+
+        {categorySummary ? (
+          <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.72)" }}>
+            {formatNumber(categorySummary.games, locale)} {translate("spel", "games")} · {formatNumber(categorySummary.players, locale)} {translate("spelare totalt", "total players")}
+          </Typography>
+        ) : null}
 
         {state.error ? <Typography sx={{ color: "#fca5a5" }}>{state.error}</Typography> : null}
         {!state.error && !games.length ? <Typography sx={{ color: "rgba(203,213,225,0.7)" }}>{translate("Ingen aktuell data i denna kategori.", "No current data in this category.")}</Typography> : null}
 
-        <Box sx={{ borderTop: "1px solid rgba(148,163,184,0.18)" }}>
+        <Box sx={{ borderTop: "1px solid rgba(148,163,184,0.18)", maxHeight: { xs: 520, md: 620 }, overflowY: "auto", pr: 0.75, scrollbarColor: "rgba(125,211,252,0.38) transparent" }}>
           {games.map((game, index) => (
             <Stack key={game.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1.65, borderBottom: index < games.length - 1 ? "1px solid rgba(148,163,184,0.14)" : 0 }}>
               <Box sx={{ minWidth: 0 }}>

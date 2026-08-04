@@ -13,7 +13,6 @@ export const LOBBY_KEY_MAP = new Map([
   ["cash-or-crash-live", "cashOrCrashLive"],
   ["fan-tan-live", "fanTanLive"],
   ["mega-ball", "megaBall"],
-  ["free-bet-blackjack", "freeBetBlackjack"],
   ["dream-catcher", "dreamCatcher"],
   ["dead-or-alive-saloon", "deadOrAliveSaloon"],
   ["red-door-roulette", "redDoorRoulette"],

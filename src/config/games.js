@@ -24,7 +24,6 @@ const ALL_GAMES = [
   { id: "crazy-balls", label: "Crazy Balls", apiSlug: "crazy-balls" },
   { id: "fan-tan-live", label: "Fan Tan", apiSlug: "fan-tan-live" },
   { id: "mega-ball", label: "Mega Ball", apiSlug: "mega-ball" },
-  { id: "free-bet-blackjack", label: "Free Bet Blackjack", apiSlug: "free-bet-blackjack" },
   { id: "dream-catcher", label: "Dream Catcher", apiSlug: "dream-catcher" },
   { id: "dead-or-alive-saloon", label: "Dead or Alive Saloon", apiSlug: "dead-or-alive-saloon" },
   { id: "lightning-dice", label: "Lightning Dice", apiSlug: "lightning-dice" },
@@ -71,7 +70,6 @@ export const COLORS = {
   "crazy-balls": "#E57373", // Ljusare röd
   "fan-tan-live": "#5C6BC0",
   "mega-ball": "#00897B",
-  "free-bet-blackjack": "#7CB342",
   "dream-catcher": "#FFB74D",
   "dead-or-alive-saloon": "#8D6E63",
   "lightning-dice": "#FFD54F",
