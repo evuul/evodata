@@ -67,15 +67,29 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
   useEffect(() => {
     if (!hasAccess || !token) return undefined;
     let active = true;
-    setState((current) => ({ ...current, loading: true, error: "" }));
-    fetchAuthJson(token, "/api/extended-lobby")
-      .then((data) => {
-        if (active) setState({ loading: false, error: "", data });
-      })
-      .catch((error) => {
-        if (active) setState({ loading: false, error: error?.message || translate("Kunde inte ladda Extended lobby.", "Could not load Extended lobby."), data: null });
-      });
-    return () => { active = false; };
+    const load = (showLoading) => {
+      if (showLoading) setState((current) => ({ ...current, loading: true, error: "" }));
+      fetchAuthJson(token, "/api/extended-lobby")
+        .then((data) => {
+          if (active) setState({ loading: false, error: "", data });
+        })
+        .catch((error) => {
+          if (active) {
+            setState((current) => ({
+              loading: false,
+              error: error?.message || translate("Kunde inte uppdatera Extended lobby.", "Could not refresh Extended lobby."),
+              data: current.data,
+            }));
+          }
+        });
+    };
+
+    load(true);
+    const intervalId = window.setInterval(() => load(false), 10 * 60 * 1000);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
   }, [hasAccess, token, translate]);
 
   const games = useMemo(() => {

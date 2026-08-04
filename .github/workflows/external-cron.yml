@@ -52,7 +52,7 @@ jobs:
           cat "$response_file"
           test "$status" -ge 200
           test "$status" -lt 300
-      - name: Refresh Unibet recovery data
+      - name: Refresh Extended lobby data
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
