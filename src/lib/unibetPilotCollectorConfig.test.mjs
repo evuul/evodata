@@ -12,16 +12,13 @@ import {
 test("uses a short timeout for the direct Unibet APIs", () => {
   assert.equal(DEFAULT_UNIBET_PILOT_TIMEOUT_MS, 8_000);
   assert.ok(DEFAULT_UNIBET_PILOT_TIMEOUT_MS < 15_000);
-  assert.equal(DEFAULT_UNIBET_PILOT_API_URLS.length, 5);
+  assert.equal(DEFAULT_UNIBET_PILOT_API_URLS.length, 3);
 });
 
-test("keeps all Blackjack and Poker games while preserving the verified recovery id", () => {
+test("keeps Evolution games from the recovery lists and excludes Blackjack and Poker lists", () => {
   const rows = extractUnibetPilotRows({
     gameList: [
       { gameId: "icefishing_TABLE-1@evolution", liveCasino: { gameName: "Ice Fishing", gameType: "icefishing", players: 24_000 } },
-      { gameId: "blackjack_TABLE-1@evolution", liveCasino: { gameName: "Blackjack", gameType: "blackjack", players: 150 } },
-      { gameId: "blackjack_TABLE-FreeBet000000001@evolution", liveCasino: { gameName: "Infinite Free Bet Blackjack", gameType: "blackjack", players: 108 } },
-      { gameId: "poker_TABLE-1@evolution", liveCasino: { gameName: "Casino Hold'em", gameType: "poker", players: 20 } },
       { gameId: "wheel_TABLE-1@pragmatic", liveCasino: { gameName: "Mega Wheel", gameType: "wheel", players: 2_000 } },
     ],
   });
@@ -31,27 +28,6 @@ test("keeps all Blackjack and Poker games while preserving the verified recovery
     provider: "Evolution",
     players: 24_000,
     href: "icefishing_TABLE-1@evolution",
-  }, {
-    id: "blackjack_TABLE-1@evolution",
-    name: "Blackjack",
-    provider: "Evolution",
-    players: 150,
-    href: "blackjack_TABLE-1@evolution",
-    category: "blackjack",
-  }, {
-    id: "free-bet-blackjack",
-    name: "Free Bet Blackjack",
-    provider: "Evolution",
-    players: 108,
-    href: "blackjack_TABLE-FreeBet000000001@evolution",
-    category: "blackjack",
-  }, {
-    id: "poker_TABLE-1@evolution",
-    name: "Casino Hold'em",
-    provider: "Evolution",
-    players: 20,
-    href: "poker_TABLE-1@evolution",
-    category: "poker",
   }]);
 });
 
@@ -72,7 +48,7 @@ test("creates a sample from the direct API response", async () => {
 
 test("merges all configured live-casino category lists", async () => {
   const sample = await collectUnibetPilotSample({
-    apiUrls: ["https://example.test/gameshows", "https://example.test/roulette", "https://example.test/baccarat", "https://example.test/blackjack", "https://example.test/poker"],
+    apiUrls: ["https://example.test/gameshows", "https://example.test/roulette", "https://example.test/baccarat"],
     fetchImpl: async (url) => new Response(JSON.stringify({
       gameList: [{
         gameId: url.includes("roulette") ? "autoroulette_TABLE-1@evolution" : "bacbo_TABLE-1@evolution",
@@ -85,7 +61,7 @@ test("merges all configured live-casino category lists", async () => {
     })),
   });
 
-  assert.equal(sample.sourceUrls.length, 5);
+  assert.equal(sample.sourceUrls.length, 3);
   assert.deepEqual(sample.games.map((game) => game.id), ["auto-roulette", "bac-bo"]);
 });
 

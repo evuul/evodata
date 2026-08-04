@@ -202,7 +202,7 @@ const exactEmailMatch = useMemo(
                     >
                         <Box sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
                             <Typography sx={{ color: "#38bdf8", fontSize: "0.7rem", fontWeight: 850, textTransform: "uppercase", letterSpacing: 0.7 }}>
-                                {translate("Unibet-återställning", "Unibet recovery")}
+                                {translate("Extended lobby", "Extended lobby")}
                             </Typography>
                             <Typography sx={{ color: "rgba(226,232,240,0.62)", fontSize: "0.72rem", mt: 0.3 }}>
                                 {translate(
@@ -262,7 +262,7 @@ const exactEmailMatch = useMemo(
                                         : "—",
                                 ],
                                 [
-                                    translate("Unibet, matchande", "Unibet, matched"),
+                                    translate("Extended, matchande", "Extended, matched"),
                                     adminOverview?.unibetComparison?.available
                                         ? Number(adminOverview.unibetComparison.pilotTotal).toLocaleString(locale === "sv" ? "sv-SE" : "en-US")
                                         : "—",

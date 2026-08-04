@@ -12,8 +12,8 @@ export const FOUNDER_BENEFITS = Object.freeze([
     id: "extended-lobby",
     title: Object.freeze({ sv: "Extended lobby", en: "Extended lobby" }),
     description: Object.freeze({
-      sv: "Tillgång till den utökade livevyn för Blackjack och Poker.",
-      en: "Access to the extended live view for Blackjack and Poker.",
+      sv: "Tillgång till Extended lobby med fler Evolution-spel än standardvyn.",
+      en: "Access to Extended lobby with more Evolution games than the standard view.",
     }),
   }),
   Object.freeze({

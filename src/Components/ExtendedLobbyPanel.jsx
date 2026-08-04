@@ -1,6 +1,6 @@
 "use client";
 
-// Renders the private Blackjack and Poker view shared by the dashboard and Mina sidor.
+// Renders the private Extended lobby shared by the dashboard and Mina sidor.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -11,8 +11,6 @@ import {
   InputAdornment,
   Stack,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import LockRounded from "@mui/icons-material/LockRounded";
@@ -45,8 +43,8 @@ function LockedExtendedLobby({ translate }) {
       </Typography>
       <Typography sx={{ color: "rgba(203,213,225,0.76)", maxWidth: 610, mx: "auto", mt: 1.2, lineHeight: 1.65 }}>
         {translate(
-          "Blackjack- och Poker-lobbyn är tillgänglig för Founders, Premium och Admin – användare som hjälper till att dela på EvoTrackers data- och driftkostnader.",
-          "The Blackjack and Poker lobby is available to Founders, Premium, and Admin—members who help share EvoTracker's data and operating costs."
+          "Extended lobby är tillgänglig för Founders, Premium och Admin – användare som hjälper till att dela på EvoTrackers data- och driftkostnader.",
+          "Extended lobby is available to Founders, Premium, and Admin—members who help share EvoTracker's data and operating costs."
         )}
       </Typography>
       <Button component={Link} href="/founders" variant="outlined" sx={{ mt: 2.5, borderRadius: "999px", textTransform: "none", color: "#fde68a", borderColor: "rgba(250,204,21,0.48)" }}>
@@ -63,7 +61,6 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
   const hasAccess = accessGranted == null
     ? Boolean(user?.isAdmin || user?.isFounder || user?.isSubscriber || isPrimaryAdminEmail(user?.email))
     : Boolean(accessGranted);
-  const [category, setCategory] = useState("blackjack");
   const [query, setQuery] = useState("");
   const [state, setState] = useState({ loading: hasAccess, error: "", data: null });
 
@@ -82,19 +79,14 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
   }, [hasAccess, token, translate]);
 
   const games = useMemo(() => {
-    const rows = state.data?.categories?.[category];
+    const rows = state.data?.games;
     if (!Array.isArray(rows)) return [];
     const normalizedQuery = query.trim().toLocaleLowerCase(locale === "sv" ? "sv-SE" : "en-US");
     if (!normalizedQuery) return rows;
     return rows.filter((game) => game.name.toLocaleLowerCase(locale === "sv" ? "sv-SE" : "en-US").includes(normalizedQuery));
-  }, [category, locale, query, state.data]);
+  }, [locale, query, state.data]);
 
-  const categorySummary = state.data?.summary
-    ? {
-        games: category === "blackjack" ? state.data.categories?.blackjack?.length : state.data.categories?.poker?.length,
-        players: category === "blackjack" ? state.data.summary.blackjackPlayers : state.data.summary.pokerPlayers,
-      }
-    : null;
+  const summary = state.data?.summary;
 
   if (!hasAccess) return <LockedExtendedLobby translate={translate} />;
 
@@ -114,7 +106,7 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
               </Typography>
             </Stack>
             <Typography sx={{ color: "rgba(203,213,225,0.68)", mt: 0.65 }}>
-              {translate("Utökad livebild för Blackjack och Poker.", "Extended live view for Blackjack and Poker.")}
+              {translate("Utökad livebild med spel som inte finns i den vanliga vyn.", "Extended live view with games outside the standard view.")}
             </Typography>
           </Box>
           <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)" }}>
@@ -125,10 +117,6 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
         </Stack>
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25} justifyContent="space-between">
-          <ToggleButtonGroup value={category} exclusive onChange={(_, value) => value && setCategory(value)} size="small" sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, p: 0.45, borderRadius: "12px", backgroundColor: "rgba(30,41,59,0.75)", "& .MuiToggleButton-root": { flex: { xs: 1, sm: "none" }, minWidth: { sm: 130 }, border: 0, borderRadius: "9px!important", color: "rgba(226,232,240,0.7)", textTransform: "none", fontWeight: 750, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(14,116,144,0.48)" } } }}>
-            <ToggleButton value="blackjack">Blackjack</ToggleButton>
-            <ToggleButton value="poker">Poker</ToggleButton>
-          </ToggleButtonGroup>
           <TextField
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -139,14 +127,14 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
           />
         </Stack>
 
-        {categorySummary ? (
+        {summary ? (
           <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.72)" }}>
-            {formatNumber(categorySummary.games, locale)} {translate("spel", "games")} · {formatNumber(categorySummary.players, locale)} {translate("spelare totalt", "total players")}
+            {formatNumber(summary.games, locale)} {translate("spel", "games")} · {formatNumber(summary.players, locale)} {translate("spelare totalt", "total players")}
           </Typography>
         ) : null}
 
         {state.error ? <Typography sx={{ color: "#fca5a5" }}>{state.error}</Typography> : null}
-        {!state.error && !games.length ? <Typography sx={{ color: "rgba(203,213,225,0.7)" }}>{translate("Ingen aktuell data i denna kategori.", "No current data in this category.")}</Typography> : null}
+        {!state.error && !games.length ? <Typography sx={{ color: "rgba(203,213,225,0.7)" }}>{translate("Ingen aktuell data.", "No current data.")}</Typography> : null}
 
         <Box sx={{ borderTop: "1px solid rgba(148,163,184,0.18)", maxHeight: { xs: 520, md: 620 }, overflowY: "auto", pr: 0.75, scrollbarColor: "rgba(125,211,252,0.38) transparent" }}>
           {games.map((game, index) => (
@@ -155,7 +143,7 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
                 <Typography sx={{ color: "#f8fafc", fontWeight: 750, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.name}</Typography>
                 <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)" }}>Live</Typography>
               </Box>
-              <Typography sx={{ color: category === "blackjack" ? "#7dd3fc" : "#c4b5fd", fontWeight: 850, fontSize: { xs: "1.15rem", sm: "1.3rem" }, fontVariantNumeric: "tabular-nums" }}>
+              <Typography sx={{ color: "#7dd3fc", fontWeight: 850, fontSize: { xs: "1.15rem", sm: "1.3rem" }, fontVariantNumeric: "tabular-nums" }}>
                 {formatNumber(game.players, locale)}
               </Typography>
             </Stack>
