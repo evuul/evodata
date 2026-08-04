@@ -8,6 +8,7 @@ export const DEFAULT_UNIBET_PILOT_URLS = [
   "https://www.unibet.mt/livecasino/roulette",
   "https://www.unibet.mt/livecasino/baccarat",
 ];
+export const DEFAULT_UNIBET_PILOT_TIMEOUT_MS = 9_000;
 
 const parseSourceUrls = (value) => {
   if (Array.isArray(value)) return value.map(String).map((url) => url.trim()).filter(Boolean);
@@ -42,6 +43,17 @@ async function createConfiguredPage(browser, context) {
   await page.setUserAgent?.(
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
   );
+  if (typeof page.setRequestInterception === "function") {
+    await page.setRequestInterception(true);
+    page.on("request", (request) => {
+      const resourceType = request.resourceType?.();
+      if (["font", "image", "media"].includes(resourceType)) {
+        request.abort().catch(() => {});
+        return;
+      }
+      request.continue().catch(() => {});
+    });
+  }
   return page;
 }
 
@@ -76,7 +88,7 @@ async function launchBrowser() {
 export async function collectUnibetPilotSample({
   sourceUrls = parseSourceUrls(process.env.UNIBET_PILOT_URLS || process.env.UNIBET_PILOT_URL),
   sourceUrl,
-  timeoutMs = 18_000,
+  timeoutMs = DEFAULT_UNIBET_PILOT_TIMEOUT_MS,
 } = {}) {
   const urls = parseSourceUrls(sourceUrl || sourceUrls);
   const resolvedUrls = urls.length ? urls : DEFAULT_UNIBET_PILOT_URLS;
