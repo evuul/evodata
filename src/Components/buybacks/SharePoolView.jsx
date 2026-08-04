@@ -4,7 +4,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { useTranslate } from "@/context/LocaleContext";
-import { calculateIllustrativeSharePool, SECONDS_PER_DAY } from "@/lib/buybackSharePool";
+import {
+  buildSharePoolForecastWindow,
+  calculateIllustrativeSharePool,
+} from "@/lib/buybackSharePool";
 
 const COLORS = {
   surface: "rgba(15,23,42,0.62)",
@@ -32,19 +35,17 @@ const getStockholmTimeParts = () => {
   return values;
 };
 
-const getEstimateSecondsSinceVerifiedWeek = (latestWeekEnd) => {
-  if (!latestWeekEnd) return 0;
-  const latest = new Date(latestWeekEnd);
-  if (Number.isNaN(latest.getTime())) return 0;
-
+const getForecastWindow = ({ latestWeekEnd, reportedEarly, tradingDays }) => {
   const parts = getStockholmTimeParts();
-  const currentDate = Date.UTC(parts.year, (parts.month || 1) - 1, parts.day || 1);
-  const verifiedDate = Date.UTC(latest.getFullYear(), latest.getMonth(), latest.getDate());
-  const nextMondayOffset = ((8 - latest.getDay()) % 7) || 7;
-  const estimateStart = verifiedDate + nextMondayOffset * SECONDS_PER_DAY * 1_000;
-  const elapsedDays = Math.floor((currentDate - estimateStart) / (SECONDS_PER_DAY * 1_000));
   const secondsToday = (parts.hour || 0) * 3_600 + (parts.minute || 0) * 60 + (parts.second || 0);
-  return Math.max(elapsedDays * SECONDS_PER_DAY + secondsToday, 0);
+  const currentDate = `${parts.year}-${String(parts.month || 1).padStart(2, "0")}-${String(parts.day || 1).padStart(2, "0")}`;
+  return buildSharePoolForecastWindow({
+    verifiedDate: latestWeekEnd,
+    reportedEarly,
+    tradingDays,
+    currentDate,
+    secondsToday,
+  });
 };
 
 export default function SharePoolView({
@@ -55,20 +56,32 @@ export default function SharePoolView({
   latestWeekEnd,
   displayWeekEnd,
   isForecast = false,
+  reportedEarly = false,
 }) {
   const translate = useTranslate();
-  const [secondsElapsed, setSecondsElapsed] = useState(0);
+  const [forecastWindow, setForecastWindow] = useState({ secondsElapsed: 0, forecastDays: latestWeekTradingDays });
 
   useEffect(() => {
-    const update = () => setSecondsElapsed(getEstimateSecondsSinceVerifiedWeek(latestWeekEnd));
+    const update = () => setForecastWindow(getForecastWindow({
+      latestWeekEnd,
+      reportedEarly,
+      tradingDays: latestWeekTradingDays,
+    }));
     update();
     const timer = window.setInterval(update, 1_000);
     return () => window.clearInterval(timer);
-  }, [latestWeekEnd]);
+  }, [latestWeekEnd, latestWeekTradingDays, reportedEarly]);
 
   const pool = useMemo(
-    () => calculateIllustrativeSharePool({ totalShares, verifiedTreasuryShares, latestWeekShares, tradingDays: latestWeekTradingDays, secondsElapsed }),
-    [latestWeekShares, latestWeekTradingDays, secondsElapsed, totalShares, verifiedTreasuryShares]
+    () => calculateIllustrativeSharePool({
+      totalShares,
+      verifiedTreasuryShares,
+      latestWeekShares,
+      tradingDays: latestWeekTradingDays,
+      forecastDays: forecastWindow.forecastDays,
+      secondsElapsed: forecastWindow.secondsElapsed,
+    }),
+    [forecastWindow, latestWeekShares, latestWeekTradingDays, totalShares, verifiedTreasuryShares]
   );
   const outstandingPct = pool.issuedShares > 0 ? (pool.illustrativeOutstandingShares / pool.issuedShares) * 100 : 0;
   const treasuryPct = pool.issuedShares > 0 ? (pool.illustrativeTreasuryShares / pool.issuedShares) * 100 : 0;

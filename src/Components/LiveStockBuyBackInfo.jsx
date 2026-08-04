@@ -489,13 +489,14 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
     [combinedBuybacks]
   );
-  const latestVerifiedBuybackDate = useMemo(
+  const latestVerifiedBuyback = useMemo(
     () => currentMandateData.reduce((latest, row) => {
       const date = String(row?.Datum || '').slice(0, 10);
-      return date > latest ? date : latest;
-    }, ''),
+      return date > String(latest?.Datum || '').slice(0, 10) ? row : latest;
+    }, null),
     [currentMandateData]
   );
+  const latestVerifiedBuybackDate = String(latestVerifiedBuyback?.Datum || '').slice(0, 10);
 
   const returns = useMemo(() => calculateShareholderReturns(dividendData || {}, combinedBuybacks), [dividendData, combinedBuybacks]);
   const chartReturns = useMemo(
@@ -1007,6 +1008,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             latestWeekEnd={latestVerifiedBuybackDate || weekNow.periodEnd}
             displayWeekEnd={weeklyBuybackEstimate?.periodEnd || weekNow.periodEnd}
             isForecast={Boolean(weeklyBuybackEstimate)}
+            reportedEarly={latestVerifiedBuyback?.reportedEarly === true}
           />
         </Box>
       )}

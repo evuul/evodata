@@ -1,7 +1,11 @@
 // Regression tests for the illustrative intraday share-pool calculation.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateBuybackPace, calculateIllustrativeSharePool } from "./buybackSharePool.js";
+import {
+  buildSharePoolForecastWindow,
+  calculateBuybackPace,
+  calculateIllustrativeSharePool,
+} from "./buybackSharePool.js";
 
 test("spreads the latest reported trading-week pace across 24 hours", () => {
   const result = calculateBuybackPace({ latestWeekShares: 1_000_000, tradingDays: 5 });
@@ -35,4 +39,26 @@ test("caps the estimate at a full five-day reporting week", () => {
   });
 
   assert.equal(result.illustrativeBoughtSinceWeekStart, 1_000);
+});
+
+test("continues from the day after a verified early Monday disclosure", () => {
+  const window = buildSharePoolForecastWindow({
+    verifiedDate: "2026-08-03",
+    reportedEarly: true,
+    tradingDays: 5,
+    currentDate: "2026-08-04",
+    secondsToday: 43_200,
+  });
+  const pool = calculateIllustrativeSharePool({
+    totalShares: 10_000,
+    verifiedTreasuryShares: 100,
+    latestWeekShares: 1_000,
+    tradingDays: 5,
+    forecastDays: window.forecastDays,
+    secondsElapsed: window.secondsElapsed,
+  });
+
+  assert.deepEqual(window, { secondsElapsed: 43_200, forecastDays: 4 });
+  assert.equal(pool.dailyShares, 200);
+  assert.equal(pool.illustrativeBoughtSinceWeekStart, 100);
 });
