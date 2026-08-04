@@ -127,6 +127,19 @@ export const summarizeBuybackExecution = ({
   };
 };
 
+// Applies verified post-report buybacks to the most recent reported share count.
+export const deriveCurrentOutstandingShares = ({ sharesData = [], buybackData = [] } = {}) => {
+  const summary = summarizeBuybackExecution({ sharesData, buybackData });
+  if (!Number.isFinite(summary.currentShares) || summary.currentShares <= 0) return null;
+
+  return {
+    shares: summary.currentShares,
+    reportedSnapshotDate: summary.snapshotDate,
+    asOfDate: summary.latestBuybackDate ?? summary.snapshotDate,
+    includesEarlyDisclosure: summary.executedSharesAfterSnapshot > 0,
+  };
+};
+
 // Kept for existing consumers; rates now describe observed execution, not a promised mandate.
 export const computeBuybackMandateAssumptions = ({
   mandateCashEur = DEFAULT_BUYBACK_MANDATE_CASH_EUR,

@@ -39,3 +39,17 @@ test("valuation model exposes neutral multidimensional scores", () => {
   assert.ok(["very_strong", "strong", "balanced", "weak"].includes(signal.status));
   assert.equal("signal" in signal, false);
 });
+
+test("valuation model uses verified buybacks after the latest share snapshot", () => {
+  const signal = computeValuationSignal({
+    reports,
+    currentPriceSEK: 100,
+    marketCapSEK: 100 * 199_000_000,
+    fxRate: 1,
+    sharesData,
+    buybackData: [{ Datum: "2026-08-03", Antal_aktier: 1_000_000, reportedEarly: true }],
+  });
+
+  assert.equal(signal.metrics.sharesOutstandingM, 199);
+  assert.equal(signal.meta.sharesAsOf, "2026-08-03");
+});

@@ -2,7 +2,9 @@
 
 import financialReportsData from "@/app/data/financialReports.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
+import buybackData from "@/app/data/buybackData.json";
 import { buildAnnualizedDividendProjection } from "@/lib/dividendProjection";
+import { deriveCurrentOutstandingShares } from "@/lib/buybackMandate";
 
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 const NO_DIVIDEND_PROPOSAL = {
@@ -43,9 +45,13 @@ export const buildDividendEstimate = ({ profileShares, fxRate, payoutRatio = 0.5
   }, 0);
   if (!(annualProfitEur > 0)) return null;
 
-  const latestSharesOutstandingMillions = Number(
-    amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding
-  );
+  const adjustedShareCount = deriveCurrentOutstandingShares({
+    sharesData: amountOfShares,
+    buybackData,
+  });
+  const latestSharesOutstandingMillions = Number.isFinite(adjustedShareCount?.shares)
+    ? adjustedShareCount.shares / 1_000_000
+    : Number(amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding);
   if (!(latestSharesOutstandingMillions > 0)) return null;
 
   if (NO_DIVIDEND_PROPOSAL.active) {
@@ -98,9 +104,17 @@ export const buildLatestDividendProjection = ({ profileShares, fxRate }) => {
     .sort((left, right) => String(left?.date ?? "").localeCompare(String(right?.date ?? "")))
     .at(-1);
 
+  const adjustedShareCount = deriveCurrentOutstandingShares({
+    sharesData: amountOfShares,
+    buybackData,
+  });
+  const sharesOutstandingMillions = Number.isFinite(adjustedShareCount?.shares)
+    ? adjustedShareCount.shares / 1_000_000
+    : latestShareSnapshot?.sharesOutstanding;
+
   return buildAnnualizedDividendProjection({
     reports: financialReportsData?.financialReports,
-    sharesOutstandingMillions: latestShareSnapshot?.sharesOutstanding,
+    sharesOutstandingMillions,
     fxRate,
     portfolioShares: profileShares,
   });

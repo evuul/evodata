@@ -5,6 +5,7 @@ import test from 'node:test';
 import {
   computeBuybackMandateAssumptions,
   DEFAULT_BUYBACK_MANDATE_CASH_EUR,
+  deriveCurrentOutstandingShares,
   summarizeBuybackExecution,
 } from './buybackMandate.js';
 
@@ -51,6 +52,22 @@ test('counts a verified early share disclosure without inventing transaction val
   assert.equal(result.validRowCount, 1);
   assert.equal(result.executedSharesAfterSnapshot, 207_007);
   assert.equal(result.executedSpendAfterSnapshotSek, 0);
+});
+
+test('derives current outstanding shares from a reported share snapshot and early disclosure', () => {
+  const result = deriveCurrentOutstandingShares({
+    sharesData: [{ date: '2026-06-30', sharesOutstanding: 194.085085 }],
+    buybackData: [
+      { Datum: '2026-08-03', Antal_aktier: 207_007, reportedEarly: true },
+    ],
+  });
+
+  assert.deepEqual(result, {
+    shares: 193_878_078,
+    reportedSnapshotDate: '2026-06-30',
+    asOfDate: '2026-08-03',
+    includesEarlyDisclosure: true,
+  });
 });
 
 test('mandate metadata separates observed execution from remaining authorization', () => {

@@ -7,7 +7,9 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import financialReportsData from "@/app/data/financialReports.json";
 import amountOfShares from "@/app/data/amountOfShares.json";
 import { computeValuationSignal } from "@/lib/valuationSignal";
+import { deriveCurrentOutstandingShares } from "@/lib/buybackMandate";
 import { useFxRateContext } from "@/context/FxRateContext";
+import { useBuybackData } from "@/Components/useBuybackData";
 import valuationConfig from "@/app/data/valuationConfig.json";
 
 const num1 = new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 1 });
@@ -205,8 +207,14 @@ function DimensionScore({ label, score }) {
 
 export default function ValuationSignalCard({ translate, currentPrice, isUnlocked }) {
   const { rate: fxRate } = useFxRateContext();
+  const { data: buybackMeta } = useBuybackData();
   const reports = Array.isArray(financialReportsData?.financialReports) ? financialReportsData.financialReports : [];
-  const latestSharesM = Number(amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding);
+  const buybackData = Array.isArray(buybackMeta?.combined) ? buybackMeta.combined : [];
+  const latestSharesM = useMemo(() => {
+    const adjusted = deriveCurrentOutstandingShares({ sharesData: amountOfShares, buybackData });
+    if (Number.isFinite(adjusted?.shares) && adjusted.shares > 0) return adjusted.shares / 1_000_000;
+    return Number(amountOfShares?.[amountOfShares.length - 1]?.sharesOutstanding);
+  }, [buybackData]);
   const marketCapSEK =
     Number.isFinite(currentPrice) && Number.isFinite(latestSharesM)
       ? currentPrice * latestSharesM * 1_000_000
@@ -221,8 +229,9 @@ export default function ValuationSignalCard({ translate, currentPrice, isUnlocke
         fxRate: Number(fxRate) || 11,
         buybackMandateCashEUR: BUYBACK_MANDATE_CASH_EUR,
         sharesData: amountOfShares,
+        buybackData,
       }),
-    [reports, currentPrice, marketCapSEK, fxRate]
+    [reports, currentPrice, marketCapSEK, fxRate, buybackData]
   );
 
   if (!isUnlocked) {

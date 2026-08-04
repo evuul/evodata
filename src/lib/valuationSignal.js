@@ -1,5 +1,6 @@
 // Valuation signal scoring for Mina Sidor and related valuation surfaces.
 import valuationConfig from "./valuationConfigData.js";
+import { deriveCurrentOutstandingShares } from "./buybackMandate.js";
 
 const QUARTER_ORDER = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 };
 const BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
@@ -151,6 +152,7 @@ export function computeValuationSignal({
   fxRate,
   buybackMandateCashEUR = BUYBACK_MANDATE_CASH_EUR,
   sharesData = [],
+  buybackData = [],
   config = valuationConfig,
 }) {
   const sorted = sortReports(reports);
@@ -171,7 +173,10 @@ export function computeValuationSignal({
   const priceSEK = toNumber(currentPriceSEK);
   const fx = toNumber(fxRate);
   const marketCap = toNumber(marketCapSEK);
-  const sharesOutstandingM = latestOutstandingSharesM(sharesData);
+  const adjustedShareCount = deriveCurrentOutstandingShares({ sharesData, buybackData });
+  const sharesOutstandingM = Number.isFinite(adjustedShareCount?.shares)
+    ? adjustedShareCount.shares / 1_000_000
+    : latestOutstandingSharesM(sharesData);
 
   const epsLtmEur = ltm.reduce((acc, r) => acc + (toNumber(r?.adjustedEarningsPerShare) || 0), 0);
   const ocfPsLtmEur = ltm.reduce((acc, r) => acc + (toNumber(r?.ocfPerShare) || 0), 0);
@@ -357,6 +362,7 @@ export function computeValuationSignal({
     meta: {
       latestQuarter: latest ? `${latest.year} ${latest.quarter}` : null,
       ltmQuarters: ltm.map((r) => `${r.year} ${r.quarter}`),
+      sharesAsOf: adjustedShareCount?.asOfDate ?? null,
     },
   };
 }
