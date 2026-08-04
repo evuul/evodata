@@ -1,7 +1,7 @@
 // Normalizes isolated Unibet pilot samples and summarizes collector reliability.
 
 const MAX_PLAYERS_PER_GAME = 5_000_000;
-const DEFAULT_EXPECTED_INTERVAL_MS = 30 * 60 * 1000;
+const DEFAULT_EXPECTED_INTERVAL_MS = 10 * 60 * 1000;
 
 const cleanText = (value) => String(value || "").replace(/\s+/g, " ").trim();
 
