@@ -11,11 +11,13 @@ import {
   maybeUpdateDailyLobbyPeak,
   setGlobalLobbyAth,
   setLatestPlayersSnapshot,
+  saveSample,
   updateGameAthSnapshot,
 } from "@/lib/csStore";
 import { computeTrailingStuckMeta } from "@/lib/stuckGames";
 import { shouldSkipMaterializedRefresh } from "@/lib/upstashCostPolicy";
-import { CRON_TARGETS } from "../players/shared";
+import { GAMES as GAME_CONFIG } from "@/config/games";
+import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
 
 const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
 const STUCK_LOOKBACK_DAYS = 90;
@@ -26,8 +28,7 @@ const CRON_MIN_INTERVAL_MS = (() => {
   return Math.min(Math.max(configured, 60 * 1000), 60 * 60 * 1000);
 })();
 
-const targetId = ({ slug, variant = "default" }) =>
-  `${slug}${variant === "a" ? ":a" : ""}`;
+const SAMPLE_WRITE_CONCURRENCY = 6;
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -38,6 +39,24 @@ function json(data, status = 200, extraHeaders = {}) {
       ...extraHeaders,
     },
   });
+}
+
+async function saveSamples(items) {
+  let cursor = 0;
+  let saved = 0;
+  const workers = Array.from({ length: Math.min(SAMPLE_WRITE_CONCURRENCY, items.length) }, async () => {
+    while (cursor < items.length) {
+      const item = items[cursor++];
+      try {
+        await saveSample(item.id, item.fetchedAt, item.players);
+        saved += 1;
+      } catch {
+        // A single series write must not block the latest lobby snapshot.
+      }
+    }
+  });
+  await Promise.all(workers);
+  return saved;
 }
 
 async function runCron(req) {
@@ -62,67 +81,38 @@ async function runCron(req) {
     });
   }
 
-  const origin = new URL(req.url).origin;
-  const results = [];
-
-  for (const { slug, variant = "default" } of CRON_TARGETS) {
-    const started = Date.now();
-    try {
-      const params = new URLSearchParams({ force: "1", cron: "1" });
-      if (variant && variant !== "default") params.set("variant", variant);
-      const url = `${origin}/api/casinoscores/players/${slug}?${params.toString()}`;
-      const res = await fetch(url, {
-        cache: "no-store",
-        headers: {
-          "x-cs-cron-secret": SECRET,
-        },
-      });
-      let payload = null;
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        try {
-          payload = await res.json();
-        } catch {
-          payload = null;
-        }
-      }
-
-      const ok = payload?.ok === true;
-      results.push({
-        slug,
-        variant,
-        status: res.status,
-        ok,
-        players: payload?.players ?? null,
-        fetchedAt: payload?.fetchedAt ?? null,
-        error: ok ? undefined : payload?.error || res.statusText || "Unknown error",
-        durationMs: Date.now() - started,
-      });
-    } catch (error) {
-      results.push({
-        slug,
-        variant,
-        status: 0,
-        ok: false,
-        players: null,
-        fetchedAt: null,
-        error: error instanceof Error ? error.message : String(error),
-        durationMs: Date.now() - started,
-      });
-    }
+  let sourceError = null;
+  let liveItems = [];
+  try {
+    const lobby = await fetchLiveLobbyCounts({ force: true });
+    liveItems = buildLiveLobbyItems(lobby, GAME_CONFIG);
+  } catch (error) {
+    sourceError = error instanceof Error ? error.message : String(error);
   }
 
-  const fetched = results.filter((r) => r.ok).length;
-  const successfulItems = results
-    .filter((result) => result.ok && Number.isFinite(Number(result.players)) && result.fetchedAt)
-    .map((result) => ({
-      id: targetId(result),
-      players: Number(result.players),
-      fetchedAt: result.fetchedAt,
-    }));
+  const successfulItems = liveItems
+    .filter((item) => item?.id && Number.isFinite(Number(item.players)) && item.fetchedAt)
+    .map((item) => ({ id: item.id, players: Number(item.players), fetchedAt: item.fetchedAt }));
+  const results = GAME_CONFIG.map((game) => {
+    const item = liveItems.find((candidate) => candidate.id === game.id);
+    const ok = Boolean(item && Number.isFinite(Number(item.players)) && item.fetchedAt);
+    return {
+      slug: game.apiSlug,
+      variant: game.apiVariant === "a" ? "a" : "default",
+      status: ok ? 200 : 503,
+      ok,
+      players: item?.players ?? null,
+      fetchedAt: item?.fetchedAt ?? null,
+      error: ok ? undefined : sourceError || "No live lobby value",
+    };
+  });
+  const fetched = successfulItems.length;
+  let saved = 0;
 
   if (successfulItems.length) {
-    const ids = CRON_TARGETS.map(targetId);
+    saved = await saveSamples(successfulItems);
+
+    const ids = GAME_CONFIG.map((game) => game.id).filter(Boolean);
     const seriesMap = await getSeriesBulk(ids, STUCK_LOOKBACK_DAYS).catch(() => new Map());
     const previousById = new Map(
       Array.isArray(previousSnapshot?.items)
@@ -184,6 +174,7 @@ async function runCron(req) {
   return json({
     ok: fetched === results.length,
     fetched,
+    saved,
     total: results.length,
     results,
     timestamp: new Date().toISOString(),
