@@ -188,6 +188,57 @@ const exactEmailMatch = useMemo(
                             </Box>
                         ))}
                     </Box>
+                    <Box
+                        sx={{
+                            p: 1.4,
+                            borderRadius: "12px",
+                            border: "1px solid rgba(56,189,248,0.24)",
+                            background: "rgba(15,23,42,0.35)",
+                            display: "grid",
+                            gridTemplateColumns: { xs: "1fr 1fr", sm: "1.4fr repeat(3, 1fr)" },
+                            gap: 1.2,
+                            alignItems: "center",
+                        }}
+                    >
+                        <Box sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
+                            <Typography sx={{ color: "#38bdf8", fontSize: "0.7rem", fontWeight: 850, textTransform: "uppercase", letterSpacing: 0.7 }}>
+                                {translate("Isolerad Unibet-pilot", "Isolated Unibet pilot")}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(226,232,240,0.62)", fontSize: "0.72rem", mt: 0.3 }}>
+                                {translate(
+                                    "Påverkar inte lobby, forecast, peak eller ATH.",
+                                    "Does not affect lobby, forecast, peak, or ATH."
+                                )}
+                            </Typography>
+                        </Box>
+                        {[
+                            [
+                                translate("Lyckade körningar", "Successful runs"),
+                                adminOverview?.unibetPilot?.successRate == null
+                                    ? "—"
+                                    : `${Math.round(adminOverview.unibetPilot.successRate * 100)}%`,
+                            ],
+                            [
+                                translate("Evolution-spel", "Evolution games"),
+                                adminOverview?.unibetPilot?.latestSuccess?.gameCount ?? "—",
+                            ],
+                            [
+                                translate("Separat total", "Separate total"),
+                                Number.isFinite(Number(adminOverview?.unibetPilot?.latestSuccess?.totalPlayers))
+                                    ? Number(adminOverview.unibetPilot.latestSuccess.totalPlayers).toLocaleString(locale === "sv" ? "sv-SE" : "en-US")
+                                    : "—",
+                            ],
+                        ].map(([label, value]) => (
+                            <Box key={label}>
+                                <Typography sx={{ color: "rgba(148,163,184,0.7)", fontSize: "0.66rem", fontWeight: 750, textTransform: "uppercase" }}>
+                                    {label}
+                                </Typography>
+                                <Typography sx={{ color: "#f8fafc", fontWeight: 850, fontSize: "1rem", mt: 0.2 }}>
+                                    {value}
+                                </Typography>
+                            </Box>
+                        ))}
+                    </Box>
                 </Stack>
             ) : null}
             <ToggleButtonGroup
