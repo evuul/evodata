@@ -31,6 +31,8 @@ export default function LiveHeaderPanelContent({
 }) {
   if (activePanel === "live") return <panels.LivePlayersControlPanel />;
 
+  if (activePanel === "extended") return <panels.ExtendedLobbyPanel />;
+
   if (activePanel === "releases") {
     return (
       <PanelWithSupport placement="game_releases">

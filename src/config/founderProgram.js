@@ -9,6 +9,14 @@ export const FOUNDER_PROGRAM = Object.freeze({
 
 export const FOUNDER_BENEFITS = Object.freeze([
   Object.freeze({
+    id: "extended-lobby",
+    title: Object.freeze({ sv: "Extended lobby", en: "Extended lobby" }),
+    description: Object.freeze({
+      sv: "Tillgång till den utökade livevyn för Blackjack och Poker.",
+      en: "Access to the extended live view for Blackjack and Poker.",
+    }),
+  }),
+  Object.freeze({
     id: "extended-history",
     title: Object.freeze({ sv: "Längre historik", en: "Extended history" }),
     description: Object.freeze({

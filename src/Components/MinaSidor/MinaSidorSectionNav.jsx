@@ -12,8 +12,12 @@ const USER_ITEMS = [
   { value: "verktyg", sv: "Verktyg", en: "Tools" },
 ];
 
-export default function MinaSidorSectionNav({ activeView, isAdmin, onChange, translate }) {
-  const items = isAdmin ? [...USER_ITEMS, { value: "admin", sv: "Admin", en: "Admin" }] : USER_ITEMS;
+export default function MinaSidorSectionNav({ activeView, isAdmin, hasExtendedAccess, onChange, translate }) {
+  const items = [
+    ...USER_ITEMS,
+    ...(hasExtendedAccess ? [{ value: "extended", sv: "Extended lobby", en: "Extended lobby" }] : []),
+    ...(isAdmin ? [{ value: "admin", sv: "Admin", en: "Admin" }] : []),
+  ];
 
   return (
     <Box

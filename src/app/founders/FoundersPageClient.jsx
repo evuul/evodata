@@ -21,6 +21,7 @@ import VerifiedRounded from "@mui/icons-material/VerifiedRounded";
 import DownloadRounded from "@mui/icons-material/DownloadRounded";
 import HistoryRounded from "@mui/icons-material/HistoryRounded";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
+import CasinoRounded from "@mui/icons-material/CasinoRounded";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { buildSupportUrl } from "@/lib/supportLinks";
 import { FOUNDER_BENEFITS } from "@/config/founderProgram";
@@ -149,7 +150,7 @@ function FounderCard({ founder, locale, translate }) {
   );
 }
 
-const benefitIcons = [HistoryRounded, DownloadRounded, WorkspacePremiumRounded];
+const benefitIcons = [CasinoRounded, HistoryRounded, DownloadRounded, WorkspacePremiumRounded];
 
 export default function FoundersPageClient({
   founders,
@@ -339,7 +340,7 @@ export default function FoundersPageClient({
             <Typography sx={{ color: "#38bdf8", fontSize: 10.5, fontWeight: 840, letterSpacing: "0.12em" }}>
               {translate("DET HÄR INGÅR", "WHAT FOUNDERS GET")}
             </Typography>
-            <Box sx={{ mt: 1.3, display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 1.5 }}>
+            <Box sx={{ mt: 1.3, display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" }, gap: 1.5 }}>
               {FOUNDER_BENEFITS.map((benefit, index) => {
                 const Icon = benefitIcons[index];
                 return (

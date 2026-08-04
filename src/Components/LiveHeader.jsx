@@ -38,6 +38,7 @@ const CashPositionPanel = dynamic(() => import("./CashPositionCard"), { ssr: fal
 const CapitalAllocationPanel = dynamic(() => import("./CapitalAllocationCard"), { ssr: false, loading: PanelLoader });
 const FinancialCalendarPanel = dynamic(() => import("./FinancialCalendarPanel"), { ssr: false, loading: PanelLoader });
 const GameReleasesPanel = dynamic(() => import("./GameReleasesPanel"), { ssr: false, loading: PanelLoader });
+const ExtendedLobbyPanel = dynamic(() => import("./ExtendedLobbyPanel"), { ssr: false, loading: PanelLoader });
 
 export default function LiveHeader({ financialReports, averagePlayersData, dividendData, buybackData, sharesData }) {
   const {
@@ -124,6 +125,7 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         CapitalAllocationPanel,
         FinancialCalendarPanel,
         GameReleasesPanel,
+        ExtendedLobbyPanel,
       }}
     />
   );

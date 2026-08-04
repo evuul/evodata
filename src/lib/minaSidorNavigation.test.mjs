@@ -18,6 +18,11 @@ test("only exposes the admin view to administrators", () => {
   assert.equal(normalizeMinaSidorView("admin", { isAdmin: true }), "admin");
 });
 
+test("only exposes Extended lobby to entitled accounts", () => {
+  assert.equal(normalizeMinaSidorView("extended"), "oversikt");
+  assert.equal(normalizeMinaSidorView("extended", { hasExtendedAccess: true }), "extended");
+});
+
 test("builds view links while preserving unrelated query parameters", () => {
   assert.equal(
     buildMinaSidorViewHref({ pathname: "/mina-sidor", search: "support=1", view: "transaktioner" }),
@@ -26,5 +31,9 @@ test("builds view links while preserving unrelated query parameters", () => {
   assert.equal(
     buildMinaSidorViewHref({ pathname: "/mina-sidor", search: "support=1&vy=agande", view: "oversikt" }),
     "/mina-sidor?support=1"
+  );
+  assert.equal(
+    buildMinaSidorViewHref({ pathname: "/mina-sidor", search: "support=1", view: "extended", hasExtendedAccess: true }),
+    "/mina-sidor?support=1&vy=extended"
   );
 });

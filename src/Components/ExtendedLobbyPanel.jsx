@@ -1,0 +1,137 @@
+"use client";
+
+// Renders the private Blackjack and Poker view shared by the dashboard and Mina sidor.
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
+import LockRounded from "@mui/icons-material/LockRounded";
+import StyleRounded from "@mui/icons-material/StyleRounded";
+import { useAuth } from "@/context/AuthContext";
+import { useLocale, useTranslate } from "@/context/LocaleContext";
+import { fetchAuthJson } from "@/lib/clientApi";
+import { isPrimaryAdminEmail } from "@/lib/adminAccess";
+
+const formatNumber = (value, locale) => Number(value || 0).toLocaleString(locale === "en" ? "en-US" : "sv-SE");
+
+function LockedExtendedLobby({ translate }) {
+  return (
+    <Box
+      sx={{
+        maxWidth: 820,
+        mx: "auto",
+        px: { xs: 2.5, sm: 4 },
+        py: { xs: 4, sm: 5 },
+        textAlign: "center",
+        border: "1px solid rgba(148,163,184,0.2)",
+        borderRadius: "18px",
+        backgroundColor: "#0f192b",
+      }}
+    >
+      <LockRounded sx={{ color: "#facc15", fontSize: 30, mb: 1.2 }} />
+      <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 800 }}>
+        {translate("Extended lobby", "Extended lobby")}
+      </Typography>
+      <Typography sx={{ color: "rgba(203,213,225,0.76)", maxWidth: 610, mx: "auto", mt: 1.2, lineHeight: 1.65 }}>
+        {translate(
+          "Blackjack- och Poker-lobbyn är tillgänglig för Founders, Premium och Admin – användare som hjälper till att dela på EvoTrackers data- och driftkostnader.",
+          "The Blackjack and Poker lobby is available to Founders, Premium, and Admin—members who help share EvoTracker's data and operating costs."
+        )}
+      </Typography>
+      <Button component={Link} href="/founders" variant="outlined" sx={{ mt: 2.5, borderRadius: "999px", textTransform: "none", color: "#fde68a", borderColor: "rgba(250,204,21,0.48)" }}>
+        {translate("Läs om Founder", "Learn about Founder")}
+      </Button>
+    </Box>
+  );
+}
+
+export default function ExtendedLobbyPanel({ accessGranted = null, embedded = false }) {
+  const { user, token } = useAuth();
+  const { locale } = useLocale();
+  const translate = useTranslate();
+  const hasAccess = accessGranted == null
+    ? Boolean(user?.isAdmin || user?.isFounder || user?.isSubscriber || isPrimaryAdminEmail(user?.email))
+    : Boolean(accessGranted);
+  const [category, setCategory] = useState("blackjack");
+  const [state, setState] = useState({ loading: hasAccess, error: "", data: null });
+
+  useEffect(() => {
+    if (!hasAccess || !token) return undefined;
+    let active = true;
+    setState((current) => ({ ...current, loading: true, error: "" }));
+    fetchAuthJson(token, "/api/extended-lobby")
+      .then((data) => {
+        if (active) setState({ loading: false, error: "", data });
+      })
+      .catch((error) => {
+        if (active) setState({ loading: false, error: error?.message || translate("Kunde inte ladda Extended lobby.", "Could not load Extended lobby."), data: null });
+      });
+    return () => { active = false; };
+  }, [hasAccess, token, translate]);
+
+  const games = useMemo(() => {
+    const rows = state.data?.categories?.[category];
+    return Array.isArray(rows) ? rows : [];
+  }, [category, state.data]);
+
+  if (!hasAccess) return <LockedExtendedLobby translate={translate} />;
+
+  if (state.loading) {
+    return <Box sx={{ minHeight: 260, display: "grid", placeItems: "center" }}><CircularProgress size={28} /></Box>;
+  }
+
+  return (
+    <Box sx={{ width: "100%", backgroundColor: embedded ? "transparent" : "#0f192b", border: embedded ? 0 : "1px solid rgba(148,163,184,0.18)", borderRadius: embedded ? 0 : "18px", px: { xs: 0, sm: embedded ? 0 : 3 }, py: embedded ? 0 : { xs: 2.5, sm: 3 } }}>
+      <Stack spacing={{ xs: 2, md: 2.5 }}>
+        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} gap={1.5}>
+          <Box>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <StyleRounded sx={{ color: "#7dd3fc" }} />
+              <Typography variant="h5" sx={{ color: "#f8fafc", fontWeight: 800 }}>
+                {translate("Extended lobby", "Extended lobby")}
+              </Typography>
+            </Stack>
+            <Typography sx={{ color: "rgba(203,213,225,0.68)", mt: 0.65 }}>
+              {translate("Utökad livebild för Blackjack och Poker.", "Extended live view for Blackjack and Poker.")}
+            </Typography>
+          </Box>
+          <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)" }}>
+            {state.data?.updatedAt
+              ? translate("Uppdaterad ", "Updated ") + new Date(state.data.updatedAt).toLocaleTimeString(locale === "en" ? "en-GB" : "sv-SE", { hour: "2-digit", minute: "2-digit" })
+              : translate("Ingen uppdatering", "No update")}
+          </Typography>
+        </Stack>
+
+        <ToggleButtonGroup value={category} exclusive onChange={(_, value) => value && setCategory(value)} size="small" sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, p: 0.45, borderRadius: "12px", backgroundColor: "rgba(30,41,59,0.75)", "& .MuiToggleButton-root": { flex: { xs: 1, sm: "none" }, minWidth: { sm: 130 }, border: 0, borderRadius: "9px!important", color: "rgba(226,232,240,0.7)", textTransform: "none", fontWeight: 750, "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(14,116,144,0.48)" } } }}>
+          <ToggleButton value="blackjack">Blackjack</ToggleButton>
+          <ToggleButton value="poker">Poker</ToggleButton>
+        </ToggleButtonGroup>
+
+        {state.error ? <Typography sx={{ color: "#fca5a5" }}>{state.error}</Typography> : null}
+        {!state.error && !games.length ? <Typography sx={{ color: "rgba(203,213,225,0.7)" }}>{translate("Ingen aktuell data i denna kategori.", "No current data in this category.")}</Typography> : null}
+
+        <Box sx={{ borderTop: "1px solid rgba(148,163,184,0.18)" }}>
+          {games.map((game, index) => (
+            <Stack key={game.id} direction="row" justifyContent="space-between" alignItems="center" sx={{ py: 1.65, borderBottom: index < games.length - 1 ? "1px solid rgba(148,163,184,0.14)" : 0 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Typography sx={{ color: "#f8fafc", fontWeight: 750, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{game.name}</Typography>
+                <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)" }}>Live</Typography>
+              </Box>
+              <Typography sx={{ color: category === "blackjack" ? "#7dd3fc" : "#c4b5fd", fontWeight: 850, fontSize: { xs: "1.15rem", sm: "1.3rem" }, fontVariantNumeric: "tabular-nums" }}>
+                {formatNumber(game.players, locale)}
+              </Typography>
+            </Stack>
+          ))}
+        </Box>
+      </Stack>
+    </Box>
+  );
+}

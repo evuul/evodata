@@ -51,6 +51,7 @@ const AdminSupportInboxDialog = dynamic(() =>
   import("@/app/mina-sidor/components/AdminSupportInboxDialog").then((module) => module.AdminSupportInboxDialog)
 );
 const NotificationCenterCard = dynamic(() => import("@/app/mina-sidor/components/NotificationCenterCard"));
+const ExtendedLobbyPanel = dynamic(() => import("@/Components/ExtendedLobbyPanel"), { loading: SectionLoader });
 
 const contentWrapSx = { width: "100%", maxWidth: 1500, mx: "auto" };
 
@@ -363,12 +364,18 @@ function MinaSidorContent() {
     router.push("/");
   };
 
-  const activeView = normalizeMinaSidorView(searchParams.get("vy"), { isAdmin: effectiveIsAdmin });
+  const hasExtendedLobbyAccess = Boolean(effectiveIsAdmin || isSubscriber || isFounder);
+  const activeView = normalizeMinaSidorView(searchParams.get("vy"), {
+    isAdmin: effectiveIsAdmin,
+    hasExtendedAccess: hasExtendedLobbyAccess,
+  });
   const handleViewChange = useCallback((view) => {
     const href = buildMinaSidorViewHref({
       pathname,
       search: searchParams.toString(),
       view,
+      isAdmin: effectiveIsAdmin,
+      hasExtendedAccess: hasExtendedLobbyAccess,
     });
     router.push(href, { scroll: false });
     if (typeof window !== "undefined") {
@@ -376,7 +383,7 @@ function MinaSidorContent() {
         document.getElementById("mina-sidor-view-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
       });
     }
-  }, [pathname, router, searchParams]);
+  }, [effectiveIsAdmin, hasExtendedLobbyAccess, pathname, router, searchParams]);
 
   const dashboardTodayYmd = getStockholmTodayYmd();
 
@@ -491,6 +498,7 @@ function MinaSidorContent() {
             <MinaSidorSectionNav
               activeView={activeView}
               isAdmin={effectiveIsAdmin}
+              hasExtendedAccess={hasExtendedLobbyAccess}
               onChange={handleViewChange}
               translate={translate}
             />
@@ -606,6 +614,13 @@ function MinaSidorContent() {
                     isUnlocked={Boolean(effectiveIsAdmin || isSubscriber)}
                   />
                 </DeferredSection>
+              </Stack>
+            ) : null}
+
+            {activeView === "extended" && hasExtendedLobbyAccess ? (
+              <Stack spacing={{ xs: 2, md: 4 }}>
+                <SectionHeading>{translate("Extended lobby", "Extended lobby")}</SectionHeading>
+                <ExtendedLobbyPanel accessGranted embedded />
               </Stack>
             ) : null}
 

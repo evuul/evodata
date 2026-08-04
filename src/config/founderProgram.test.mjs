@@ -13,7 +13,7 @@ test("keeps the Founder program limited to 30 places", () => {
 test("publishes complete bilingual Founder benefits", () => {
   assert.deepEqual(
     FOUNDER_BENEFITS.map((benefit) => benefit.id),
-    ["extended-history", "csv-export", "recognition"]
+    ["extended-lobby", "extended-history", "csv-export", "recognition"]
   );
 
   for (const benefit of FOUNDER_BENEFITS) {
