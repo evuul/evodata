@@ -4,6 +4,8 @@ import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { collectUnibetPilotSample } from "@/lib/unibetPilotCollector";
 import { createUnibetPilotFailure } from "@/lib/unibetPilot";
 import { appendUnibetPilotSample } from "@/lib/unibetPilotStore";
+import { getLatestPlayersSnapshot, updateGameAthSnapshot } from "@/lib/csStore";
+import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,6 +19,14 @@ const json = (data, status = 200) =>
     headers: { "Cache-Control": "no-store" },
   });
 
+async function updateAthFromPilot(sample) {
+  const snapshot = await getLatestPlayersSnapshot().catch(() => null);
+  const repaired = applyUnibetPilotFallback(snapshot?.items, sample);
+  if (!repaired.applied.length) return 0;
+  await updateGameAthSnapshot(repaired.applied, sample.collectedAt);
+  return repaired.applied.length;
+}
+
 export async function POST(request) {
   const auth = requireCronAuth(request, SECRET, "UNIBET_PILOT_CRON_SECRET is not configured");
   if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
@@ -26,6 +36,7 @@ export async function POST(request) {
     const sample = await collectUnibetPilotSample();
     sample.durationMs = Date.now() - startedAt;
     await appendUnibetPilotSample(sample);
+    const athUpdatedGames = await updateAthFromPilot(sample).catch(() => 0);
     return json({
       ok: true,
       pilot: true,
@@ -35,6 +46,7 @@ export async function POST(request) {
         durationMs: sample.durationMs,
         gameCount: sample.gameCount,
         totalPlayers: sample.totalPlayers,
+        athUpdatedGames,
       },
     });
   } catch (error) {

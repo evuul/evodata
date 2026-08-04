@@ -20,6 +20,8 @@ import { recordCostEvent } from "@/lib/csCostTracker";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { selectLiveAthCandidates } from "@/lib/liveAthGuard";
 import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
+import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
+import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const LOBBY_API = process.env.EVO_PROXY_URL ?? "https://evo-lobby-proxy.alexander-ek.workers.dev";
@@ -271,6 +273,20 @@ export async function GET(req) {
     entry.stuckRunLength = Number.isFinite(Number(stored?.stuckRunLength))
       ? Number(stored.stuckRunLength)
       : 0;
+  }
+
+  if (items.some((entry) => entry.stuck)) {
+    try {
+      const pilotSample = await getLatestUnibetPilotSample();
+      const repaired = applyUnibetPilotFallback(items, pilotSample);
+      items.splice(0, items.length, ...repaired.items);
+      for (const item of repaired.applied) {
+        const timestamp = Date.parse(item.fetchedAt);
+        if (Number.isFinite(timestamp)) newestTs = Math.max(newestTs, timestamp);
+      }
+    } catch {
+      // Primary lobby data remains available if the optional repair feed is unavailable.
+    }
   }
 
   // Only an actual record triggers a KV write; ordinary live page reads remain write-free.

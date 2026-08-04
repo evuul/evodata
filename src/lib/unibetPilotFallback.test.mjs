@@ -1,0 +1,42 @@
+// Verifies that fresh Unibet data repairs only primary-feed games marked as stuck.
+
+import test from "node:test";
+import assert from "node:assert/strict";
+import { applyUnibetPilotFallback, isFreshUnibetPilotSample } from "./unibetPilotFallback.js";
+
+const collectedAt = "2026-08-04T18:50:00.000Z";
+const sample = {
+  status: "ok",
+  collectedAt,
+  games: [
+    { id: "auto-roulette", players: 2_500 },
+    { id: "fan-tan", players: 700 },
+  ],
+};
+
+test("uses a fresh pilot value only for games marked stuck", () => {
+  const result = applyUnibetPilotFallback([
+    { id: "auto-roulette", players: 2_458, stuck: true, stale: false },
+    { id: "crazy-time", players: 13_000, stuck: false, stale: false },
+    { id: "fan-tan-live", players: 599, stuck: true, stale: false },
+  ], sample, { now: Date.parse("2026-08-04T19:00:00.000Z") });
+
+  assert.deepEqual(result.applied.map(({ id, players }) => ({ id, players })), [
+    { id: "auto-roulette", players: 2_500 },
+    { id: "fan-tan-live", players: 700 },
+  ]);
+  assert.equal(result.items[0].players, 2_500);
+  assert.equal(result.items[0].stuck, false);
+  assert.equal(result.items[1].players, 13_000);
+  assert.equal(result.items[2].players, 700);
+  assert.equal(result.items[2].stuck, false);
+});
+
+test("rejects an old or malformed pilot sample", () => {
+  assert.equal(isFreshUnibetPilotSample(sample, { now: Date.parse("2026-08-04T19:20:01.000Z") }), false);
+  const result = applyUnibetPilotFallback([{ id: "auto-roulette", players: 2_458, stuck: true }], sample, {
+    now: Date.parse("2026-08-04T19:20:01.000Z"),
+  });
+  assert.equal(result.applied.length, 0);
+  assert.equal(result.items[0].stuck, true);
+});

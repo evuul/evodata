@@ -206,9 +206,14 @@ const exactEmailMatch = useMemo(
                             </Typography>
                             <Typography sx={{ color: "rgba(226,232,240,0.62)", fontSize: "0.72rem", mt: 0.3 }}>
                                 {translate(
-                                    "Påverkar inte lobby, forecast, peak eller ATH.",
-                                    "Does not affect lobby, forecast, peak, or ATH."
+                                    "Fyller endast spel som fastnat i primärkällan och kan uppdatera deras ATH.",
+                                    "Fills only games stuck in the primary feed and can update their ATH."
                                 )}
+                            </Typography>
+                            <Typography sx={{ color: "rgba(148,163,184,0.78)", fontSize: "0.7rem", mt: 0.45 }}>
+                                {adminOverview?.unibetPilot?.latestSuccess?.collectedAt
+                                    ? translate("Senaste data ", "Latest data ") + new Date(adminOverview.unibetPilot.latestSuccess.collectedAt).toLocaleString(locale === "en" ? "en-GB" : "sv-SE")
+                                    : translate("Väntar på första datapunkten", "Waiting for the first data point")}
                             </Typography>
                         </Box>
                         {[
