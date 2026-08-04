@@ -3,7 +3,37 @@
 import { createUnibetPilotSample } from "./unibetPilot.js";
 import { existsSync } from "node:fs";
 
-export const DEFAULT_UNIBET_PILOT_URL = "https://www.unibet.mt/livecasino/gameshows";
+export const DEFAULT_UNIBET_PILOT_URLS = [
+  "https://www.unibet.mt/livecasino/gameshows",
+  "https://www.unibet.mt/livecasino/roulette",
+  "https://www.unibet.mt/livecasino/baccarat",
+];
+
+const parseSourceUrls = (value) => {
+  if (Array.isArray(value)) return value.map(String).map((url) => url.trim()).filter(Boolean);
+  return String(value || "")
+    .split(",")
+    .map((url) => url.trim())
+    .filter(Boolean);
+};
+
+async function collectRows(page, sourceUrl, timeoutMs) {
+  await page.goto(sourceUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
+  await page.waitForSelector('[data-test-name="game-tile"]', { timeout: timeoutMs });
+  await page.waitForSelector('[data-test-name="player-activity-tag"] span', { timeout: timeoutMs });
+
+  return page.$$eval('[data-test-name="game-tile"]', (tiles) =>
+    tiles.map((tile) => ({
+      name: tile.querySelector('[data-test-name="game-name"]')?.textContent || "",
+      provider:
+        tile.querySelector('[data-test-name="provider-name"]')?.textContent ||
+        tile.querySelector('[data-test-name="game-tile-game-vendor"]')?.textContent ||
+        "",
+      players: tile.querySelector('[data-test-name="player-activity-tag"] span')?.textContent || "",
+      href: tile.querySelector('[data-test-name="game-tile-play-for-real-button"]')?.getAttribute("href") || "",
+    }))
+  );
+}
 
 async function launchBrowser() {
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_VERSION) {
@@ -34,9 +64,12 @@ async function launchBrowser() {
 }
 
 export async function collectUnibetPilotSample({
-  sourceUrl = process.env.UNIBET_PILOT_URL || DEFAULT_UNIBET_PILOT_URL,
+  sourceUrls = parseSourceUrls(process.env.UNIBET_PILOT_URLS || process.env.UNIBET_PILOT_URL),
+  sourceUrl,
   timeoutMs = 25_000,
 } = {}) {
+  const urls = parseSourceUrls(sourceUrl || sourceUrls);
+  const resolvedUrls = urls.length ? urls : DEFAULT_UNIBET_PILOT_URLS;
   const browser = await launchBrowser();
   let context = null;
   try {
@@ -47,26 +80,25 @@ export async function collectUnibetPilotSample({
     await page.setUserAgent?.(
       "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131 Safari/537.36"
     );
-    await page.goto(sourceUrl, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-    await page.waitForSelector('[data-test-name="game-tile"]', { timeout: timeoutMs });
-    await page.waitForFunction(
-      () => document.querySelectorAll('[data-test-name="player-activity-tag"] span').length >= 3,
-      { timeout: timeoutMs }
-    );
+    const rows = [];
+    const successfulUrls = [];
+    const failedSources = [];
 
-    const rows = await page.$$eval('[data-test-name="game-tile"]', (tiles) =>
-      tiles.map((tile) => ({
-        name: tile.querySelector('[data-test-name="game-name"]')?.textContent || "",
-        provider:
-          tile.querySelector('[data-test-name="provider-name"]')?.textContent ||
-          tile.querySelector('[data-test-name="game-tile-game-vendor"]')?.textContent ||
-          "",
-        players: tile.querySelector('[data-test-name="player-activity-tag"] span')?.textContent || "",
-        href: tile.querySelector('[data-test-name="game-tile-play-for-real-button"]')?.getAttribute("href") || "",
-      }))
-    );
+    for (const url of resolvedUrls) {
+      try {
+        rows.push(...(await collectRows(page, url, timeoutMs)));
+        successfulUrls.push(url);
+      } catch (error) {
+        failedSources.push({
+          url,
+          error: String(error instanceof Error ? error.message : error).slice(0, 160),
+        });
+      }
+    }
 
-    return createUnibetPilotSample({ rows, sourceUrl });
+    const sample = createUnibetPilotSample({ rows, sourceUrls: successfulUrls });
+    sample.failedSources = failedSources;
+    return sample;
   } finally {
     await context?.close();
     await browser.close();

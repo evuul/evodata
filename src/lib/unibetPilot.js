@@ -43,17 +43,24 @@ export function normalizeUnibetPilotGames(rows) {
   return Array.from(byId.values()).sort((a, b) => b.players - a.players || a.name.localeCompare(b.name));
 }
 
-export function createUnibetPilotSample({ rows, collectedAt = new Date().toISOString(), sourceUrl }) {
+export function createUnibetPilotSample({
+  rows,
+  collectedAt = new Date().toISOString(),
+  sourceUrl,
+  sourceUrls,
+}) {
   const games = normalizeUnibetPilotGames(rows);
   if (!games.length) {
     throw new Error("No Evolution games with player counts were found");
   }
 
+  const sources = (Array.isArray(sourceUrls) ? sourceUrls : [sourceUrl]).filter(Boolean);
+
   return {
     status: "ok",
     collectedAt,
-    source: "unibet-gameshows-browser-pilot",
-    sourceUrl,
+    source: "unibet-livecasino-browser-pilot",
+    sourceUrls: sources,
     gameCount: games.length,
     totalPlayers: games.reduce((sum, game) => sum + game.players, 0),
     games,
@@ -65,7 +72,7 @@ export function createUnibetPilotFailure(error, collectedAt = new Date().toISOSt
   return {
     status: "error",
     collectedAt,
-    source: "unibet-gameshows-browser-pilot",
+    source: "unibet-livecasino-browser-pilot",
     error: message || "Unknown collector error",
   };
 }

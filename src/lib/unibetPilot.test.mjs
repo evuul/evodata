@@ -35,6 +35,25 @@ test("creates a standalone sample with a calculated total", () => {
   assert.equal(sample.status, "ok");
   assert.equal(sample.gameCount, 2);
   assert.equal(sample.totalPlayers, 30000);
+  assert.deepEqual(sample.sourceUrls, ["https://example.test/games"]);
+});
+
+test("combines category sources and keeps the highest duplicate count", () => {
+  const sample = createUnibetPilotSample({
+    sourceUrls: ["https://example.test/gameshows", "https://example.test/roulette"],
+    rows: [
+      { name: "MONOPOLY Roulette", provider: "Evolution", players: 700 },
+      { name: "MONOPOLY Roulette", provider: "Evolution", players: 725 },
+      { name: "Gold Vault Roulette", provider: "Evolution", players: 500 },
+    ],
+  });
+
+  assert.equal(sample.gameCount, 2);
+  assert.equal(sample.totalPlayers, 1225);
+  assert.deepEqual(sample.sourceUrls, [
+    "https://example.test/gameshows",
+    "https://example.test/roulette",
+  ]);
 });
 
 test("summarizes successful, failed and missing pilot runs", () => {
