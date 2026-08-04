@@ -23,6 +23,7 @@ export const calculateIllustrativeSharePool = ({
   latestWeekShares = 0,
   tradingDays = 0,
   forecastDays = tradingDays,
+  verifiedSharesThisWeek = 0,
   secondsElapsed = 0,
 } = {}) => {
   const issuedShares = toPositiveNumber(totalShares);
@@ -32,6 +33,7 @@ export const calculateIllustrativeSharePool = ({
   const elapsed = Math.min(Math.max(Number(secondsElapsed) || 0, 0), maximumEstimateSeconds);
   const illustrativeBoughtSinceWeekStart = Math.min(sharesPerSecond * elapsed, Math.max(issuedShares - verifiedTreasury, 0));
   const illustrativeTreasuryShares = verifiedTreasury + illustrativeBoughtSinceWeekStart;
+  const verifiedThisWeek = toPositiveNumber(verifiedSharesThisWeek);
 
   return {
     issuedShares,
@@ -40,6 +42,7 @@ export const calculateIllustrativeSharePool = ({
     dailyShares,
     sharesPerSecond,
     illustrativeBoughtSinceWeekStart,
+    estimatedWeekToDateShares: verifiedThisWeek + illustrativeBoughtSinceWeekStart,
     illustrativeTreasuryShares,
     illustrativeOutstandingShares: issuedShares - illustrativeTreasuryShares,
   };

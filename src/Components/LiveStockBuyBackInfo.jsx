@@ -1009,6 +1009,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
             displayWeekEnd={weeklyBuybackEstimate?.periodEnd || weekNow.periodEnd}
             isForecast={Boolean(weeklyBuybackEstimate)}
             reportedEarly={latestVerifiedBuyback?.reportedEarly === true}
+            verifiedSharesThisWeek={latestVerifiedBuyback?.reportedEarly === true ? weekNow.totalShares : 0}
           />
         </Box>
       )}

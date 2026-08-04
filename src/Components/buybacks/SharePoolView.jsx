@@ -57,6 +57,7 @@ export default function SharePoolView({
   displayWeekEnd,
   isForecast = false,
   reportedEarly = false,
+  verifiedSharesThisWeek = 0,
 }) {
   const translate = useTranslate();
   const [forecastWindow, setForecastWindow] = useState({ secondsElapsed: 0, forecastDays: latestWeekTradingDays });
@@ -79,9 +80,10 @@ export default function SharePoolView({
       latestWeekShares,
       tradingDays: latestWeekTradingDays,
       forecastDays: forecastWindow.forecastDays,
+      verifiedSharesThisWeek,
       secondsElapsed: forecastWindow.secondsElapsed,
     }),
-    [forecastWindow, latestWeekShares, latestWeekTradingDays, totalShares, verifiedTreasuryShares]
+    [forecastWindow, latestWeekShares, latestWeekTradingDays, totalShares, verifiedSharesThisWeek, verifiedTreasuryShares]
   );
   const outstandingPct = pool.issuedShares > 0 ? (pool.illustrativeOutstandingShares / pool.issuedShares) * 100 : 0;
   const treasuryPct = pool.issuedShares > 0 ? (pool.illustrativeTreasuryShares / pool.issuedShares) * 100 : 0;
@@ -133,7 +135,20 @@ export default function SharePoolView({
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.4, mt: 2.1 }}>
         <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Utgivna aktier", "Issued shares")}</Typography><Typography sx={{ color: COLORS.primary, fontWeight: 700 }}>{formatShares(pool.issuedShares)}</Typography></Box>
         <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Verifierat EVO-innehav", "Verified EVO holding")}</Typography><Typography sx={{ color: COLORS.success, fontWeight: 700 }}>{formatShares(pool.verifiedTreasuryShares)}</Typography></Box>
-        <Box><Typography variant="caption" sx={{ color: COLORS.secondary }}>{translate("Estimerat köpt denna vecka", "Estimated bought this week")}</Typography><Typography sx={{ color: COLORS.accent, fontWeight: 700 }}>+{formatShares(pool.illustrativeBoughtSinceWeekStart)}</Typography></Box>
+        <Box>
+          <Typography variant="caption" sx={{ color: COLORS.secondary }}>
+            {translate("Köpt / estimerat denna vecka", "Bought / estimated this week")}
+          </Typography>
+          <Typography sx={{ color: COLORS.accent, fontWeight: 700 }}>+{formatShares(pool.estimatedWeekToDateShares)}</Typography>
+          {reportedEarly ? (
+            <Typography variant="caption" sx={{ color: COLORS.secondary, display: "block", mt: 0.25 }}>
+              {translate(
+                `${formatShares(verifiedSharesThisWeek)} verifierat + ${formatShares(pool.illustrativeBoughtSinceWeekStart)} estimerat`,
+                `${formatShares(verifiedSharesThisWeek)} verified + ${formatShares(pool.illustrativeBoughtSinceWeekStart)} estimated`
+              )}
+            </Typography>
+          ) : null}
+        </Box>
       </Box>
     </Box>
   );

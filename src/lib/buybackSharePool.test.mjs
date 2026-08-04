@@ -55,10 +55,12 @@ test("continues from the day after a verified early Monday disclosure", () => {
     latestWeekShares: 1_000,
     tradingDays: 5,
     forecastDays: window.forecastDays,
+    verifiedSharesThisWeek: 207,
     secondsElapsed: window.secondsElapsed,
   });
 
   assert.deepEqual(window, { secondsElapsed: 43_200, forecastDays: 4 });
   assert.equal(pool.dailyShares, 200);
   assert.equal(pool.illustrativeBoughtSinceWeekStart, 100);
+  assert.equal(pool.estimatedWeekToDateShares, 307);
 });
