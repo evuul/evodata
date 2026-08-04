@@ -2,7 +2,11 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyUnibetPilotFallback, isFreshUnibetPilotSample } from "./unibetPilotFallback.js";
+import {
+  applyUnibetPilotFallback,
+  getUnibetPilotGameId,
+  isFreshUnibetPilotSample,
+} from "./unibetPilotFallback.js";
 
 const collectedAt = "2026-08-04T18:50:00.000Z";
 const sample = {
@@ -39,4 +43,11 @@ test("rejects an old or malformed pilot sample", () => {
   });
   assert.equal(result.applied.length, 0);
   assert.equal(result.items[0].stuck, true);
+});
+
+test("maps tracked names to Unibet's public live-casino names", () => {
+  assert.equal(getUnibetPilotGameId("crazy-time:a"), "crazy-time-a");
+  assert.equal(getUnibetPilotGameId("extra-chili-epic-spins"), "extra-chilli-epic-spins");
+  assert.equal(getUnibetPilotGameId("craps-live"), "craps");
+  assert.equal(getUnibetPilotGameId("war-live"), "war");
 });

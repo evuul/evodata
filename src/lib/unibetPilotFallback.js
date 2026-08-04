@@ -4,6 +4,10 @@ export const UNIBET_PILOT_MAX_AGE_MS = 25 * 60 * 1000;
 
 const GAME_ID_ALIASES = Object.freeze({
   "fan-tan-live": "fan-tan",
+  "crazy-time:a": "crazy-time-a",
+  "extra-chili-epic-spins": "extra-chilli-epic-spins",
+  "craps-live": "craps",
+  "war-live": "war",
 });
 
 const toFinitePlayers = (value) => {

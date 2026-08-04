@@ -59,7 +59,7 @@ export function createUnibetPilotSample({
   return {
     status: "ok",
     collectedAt,
-    source: "unibet-livecasino-browser-pilot",
+    source: "unibet-livecasino-api-pilot",
     sourceUrls: sources,
     gameCount: games.length,
     totalPlayers: games.reduce((sum, game) => sum + game.players, 0),
@@ -72,7 +72,7 @@ export function createUnibetPilotFailure(error, collectedAt = new Date().toISOSt
   return {
     status: "error",
     collectedAt,
-    source: "unibet-livecasino-browser-pilot",
+    source: "unibet-livecasino-api-pilot",
     error: message || "Unknown collector error",
   };
 }
