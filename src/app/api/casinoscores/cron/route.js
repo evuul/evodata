@@ -22,7 +22,7 @@ const STUCK_LOOKBACK_DAYS = 90;
 const STUCK_MIN_RUN = 8;
 const CRON_MIN_INTERVAL_MS = (() => {
   const configured = Number(process.env.CS_CRON_MIN_INTERVAL_MS);
-  if (!Number.isFinite(configured) || configured <= 0) return 20 * 60 * 1000;
+  if (!Number.isFinite(configured) || configured <= 0) return 10 * 60 * 1000;
   return Math.min(Math.max(configured, 60 * 1000), 60 * 60 * 1000);
 })();
 

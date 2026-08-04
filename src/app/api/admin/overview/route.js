@@ -8,6 +8,8 @@ import { getCostSnapshot } from "@/lib/csCostTracker";
 import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
 import { getUnibetPilotHistory } from "@/lib/unibetPilotStore";
 import { summarizeUnibetPilotHistory } from "@/lib/unibetPilot";
+import { getLatestPlayersSnapshot } from "@/lib/csStore";
+import { buildUnibetPilotComparison } from "@/lib/unibetPilotComparison";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,12 +32,13 @@ export async function GET(request) {
   if (!resolved) return json({ error: "Unauthorized" }, { status: 401 });
   if (actorEmail !== ADMIN_EMAIL) return json({ error: "Forbidden" }, { status: 403 });
 
-  const [userIndex, activityIndex, ticketIndex, cost, unibetPilotHistory] = await Promise.all([
+  const [userIndex, activityIndex, ticketIndex, cost, unibetPilotHistory, playersSnapshot] = await Promise.all([
     getJson(getUserIndexKey()),
     getJson(ACTIVITY_INDEX_KEY),
     getJson(getSupportTicketsIndexKey()),
     Promise.resolve(getCostSnapshot(72)),
     getUnibetPilotHistory(288).catch(() => []),
+    getLatestPlayersSnapshot().catch(() => null),
   ]);
   const emails = Array.from(new Set([
     ...(Array.isArray(userIndex?.emails) ? userIndex.emails : []),
@@ -62,6 +65,7 @@ export async function GET(request) {
   }, { lobbyAth: 0, gameAth: 0, dailyAvg: 0 });
   const openTickets = tickets.filter((ticket) => ticket?.status !== "closed").length;
   const unibetPilot = summarizeUnibetPilotHistory(unibetPilotHistory);
+  const unibetComparison = buildUnibetPilotComparison(playersSnapshot, unibetPilot.latestSuccess);
 
   return json({
     ok: true,
@@ -70,5 +74,6 @@ export async function GET(request) {
     alerts: alertCounts,
     cost,
     unibetPilot,
+    unibetComparison,
   });
 }

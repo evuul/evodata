@@ -1,4 +1,4 @@
-// Runs the isolated Unibet reliability pilot without updating production lobby data.
+// Collects Unibet recovery values and updates ATH only for primary-feed games marked stuck.
 
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { collectUnibetPilotSample } from "@/lib/unibetPilotCollector";

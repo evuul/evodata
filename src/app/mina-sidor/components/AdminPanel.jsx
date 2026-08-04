@@ -202,7 +202,7 @@ const exactEmailMatch = useMemo(
                     >
                         <Box sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}>
                             <Typography sx={{ color: "#38bdf8", fontSize: "0.7rem", fontWeight: 850, textTransform: "uppercase", letterSpacing: 0.7 }}>
-                                {translate("Isolerad Unibet-pilot", "Isolated Unibet pilot")}
+                                {translate("Unibet-återställning", "Unibet recovery")}
                             </Typography>
                             <Typography sx={{ color: "rgba(226,232,240,0.62)", fontSize: "0.72rem", mt: 0.3 }}>
                                 {translate(
@@ -243,6 +243,44 @@ const exactEmailMatch = useMemo(
                                 </Typography>
                             </Box>
                         ))}
+                        <Box
+                            sx={{
+                                gridColumn: "1 / -1",
+                                pt: 1,
+                                borderTop: "1px solid rgba(148,163,184,0.12)",
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: { xs: 1.3, sm: 2.4 },
+                            }}
+                        >
+                            {[
+                                [translate("Matchande spel", "Matching games"), adminOverview?.unibetComparison?.matchedGames ?? "—"],
+                                [
+                                    translate("Primär, matchande", "Primary, matched"),
+                                    adminOverview?.unibetComparison?.available
+                                        ? Number(adminOverview.unibetComparison.primaryTotal).toLocaleString(locale === "sv" ? "sv-SE" : "en-US")
+                                        : "—",
+                                ],
+                                [
+                                    translate("Unibet, matchande", "Unibet, matched"),
+                                    adminOverview?.unibetComparison?.available
+                                        ? Number(adminOverview.unibetComparison.pilotTotal).toLocaleString(locale === "sv" ? "sv-SE" : "en-US")
+                                        : "—",
+                                ],
+                                [
+                                    translate("Skillnad", "Difference"),
+                                    adminOverview?.unibetComparison?.available
+                                        ? `${adminOverview.unibetComparison.difference >= 0 ? "+" : ""}${Number(adminOverview.unibetComparison.difference).toLocaleString(locale === "sv" ? "sv-SE" : "en-US")} (${adminOverview.unibetComparison.differencePct >= 0 ? "+" : ""}${Number(adminOverview.unibetComparison.differencePct).toFixed(1)}%)`
+                                        : "—",
+                                ],
+                                [translate("Fyllda fastnade", "Recovered stuck"), adminOverview?.unibetComparison?.recoveredGames ?? "—"],
+                            ].map(([label, value]) => (
+                                <Typography key={label} sx={{ color: "rgba(203,213,225,0.78)", fontSize: "0.7rem" }}>
+                                    <Box component="span" sx={{ color: "rgba(148,163,184,0.7)", textTransform: "uppercase", fontWeight: 800, mr: 0.65 }}>{label}</Box>
+                                    <Box component="span" sx={{ color: "#e2e8f0", fontWeight: 850 }}>{value}</Box>
+                                </Typography>
+                            ))}
+                        </Box>
                     </Box>
                 </Stack>
             ) : null}

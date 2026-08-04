@@ -1,4 +1,4 @@
-// Persists the isolated Unibet pilot history without touching production lobby keys.
+// Persists short-lived Unibet recovery history separately from the primary lobby snapshots.
 
 import { kvRestRequest } from "./kvClient.js";
 

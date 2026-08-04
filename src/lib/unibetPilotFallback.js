@@ -18,6 +18,10 @@ export function isFreshUnibetPilotSample(sample, { now = Date.now(), maxAgeMs = 
   return collectedAt <= now + 5 * 60 * 1000 && now - collectedAt <= maxAgeMs;
 }
 
+export function getUnibetPilotGameId(gameId) {
+  return GAME_ID_ALIASES[gameId] || gameId;
+}
+
 export function applyUnibetPilotFallback(items, sample, options = {}) {
   if (!isFreshUnibetPilotSample(sample, options)) {
     return { items: Array.isArray(items) ? items : [], applied: [] };
@@ -32,7 +36,7 @@ export function applyUnibetPilotFallback(items, sample, options = {}) {
   const resolvedItems = (Array.isArray(items) ? items : []).map((item) => {
     if (!item?.stuck) return item;
 
-    const pilotId = GAME_ID_ALIASES[item.id] || item.id;
+    const pilotId = getUnibetPilotGameId(item.id);
     const players = gamesById.get(pilotId);
     if (players == null) return item;
 
