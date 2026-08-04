@@ -108,3 +108,19 @@ test("latest Evolution buyback week updates the cumulative program total", () =>
   assert.equal(latestWeek.reduce((sum, row) => sum + row.Transaktionsvärde, 0), 711739958.8);
   assert.equal(programRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 8760702);
 });
+
+test("includes the verified early disclosure until the weekly report arrives", () => {
+  const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
+  const earlyDisclosure = current.find((row) => row.Datum === "2026-08-03");
+
+  assert.deepEqual(earlyDisclosure, {
+    Datum: "2026-08-03",
+    Antal_aktier: 207_007,
+    Transaktionsvärde: null,
+    Snittkurs: null,
+    reportedEarly: true,
+    source: "5% flagging disclosure",
+    Dagsvolym: 0,
+    Procent_dagsvolym: 0,
+  });
+});

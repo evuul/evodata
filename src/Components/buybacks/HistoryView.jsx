@@ -687,7 +687,14 @@ const HistoryView = ({
                 }}
               >
                 <TableCell sx={{ color: COLORS.textPrimary, textAlign: "center" }}>
-                  {item.Datum}
+                  <Stack alignItems="center" spacing={0.35}>
+                    <span>{item.Datum}</span>
+                    {item.reportedEarly ? (
+                      <Typography component="span" sx={{ color: "#fbbf24", fontSize: 10, fontWeight: 700 }}>
+                        {translate("Rapporterad tidigt", "Reported early")}
+                      </Typography>
+                    ) : null}
+                  </Stack>
                 </TableCell>
                 <TableCell
                   sx={{

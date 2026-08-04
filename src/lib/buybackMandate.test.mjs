@@ -39,6 +39,20 @@ test('duplicate transaction snapshots are counted once', () => {
   assert.equal(result.executedSharesAfterSnapshot, 1_000_000);
 });
 
+test('counts a verified early share disclosure without inventing transaction value', () => {
+  const result = summarizeBuybackExecution({
+    fxRate: 10,
+    sharesData: [{ date: '2026-04-30', sharesOutstanding: 200 }],
+    buybackData: [
+      { Datum: '2026-08-03', Antal_aktier: 207_007, reportedEarly: true },
+    ],
+  });
+
+  assert.equal(result.validRowCount, 1);
+  assert.equal(result.executedSharesAfterSnapshot, 207_007);
+  assert.equal(result.executedSpendAfterSnapshotSek, 0);
+});
+
 test('mandate metadata separates observed execution from remaining authorization', () => {
   const result = computeBuybackMandateAssumptions({
     mandateCashEur: DEFAULT_BUYBACK_MANDATE_CASH_EUR,

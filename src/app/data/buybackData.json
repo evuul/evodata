@@ -1646,5 +1646,15 @@
     "Snittkurs": 732.5831,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-08-03",
+    "Antal_aktier": 207007,
+    "Transaktionsvärde": null,
+    "Snittkurs": null,
+    "reportedEarly": true,
+    "source": "5% flagging disclosure",
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   }
 ]

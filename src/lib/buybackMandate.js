@@ -43,10 +43,17 @@ export const normalizeBuybackExecutions = (buybackData = []) => {
     const date = normalizeDate(row?.Datum ?? row?.date);
     const shares = toFiniteNumber(row?.Antal_aktier ?? row?.shares);
     const spendSek = toFiniteNumber(row?.Transaktionsvärde ?? row?.valueSek);
-    if (!date || shares == null || shares <= 0 || spendSek == null || spendSek < 0) return;
+    const reportedEarly = row?.reportedEarly === true;
+    if (
+      !date ||
+      shares == null ||
+      shares <= 0 ||
+      (spendSek == null && !reportedEarly) ||
+      (spendSek != null && spendSek < 0)
+    ) return;
 
-    const key = `${date}:${shares}:${spendSek}`;
-    uniqueRows.set(key, { date, shares, spendSek });
+    const key = `${date}:${shares}:${spendSek ?? "unreported"}`;
+    uniqueRows.set(key, { date, shares, spendSek, reportedEarly });
   });
 
   return [...uniqueRows.values()].sort((a, b) => a.date.localeCompare(b.date));
@@ -56,7 +63,7 @@ const sumRows = (rows) =>
   rows.reduce(
     (totals, row) => ({
       shares: totals.shares + row.shares,
-      spendSek: totals.spendSek + row.spendSek,
+      spendSek: totals.spendSek + (row.spendSek ?? 0),
     }),
     { shares: 0, spendSek: 0 }
   );
