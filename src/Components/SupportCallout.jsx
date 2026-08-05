@@ -1,14 +1,20 @@
 "use client";
 
-// Offers a contextual, non-blocking support prompt after high-value dashboard content.
+// Offers eligible signed-in users a clear, non-blocking path to Premium membership.
 
+import NextLink from "next/link";
 import { Box, Button, Stack, Typography } from "@mui/material";
-import LocalCafeRounded from "@mui/icons-material/LocalCafeRounded";
+import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
+import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
-import { buildSupportUrl } from "@/lib/supportLinks";
+import { PREMIUM_PROGRAM } from "@/config/premiumProgram";
 
-export default function SupportCallout({ placement = "dashboard" }) {
+export default function SupportCallout() {
+  const { user } = useAuth();
   const translate = useTranslate();
+  const hasPremiumAccess = Boolean(user?.isAdmin || user?.isFounder || user?.isSubscriber);
+
+  if (hasPremiumAccess) return null;
 
   return (
     <Box
@@ -20,8 +26,7 @@ export default function SupportCallout({ placement = "dashboard" }) {
         mt: { xs: 3, md: 4 },
         p: { xs: 1.8, sm: 2.3 },
         borderRadius: "18px",
-        background:
-          "linear-gradient(135deg, rgba(236,72,153,0.1), rgba(14,165,233,0.1))",
+        backgroundColor: "rgba(15,23,42,0.72)",
         border: "1px solid rgba(125,211,252,0.2)",
       }}
     >
@@ -33,33 +38,31 @@ export default function SupportCallout({ placement = "dashboard" }) {
       >
         <Stack spacing={0.45} sx={{ maxWidth: 680 }}>
           <Typography sx={{ color: "#f8fafc", fontWeight: 850 }}>
-            {translate("Hjälp hålla EvoTracker igång", "Help keep EvoTracker running")}
+            {translate("Stötta EvoTracker och få Premium", "Support EvoTracker and get Premium")}
           </Typography>
           <Typography variant="body2" sx={{ color: "rgba(203,213,225,0.78)", lineHeight: 1.6 }}>
             {translate(
-              "EvoTracker är gratis och byggs på min fritid. Donationer går till livedata, databas, mejlutskick och drift.",
-              "EvoTracker is free and built in my spare time. Donations help cover live data, databases, email delivery, and hosting."
+              `${PREMIUM_PROGRAM.monthlyDonationSek} kr motsvarar en månad Premium med Extended lobby, längre historik och dataexport. Donationer är alltid frivilliga och hjälper till med livedata, drift och vidareutveckling.`,
+              `SEK ${PREMIUM_PROGRAM.monthlyDonationSek} equals one month of Premium with Extended lobby, extended history, and data export. Donations are always voluntary and help fund live data, operations, and continued development.`
             )}
           </Typography>
         </Stack>
         <Button
-          component="a"
-          href={buildSupportUrl(placement)}
-          target="_blank"
-          rel="noopener noreferrer"
+          component={NextLink}
+          href="/premium"
           variant="contained"
-          startIcon={<LocalCafeRounded />}
+          startIcon={<WorkspacePremiumRounded />}
           sx={{
             flexShrink: 0,
             alignSelf: { xs: "stretch", sm: "center" },
             textTransform: "none",
             fontWeight: 850,
             color: "#111827",
-            background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
-            "&:hover": { background: "linear-gradient(135deg, #fcd34d, #f59e0b)" },
+            backgroundColor: "#7dd3fc",
+            "&:hover": { backgroundColor: "#bae6fd" },
           }}
         >
-          {translate("Hjälp hålla livedatan igång", "Help keep live data running")}
+          {translate("Läs om Premium", "Learn about Premium")}
         </Button>
       </Stack>
     </Box>

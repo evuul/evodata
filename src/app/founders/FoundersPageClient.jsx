@@ -25,6 +25,7 @@ import CasinoRounded from "@mui/icons-material/CasinoRounded";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { buildSupportUrl } from "@/lib/supportLinks";
 import { FOUNDER_BENEFITS } from "@/config/founderProgram";
+import { PREMIUM_PROGRAM } from "@/config/premiumProgram";
 
 const SUPPORT_URL = buildSupportUrl("founders_page");
 const PAGE_MAX_WIDTH = 1180;
@@ -359,6 +360,14 @@ export default function FoundersPageClient({
                   </Stack>
                 );
               })}
+            </Box>
+            <Box sx={{ mt: 2, px: 1.5, py: 1.2, display: "flex", flexDirection: { xs: "column", sm: "row" }, alignItems: { xs: "flex-start", sm: "center" }, justifyContent: "space-between", gap: 1, borderRadius: "11px", border: "1px solid rgba(56,189,248,0.22)", backgroundColor: "rgba(14,165,233,0.06)" }}>
+              <Typography sx={{ color: "rgba(203,213,225,0.74)", fontSize: 12, lineHeight: 1.55 }}>
+                {translate(`Vill du stötta löpande? ${PREMIUM_PROGRAM.monthlyDonationSek} kr motsvarar en månad Premium med Extended lobby, längre historik och export.`, `Want to support continuously? ${PREMIUM_PROGRAM.monthlyDonationSek} SEK equals one month of Premium with Extended lobby, extended history, and exports.`)}
+              </Typography>
+              <Button component={NextLink} href="/premium" size="small" sx={{ flexShrink: 0, p: 0, minWidth: 0, textTransform: "none", color: "#7dd3fc", fontWeight: 780 }}>
+                {translate("Läs om Premium", "Learn about Premium")}
+              </Button>
             </Box>
           </Box>
 

@@ -26,6 +26,7 @@ import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRou
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { buildLandingPreviewModel } from "@/lib/landingPreview";
 import { FOUNDER_BENEFITS, FOUNDER_PROGRAM } from "@/config/founderProgram";
+import { PREMIUM_BENEFITS, PREMIUM_PROGRAM } from "@/config/premiumProgram";
 
 const colors = {
   border: "rgba(148, 163, 184, 0.18)",
@@ -294,6 +295,7 @@ export default function LiveLoggedOutPreview() {
         <BrandMark />
         <Stack direction="row" spacing={{ xs: 1, sm: 2 }} alignItems="center">
           <Button component={NextLink} href="/founders" variant="text" sx={{ display: { xs: "none", md: "inline-flex" }, color: "#fde68a", textTransform: "none", fontWeight: 700 }}>{translate("Founders", "Founders")}</Button>
+          <Button component={NextLink} href="/premium" variant="text" sx={{ display: { xs: "none", lg: "inline-flex" }, color: "#7dd3fc", textTransform: "none", fontWeight: 700 }}>{translate("Premium", "Premium")}</Button>
           <LocalePicker />
           <Button component={NextLink} href="/login" variant="text" sx={{ display: { xs: "none", sm: "inline-flex" }, color: "#dbe7f2", textTransform: "none", fontWeight: 700 }}>{translate("Logga in", "Log in")}</Button>
           <Button
@@ -379,6 +381,33 @@ export default function LiveLoggedOutPreview() {
 
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 5.5, md: 8 } }}>
         <ReportPreview translate={translate} />
+      </Box>
+
+      <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 5.5, md: 8 } }}>
+        <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(220px, 0.7fr) minmax(0, 1.3fr) auto" }, gap: { xs: 1.8, md: 2.5 }, alignItems: "center", borderColor: "rgba(125,211,252,0.28)" }}>
+          <Box>
+            <Chip icon={<WorkspacePremiumRoundedIcon sx={{ fontSize: "15px!important" }} />} label="PREMIUM" size="small" sx={{ color: "#7dd3fc", backgroundColor: "rgba(14,165,233,0.1)", fontWeight: 800, fontSize: 10 }} />
+            <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 24, md: 29 }, fontWeight: 780, mt: 1.2 }}>
+              {translate("Stötta utvecklingen – få mer data", "Support development – get more data")}
+            </Typography>
+            <Typography sx={{ color: colors.muted, fontSize: 12.5, lineHeight: 1.55, mt: 0.7 }}>
+              {translate(`${PREMIUM_PROGRAM.monthlyDonationSek} kr motsvarar en månad Premium. Donationer är frivilliga och hjälper EvoTracker att fortsätta utvecklas.`, `SEK ${PREMIUM_PROGRAM.monthlyDonationSek} equals one month of Premium. Donations are voluntary and help EvoTracker keep improving.`)}
+            </Typography>
+          </Box>
+          <Stack spacing={0.8}>
+            {PREMIUM_BENEFITS.map((benefit) => (
+              <Stack key={benefit.id} direction="row" spacing={0.8} alignItems="center">
+                <CheckRoundedIcon sx={{ color: "#7dd3fc", fontSize: 17 }} />
+                <Typography sx={{ color: colors.muted, fontSize: 13 }}>
+                  {translate(benefit.title.sv, benefit.title.en)}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+          <Button component={NextLink} href="/premium" variant="outlined" endIcon={<ArrowForwardRoundedIcon />} sx={{ color: "#7dd3fc", borderColor: "rgba(125,211,252,0.38)", textTransform: "none", fontWeight: 750, whiteSpace: "nowrap", "&:hover": { borderColor: "#7dd3fc", backgroundColor: "rgba(14,165,233,0.08)" } }}>
+            {translate("Se Premium", "View Premium")}
+          </Button>
+        </Box>
       </Box>
 
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 5.5, md: 8 } }}>

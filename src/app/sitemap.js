@@ -5,6 +5,7 @@ export default function sitemap() {
   const pages = [
     { path: "/", priority: 1.0 },
     { path: "/founders", priority: 0.7 },
+    { path: "/premium", priority: 0.6 },
     { path: "/disclaimer", priority: 0.4 },
   ];
 

@@ -20,6 +20,7 @@ import KeyboardArrowDownRounded from "@mui/icons-material/KeyboardArrowDownRound
 import LockRounded from "@mui/icons-material/LockRounded";
 import SearchRounded from "@mui/icons-material/SearchRounded";
 import StyleRounded from "@mui/icons-material/StyleRounded";
+import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { fetchAuthJson } from "@/lib/clientApi";
@@ -44,26 +45,33 @@ function SummaryCard({ icon, label, value, detail, accent }) {
     <Box
       sx={{
         position: "relative",
-        overflow: "hidden",
         flex: 1,
         minWidth: 0,
         p: { xs: 2, sm: 2.4 },
         border: `1px solid ${accent.border}`,
         borderRadius: "16px",
-        background: `linear-gradient(145deg, ${accent.background}, rgba(15,23,42,0.72) 68%)`,
+        backgroundColor: "rgba(15,23,42,0.82)",
+        boxShadow: "0 10px 24px rgba(2,6,23,0.16)",
+        "&::before": {
+          content: '\"\"',
+          position: "absolute",
+          inset: "0 0 auto",
+          height: 3,
+          borderRadius: "16px 16px 0 0",
+          backgroundColor: accent.color,
+        },
       }}
     >
-      <Box sx={{ position: "absolute", width: 110, height: 110, borderRadius: "50%", bgcolor: accent.glow, filter: "blur(32px)", right: -40, top: -50 }} />
-      <Stack direction="row" alignItems="center" spacing={0.8} sx={{ position: "relative" }}>
+      <Stack direction="row" alignItems="center" spacing={0.8}>
         {icon}
         <Typography sx={{ color: "rgba(203,213,225,0.76)", fontSize: 12, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>
           {label}
         </Typography>
       </Stack>
-      <Typography sx={{ position: "relative", color: "#f8fafc", mt: 0.7, fontWeight: 900, fontSize: { xs: "2.15rem", sm: "2.75rem" }, lineHeight: 1, letterSpacing: "-0.045em", fontVariantNumeric: "tabular-nums" }}>
+      <Typography sx={{ color: "#f8fafc", mt: 0.7, fontWeight: 900, fontSize: { xs: "2.15rem", sm: "2.75rem" }, lineHeight: 1, letterSpacing: "-0.045em", fontVariantNumeric: "tabular-nums" }}>
         {value}
       </Typography>
-      <Typography sx={{ position: "relative", color: "rgba(148,163,184,0.82)", mt: 0.85, fontSize: 12.5 }}>
+      <Typography sx={{ color: "rgba(148,163,184,0.82)", mt: 0.85, fontSize: 12.5 }}>
         {detail}
       </Typography>
     </Box>
@@ -90,13 +98,18 @@ function LockedExtendedLobby({ translate }) {
       </Typography>
       <Typography sx={{ color: "rgba(203,213,225,0.76)", maxWidth: 610, mx: "auto", mt: 1.2, lineHeight: 1.65 }}>
         {translate(
-          "Extended lobby är tillgänglig för Founders, Premium och Admin – användare som hjälper till att dela på EvoTrackers data- och driftkostnader.",
-          "Extended lobby is available to Founders, Premium, and Admin—members who help share EvoTracker's data and operating costs."
+          "Extended lobby är tillgänglig för Founders och Premium-medlemmar som frivilligt hjälper till att dela på EvoTrackers data- och driftkostnader.",
+          "Extended lobby is available to Founders and Premium members who voluntarily help share EvoTracker's data and operating costs."
         )}
       </Typography>
-      <Button component={Link} href="/founders" variant="outlined" sx={{ mt: 2.5, borderRadius: "999px", textTransform: "none", color: "#fde68a", borderColor: "rgba(250,204,21,0.48)" }}>
-        {translate("Läs om Founder", "Learn about Founder")}
-      </Button>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="center" spacing={1.1} sx={{ mt: 2.5 }}>
+        <Button component={Link} href="/premium" variant="contained" startIcon={<WorkspacePremiumRounded />} sx={{ borderRadius: "999px", textTransform: "none", fontWeight: 800, color: "#0f172a", backgroundColor: "#7dd3fc", "&:hover": { backgroundColor: "#bae6fd" } }}>
+          {translate("Läs om Premium", "Learn about Premium")}
+        </Button>
+        <Button component={Link} href="/founders" variant="outlined" sx={{ borderRadius: "999px", textTransform: "none", color: "#fde68a", borderColor: "rgba(250,204,21,0.48)" }}>
+          {translate("Läs om Founder", "Learn about Founder")}
+        </Button>
+      </Stack>
     </Box>
   );
 }
@@ -194,14 +207,14 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
               label={translate("Live players", "Live players")}
               value={formatNumber(summary.players, locale)}
               detail={translate("Aktiva spelare i hela Extended lobby", "Active players across Extended lobby")}
-              accent={{ border: "rgba(56,189,248,0.24)", background: "rgba(14,165,233,0.12)", glow: "rgba(14,165,233,0.34)" }}
+              accent={{ border: "rgba(56,189,248,0.26)", color: "#38bdf8" }}
             />
             <SummaryCard
               icon={<CasinoRounded sx={{ color: "#a78bfa", fontSize: 20 }} />}
               label={translate("Antal spel", "Tracked games")}
               value={formatNumber(summary.games, locale)}
               detail={translate("Titlar med aktuell live-data", "Titles with current live data")}
-              accent={{ border: "rgba(167,139,250,0.24)", background: "rgba(139,92,246,0.11)", glow: "rgba(139,92,246,0.32)" }}
+              accent={{ border: "rgba(167,139,250,0.26)", color: "#a78bfa" }}
             />
           </Stack>
         ) : null}
