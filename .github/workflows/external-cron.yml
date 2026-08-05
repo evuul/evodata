@@ -3,7 +3,8 @@ name: External Cron
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    # Offset the main lobby cadence from common round-minute load spikes in Actions.
+    - cron: "7,17,27,37,47,57 * * * *"
     - cron: "*/15 * * * *"
     - cron: "30 * * * *"
     - cron: "0 16 * * *"
@@ -39,19 +40,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
-      - name: Refresh primary lobby
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          set -euo pipefail
-          response_file="$(mktemp)"
-          status="$(curl -sS -L -o "$response_file" -w "%{http_code}" \
-            -X POST \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            "${CRON_BASE_URL}/api/casinoscores/cron")"
-          cat "$response_file"
-          test "$status" -ge 200
-          test "$status" -lt 300
       - name: Refresh Extended lobby data
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -62,6 +50,20 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             "${CRON_BASE_URL}/api/unibet-pilot/cron")"
+          cat "$response_file"
+          test "$status" -ge 200
+          test "$status" -lt 300
+      - name: Refresh primary lobby with fallback
+        if: ${{ always() }}
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl -sS -L -o "$response_file" -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${CRON_BASE_URL}/api/casinoscores/cron")"
           cat "$response_file"
           test "$status" -ge 200
           test "$status" -lt 300

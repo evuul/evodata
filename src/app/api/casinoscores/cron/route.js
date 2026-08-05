@@ -14,10 +14,12 @@ import {
   saveSample,
   updateGameAthSnapshot,
 } from "@/lib/csStore";
-import { computeTrailingStuckMeta } from "@/lib/stuckGames";
+import { computeTrailingStuckMeta, continueKnownStuckMeta } from "@/lib/stuckGames";
 import { shouldSkipMaterializedRefresh } from "@/lib/upstashCostPolicy";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
+import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
+import { partitionPrimarySeriesItems } from "@/lib/unibetRecoveryPersistence";
 
 const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
 const STUCK_LOOKBACK_DAYS = 90;
@@ -108,9 +110,23 @@ async function runCron(req) {
   });
   const fetched = successfulItems.length;
   let saved = 0;
+  let recoveryDeferred = 0;
 
   if (successfulItems.length) {
-    saved = await saveSamples(successfulItems);
+    let primarySamples = successfulItems;
+    try {
+      const latestPilotSample = await getLatestUnibetPilotSample();
+      const partitioned = partitionPrimarySeriesItems(
+        successfulItems,
+        previousSnapshot?.items,
+        latestPilotSample
+      );
+      primarySamples = partitioned.primary;
+      recoveryDeferred = partitioned.deferred.length;
+    } catch {
+      // Preserve the primary-feed write path when recovery state is unavailable.
+    }
+    saved = await saveSamples(primarySamples);
 
     const ids = GAME_CONFIG.map((game) => game.id).filter(Boolean);
     const seriesMap = await getSeriesBulk(ids, STUCK_LOOKBACK_DAYS).catch(() => new Map());
@@ -123,7 +139,9 @@ async function runCron(req) {
 
     const snapshotItems = ids.map((id) => {
       const item = freshById.get(id) ?? previousById.get(id) ?? { id, players: null, fetchedAt: null };
-      const stuck = computeTrailingStuckMeta(seriesMap.get(id) ?? [], { minRun: STUCK_MIN_RUN });
+      const stuck =
+        computeTrailingStuckMeta(seriesMap.get(id) ?? [], { minRun: STUCK_MIN_RUN }) ??
+        continueKnownStuckMeta(previousById.get(id), item);
       return {
         id,
         players: Number.isFinite(Number(item.players)) ? Number(item.players) : null,
@@ -175,6 +193,7 @@ async function runCron(req) {
     ok: fetched === results.length,
     fetched,
     saved,
+    recoveryDeferred,
     total: results.length,
     results,
     timestamp: new Date().toISOString(),

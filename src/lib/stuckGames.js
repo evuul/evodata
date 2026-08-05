@@ -97,6 +97,29 @@ export function computeTrailingStuckMeta(series, options = {}) {
   };
 }
 
+export function continueKnownStuckMeta(previousItem, currentItem, { now = Date.now() } = {}) {
+  if (!previousItem?.stuck) return null;
+
+  const previousValue = Number(previousItem.stuckValue ?? previousItem.players);
+  const currentValue = Number(currentItem?.players);
+  if (!Number.isFinite(previousValue) || currentValue !== previousValue) return null;
+
+  const stuckSince = String(previousItem.stuckSince || "");
+  const stuckSinceMs = Date.parse(stuckSince);
+  const stuckDays = Number.isFinite(stuckSinceMs)
+    ? Math.max(1, Math.floor((Number(now) - stuckSinceMs) / DAY_MS))
+    : Math.max(1, Number(previousItem.stuckDays) || 1);
+
+  return {
+    stuck: true,
+    stuckDays,
+    stuckSince: stuckSince || null,
+    stuckLatestAt: currentItem?.fetchedAt ?? previousItem.stuckLatestAt ?? null,
+    stuckValue: Math.round(previousValue),
+    stuckRunLength: Math.max(1, Number(previousItem.stuckRunLength) || 0) + 1,
+  };
+}
+
 export function buildStuckAdjustedDailyTotals(perSlugData, stuckBySlug, options = {}) {
   const normalized = Array.isArray(perSlugData)
     ? perSlugData.map((item) => ({

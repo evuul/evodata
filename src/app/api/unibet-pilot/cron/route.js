@@ -1,11 +1,14 @@
-// Collects Unibet recovery values and updates ATH only for primary-feed games marked stuck.
+// Collects Unibet recovery values and persists history only for primary-feed games marked stuck.
 
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { collectUnibetPilotSample } from "@/lib/unibetPilotCollector";
 import { createUnibetPilotFailure } from "@/lib/unibetPilot";
 import { appendUnibetPilotSample } from "@/lib/unibetPilotStore";
-import { getLatestPlayersSnapshot, updateGameAthSnapshot } from "@/lib/csStore";
-import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
+import { getLatestPlayersSnapshot, saveSample, updateGameAthSnapshot } from "@/lib/csStore";
+import {
+  persistRecoverySeriesItems,
+  selectUnibetRecoverySeriesItems,
+} from "@/lib/unibetRecoveryPersistence";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,12 +22,35 @@ const json = (data, status = 200) =>
     headers: { "Cache-Control": "no-store" },
   });
 
-async function updateAthFromPilot(sample) {
+async function persistRecoveredGames(sample) {
   const snapshot = await getLatestPlayersSnapshot().catch(() => null);
-  const repaired = applyUnibetPilotFallback(snapshot?.items, sample);
-  if (!repaired.applied.length) return 0;
-  await updateGameAthSnapshot(repaired.applied, sample.collectedAt);
-  return repaired.applied.length;
+  const recoveryItems = selectUnibetRecoverySeriesItems(snapshot?.items, sample);
+  if (!recoveryItems.length) {
+    return {
+      matchedGames: 0,
+      seriesSavedGames: 0,
+      seriesSavedGameIds: [],
+      seriesFailedGames: 0,
+      athUpdatedGames: 0,
+    };
+  }
+
+  const seriesResult = await persistRecoverySeriesItems(recoveryItems, saveSample);
+  let athUpdatedGames = 0;
+  try {
+    await updateGameAthSnapshot(recoveryItems, sample.collectedAt);
+    athUpdatedGames = recoveryItems.length;
+  } catch {
+    // Series persistence must remain independent from optional ATH metadata.
+  }
+
+  return {
+    matchedGames: recoveryItems.length,
+    seriesSavedGames: seriesResult.savedGameIds.length,
+    seriesSavedGameIds: seriesResult.savedGameIds,
+    seriesFailedGames: seriesResult.failedGameIds.length,
+    athUpdatedGames,
+  };
 }
 
 export async function POST(request) {
@@ -35,8 +61,9 @@ export async function POST(request) {
   try {
     const sample = await collectUnibetPilotSample();
     sample.durationMs = Date.now() - startedAt;
+    const persisted = await persistRecoveredGames(sample);
+    sample.seriesSavedGameIds = persisted.seriesSavedGameIds;
     await appendUnibetPilotSample(sample);
-    const athUpdatedGames = await updateAthFromPilot(sample).catch(() => 0);
     return json({
       ok: true,
       pilot: true,
@@ -46,7 +73,7 @@ export async function POST(request) {
         durationMs: sample.durationMs,
         gameCount: sample.gameCount,
         totalPlayers: sample.totalPlayers,
-        athUpdatedGames,
+        ...persisted,
       },
     });
   } catch (error) {
