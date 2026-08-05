@@ -16,6 +16,7 @@ import {
 } from "@/lib/authSession";
 import { normalizePortfolioProfile } from "@/lib/portfolioProfile";
 import { findFounderAccess } from "@/lib/founderAccess";
+import { isSubscriberActive } from "@/lib/subscriberAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -62,7 +63,7 @@ export async function PUT(request) {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
-      isSubscriber: Boolean(user.isSubscriber),
+      isSubscriber: isSubscriberActive(user),
       isAdmin: Boolean(user.isAdmin),
       isFounder: Boolean(founderAccess),
       founderSince: founderAccess?.recognizedAt ?? null,

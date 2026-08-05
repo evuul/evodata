@@ -7,6 +7,7 @@ import {
 } from "./historyRange.js";
 import { FOUNDER_PROGRAM } from "../config/founderProgram.js";
 import { isConfiguredAdminEmail } from "./adminAccess.js";
+import { isSubscriberActive } from "./subscriberAccess.js";
 
 const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
 
@@ -35,7 +36,7 @@ export function isFounderEmail(email, records = FOUNDERS) {
 
 export function hasExtendedDataAccess(user, records = FOUNDERS) {
   return (
-    Boolean(user?.isAdmin || user?.isSubscriber) ||
+    Boolean(user?.isAdmin || isSubscriberActive(user)) ||
     isConfiguredAdminEmail(user?.email) ||
     isFounderEmail(user?.email, records)
   );

@@ -12,6 +12,7 @@ import {
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
 import { findFounderAccess } from "@/lib/founderAccess";
+import { isSubscriberActive } from "@/lib/subscriberAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,7 +44,7 @@ export async function GET(request) {
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
-    isSubscriber: Boolean(user.isSubscriber),
+    isSubscriber: isSubscriberActive(user),
     isAdmin,
     ...founderFields(user.email),
     notifications: normalizePlayerAlertPreferences(user.notifications),
@@ -142,7 +143,7 @@ export async function PUT(request) {
         email: user.email,
         firstName: user.firstName ?? "",
         lastName: user.lastName ?? "",
-        isSubscriber: Boolean(user.isSubscriber),
+        isSubscriber: isSubscriberActive(user),
         isAdmin: Boolean(user.isAdmin),
         ...founderFields(user.email),
         notifications: normalizePlayerAlertPreferences(user.notifications),
@@ -180,7 +181,7 @@ export async function PUT(request) {
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
-    isSubscriber: Boolean(user.isSubscriber),
+      isSubscriber: isSubscriberActive(user),
     isAdmin: Boolean(user.isAdmin),
     ...founderFields(user.email),
     notifications: normalizePlayerAlertPreferences(user.notifications),

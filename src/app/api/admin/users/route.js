@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { getJson, getUserIndexKey, getUserKey, mgetJson } from "@/lib/authStore";
 import { getRequestSessionToken as getToken, resolveUserFromToken } from "@/lib/authSession";
 import { normalizePlayerAlertPreferences } from "@/lib/playerAlertPreferences";
+import { isSubscriberActive } from "@/lib/subscriberAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -69,7 +70,8 @@ export async function GET(request) {
         email: user?.email || activity?.email || email,
         firstName: user?.firstName || activity?.firstName || "",
         lastName: user?.lastName || activity?.lastName || "",
-        isSubscriber: Boolean(user?.isSubscriber),
+        isSubscriber: isSubscriberActive(user),
+        subscriberUntil: user?.subscriberUntil || null,
         athEmailEnabled: playerAlerts.lobbyAthEmail || playerAlerts.gameAthEmail,
         lobbyAthEmailEnabled: playerAlerts.lobbyAthEmail,
         gameAthEmailEnabled: playerAlerts.gameAthEmail,

@@ -10,6 +10,7 @@ import {
 import { normalizePortfolioProfile } from "./portfolioProfile.js";
 import { normalizePlayerAlertPreferences } from "./playerAlertPreferences.js";
 import { findFounderAccess } from "./founderAccess.js";
+import { isSubscriberActive } from "./subscriberAccess.js";
 
 export const SESSION_COOKIE_NAME = "evodata_session";
 export const COOKIE_SESSION_MARKER = "cookie-session";
@@ -99,7 +100,7 @@ export function buildSessionUser(user, { isAdmin = Boolean(user?.isAdmin) } = {}
     email: user.email,
     firstName: user.firstName ?? "",
     lastName: user.lastName ?? "",
-    isSubscriber: Boolean(user.isSubscriber),
+    isSubscriber: isSubscriberActive(user),
     isAdmin: Boolean(isAdmin),
     isFounder: Boolean(founderAccess),
     founderSince: founderAccess?.recognizedAt ?? null,

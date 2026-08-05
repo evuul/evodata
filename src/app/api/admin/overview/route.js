@@ -10,6 +10,7 @@ import { getUnibetPilotHistory } from "@/lib/unibetPilotStore";
 import { summarizeUnibetPilotHistory } from "@/lib/unibetPilot";
 import { getLatestPlayersSnapshot } from "@/lib/csStore";
 import { buildUnibetPilotComparison } from "@/lib/unibetPilotComparison";
+import { isSubscriberActive } from "@/lib/subscriberAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,7 +55,7 @@ export async function GET(request) {
     const ts = Date.parse(row?.lastSeenAt || "");
     return Number.isFinite(ts) && now - ts <= ACTIVE_WINDOW_MS;
   }).length;
-  const subscribers = users.filter((row) => Boolean(row?.isSubscriber)).length;
+  const subscribers = users.filter((row) => isSubscriberActive(row)).length;
   const founders = users.filter((row) => Boolean(row?.isFounder)).length;
   const alertCounts = users.reduce((acc, row) => {
     const preferences = normalizePlayerAlertPreferences(row?.notifications);
