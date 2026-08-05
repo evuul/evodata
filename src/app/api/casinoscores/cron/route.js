@@ -16,7 +16,7 @@ import {
 } from "@/lib/csStore";
 import { computeTrailingStuckMeta, continueKnownStuckMeta } from "@/lib/stuckGames";
 import { shouldSkipMaterializedRefresh } from "@/lib/upstashCostPolicy";
-import { GAMES as GAME_CONFIG } from "@/config/games";
+import { GAMES as GAME_CONFIG, PRIMARY_TRACKED_GAMES } from "@/config/games";
 import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
 import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { partitionPrimarySeriesItems } from "@/lib/unibetRecoveryPersistence";
@@ -87,7 +87,7 @@ async function runCron(req) {
   let liveItems = [];
   try {
     const lobby = await fetchLiveLobbyCounts({ force: true });
-    liveItems = buildLiveLobbyItems(lobby, GAME_CONFIG);
+    liveItems = buildLiveLobbyItems(lobby, PRIMARY_TRACKED_GAMES);
   } catch (error) {
     sourceError = error instanceof Error ? error.message : String(error);
   }
@@ -95,7 +95,7 @@ async function runCron(req) {
   const successfulItems = liveItems
     .filter((item) => item?.id && Number.isFinite(Number(item.players)) && item.fetchedAt)
     .map((item) => ({ id: item.id, players: Number(item.players), fetchedAt: item.fetchedAt }));
-  const results = GAME_CONFIG.map((game) => {
+  const results = PRIMARY_TRACKED_GAMES.map((game) => {
     const item = liveItems.find((candidate) => candidate.id === game.id);
     const ok = Boolean(item && Number.isFinite(Number(item.players)) && item.fetchedAt);
     return {

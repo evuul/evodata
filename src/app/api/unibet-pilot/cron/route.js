@@ -5,10 +5,12 @@ import { collectUnibetPilotSample } from "@/lib/unibetPilotCollector";
 import { createUnibetPilotFailure } from "@/lib/unibetPilot";
 import { appendUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { getLatestPlayersSnapshot, saveSample, updateGameAthSnapshot } from "@/lib/csStore";
+import { UNIBET_TRACKED_GAMES } from "@/config/games";
 import {
   persistRecoverySeriesItems,
   selectUnibetRecoverySeriesItems,
 } from "@/lib/unibetRecoveryPersistence";
+import { selectUnibetTrackedSeriesItems } from "@/lib/unibetTrackedGames";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,6 +55,36 @@ async function persistRecoveredGames(sample) {
   };
 }
 
+async function persistTrackedExtendedGames(sample) {
+  const trackedItems = selectUnibetTrackedSeriesItems(UNIBET_TRACKED_GAMES, sample);
+  if (!trackedItems.length) {
+    return {
+      matchedGames: 0,
+      seriesSavedGames: 0,
+      seriesSavedGameIds: [],
+      seriesFailedGames: 0,
+      athUpdatedGames: 0,
+    };
+  }
+
+  const seriesResult = await persistRecoverySeriesItems(trackedItems, saveSample);
+  let athUpdatedGames = 0;
+  try {
+    await updateGameAthSnapshot(trackedItems, sample.collectedAt);
+    athUpdatedGames = trackedItems.length;
+  } catch {
+    // Series persistence must remain independent from optional ATH metadata.
+  }
+
+  return {
+    matchedGames: trackedItems.length,
+    seriesSavedGames: seriesResult.savedGameIds.length,
+    seriesSavedGameIds: seriesResult.savedGameIds,
+    seriesFailedGames: seriesResult.failedGameIds.length,
+    athUpdatedGames,
+  };
+}
+
 export async function POST(request) {
   const auth = requireCronAuth(request, SECRET, "UNIBET_PILOT_CRON_SECRET is not configured");
   if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
@@ -62,7 +94,8 @@ export async function POST(request) {
     const sample = await collectUnibetPilotSample();
     sample.durationMs = Date.now() - startedAt;
     const persisted = await persistRecoveredGames(sample);
-    sample.seriesSavedGameIds = persisted.seriesSavedGameIds;
+    const tracked = await persistTrackedExtendedGames(sample);
+    sample.seriesSavedGameIds = [...persisted.seriesSavedGameIds, ...tracked.seriesSavedGameIds];
     await appendUnibetPilotSample(sample);
     return json({
       ok: true,
@@ -73,7 +106,8 @@ export async function POST(request) {
         durationMs: sample.durationMs,
         gameCount: sample.gameCount,
         totalPlayers: sample.totalPlayers,
-        ...persisted,
+        recovered: persisted,
+        tracked,
       },
     });
   } catch (error) {

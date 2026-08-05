@@ -208,6 +208,7 @@ export async function GET(req) {
     const slug = game.apiSlug;
     const variant = game.apiVariant === "a" ? "a" : "default";
     const id = game.id;
+    const usesUnibetTracking = game.source === "unibet";
 
     const lobbyKey = slug ? lobbyKeyFor(slug, variant) : null;
     const raw = lobbyKey ? lobby?.gameShowPlayerCounts?.[lobbyKey] : null;
@@ -251,7 +252,7 @@ export async function GET(req) {
       const entry = items[itemIndex];
       entry.players = usable.value;
       entry.fetchedAt = new Date(usable.ts).toISOString();
-      entry.stale = true;
+      entry.stale = !usesUnibetTracking;
       newestTs = Math.max(newestTs, usable.ts);
     });
   }

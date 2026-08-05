@@ -1,21 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { GAMES } from "./games.js";
+import { FORECAST_GAME_IDS, GAMES, UNIBET_TRACKED_GAMES } from "./games.js";
 
 const expectedEvolutionAdditions = [
   "monopoly-roulette",
   "extra-chili-epic-spins",
-  "gold-bar-roulette",
   "gold-vault-roulette",
   "mega-roulette",
   "craps-live",
-  "video-poker",
   "marble-race",
   "war-live",
   "fireball-roulette",
   "super-color-game",
-  "cs-roulette",
 ];
 
 test("includes the newly tracked Evolution games", () => {
@@ -38,4 +35,22 @@ test("keeps Blackjack and Poker outside the Gameshows view", () => {
   const gameIds = new Set(GAMES.map((game) => game.id));
 
   assert.equal(gameIds.has("free-bet-blackjack"), false);
+});
+
+test("replaces frozen games with high-activity Unibet games outside forecast coverage", () => {
+  const gameIds = new Set(GAMES.map((game) => game.id));
+  const replacementIds = [
+    "no-commission-baccarat",
+    "dragon-tiger",
+    "turkce-lightning-rulet",
+    "speed-auto-roulette",
+  ];
+
+  for (const retiredId of ["lightning-bac-bo", "gold-bar-roulette", "video-poker", "cs-roulette"]) {
+    assert.equal(gameIds.has(retiredId), false, `${retiredId} should no longer be tracked`);
+  }
+  assert.deepEqual(UNIBET_TRACKED_GAMES.map((game) => game.id), replacementIds);
+  for (const replacementId of replacementIds) {
+    assert.equal(FORECAST_GAME_IDS.has(replacementId), false, `${replacementId} must not alter forecast coverage`);
+  }
 });

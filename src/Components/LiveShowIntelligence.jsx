@@ -281,7 +281,9 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
         const json = await fetchOverviewShared(REPORT_LOOKBACK_DAYS);
 
         const dailyRows =
-          Array.isArray(json?.adjustedDailyTotals) && json.adjustedDailyTotals.length
+          Array.isArray(json?.forecastDailyTotals) && json.forecastDailyTotals.length
+            ? json.forecastDailyTotals
+            : Array.isArray(json?.adjustedDailyTotals) && json.adjustedDailyTotals.length
             ? json.adjustedDailyTotals
             : Array.isArray(json?.dailyTotals) && json.dailyTotals.length
               ? json.dailyTotals

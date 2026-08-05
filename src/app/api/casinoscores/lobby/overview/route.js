@@ -46,6 +46,7 @@ import { resolveRequestUser } from "@/lib/authSession";
 import { hasExtendedDataAccess, normalizeHistoryDays } from "@/lib/founderAccess";
 import { limitHistoryReadDays } from "@/lib/historyRange";
 import { mergeGameAthIntoOverview } from "@/lib/gameAthOverview";
+import { FORECAST_GAME_IDS } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -678,6 +679,11 @@ export async function GET(req) {
     dailyTotals = applyDailyTotalOverrides(
       stuckAdjusted.adjustedDailyTotals.length ? stuckAdjusted.adjustedDailyTotals : dailyTotals
     );
+    // Keep the revenue model on a stable coverage set while new Unibet games build history.
+    const forecastDailyTotals = buildDailyTotals(
+      perSlugData.filter((item) => FORECAST_GAME_IDS.has(item.slug)),
+      todayYmd
+    ).slice(-targetDays);
     ath = computeAthFromDailyRows(STATIC_DAILY, dailyTotals);
     ({ peak: todayPeak, buckets } = computeTodayPeak(perSlugData, todayYmd));
     days7 = dailyTotals.slice(-7);
@@ -718,6 +724,7 @@ export async function GET(req) {
     const basePayload = mergeGameAthIntoOverview({
       ok: true,
       dailyTotals,
+      forecastDailyTotals,
       rawDailyTotals,
       adjustedDailyTotals: stuckAdjusted.adjustedDailyTotals?.length ? stuckAdjusted.adjustedDailyTotals : dailyTotals,
       ath,

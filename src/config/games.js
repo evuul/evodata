@@ -28,7 +28,8 @@ const ALL_GAMES = [
   { id: "dead-or-alive-saloon", label: "Dead or Alive Saloon", apiSlug: "dead-or-alive-saloon" },
   { id: "lightning-dice", label: "Lightning Dice", apiSlug: "lightning-dice" },
   { id: "auto-roulette", label: "Auto Roulette", apiSlug: "auto-roulette" },
-  { id: "lightning-bac-bo", label: "Lightning Bac Bo", apiSlug: "lightning-bac-bo" },
+  // Retired from active tracking: the primary source has remained frozen.
+  { id: "lightning-bac-bo", label: "Lightning Bac Bo", apiSlug: "lightning-bac-bo", enabled: false },
   { id: "bac-bo", label: "Bac Bo", apiSlug: "bac-bo" },
   { id: "super-andar-bahar", label: "Super Andar Bahar", apiSlug: "super-andar-bahar" },
   { id: "speed-baccarat-a", label: "Speed Baccarat A", apiSlug: "speed-baccarat-a" },
@@ -36,19 +37,33 @@ const ALL_GAMES = [
   { id: "fortune-roulette", label: "Fortune Roulette", apiSlug: "fortune-roulette" },
   { id: "ice-fishing", label: "Ice Fishing", apiSlug: "ice-fishing" },
   { id: "extra-chili-epic-spins", label: "Extra Chilli Epic Spins", apiSlug: "extra-chili-epic-spins" },
-  { id: "gold-bar-roulette", label: "Gold Bar Roulette", apiSlug: "gold-bar-roulette" },
+  // Retired from active tracking: the primary source has remained frozen.
+  { id: "gold-bar-roulette", label: "Gold Bar Roulette", apiSlug: "gold-bar-roulette", enabled: false },
   { id: "gold-vault-roulette", label: "Gold Vault Roulette", apiSlug: "gold-vault-roulette" },
   { id: "mega-roulette", label: "Mega Roulette", apiSlug: "mega-roulette" },
   { id: "craps-live", label: "Craps Live", apiSlug: "craps-live" },
-  { id: "video-poker", label: "Video Poker", apiSlug: "video-poker" },
+  // Retired from active tracking: the primary source has remained frozen.
+  { id: "video-poker", label: "Video Poker", apiSlug: "video-poker", enabled: false },
   { id: "marble-race", label: "Marble Race", apiSlug: "marble-race" },
   { id: "war-live", label: "War Live", apiSlug: "war-live" },
   { id: "fireball-roulette", label: "Fireball Roulette", apiSlug: "fireball-roulette" },
   { id: "super-color-game", label: "Super Color Game", apiSlug: "super-color-game" },
-  { id: "cs-roulette", label: "CS Roulette", apiSlug: "cs-roulette" },
+  // Retired from active tracking: the primary source has remained frozen.
+  { id: "cs-roulette", label: "CS Roulette", apiSlug: "cs-roulette", enabled: false },
+  // These games are collected from the separately persisted Unibet Extended Lobby feed.
+  // They stay outside the forecast coverage until there is a comparable history for calibration.
+  { id: "no-commission-baccarat", label: "No Commission Baccarat", source: "unibet", unibetId: "no-commission-baccarat", forecastEligible: false },
+  { id: "dragon-tiger", label: "Dragon Tiger", source: "unibet", unibetId: "dragon-tiger", forecastEligible: false },
+  { id: "turkce-lightning-rulet", label: "Türkçe Lightning Rulet", source: "unibet", unibetId: "turkce-lightning-rulet", forecastEligible: false },
+  { id: "speed-auto-roulette", label: "Speed Auto Roulette", source: "unibet", unibetId: "speed-auto-roulette", forecastEligible: false },
 ];
 
 export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);
+export const PRIMARY_TRACKED_GAMES = GAMES.filter((game) => game?.source !== "unibet");
+export const UNIBET_TRACKED_GAMES = GAMES.filter((game) => game?.source === "unibet");
+export const FORECAST_GAME_IDS = new Set(
+  GAMES.filter((game) => game?.forecastEligible !== false).map((game) => game.id)
+);
 
 /**
  * Delad färgpalett (används i header, listor, grafer)
@@ -92,6 +107,10 @@ export const COLORS = {
   "fireball-roulette": "#F4511E",
   "super-color-game": "#26A69A",
   "cs-roulette": "#78909C",
+  "no-commission-baccarat": "#0EA5E9",
+  "dragon-tiger": "#F97316",
+  "turkce-lightning-rulet": "#EAB308",
+  "speed-auto-roulette": "#38BDF8",
 };
 
 /** Hur många som räknas som “Top N” i listor/header */
