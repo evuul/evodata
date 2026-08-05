@@ -34,7 +34,7 @@ env:
 jobs:
   lobby-sync:
     if: |
-      (github.event_name == 'schedule' && github.event.schedule == '*/10 * * * *') ||
+      github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'lobby-sync'))
     runs-on: ubuntu-latest
     timeout-minutes: 4
