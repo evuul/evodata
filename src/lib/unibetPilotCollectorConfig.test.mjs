@@ -63,6 +63,7 @@ test("merges all configured live-casino category lists", async () => {
 
   assert.equal(sample.sourceUrls.length, 3);
   assert.deepEqual(sample.games.map((game) => game.id), ["auto-roulette", "bac-bo"]);
+  assert.deepEqual(sample.games.map((game) => game.category), ["roulette", "baccarat"]);
 });
 
 test("reports a failed Unibet API response", async () => {

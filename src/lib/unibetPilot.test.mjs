@@ -66,6 +66,19 @@ test("combines category sources and keeps the highest duplicate count", () => {
   ]);
 });
 
+test("preserves supported lobby categories and prefers a specific duplicate category", () => {
+  const games = normalizeUnibetPilotGames([
+    { name: "Bac Bo", provider: "Evolution", players: 700, category: "gameshows" },
+    { name: "Bac Bo", provider: "Evolution", players: 700, category: "baccarat" },
+    { name: "Auto Roulette", provider: "Evolution", players: 500, category: "roulette" },
+  ]);
+
+  assert.deepEqual(games.map(({ id, category }) => ({ id, category })), [
+    { id: "bac-bo", category: "baccarat" },
+    { id: "auto-roulette", category: "roulette" },
+  ]);
+});
+
 test("summarizes successful, failed and missing pilot runs", () => {
   const history = [
     createUnibetPilotFailure("blocked", "2026-08-04T10:20:00.000Z"),

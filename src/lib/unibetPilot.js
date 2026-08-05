@@ -2,6 +2,7 @@
 
 const MAX_PLAYERS_PER_GAME = 5_000_000;
 const DEFAULT_EXPECTED_INTERVAL_MS = 10 * 60 * 1000;
+const SUPPORTED_CATEGORIES = new Set(["gameshows", "roulette", "baccarat", "blackjack", "poker"]);
 
 const cleanText = (value) => String(value || "").replace(/\s+/g, " ").trim();
 
@@ -35,10 +36,11 @@ export function normalizeUnibetPilotGames(rows) {
     if (!id) continue;
 
     const existing = byId.get(id);
-    if (!existing || players > existing.players) {
-      const category = row?.category === "blackjack" || row?.category === "poker"
-        ? row.category
-        : null;
+    const normalizedCategory = cleanText(row?.category).toLowerCase();
+    const category = SUPPORTED_CATEGORIES.has(normalizedCategory) ? normalizedCategory : null;
+    const hasMoreSpecificCategory =
+      players === existing?.players && existing?.category === "gameshows" && category && category !== "gameshows";
+    if (!existing || players > existing.players || hasMoreSpecificCategory) {
       byId.set(id, {
         id,
         name,

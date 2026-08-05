@@ -1,4 +1,4 @@
-// Retrieves the public Unibet live-casino list without a browser runtime.
+// Retrieves and categorizes the public Unibet live-casino lists without a browser runtime.
 
 import { createUnibetPilotSample } from "./unibetPilot.js";
 
@@ -21,7 +21,14 @@ const parseApiUrls = (value) => {
 
 const isEvolutionGame = (game) => /@evolution$/i.test(cleanText(game?.gameId));
 
-export function extractUnibetPilotRows(payload) {
+const resolveListCategory = (url) => {
+  const normalizedUrl = cleanText(url).toLowerCase();
+  if (normalizedUrl.includes("roulette")) return "roulette";
+  if (normalizedUrl.includes("baccarat")) return "baccarat";
+  return "gameshows";
+};
+
+export function extractUnibetPilotRows(payload, category = null) {
   const games = Array.isArray(payload?.gameList) ? payload.gameList : [];
 
   return games.flatMap((game) => {
@@ -35,6 +42,7 @@ export function extractUnibetPilotRows(payload) {
       provider: "Evolution",
       players: liveCasino.players,
       href: cleanText(game.gameId),
+      ...(category ? { category } : {}),
     }];
   });
 }
@@ -79,7 +87,9 @@ export async function collectUnibetPilotSample({
     const failure = results.find((result) => result.status === "rejected");
     throw failure?.reason || new Error("Unibet game lists could not be fetched");
   }
-  const rows = successful.flatMap(({ payload }) => extractUnibetPilotRows(payload));
+  const rows = successful.flatMap(({ url, payload }) =>
+    extractUnibetPilotRows(payload, resolveListCategory(url))
+  );
   const sample = createUnibetPilotSample({
     rows,
     sourceUrls: successful.map(({ url }) => url),
