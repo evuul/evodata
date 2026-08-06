@@ -61,6 +61,7 @@ const ALL_GAMES = [
 export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);
 export const PRIMARY_TRACKED_GAMES = GAMES.filter((game) => game?.source !== "unibet");
 export const UNIBET_TRACKED_GAMES = GAMES.filter((game) => game?.source === "unibet");
+export const isUnibetTrackedGame = (game) => game?.source === "unibet";
 export const FORECAST_GAME_IDS = new Set(
   GAMES.filter((game) => game?.forecastEligible !== false).map((game) => game.id)
 );

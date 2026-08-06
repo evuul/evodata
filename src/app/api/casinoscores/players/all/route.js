@@ -17,7 +17,7 @@ import {
   bucketLabelFromTs,
 } from "@/lib/csStore";
 import { recordCostEvent } from "@/lib/csCostTracker";
-import { GAMES as GAME_CONFIG } from "@/config/games";
+import { GAMES as GAME_CONFIG, isUnibetTrackedGame } from "@/config/games";
 import { selectLiveAthCandidates } from "@/lib/liveAthGuard";
 import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
 import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
@@ -208,8 +208,6 @@ export async function GET(req) {
     const slug = game.apiSlug;
     const variant = game.apiVariant === "a" ? "a" : "default";
     const id = game.id;
-    const usesUnibetTracking = game.source === "unibet";
-
     const lobbyKey = slug ? lobbyKeyFor(slug, variant) : null;
     const raw = lobbyKey ? lobby?.gameShowPlayerCounts?.[lobbyKey] : null;
     const normalized = normalizeLobbyValue(raw);
@@ -252,7 +250,7 @@ export async function GET(req) {
       const entry = items[itemIndex];
       entry.players = usable.value;
       entry.fetchedAt = new Date(usable.ts).toISOString();
-      entry.stale = !usesUnibetTracking;
+      entry.stale = !isUnibetTrackedGame(GAME_CONFIG[itemIndex]);
       newestTs = Math.max(newestTs, usable.ts);
     });
   }

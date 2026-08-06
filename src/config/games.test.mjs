@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { FORECAST_GAME_IDS, GAMES, UNIBET_TRACKED_GAMES } from "./games.js";
+import { FORECAST_GAME_IDS, GAMES, isUnibetTrackedGame, UNIBET_TRACKED_GAMES } from "./games.js";
 
 const expectedEvolutionAdditions = [
   "monopoly-roulette",
@@ -50,6 +50,8 @@ test("replaces frozen games with high-activity Unibet games outside forecast cov
     assert.equal(gameIds.has(retiredId), false, `${retiredId} should no longer be tracked`);
   }
   assert.deepEqual(UNIBET_TRACKED_GAMES.map((game) => game.id), replacementIds);
+  assert.equal(isUnibetTrackedGame(UNIBET_TRACKED_GAMES[0]), true);
+  assert.equal(isUnibetTrackedGame(GAMES.find((game) => game.id === "crazy-time")), false);
   for (const replacementId of replacementIds) {
     assert.equal(FORECAST_GAME_IDS.has(replacementId), false, `${replacementId} must not alter forecast coverage`);
   }
