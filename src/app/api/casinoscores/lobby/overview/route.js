@@ -668,10 +668,9 @@ export async function GET(req) {
       ...item,
       daily: Array.isArray(item.daily) ? item.daily.map((row) => ({ ...row })) : [],
     }));
-    const stuckSeriesMap = await getSeriesBulk(
-      SERIES_SLUGS,
-      Math.max(effectiveHistoryDays, 30)
-    ).catch(() => new Map());
+    // The freshly loaded recent series already covers the trailing stuck window.
+    // Reusing it avoids a second full Redis series scan during overview rebuilds.
+    const stuckSeriesMap = seriesBySlug;
     const stuckBySlug = new Map();
     for (const slug of SERIES_SLUGS) {
       stuckBySlug.set(slug, computeTrailingStuckMeta(stuckSeriesMap.get(slug) ?? [], { minRun: 8 }));
