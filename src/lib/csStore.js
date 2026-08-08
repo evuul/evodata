@@ -173,7 +173,7 @@ const MAX_SAMPLES = (() => {
 
 const overviewMem = new Map(); // key -> { snapshot, exp }
 const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
-const OVERVIEW_SNAPSHOT_VERSION = "v2";
+const OVERVIEW_SNAPSHOT_VERSION = "v3";
 const GLOBAL_ATH_KEY = "cs:lobby:global-ath";
 let globalAthCache = null;
 const DAILY_SNAPSHOT_PREFIX = "cs:lobby:daily-snapshot:";
