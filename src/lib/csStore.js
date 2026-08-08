@@ -173,6 +173,7 @@ const MAX_SAMPLES = (() => {
 
 const overviewMem = new Map(); // key -> { snapshot, exp }
 const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
+const OVERVIEW_SNAPSHOT_VERSION = "v2";
 const GLOBAL_ATH_KEY = "cs:lobby:global-ath";
 let globalAthCache = null;
 const DAILY_SNAPSHOT_PREFIX = "cs:lobby:daily-snapshot:";
@@ -228,7 +229,7 @@ let gameAthSnapshotMem = { data: null, exp: 0 };
 function overviewKey(days) {
   const n = Number(days);
   const suffix = Number.isFinite(n) ? Math.round(n) : String(days ?? "default");
-  return `cs:overview:${suffix}`;
+  return `cs:overview:${OVERVIEW_SNAPSHOT_VERSION}:${suffix}`;
 }
 
 function getOverviewMem(key) {
@@ -1240,24 +1241,41 @@ export async function shouldPersistLobbySnapshot(createdAtMs) {
 export function dailyAverages(points) {
   if (!Array.isArray(points) || points.length === 0) return [];
 
-  // Grupp per “dag i Stockholm”
+  // Group observations by Stockholm day before weighting their represented duration.
   const byDay = new Map();
   for (const p of points) {
+    const ts = Number(p?.ts);
+    const value = Number(p?.value);
+    if (!Number.isFinite(ts) || !Number.isFinite(value)) continue;
     const d = new Date(p.ts);
     const y = d.toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", year: "numeric" });
     const m = d.toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", month: "2-digit" });
     const day = d.toLocaleString("sv-SE", { timeZone: "Europe/Stockholm", day: "2-digit" });
     const key = `${y}-${m}-${day}`; // YYYY-MM-DD
 
-    const bucket = byDay.get(key) || { sum: 0, n: 0 };
-    bucket.sum += p.value;
-    bucket.n += 1;
+    const bucket = byDay.get(key) || [];
+    bucket.push({ ts, value });
     byDay.set(key, bucket);
   }
 
   const out = [];
-  for (const [date, { sum, n }] of byDay) {
-    out.push({ date, avg: Math.round((sum / n) * 100) / 100 });
+  for (const [date, rows] of byDay) {
+    rows.sort((a, b) => a.ts - b.ts);
+    let weightedSum = 0;
+    let coverageMs = 0;
+    for (let index = 0; index < rows.length - 1; index += 1) {
+      const durationMs = rows[index + 1].ts - rows[index].ts;
+      if (!Number.isFinite(durationMs) || durationMs <= 0) continue;
+      weightedSum += rows[index].value * durationMs;
+      coverageMs += durationMs;
+    }
+    if (coverageMs <= 0) continue;
+    out.push({
+      date,
+      avg: Math.round((weightedSum / coverageMs) * 100) / 100,
+      coverageMs,
+      samples: rows.length,
+    });
   }
   out.sort((a, b) => a.date.localeCompare(b.date));
   return out;

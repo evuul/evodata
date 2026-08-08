@@ -50,6 +50,7 @@ import { FORECAST_GAME_IDS } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
+const MIN_TIME_WEIGHTED_COVERAGE_MS = 12 * 60 * 60 * 1000;
 const RESPONSE_CACHE_CONTROL = "public, max-age=30, s-maxage=30, stale-while-revalidate=60";
 
 // ---------- helpers ----------
@@ -217,6 +218,29 @@ function buildDailyTotals(perSlugSeries, today) {
       avgPlayers: Math.round(sum * 100) / 100,
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function applyTimeWeightedDailyAverages(perSlugData, seriesBySlug, todayYmd) {
+  return perSlugData.map((item) => {
+    const series = seriesBySlug.get(item.slug) ?? [];
+    const eligibleSeries =
+      item.slug === "crazy-time:a"
+        ? series.filter((point) => Number(point?.ts) >= CRAZY_TIME_A_RESET_MS)
+        : series;
+    const weightedRows = dailyAverages(eligibleSeries);
+    if (!weightedRows.length) return item;
+
+    const dailyByDate = new Map((item.daily ?? []).map((row) => [row.date, row]));
+    for (const row of weightedRows) {
+      if (row.date >= todayYmd || Number(row.coverageMs) < MIN_TIME_WEIGHTED_COVERAGE_MS) continue;
+      dailyByDate.set(row.date, { date: row.date, avg: row.avg });
+    }
+
+    return {
+      ...item,
+      daily: Array.from(dailyByDate.values()).sort((left, right) => left.date.localeCompare(right.date)),
+    };
+  });
 }
 
 function computeTodayPeak(perSlugSeries, today) {
@@ -652,6 +676,8 @@ export async function GET(req) {
     for (const slug of SERIES_SLUGS) {
       stuckBySlug.set(slug, computeTrailingStuckMeta(stuckSeriesMap.get(slug) ?? [], { minRun: 8 }));
     }
+    perSlugData = applyTimeWeightedDailyAverages(perSlugData, stuckSeriesMap, todayYmd);
+    dailyTotals = applyDailyTotalOverrides(buildDailyTotals(perSlugData, todayYmd)).slice(-targetDays);
     const stuckAdjusted = buildStuckAdjustedDailyTotals(perSlugData, stuckBySlug, {
       lookbackDays: 14,
     });
