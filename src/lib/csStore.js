@@ -72,6 +72,13 @@ function createLocalRedisAdapter(client) {
     async hincrby(key, field, increment) {
       return client.hIncrBy(key, field, increment);
     },
+    createScript(script) {
+      return {
+        async eval(keys, args) {
+          return client.eval(script, { keys, arguments: args });
+        },
+      };
+    },
     pipeline() {
       const multi = client.multi();
       return {
@@ -188,6 +195,23 @@ const DEFAULT_BASELINE_BUCKET_MS = 5 * 60 * 1000; // 5 min buckets for time-of-d
 
 const DAILY_PEAK_PREFIX = "cs:lobby:today-peak:";
 const dailyPeakMem = new Map(); // key (ymd) -> entry
+
+// Redis keeps the maximum inside one command so concurrent serverless requests cannot regress a peak.
+const STORE_MAX_PEAK_SCRIPT = `
+local candidate = cjson.decode(ARGV[1])
+local existing = redis.call("GET", KEYS[1])
+
+if existing then
+  local ok, current = pcall(cjson.decode, existing)
+  if ok and current and tonumber(current.value) and tonumber(current.value) >= tonumber(candidate.value) then
+    return existing
+  end
+end
+
+local serialized = cjson.encode(candidate)
+redis.call("SET", KEYS[1], serialized)
+return serialized
+`;
 const LOBBY_INGEST_CHECKPOINT_KEY = "cs:lobby:last-ingested-created-at";
 let lobbyIngestCheckpointMemTs = 0;
 const LATEST_PLAYERS_SNAPSHOT_KEY = "cs:lobby:latest-players-snapshot:v1";
@@ -359,6 +383,32 @@ function normalizeAthEntry(entry) {
   };
 }
 
+export function selectHigherLobbyPeak(current, candidate) {
+  const currentValue = normalizePlayers(current?.value);
+  const candidateValue = normalizePlayers(candidate?.value);
+  if (candidateValue == null) return current ?? null;
+  if (currentValue != null && currentValue >= candidateValue) return current;
+  return candidate;
+}
+
+async function storeMaximumPeak(key, entry, normalize) {
+  const kv = await getKv();
+  if (!kv) return { hasKv: false, entry: null };
+
+  try {
+    if (typeof kv.createScript !== "function") {
+      throw new Error("KV-adaptern saknar atomärt scriptstöd");
+    }
+    const script = kv.createScript(STORE_MAX_PEAK_SCRIPT);
+    const raw = await script.eval([key], [JSON.stringify(entry)]);
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return { hasKv: true, entry: normalize(parsed) };
+  } catch (err) {
+    if (DEBUG) console.warn(`[csStore] KV atomic peak write failed for ${key}:`, err);
+    return { hasKv: true, entry: null };
+  }
+}
+
 export async function getGlobalLobbyAth() {
   if (globalAthCache) return globalAthCache;
   const kv = await getKv();
@@ -386,17 +436,12 @@ export async function getGlobalLobbyAth() {
 
 export async function setGlobalLobbyAth(entry) {
   const normalized = normalizeAthEntry(entry);
-  if (!normalized) return;
+  if (!normalized) return null;
   normalized.updatedAt = new Date().toISOString();
-  globalAthCache = normalized;
-  const kv = await getKv();
-  if (!kv) return;
-  try {
-    await kv.set(GLOBAL_ATH_KEY, JSON.stringify(normalized));
-    if (DEBUG) console.log(`[csStore] KV set global ATH`);
-  } catch (err) {
-    if (DEBUG) console.warn(`[csStore] KV set global ATH failed:`, err);
-  }
+  const stored = await storeMaximumPeak(GLOBAL_ATH_KEY, normalized, normalizeAthEntry);
+  const selected = stored.entry ?? selectHigherLobbyPeak(globalAthCache, normalized);
+  globalAthCache = selected;
+  return selected;
 }
 
 function dailyPeakKey(ymd) {
@@ -450,28 +495,20 @@ export async function maybeUpdateDailyLobbyPeak(totalPlayers, measuredAt) {
   const ymd = normalizeYmd(stockholmYMDFromTs(ts));
   if (!ymd) return null;
 
-  const current = dailyPeakMem.get(ymd) ?? (await loadDailyPeakFromKv(ymd));
-  if (current && Number.isFinite(current.value) && current.value >= normalizedValue) {
-    return current;
-  }
-
-  const entry = {
+  const candidate = {
     value: normalizedValue,
     date: ymd,
     at: new Date(ts).toISOString(),
     updatedAt: new Date().toISOString(),
   };
-  dailyPeakMem.set(ymd, entry);
-
-  const kv = await getKv();
-  if (kv) {
-    try {
-      await kv.set(dailyPeakKey(ymd), JSON.stringify(entry));
-    } catch (err) {
-      if (DEBUG) console.warn(`[csStore] KV set daily peak failed ${ymd}:`, err);
-    }
-  }
-  return entry;
+  const stored = await storeMaximumPeak(
+    dailyPeakKey(ymd),
+    candidate,
+    (value) => normalizeDailyPeakEntry(value, ymd)
+  );
+  const selected = stored.entry ?? selectHigherLobbyPeak(dailyPeakMem.get(ymd), candidate);
+  dailyPeakMem.set(ymd, selected);
+  return selected;
 }
 
 // ---- Dagliga aggregat ----
