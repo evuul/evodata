@@ -434,7 +434,8 @@ export async function GET(req) {
       : await getDailyAggregates(SERIES_SLUGS, snapshotDays);
     const aggregatesFetchMs = Date.now() - aggregatesStart;
 
-    const recentDays = 2;
+    // Keep a full prior day in the series window when the current day is in progress.
+    const recentDays = 3;
     const cachedSeriesMap = new Map();
     for (const slug of SERIES_SLUGS) {
       const cached = getOverviewSeriesCache(slug, recentDays);
