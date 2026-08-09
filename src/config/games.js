@@ -51,11 +51,10 @@ const ALL_GAMES = [
   // Retired from active tracking: the primary source has remained frozen.
   { id: "cs-roulette", label: "CS Roulette", apiSlug: "cs-roulette", enabled: false },
   // These games are collected from the separately persisted Unibet Extended Lobby feed.
-  // They stay outside the forecast coverage until there is a comparable history for calibration.
-  { id: "no-commission-baccarat", label: "No Commission Baccarat", source: "unibet", unibetId: "no-commission-baccarat", forecastEligible: false },
-  { id: "dragon-tiger", label: "Dragon Tiger", source: "unibet", unibetId: "dragon-tiger", forecastEligible: false },
-  { id: "turkce-lightning-rulet", label: "Türkçe Lightning Rulet", source: "unibet", unibetId: "turkce-lightning-rulet", forecastEligible: false },
-  { id: "speed-auto-roulette", label: "Speed Auto Roulette", source: "unibet", unibetId: "speed-auto-roulette", forecastEligible: false },
+  { id: "no-commission-baccarat", label: "No Commission Baccarat", source: "unibet", unibetId: "no-commission-baccarat" },
+  { id: "dragon-tiger", label: "Dragon Tiger", source: "unibet", unibetId: "dragon-tiger" },
+  { id: "turkce-lightning-rulet", label: "Türkçe Lightning Rulet", source: "unibet", unibetId: "turkce-lightning-rulet" },
+  { id: "speed-auto-roulette", label: "Speed Auto Roulette", source: "unibet", unibetId: "speed-auto-roulette" },
 ];
 
 export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);

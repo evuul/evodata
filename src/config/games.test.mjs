@@ -37,7 +37,7 @@ test("keeps Blackjack and Poker outside the Gameshows view", () => {
   assert.equal(gameIds.has("free-bet-blackjack"), false);
 });
 
-test("replaces frozen games with high-activity Unibet games outside forecast coverage", () => {
+test("replaces frozen games with high-activity Unibet games in forecast coverage", () => {
   const gameIds = new Set(GAMES.map((game) => game.id));
   const replacementIds = [
     "no-commission-baccarat",
@@ -53,6 +53,6 @@ test("replaces frozen games with high-activity Unibet games outside forecast cov
   assert.equal(isUnibetTrackedGame(UNIBET_TRACKED_GAMES[0]), true);
   assert.equal(isUnibetTrackedGame(GAMES.find((game) => game.id === "crazy-time")), false);
   for (const replacementId of replacementIds) {
-    assert.equal(FORECAST_GAME_IDS.has(replacementId), false, `${replacementId} must not alter forecast coverage`);
+    assert.equal(FORECAST_GAME_IDS.has(replacementId), true, `${replacementId} must be included in forecast coverage`);
   }
 });

@@ -705,7 +705,7 @@ export async function GET(req) {
     dailyTotals = applyDailyTotalOverrides(
       stuckAdjusted.adjustedDailyTotals.length ? stuckAdjusted.adjustedDailyTotals : dailyTotals
     );
-    // Keep the revenue model on a stable coverage set while new Unibet games build history.
+    // Use the same game coverage for the revenue model and lobby trend.
     const forecastDailyTotals = buildDailyTotals(
       perSlugData.filter((item) => FORECAST_GAME_IDS.has(item.slug)),
       todayYmd
