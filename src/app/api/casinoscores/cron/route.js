@@ -23,7 +23,8 @@ import { partitionPrimarySeriesItems } from "@/lib/unibetRecoveryPersistence";
 
 const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
 const STUCK_LOOKBACK_DAYS = 90;
-const STUCK_MIN_RUN = 8;
+const STUCK_MIN_RUN = 4;
+const STUCK_MIN_DAYS = 0;
 const CRON_MIN_INTERVAL_MS = (() => {
   const configured = Number(process.env.CS_CRON_MIN_INTERVAL_MS);
   if (!Number.isFinite(configured) || configured <= 0) return 10 * 60 * 1000;
@@ -140,7 +141,10 @@ async function runCron(req) {
     const snapshotItems = ids.map((id) => {
       const item = freshById.get(id) ?? previousById.get(id) ?? { id, players: null, fetchedAt: null };
       const stuck =
-        computeTrailingStuckMeta(seriesMap.get(id) ?? [], { minRun: STUCK_MIN_RUN }) ??
+        computeTrailingStuckMeta(seriesMap.get(id) ?? [], {
+          minRun: STUCK_MIN_RUN,
+          minDays: STUCK_MIN_DAYS,
+        }) ??
         continueKnownStuckMeta(previousById.get(id), item);
       return {
         id,

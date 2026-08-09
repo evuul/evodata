@@ -7,7 +7,8 @@ import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=120";
 const STUCK_LOOKBACK_DAYS = 90;
-const STUCK_MIN_RUN = 8;
+const STUCK_MIN_RUN = 4;
+const STUCK_MIN_DAYS = 0;
 
 function resJSON(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -71,7 +72,10 @@ export async function GET() {
     }
 
     for (const item of items) {
-      const stuckMeta = computeTrailingStuckMeta(seriesMap.get(item.id) ?? [], { minRun: STUCK_MIN_RUN });
+      const stuckMeta = computeTrailingStuckMeta(seriesMap.get(item.id) ?? [], {
+        minRun: STUCK_MIN_RUN,
+        minDays: STUCK_MIN_DAYS,
+      });
       if (stuckMeta) {
         item.stuck = true;
         item.stuckDays = stuckMeta.stuckDays;

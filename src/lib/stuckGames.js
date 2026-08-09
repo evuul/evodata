@@ -63,7 +63,10 @@ export function computeTrailingStuckMeta(series, options = {}) {
 
   const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
   const minRun = Math.max(2, Number(options.minRun) || DEFAULT_MIN_RUN);
-  const minDays = Math.max(1, Number(options.minDays) || DEFAULT_MIN_DAYS);
+  const configuredMinDays = Number(options.minDays);
+  const minDays = Number.isFinite(configuredMinDays)
+    ? Math.max(0, configuredMinDays)
+    : DEFAULT_MIN_DAYS;
 
   const latest = series[series.length - 1];
   const latestValue = Number(latest?.value);
