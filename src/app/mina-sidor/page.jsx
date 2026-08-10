@@ -19,6 +19,7 @@ import OwnershipCards from "@/Components/MinaSidor/OwnershipCards";
 import MinaSidorSectionNav from "@/Components/MinaSidor/MinaSidorSectionNav";
 import UpcomingCalendarHighlights from "@/Components/MinaSidor/UpcomingCalendarHighlights";
 import SupportCallout from "@/Components/SupportCallout";
+import PremiumStatusCard from "@/Components/MinaSidor/PremiumStatusCard";
 import DeferredSection from "@/Components/DeferredSection";
 import { pageShell, sectionDivider, sectionHeader, sectionRule, statusColors } from "@/Components/MinaSidor/styles";
 
@@ -509,6 +510,7 @@ function MinaSidorContent() {
           <Box id="mina-sidor-view-content" sx={{ ...contentWrapSx, scrollMarginTop: "92px" }}>
             {activeView === "oversikt" ? (
               <Stack spacing={{ xs: 2, md: 4 }}>
+                <PremiumStatusCard user={user} locale={locale} translate={translate} />
                 <PortfolioHeroCard
                   translate={translate}
                   totalValue={totalValue}
@@ -627,6 +629,7 @@ function MinaSidorContent() {
             {activeView === "admin" && effectiveIsAdmin ? (
               <Stack spacing={{ xs: 2, md: 4 }}>
                 <SectionHeading>{translate("Admin", "Admin")}</SectionHeading>
+                <PremiumStatusCard user={user} locale={locale} translate={translate} preview />
                 <AdminPanel
                   adminPanel={adminPanel}
                   setAdminPanel={setAdminPanel}
