@@ -17,14 +17,14 @@ export const FREE_FLOAT_OWNER_ASSUMPTIONS = Object.freeze([
     category: "Strategisk ägare",
     excludeFromStrategicFloat: true,
   }),
-  Object.freeze({ id: "capital-group", name: "Capital Group", shares: 9_950_547, holdingDate: "2026-06-22", category: "Fond" }),
-  Object.freeze({ id: "blackrock", name: "BlackRock", shares: 6_746_680, holdingDate: "2026-05-31", category: "Fond" }),
-  Object.freeze({ id: "vanguard", name: "Vanguard", shares: 5_736_920, holdingDate: "2026-05-31", category: "Fond" }),
-  Object.freeze({ id: "richard-livingstone", name: "Richard Livingstone", shares: 4_056_678, holdingDate: "2026-06-26", category: "Privat ägare" }),
-  Object.freeze({ id: "avanza-pension", name: "Avanza Pension", shares: 2_654_713, holdingDate: "2026-06-26", category: "Pension" }),
-  Object.freeze({ id: "futur-pension", name: "Futur Pension", shares: 1_778_857, holdingDate: "2026-06-26", category: "Pension" }),
-  Object.freeze({ id: "avanza-fonder", name: "Avanza Fonder", shares: 1_731_155, holdingDate: "2026-06-26", category: "Fond" }),
-  Object.freeze({ id: "henric-wiman", name: "Henric Wiman privat och genom bolag", shares: 1_708_776, holdingDate: "2026-06-26", category: "Privat ägare" }),
+  Object.freeze({ id: "capital-group", name: "Capital Group", shares: 8_881_653, holdingDate: "2026-06-30", category: "Fond" }),
+  Object.freeze({ id: "blackrock", name: "BlackRock", shares: 6_340_096, holdingDate: "2026-07-31", category: "Fond" }),
+  Object.freeze({ id: "vanguard", name: "Vanguard", shares: 5_424_981, holdingDate: "2026-06-30", category: "Fond" }),
+  Object.freeze({ id: "richard-livingstone", name: "Richard Livingstone", shares: 3_794_978, holdingDate: "2026-07-29", category: "Privat ägare" }),
+  Object.freeze({ id: "avanza-pension", name: "Avanza Pension", shares: 1_935_448, holdingDate: "2026-07-29", category: "Pension" }),
+  Object.freeze({ id: "futur-pension", name: "Futur Pension", shares: 1_762_611, holdingDate: "2026-07-29", category: "Pension" }),
+  Object.freeze({ id: "avanza-fonder", name: "Avanza Fonder", shares: 1_677_678, holdingDate: "2026-07-31", category: "Fond" }),
+  Object.freeze({ id: "henric-wiman", name: "Henric Wiman privat och genom bolag", shares: 1_708_776, holdingDate: "2026-07-29", category: "Privat ägare" }),
 ]);
 
 export const FREE_FLOAT_SNAPSHOT_DATE = "2026-06-26";
