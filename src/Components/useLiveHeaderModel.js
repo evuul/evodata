@@ -264,13 +264,6 @@ export function useLiveHeaderModel() {
     );
   }, [zeroPlayerGames, translate]);
 
-  const playerDataAttentionLabel = useMemo(() => {
-    return translate(
-      "Attention: några spelardata ligger efter EVOs lobby och kan visa lägre siffror än verkligheten just nu. Vi jobbar på en fix.",
-      "Attention: some player data is lagging EVO's lobby and may show lower numbers than reality right now. We're working on a fix."
-    );
-  }, [translate]);
-
   const buybackSummaryDisplay = useMemo(() => {
     if (!buybackSummary) return null;
     return {
@@ -407,7 +400,6 @@ export function useLiveHeaderModel() {
     nextCalendarEventChip,
     marketStatusChip,
     maintenanceWarningLabel,
-    playerDataAttentionLabel,
     activePanel,
     setActivePanel,
     PANEL_VALUES: panelValues,

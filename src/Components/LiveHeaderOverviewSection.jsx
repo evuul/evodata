@@ -4,7 +4,6 @@
 
 import React from "react";
 import { Box, Chip, Grid, Stack, Typography } from "@mui/material";
-import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import ArrowBackIosNew from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIos from "@mui/icons-material/ArrowForwardIos";
 import DataStatusLine from "./DataStatusLine";
@@ -182,7 +181,6 @@ function formatCompactShares(value) {
 export default function LiveHeaderOverviewSection({
   translate,
   isMobileMenu,
-  playerDataAttentionLabel,
   mobileCardsRef,
   mobileCardIndex,
   scrollToCard,
@@ -298,68 +296,11 @@ export default function LiveHeaderOverviewSection({
             detail={buybackSummary?.remainingLabel ? `${translate("Kvar", "Remaining")}: ${buybackSummary.remainingLabel}` : null}
           />
         </Box>
-        {isMobileMenu && playerDataAttentionLabel ? (
-          <Stack direction="row" spacing={0.6} alignItems="flex-start" sx={{ px: 0.2 }} role="status" aria-live="polite">
-            <WarningAmberRounded sx={{ color: "rgba(251,191,36,0.85)", fontSize: 15, flexShrink: 0, mt: 0.1 }} />
-            <Typography variant="caption" sx={{ color: "rgba(254,243,199,0.78)", lineHeight: 1.4 }}>
-              {playerDataAttentionLabel}
-            </Typography>
-          </Stack>
-        ) : null}
       </Stack>
     );
   }
   return (
     <>
-      {playerDataAttentionLabel ? (
-        <Box
-          sx={{
-            width: "100%",
-            display: "flex",
-            justifyContent: "center",
-            mb: 0.8,
-          }}
-        >
-          <Box
-            role="status"
-            aria-live="polite"
-            sx={{
-              display: "flex",
-              gap: 1,
-              alignItems: "flex-start",
-              maxWidth: 980,
-              width: "100%",
-              px: { xs: 1.2, sm: 2 },
-              py: 1.1,
-              borderRadius: "16px",
-              border: "1px solid rgba(245,158,11,0.36)",
-              background: "linear-gradient(135deg, rgba(120,53,15,0.35), rgba(30,41,59,0.28))",
-              boxShadow: "0 12px 36px rgba(15,23,42,0.22)",
-            }}
-          >
-            <WarningAmberRounded
-              sx={{
-                color: "#fbbf24",
-                fontSize: 22,
-                flexShrink: 0,
-                mt: { xs: 0.1, sm: 0 },
-              }}
-            />
-            <Typography
-              variant="body2"
-              sx={{
-                color: "#fef3c7",
-                fontWeight: 700,
-                lineHeight: 1.55,
-                textAlign: "left",
-              }}
-            >
-              {playerDataAttentionLabel}
-            </Typography>
-          </Box>
-        </Box>
-      ) : null}
-
       <Box sx={{ position: "relative" }}>
         <Box
           ref={mobileCardsRef}

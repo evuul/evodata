@@ -84,7 +84,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     locale,
     setLocale,
     showMyPageNewBadge,
-    playerDataAttentionLabel,
     stuckLiveGamesCount,
     buybackSummary,
     cashView,
@@ -204,7 +203,6 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
         <LiveHeaderOverviewSection
           translate={translate}
           isMobileMenu={isMobileMenu}
-          playerDataAttentionLabel={playerDataAttentionLabel}
           mobileCardsRef={mobileCardsRef}
           mobileCardIndex={mobileCardIndex}
           scrollToCard={scrollToCard}
