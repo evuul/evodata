@@ -46,6 +46,7 @@ import { resolveRequestUser } from "@/lib/authSession";
 import { hasExtendedDataAccess, normalizeHistoryDays } from "@/lib/founderAccess";
 import { limitHistoryReadDays } from "@/lib/historyRange";
 import { mergeGameAthIntoOverview } from "@/lib/gameAthOverview";
+import { mergeDailyLobbyHistory } from "@/lib/monthlyLobbyActivity";
 import { FORECAST_GAME_IDS } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
@@ -69,6 +70,29 @@ function attachMeta(base, meta) {
   return {
     ...base,
     _meta: meta,
+  };
+}
+
+function withExtendedStaticHistory(basePayload, targetDays) {
+  if (!basePayload || targetDays <= 365) return basePayload;
+
+  const dailyTotals = mergeDailyLobbyHistory(STATIC_DAILY, basePayload.dailyTotals).slice(-targetDays);
+  const rawDailyTotals = mergeDailyLobbyHistory(
+    STATIC_DAILY,
+    basePayload.rawDailyTotals ?? basePayload.dailyTotals
+  ).slice(-targetDays);
+  const adjustedDailyTotals = mergeDailyLobbyHistory(
+    STATIC_DAILY,
+    basePayload.adjustedDailyTotals ?? basePayload.dailyTotals
+  ).slice(-targetDays);
+
+  return {
+    ...basePayload,
+    dailyTotals,
+    rawDailyTotals,
+    adjustedDailyTotals,
+    trendDelta: recomputeTrendDelta(dailyTotals),
+    rawTrendDelta: recomputeTrendDelta(rawDailyTotals),
   };
 }
 
@@ -328,9 +352,12 @@ export async function GET(req) {
           : cachedEntry.exp - OVERVIEW_TTL_MS;
       const storedMeta =
         cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
-      const adjustedData = mergeGameAthIntoOverview(
-        withManualDailyOverrides(cachedEntry.data, stockholmTodayYMD()),
-        gameAthSnapshot
+      const adjustedData = withExtendedStaticHistory(
+        mergeGameAthIntoOverview(
+          withManualDailyOverrides(cachedEntry.data, stockholmTodayYMD()),
+          gameAthSnapshot
+        ),
+        targetDays
       );
       if (adjustedData !== cachedEntry.data) {
         cachedEntry.data = adjustedData;
@@ -400,9 +427,12 @@ export async function GET(req) {
         const staleAfterIso = Number.isFinite(staleAfterMs)
           ? new Date(staleAfterMs).toISOString()
           : new Date(Date.now() + refreshIntervalMs).toISOString();
-        const adjustedSnapshotData = mergeGameAthIntoOverview(
-          withManualDailyOverrides(storedSnapshot.data, stockholmTodayYMD()),
-          gameAthSnapshot
+        const adjustedSnapshotData = withExtendedStaticHistory(
+          mergeGameAthIntoOverview(
+            withManualDailyOverrides(storedSnapshot.data, stockholmTodayYMD()),
+            gameAthSnapshot
+          ),
+          targetDays
         );
         const etag = makeEtag(adjustedSnapshotData);
         const baseMeta = {
@@ -747,7 +777,7 @@ export async function GET(req) {
     const trendDelta = recomputeTrendDelta(dailyTotals);
     const rawTrendDelta = recomputeTrendDelta(rawDailyTotals);
 
-    const basePayload = mergeGameAthIntoOverview({
+    const basePayload = withExtendedStaticHistory(mergeGameAthIntoOverview({
       ok: true,
       dailyTotals,
       forecastDailyTotals,
@@ -766,7 +796,7 @@ export async function GET(req) {
       stuckAdjustment: stuckAdjusted.stuckAdjustment ?? [],
       generatedAt: new Date().toISOString(),
       recovery: recoveryMeta,
-    }, gameAthSnapshot);
+    }, gameAthSnapshot), targetDays);
 
     const etag = makeEtag(basePayload);
 

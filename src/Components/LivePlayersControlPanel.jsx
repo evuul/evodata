@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import { Box, FormControl, MenuItem, Select, Typography, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import TrendSection from "./LivePlayersControlPanelTrendSection";
+import MonthlyActivitySection from "./LivePlayersControlPanelMonthlyActivitySection";
 import GameTrendSection from "./LivePlayersControlPanelGameTrendView";
 import AsiaTrackerSection from "./LivePlayersControlPanelAsiaTrackerSection";
 import AthSection from "./LivePlayersControlPanelAthSection";
@@ -49,6 +50,8 @@ const LivePlayersControlPanel = () => {
     trendSummary: trendSummaryForView,
     trendUpdatedLabel,
     trendChartData,
+    monthlyComparisonData,
+    monthlyComparisonYears,
     athRows,
     rankingRows,
     topGrowthUseMa,
@@ -100,7 +103,7 @@ const LivePlayersControlPanel = () => {
   const handleMobileSectionChange = (event) => {
     const nextSection = event.target.value;
     setMobileSection(nextSection);
-    if (["trend", "gameTrend", "asia", "ranking", "ath"].includes(nextSection)) {
+    if (["trend", "monthly", "gameTrend", "asia", "ranking", "ath"].includes(nextSection)) {
       setDetailView(nextSection);
     }
   };
@@ -163,6 +166,7 @@ const LivePlayersControlPanel = () => {
             <MenuItem value="liveGames">{translate("Livespel just nu", "Live games now")}</MenuItem>
             <MenuItem value="gameTrend">{translate("Speltrend", "Game trend")}</MenuItem>
             <MenuItem value="trend">{translate("Lobbytrend", "Lobby trend")}</MenuItem>
+            <MenuItem value="monthly">{translate("Månadsvis", "Monthly")}</MenuItem>
             <MenuItem value="ath">{translate("ATH", "All-time highs")}</MenuItem>
             <MenuItem value="ranking">{translate("Ranking", "Ranking")}</MenuItem>
             <MenuItem value="asia">{translate("Asia Tracker", "Asia Tracker")}</MenuItem>
@@ -232,6 +236,20 @@ const LivePlayersControlPanel = () => {
             }}
           >
             {translate("Trend", "Trend")}
+          </ToggleButton>
+          <ToggleButton
+            value="monthly"
+            sx={{
+              textTransform: "none",
+              color: "rgba(226,232,240,0.75)",
+              border: 0,
+              borderRadius: "999px!important",
+              px: { xs: 1.75, md: 3 },
+              py: 0.75,
+              "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(167,139,250,0.28)" },
+            }}
+          >
+            {translate("Månadsvis", "Monthly")}
           </ToggleButton>
           <ToggleButton
             value="gameTrend"
@@ -312,6 +330,21 @@ const LivePlayersControlPanel = () => {
             dayOptions={TREND_DAY_OPTIONS}
             hasExtendedAccess={hasExtendedAccess}
               exportHref={`/api/data/export?scope=lobby&days=${trendDays}`}
+            />
+          </Box>
+        )}
+
+        {detailView === "monthly" && (
+          <Box sx={{ display: mobileSectionDisplay("monthly") }}>
+            <MonthlyActivitySection
+              overviewLoading={overviewLoading}
+              overviewError={overviewError}
+              chartData={monthlyComparisonData}
+              years={monthlyComparisonYears}
+              trendUpdatedLabel={trendUpdatedLabel}
+              hasExtendedAccess={hasExtendedAccess}
+              numberFormatter={numberFormatter}
+              translate={translate}
             />
           </Box>
         )}
