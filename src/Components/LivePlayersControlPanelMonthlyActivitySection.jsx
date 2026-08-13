@@ -13,11 +13,11 @@ import { findLatestMonthlyComparison } from "@/lib/monthlyLobbyActivity";
 const YEAR_COLORS = ["#38bdf8", "#a78bfa"];
 
 export default function LivePlayersControlPanelMonthlyActivitySection({
-  overviewLoading,
-  overviewError,
+  monthlyLoading,
+  monthlyError,
   chartData,
   years,
-  trendUpdatedLabel,
+  monthlyUpdatedLabel,
   hasExtendedAccess,
   numberFormatter,
   translate,
@@ -103,16 +103,16 @@ export default function LivePlayersControlPanelMonthlyActivitySection({
                 sx={{ color: YEAR_COLORS[index], backgroundColor: `${YEAR_COLORS[index]}18`, border: `1px solid ${YEAR_COLORS[index]}55`, fontWeight: 800 }}
               />
             ))}
-            {trendUpdatedLabel ? (
+            {monthlyUpdatedLabel ? (
               <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.6)" }}>
-                {translate(`Uppdaterad ${trendUpdatedLabel}`, `Updated ${trendUpdatedLabel}`)}
+                {translate(`Uppdaterad ${monthlyUpdatedLabel}`, `Updated ${monthlyUpdatedLabel}`)}
               </Typography>
             ) : null}
           </Stack>
         ) : null}
       </Stack>
 
-      {!hasExtendedAccess ? lockedContent : overviewLoading ? (
+      {!hasExtendedAccess ? lockedContent : monthlyLoading ? (
         <Box sx={{ minHeight: { xs: 250, md: 320 }, display: "flex", alignItems: "center", justifyContent: "center", gap: 1.2 }}>
           <CircularProgress size={20} sx={{ color: "#38bdf8" }} />
           <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.75)" }}>
@@ -170,7 +170,7 @@ export default function LivePlayersControlPanelMonthlyActivitySection({
         </>
       ) : (
         <Box sx={{ minHeight: { xs: 250, md: 320 }, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", color: "rgba(148,163,184,0.75)", px: 2 }}>
-          {overviewError || translate("Det finns ännu inte tillräckligt med historik för en årsjämförelse.", "There is not yet enough history for a year-over-year comparison.")}
+          {monthlyError || translate("Det finns ännu inte tillräckligt med historik för en årsjämförelse.", "There is not yet enough history for a year-over-year comparison.")}
         </Box>
       )}
     </Box>

@@ -52,6 +52,9 @@ const LivePlayersControlPanel = () => {
     trendChartData,
     monthlyComparisonData,
     monthlyComparisonYears,
+    monthlyLoading,
+    monthlyError,
+    monthlyUpdatedLabel,
     athRows,
     rankingRows,
     topGrowthUseMa,
@@ -337,11 +340,11 @@ const LivePlayersControlPanel = () => {
         {detailView === "monthly" && (
           <Box sx={{ display: mobileSectionDisplay("monthly") }}>
             <MonthlyActivitySection
-              overviewLoading={overviewLoading}
-              overviewError={overviewError}
+              monthlyLoading={monthlyLoading}
+              monthlyError={monthlyError}
               chartData={monthlyComparisonData}
               years={monthlyComparisonYears}
-              trendUpdatedLabel={trendUpdatedLabel}
+              monthlyUpdatedLabel={monthlyUpdatedLabel}
               hasExtendedAccess={hasExtendedAccess}
               numberFormatter={numberFormatter}
               translate={translate}

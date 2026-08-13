@@ -7,6 +7,7 @@ import {
   filterMonthlyComparisonRows,
   findLatestMonthlyComparison,
   mergeDailyLobbyHistory,
+  mergeMonthlyLobbyActivitySnapshot,
   resolveMonthlyComparisonYears,
 } from "./monthlyLobbyActivity.js";
 
@@ -109,4 +110,25 @@ test("does not treat a missing monthly value as zero", () => {
   ], [2025, 2026]);
 
   assert.equal(findLatestMonthlyComparison(activity, [2025, 2026]), null);
+});
+
+test("materialized snapshots preserve historical months and refresh available months", () => {
+  const previous = mergeMonthlyLobbyActivitySnapshot(null, [
+    { date: "2025-11-01", avgPlayers: 40_000 },
+    { date: "2026-01-01", avgPlayers: 50_000 },
+  ], "2026-01-02T00:00:00.000Z");
+
+  const updated = mergeMonthlyLobbyActivitySnapshot(previous, [
+    { date: "2026-07-01", avgPlayers: 60_000 },
+    { date: "2026-08-01", avgPlayers: 70_000 },
+    { date: "2026-08-02", avgPlayers: 74_000 },
+  ], "2026-08-03T00:00:00.000Z");
+
+  assert.deepEqual(updated.years, [2025, 2026]);
+  assert.equal(updated.activity[0]["2026"], 50_000);
+  assert.equal(updated.activity[0]["2026Days"], 1);
+  assert.equal(updated.activity[7]["2026"], 72_000);
+  assert.equal(updated.activity[7]["2026Days"], 2);
+  assert.equal(updated.activity[10]["2025"], 40_000);
+  assert.equal(updated.generatedAt, "2026-08-03T00:00:00.000Z");
 });

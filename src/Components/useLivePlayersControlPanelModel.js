@@ -7,13 +7,9 @@ import { usePlayersLive } from "../context/PlayersLiveContext";
 import { useAuth } from "@/context/AuthContext";
 import { GAMES as GAME_CONFIG, COLORS as GAME_COLORS } from "@/config/games";
 import { fetchOverviewSharedWithOptions } from "@/lib/csOverviewClient";
+import { fetchMonthlyLobbyActivity } from "@/lib/monthlyLobbyClient";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { isPrimaryAdminEmail } from "@/lib/adminAccess";
-import {
-  buildMonthlyLobbyActivity,
-  filterMonthlyComparisonRows,
-  resolveMonthlyComparisonYears,
-} from "@/lib/monthlyLobbyActivity";
 import {
   getStockholmTodayYmd,
   formatDateTime,
@@ -39,7 +35,6 @@ const MA_WINDOW_OPTIONS = [7, 14, 30];
 const TOP_GROWTH_DAYS = 90;
 const STANDARD_ATH_DAY_OPTIONS = [90, 180];
 const EXTENDED_ATH_DAY_OPTIONS = [...STANDARD_ATH_DAY_OPTIONS, 365, 730];
-const MONTHLY_COMPARISON_HISTORY_DAYS = 730;
 const INITIAL_VISIBLE_LIVE = 10;
 const INITIAL_VISIBLE_ATH = 10;
 const ASIA_GAME_KEYS = [
@@ -199,6 +194,11 @@ export default function useLivePlayersControlPanelModel() {
   const [asiaViewMode, setAsiaViewMode] = useState("trend");
   const [asiaTrendMaOn, setAsiaTrendMaOn] = useState(false);
   const [overviewGeneratedAt, setOverviewGeneratedAt] = useState(null);
+  const [monthlyLoading, setMonthlyLoading] = useState(false);
+  const [monthlyError, setMonthlyError] = useState("");
+  const [monthlyComparisonData, setMonthlyComparisonData] = useState([]);
+  const [monthlyComparisonYears, setMonthlyComparisonYears] = useState([]);
+  const [monthlyGeneratedAt, setMonthlyGeneratedAt] = useState(null);
   const [showAllLive, setShowAllLive] = useState(false);
   const [showAllAth, setShowAllAth] = useState(false);
   const [trendMaOn, setTrendMaOn] = useState(false);
@@ -351,12 +351,43 @@ export default function useLivePlayersControlPanelModel() {
   }, [hasExtendedAccess]);
 
   useEffect(() => {
-    const monthlyComparisonDays = hasExtendedAccess && detailView === "monthly"
-      ? MONTHLY_COMPARISON_HISTORY_DAYS
-      : 0;
-    const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays, monthlyComparisonDays);
+    const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
     fetchOverview(range);
-  }, [trendDays, athDays, gameTrendDays, asiaTrackerDays, detailView, hasExtendedAccess, fetchOverview]);
+  }, [trendDays, athDays, gameTrendDays, asiaTrackerDays, fetchOverview]);
+
+  useEffect(() => {
+    if (!hasExtendedAccess) {
+      setMonthlyComparisonData([]);
+      setMonthlyComparisonYears([]);
+      setMonthlyGeneratedAt(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setMonthlyLoading(true);
+    setMonthlyError("");
+    fetchMonthlyLobbyActivity()
+      .then((payload) => {
+        if (cancelled) return;
+        setMonthlyComparisonData(Array.isArray(payload?.activity) ? payload.activity : []);
+        setMonthlyComparisonYears(Array.isArray(payload?.years) ? payload.years : []);
+        setMonthlyGeneratedAt(payload?.generatedAt || null);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setMonthlyError(error instanceof Error ? error.message : String(error));
+        setMonthlyComparisonData([]);
+        setMonthlyComparisonYears([]);
+        setMonthlyGeneratedAt(null);
+      })
+      .finally(() => {
+        if (!cancelled) setMonthlyLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasExtendedAccess]);
 
   useEffect(() => {
     if (detailView !== "ath") return;
@@ -629,15 +660,7 @@ export default function useLivePlayersControlPanelModel() {
     [trendSeriesForView, trendDelta]
   );
   const trendUpdatedLabel = useMemo(() => formatDateTime(overviewGeneratedAt), [overviewGeneratedAt]);
-
-  const monthlyComparisonYears = useMemo(
-    () => resolveMonthlyComparisonYears(filterMonthlyComparisonRows(dailyTotals)),
-    [dailyTotals]
-  );
-  const monthlyComparisonData = useMemo(
-    () => buildMonthlyLobbyActivity(filterMonthlyComparisonRows(dailyTotals), monthlyComparisonYears),
-    [dailyTotals, monthlyComparisonYears]
-  );
+  const monthlyUpdatedLabel = useMemo(() => formatDateTime(monthlyGeneratedAt), [monthlyGeneratedAt]);
 
   const rankingRows = useMemo(
     () =>
@@ -942,6 +965,9 @@ export default function useLivePlayersControlPanelModel() {
     trendChartData: trendSeriesForView,
     monthlyComparisonData,
     monthlyComparisonYears,
+    monthlyLoading,
+    monthlyError,
+    monthlyUpdatedLabel,
     athRows,
     rankingRows,
     topGrowthUseMa,

@@ -15,7 +15,9 @@ import {
   getDailyAggregates,
   getGlobalLobbyAth,
   getGameAthSnapshot,
+  getMonthlyLobbyActivitySnapshot,
   setGlobalLobbyAth,
+  setMonthlyLobbyActivitySnapshot,
   getDailyLobbyPeak,
 } from "@/lib/csStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../../players/shared";
@@ -46,7 +48,10 @@ import { resolveRequestUser } from "@/lib/authSession";
 import { hasExtendedDataAccess, normalizeHistoryDays } from "@/lib/founderAccess";
 import { limitHistoryReadDays } from "@/lib/historyRange";
 import { mergeGameAthIntoOverview } from "@/lib/gameAthOverview";
-import { mergeDailyLobbyHistory } from "@/lib/monthlyLobbyActivity";
+import {
+  mergeDailyLobbyHistory,
+  mergeMonthlyLobbyActivitySnapshot,
+} from "@/lib/monthlyLobbyActivity";
 import { FORECAST_GAME_IDS } from "@/config/games";
 
 const TZ = "Europe/Stockholm";
@@ -819,6 +824,24 @@ export async function GET(req) {
       etag,
       meta: { ...cacheMeta, persisted: true },
     });
+    const previousMonthlySnapshot = await getMonthlyLobbyActivitySnapshot();
+    const extendedOverviewSnapshot = previousMonthlySnapshot || targetDays >= 730
+      ? null
+      : await getOverviewSnapshot(730);
+    const monthlyDailyRows = mergeDailyLobbyHistory(
+      STATIC_DAILY,
+      mergeDailyLobbyHistory(
+        extendedOverviewSnapshot?.data?.rawDailyTotals ?? extendedOverviewSnapshot?.data?.dailyTotals,
+        basePayload.rawDailyTotals ?? basePayload.dailyTotals
+      )
+    );
+    await setMonthlyLobbyActivitySnapshot(
+      mergeMonthlyLobbyActivitySnapshot(
+        previousMonthlySnapshot,
+        monthlyDailyRows,
+        basePayload.generatedAt
+      )
+    );
     if (!cachedDailySnapshot) {
       await setDailySnapshot(snapshotDays, serializeDailyAggregates(dailyAggregates));
     }

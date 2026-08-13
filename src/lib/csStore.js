@@ -217,6 +217,7 @@ const LOBBY_INGEST_CHECKPOINT_KEY = "cs:lobby:last-ingested-created-at";
 let lobbyIngestCheckpointMemTs = 0;
 const LATEST_PLAYERS_SNAPSHOT_KEY = "cs:lobby:latest-players-snapshot:v1";
 const GAME_ATH_SNAPSHOT_KEY = "cs:lobby:game-ath-snapshot:v1";
+const MONTHLY_LOBBY_ACTIVITY_KEY = "cs:lobby:monthly-activity:v1";
 const LATEST_PLAYERS_SNAPSHOT_TTL_MS = (() => {
   const raw = Number(process.env.CS_LATEST_PLAYERS_SNAPSHOT_TTL_MS);
   if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000);
@@ -225,6 +226,7 @@ const LATEST_PLAYERS_SNAPSHOT_TTL_MS = (() => {
 const MATERIALIZED_SNAPSHOT_MEM_TTL_MS = 60 * 1000;
 let latestPlayersSnapshotMem = { data: null, exp: 0 };
 let gameAthSnapshotMem = { data: null, exp: 0 };
+let monthlyLobbyActivityMem = { data: null, exp: 0 };
 
 function overviewKey(days) {
   const n = Number(days);
@@ -305,6 +307,45 @@ export async function setOverviewSnapshot(days, snapshot) {
     if (DEBUG) console.log(`[csStore] KV overview set ${key}`);
   } catch (err) {
     if (DEBUG) console.warn(`[csStore] KV overview set failed ${key}:`, err);
+  }
+}
+
+export async function getMonthlyLobbyActivitySnapshot() {
+  if (monthlyLobbyActivityMem.data && monthlyLobbyActivityMem.exp > Date.now()) {
+    return monthlyLobbyActivityMem.data;
+  }
+
+  const kv = await getKv();
+  if (!kv) return monthlyLobbyActivityMem.data;
+  try {
+    const raw = await kv.get(MONTHLY_LOBBY_ACTIVITY_KEY);
+    if (!raw) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!parsed || typeof parsed !== "object") return null;
+    monthlyLobbyActivityMem = {
+      data: parsed,
+      exp: Date.now() + MATERIALIZED_SNAPSHOT_MEM_TTL_MS,
+    };
+    return parsed;
+  } catch (err) {
+    if (DEBUG) console.warn("[csStore] Monthly lobby activity get failed:", err);
+    return monthlyLobbyActivityMem.data;
+  }
+}
+
+export async function setMonthlyLobbyActivitySnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return;
+  monthlyLobbyActivityMem = {
+    data: snapshot,
+    exp: Date.now() + MATERIALIZED_SNAPSHOT_MEM_TTL_MS,
+  };
+
+  const kv = await getKv();
+  if (!kv) return;
+  try {
+    await kv.set(MONTHLY_LOBBY_ACTIVITY_KEY, JSON.stringify(snapshot));
+  } catch (err) {
+    if (DEBUG) console.warn("[csStore] Monthly lobby activity set failed:", err);
   }
 }
 

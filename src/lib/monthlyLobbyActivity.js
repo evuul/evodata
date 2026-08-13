@@ -100,6 +100,46 @@ export function buildMonthlyLobbyActivity(rows, years = resolveMonthlyComparison
   });
 }
 
+export function mergeMonthlyLobbyActivitySnapshot(previousSnapshot, rows, generatedAt = new Date().toISOString()) {
+  const filteredRows = filterMonthlyComparisonRows(rows);
+  const previousYears = Array.isArray(previousSnapshot?.years) ? previousSnapshot.years : [];
+  const incomingYears = resolveMonthlyComparisonYears(filteredRows);
+  const years = Array.from(new Set([...previousYears, ...incomingYears].map(Number)))
+    .filter((year) => Number.isInteger(year) && year >= 2000 && year <= 9999)
+    .sort((left, right) => right - left)
+    .slice(0, 2)
+    .sort((left, right) => left - right);
+  const incomingActivity = buildMonthlyLobbyActivity(filteredRows, years);
+  const previousByMonth = new Map(
+    (Array.isArray(previousSnapshot?.activity) ? previousSnapshot.activity : [])
+      .map((row) => [Number(row?.month), row])
+      .filter(([month]) => Number.isInteger(month) && month >= 1 && month <= 12)
+  );
+
+  const activity = incomingActivity.map((row) => {
+    const previous = previousByMonth.get(row.month);
+    const merged = { ...row };
+    for (const year of years) {
+      const key = String(year);
+      const daysKey = `${key}Days`;
+      if (Number(row[daysKey]) > 0) continue;
+      const previousDays = Number(previous?.[daysKey]);
+      const previousValue = toFiniteNumber(previous?.[key]);
+      if (previousDays > 0 && previousValue != null) {
+        merged[key] = Math.round(previousValue);
+        merged[daysKey] = Math.round(previousDays);
+      }
+    }
+    return merged;
+  });
+
+  return {
+    years,
+    activity,
+    generatedAt: typeof generatedAt === "string" ? generatedAt : new Date(generatedAt).toISOString(),
+  };
+}
+
 export function findLatestMonthlyComparison(activity, years) {
   const selectedYears = Array.from(new Set((Array.isArray(years) ? years : []).map(String)))
     .filter((year) => /^\d{4}$/.test(year));
