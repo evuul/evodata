@@ -3,9 +3,11 @@
 import { kvRestRequest } from "./kvClient.js";
 
 export const UNIBET_PILOT_HISTORY_KEY = "pilot:unibet:history:v1";
+export const UNIBET_PILOT_LATEST_SUCCESS_KEY = "pilot:unibet:latest-success:v1";
 export const UNIBET_PILOT_HISTORY_LIMIT = 2_016; // 14 days at one sample every 10 minutes.
 const LATEST_SAMPLE_CACHE_MS = 30 * 1000;
 let latestSampleCache = { value: null, expiresAt: 0 };
+let latestSuccessfulSampleCache = { value: null, expiresAt: 0 };
 
 const request = (path, init = {}) =>
   kvRestRequest(path, init, {
@@ -24,18 +26,28 @@ const parseJson = (value) => {
 };
 
 export async function appendUnibetPilotSample(sample) {
+  const commands = [
+    ["LPUSH", UNIBET_PILOT_HISTORY_KEY, JSON.stringify(sample)],
+    ["LTRIM", UNIBET_PILOT_HISTORY_KEY, "0", String(UNIBET_PILOT_HISTORY_LIMIT - 1)],
+  ];
+  if (sample?.status === "ok") {
+    commands.push(["SET", UNIBET_PILOT_LATEST_SUCCESS_KEY, JSON.stringify(sample)]);
+  }
   await request("/pipeline", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify([
-      ["LPUSH", UNIBET_PILOT_HISTORY_KEY, JSON.stringify(sample)],
-      ["LTRIM", UNIBET_PILOT_HISTORY_KEY, "0", String(UNIBET_PILOT_HISTORY_LIMIT - 1)],
-    ]),
+    body: JSON.stringify(commands),
   });
   latestSampleCache = {
     value: sample || null,
     expiresAt: Date.now() + LATEST_SAMPLE_CACHE_MS,
   };
+  if (sample?.status === "ok") {
+    latestSuccessfulSampleCache = {
+      value: sample,
+      expiresAt: Date.now() + LATEST_SAMPLE_CACHE_MS,
+    };
+  }
 }
 
 export async function getUnibetPilotHistory(limit = 288) {
@@ -54,4 +66,22 @@ export async function getLatestUnibetPilotSample() {
     expiresAt: Date.now() + LATEST_SAMPLE_CACHE_MS,
   };
   return latestSampleCache.value;
+}
+
+export async function getLatestSuccessfulUnibetPilotSample() {
+  if (latestSuccessfulSampleCache.expiresAt > Date.now()) {
+    return latestSuccessfulSampleCache.value;
+  }
+
+  const data = await request(`/get/${encodeURIComponent(UNIBET_PILOT_LATEST_SUCCESS_KEY)}`);
+  let sample = parseJson(data?.result);
+  if (sample?.status !== "ok") {
+    const history = await getUnibetPilotHistory(288);
+    sample = history.find((entry) => entry?.status === "ok") || null;
+  }
+  latestSuccessfulSampleCache = {
+    value: sample,
+    expiresAt: Date.now() + LATEST_SAMPLE_CACHE_MS,
+  };
+  return sample;
 }

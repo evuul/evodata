@@ -23,6 +23,7 @@ import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
 import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
 import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
+import { isPlayerSampleFresh, LIVE_PLAYER_FRESHNESS_MS } from "@/lib/livePlayerSnapshot";
 
 const LOBBY_API = process.env.EVO_PROXY_URL ?? "https://evo-lobby-proxy.alexander-ek.workers.dev";
 const LOBBY_API_FALLBACK =
@@ -250,7 +251,9 @@ export async function GET(req) {
       const entry = items[itemIndex];
       entry.players = usable.value;
       entry.fetchedAt = new Date(usable.ts).toISOString();
-      entry.stale = !isUnibetTrackedGame(GAME_CONFIG[itemIndex]);
+      const isFreshUnibetSample = isUnibetTrackedGame(GAME_CONFIG[itemIndex])
+        && isPlayerSampleFresh(usable.ts, { now: Date.now(), maxAgeMs: LIVE_PLAYER_FRESHNESS_MS });
+      entry.stale = !isFreshUnibetSample;
       newestTs = Math.max(newestTs, usable.ts);
     });
   }

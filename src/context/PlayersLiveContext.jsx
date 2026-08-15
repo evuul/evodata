@@ -11,6 +11,7 @@ import {
   fetchLobbyStatsShared,
 } from "@/lib/casinoScoresClient";
 import { subscribeLiveDataSource } from "@/lib/liveDataCoordinator";
+import { finiteNumberOrNull } from "@/lib/livePlayerSnapshot";
 
 export const GAMES = GAME_CONFIG;
 
@@ -92,9 +93,9 @@ export function PlayersLiveProvider({ children, enabled = true }) {
           json.items.forEach((item) => {
             const id = item?.id;
             if (!id) return;
-            const players = Number(item?.players);
+            const players = finiteNumberOrNull(item?.players);
             map[id] = {
-              players: Number.isFinite(players) ? players : null,
+              players,
               updated: item?.fetchedAt ?? null,
               stale: item?.stale ?? false,
               stuck: item?.stuck ?? false,
@@ -152,10 +153,11 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       const hydrated = {};
       for (const item of json.items) {
         if (!item || typeof item.id !== "string") continue;
-        const playersVal = Number(item.players);
+        const playersVal = finiteNumberOrNull(item.players);
         hydrated[item.id] = {
-          players: Number.isFinite(playersVal) ? playersVal : null,
+          players: playersVal,
           updated: item.fetchedAt || null,
+          stale: item?.stale ?? false,
           stuck: item?.stuck ?? false,
           stuckDays: Number.isFinite(Number(item?.stuckDays)) ? Math.round(Number(item.stuckDays)) : null,
           stuckSince: item?.stuckSince || null,

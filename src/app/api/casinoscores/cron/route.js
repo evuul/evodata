@@ -20,6 +20,11 @@ import { GAMES as GAME_CONFIG, PRIMARY_TRACKED_GAMES } from "@/config/games";
 import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
 import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { partitionPrimarySeriesItems } from "@/lib/unibetRecoveryPersistence";
+import {
+  finiteNumberOrNull,
+  isPlayerSampleFresh,
+  LIVE_PLAYER_FRESHNESS_MS,
+} from "@/lib/livePlayerSnapshot";
 
 const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
 const STUCK_LOOKBACK_DAYS = 90;
@@ -138,8 +143,19 @@ async function runCron(req) {
     );
     const freshById = new Map(successfulItems.map((item) => [item.id, item]));
 
+    const snapshotNow = Date.now();
     const snapshotItems = ids.map((id) => {
-      const item = freshById.get(id) ?? previousById.get(id) ?? { id, players: null, fetchedAt: null };
+      const latestSeriesSample = seriesMap.get(id)?.at(-1);
+      const seriesPlayers = finiteNumberOrNull(latestSeriesSample?.value);
+      const seriesItem = seriesPlayers != null
+        && Number.isFinite(Number(latestSeriesSample?.ts))
+        ? {
+            id,
+            players: seriesPlayers,
+            fetchedAt: new Date(Number(latestSeriesSample.ts)).toISOString(),
+          }
+        : null;
+      const item = freshById.get(id) ?? seriesItem ?? previousById.get(id) ?? { id, players: null, fetchedAt: null };
       const stuck =
         computeTrailingStuckMeta(seriesMap.get(id) ?? [], {
           minRun: STUCK_MIN_RUN,
@@ -148,8 +164,12 @@ async function runCron(req) {
         continueKnownStuckMeta(previousById.get(id), item);
       return {
         id,
-        players: Number.isFinite(Number(item.players)) ? Number(item.players) : null,
+        players: finiteNumberOrNull(item.players),
         fetchedAt: item.fetchedAt ?? null,
+        stale: !isPlayerSampleFresh(item.fetchedAt, {
+          now: snapshotNow,
+          maxAgeMs: LIVE_PLAYER_FRESHNESS_MS,
+        }),
         stuck: Boolean(stuck),
         stuckDays: stuck?.stuckDays ?? null,
         stuckSince: stuck?.stuckSince ?? null,

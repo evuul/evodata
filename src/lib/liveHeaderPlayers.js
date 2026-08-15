@@ -14,12 +14,14 @@ export function buildLiveHeaderPlayerMetrics({
     const entry = entries?.[game.id] || {};
     const rawPlayers = typeof entry.players === "number" ? entry.players : null;
     const stuck = Boolean(entry.stuck);
-    const players = stuck ? null : rawPlayers;
+    const stale = Boolean(entry.stale);
+    const players = stuck || stale ? null : rawPlayers;
 
     return {
       ...game,
       players,
       updated: entry.updated ?? null,
+      stale,
       stuck,
       stuckDays: Number.isFinite(Number(entry.stuckDays)) ? Math.round(Number(entry.stuckDays)) : null,
       stuckSince: entry.stuckSince ?? null,
@@ -49,10 +51,11 @@ export function buildLiveHeaderPlayerMetrics({
   for (const game of games) {
     const entry = entries?.[game.id] || {};
     const stuck = Boolean(entry.stuck);
+    const stale = Boolean(entry.stale);
     if (stuck) stuckLiveGamesCount += 1;
-    if (entry.stale) staleGamesCount += 1;
+    if (stale) staleGamesCount += 1;
 
-    const value = stuck ? null : entry.players;
+    const value = stuck || stale ? null : entry.players;
     if (Number.isFinite(value)) {
       totalPlayers += value;
       hasPlayers = true;

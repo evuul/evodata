@@ -2,7 +2,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildExtendedLobbyPayload } from "./extendedLobby.js";
+import { buildExtendedLobbyPayload, resolveExtendedLobbySample } from "./extendedLobby.js";
 
 test("returns every game in the extended sample", () => {
   const payload = buildExtendedLobbyPayload({
@@ -51,4 +51,31 @@ test("categorizes localized roulette names in legacy samples", () => {
   ] });
 
   assert.deepEqual(payload.games.map((game) => game.category), ["roulette", "roulette"]);
+});
+
+test("uses a recent successful snapshot while the upstream feed is failing", () => {
+  const successful = {
+    status: "ok",
+    collectedAt: "2026-08-15T15:10:00.000Z",
+    games: [{ id: "crazy-time", name: "Crazy Time", players: 10_000 }],
+  };
+  const resolved = resolveExtendedLobbySample(
+    { status: "error", collectedAt: "2026-08-15T19:10:00.000Z" },
+    successful,
+    { now: Date.parse("2026-08-15T19:15:00.000Z") }
+  );
+
+  assert.equal(resolved.sample, successful);
+  assert.equal(resolved.stale, true);
+  assert.equal(resolved.staleAgeMs, 4 * 60 * 60 * 1000 + 5 * 60 * 1000);
+});
+
+test("rejects a successful snapshot after the stale safety window", () => {
+  const resolved = resolveExtendedLobbySample(
+    { status: "error" },
+    { status: "ok", collectedAt: "2026-08-14T18:00:00.000Z", games: [] },
+    { now: Date.parse("2026-08-15T19:00:00.000Z") }
+  );
+
+  assert.equal(resolved, null);
 });

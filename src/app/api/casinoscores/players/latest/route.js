@@ -3,6 +3,7 @@ export const runtime = "nodejs";
 
 import { getLatestPlayersSnapshot, getLatestSample, getSeriesBulk } from "@/lib/csStore";
 import { computeTrailingStuckMeta } from "@/lib/stuckGames";
+import { normalizeLatestPlayerSnapshotItem } from "@/lib/livePlayerSnapshot";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=120";
@@ -25,21 +26,7 @@ export async function GET() {
     const snapshot = await getLatestPlayersSnapshot();
     if (snapshot?.items && Array.isArray(snapshot.items)) {
       const now = Date.now();
-      const items = snapshot.items.map((item) => {
-        const ts = Date.parse(String(item?.fetchedAt || ""));
-        return {
-          id: item?.id || null,
-          players: Number.isFinite(Number(item?.players)) ? Number(item.players) : null,
-          fetchedAt: item?.fetchedAt || null,
-          ageSeconds: Number.isFinite(ts) ? Math.max(0, Math.round((now - ts) / 1000)) : null,
-          stuck: Boolean(item?.stuck),
-          stuckDays: Number.isFinite(Number(item?.stuckDays)) ? Math.max(1, Math.round(Number(item.stuckDays))) : null,
-          stuckSince: item?.stuckSince || null,
-          stuckLatestAt: item?.stuckLatestAt || null,
-          stuckValue: Number.isFinite(Number(item?.stuckValue)) ? Math.round(Number(item.stuckValue)) : null,
-          stuckRunLength: Number.isFinite(Number(item?.stuckRunLength)) ? Math.round(Number(item.stuckRunLength)) : null,
-        };
-      });
+      const items = snapshot.items.map((item) => normalizeLatestPlayerSnapshotItem(item, now));
       return resJSON({
         ok: true,
         items,

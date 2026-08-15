@@ -20,6 +20,7 @@ import KeyboardArrowDownRounded from "@mui/icons-material/KeyboardArrowDownRound
 import LockRounded from "@mui/icons-material/LockRounded";
 import SearchRounded from "@mui/icons-material/SearchRounded";
 import StyleRounded from "@mui/icons-material/StyleRounded";
+import WarningAmberRounded from "@mui/icons-material/WarningAmberRounded";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
@@ -191,7 +192,7 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
             </Typography>
           </Box>
           <Stack direction="row" spacing={0.8} alignItems="center" sx={{ px: 1.25, py: 0.7, borderRadius: "999px", bgcolor: "rgba(15,23,42,0.72)", border: "1px solid rgba(148,163,184,0.14)" }}>
-            <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: state.data?.updatedAt ? "#34d399" : "#64748b", boxShadow: state.data?.updatedAt ? "0 0 0 4px rgba(52,211,153,0.1)" : "none" }} />
+            <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: state.data?.stale ? "#f59e0b" : state.data?.updatedAt ? "#34d399" : "#64748b", boxShadow: state.data?.stale ? "0 0 0 4px rgba(245,158,11,0.1)" : state.data?.updatedAt ? "0 0 0 4px rgba(52,211,153,0.1)" : "none" }} />
             <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.74)", fontWeight: 650 }}>
               {state.data?.updatedAt
                 ? translate("Uppdaterad ", "Updated ") + new Date(state.data.updatedAt).toLocaleTimeString(locale === "en" ? "en-GB" : "sv-SE", { hour: "2-digit", minute: "2-digit" })
@@ -200,20 +201,36 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
           </Stack>
         </Stack>
 
+        {state.data?.stale ? (
+          <Stack direction="row" spacing={1} alignItems="flex-start" sx={{ px: 1.4, py: 1.15, borderRadius: "12px", color: "#fde68a", bgcolor: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.28)" }}>
+            <WarningAmberRounded sx={{ mt: 0.1, fontSize: 19, flexShrink: 0 }} />
+            <Typography sx={{ fontSize: 13, lineHeight: 1.5 }}>
+              {translate(
+                "Livekällan är tillfälligt fördröjd. Senaste lyckade snapshot visas tills nya värden kommer in.",
+                "The live source is temporarily delayed. The latest successful snapshot is shown until new values arrive."
+              )}
+            </Typography>
+          </Stack>
+        ) : null}
+
         {summary ? (
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
             <SummaryCard
               icon={<GroupsRounded sx={{ color: "#38bdf8", fontSize: 20 }} />}
-              label={translate("Live players", "Live players")}
+              label={state.data?.stale ? translate("Senast sparade spelare", "Last saved players") : translate("Live players", "Live players")}
               value={formatNumber(summary.players, locale)}
-              detail={translate("Aktiva spelare i hela Extended lobby", "Active players across Extended lobby")}
+              detail={state.data?.stale
+                ? translate("Senaste lyckade Extended Lobby-snapshot", "Latest successful Extended Lobby snapshot")
+                : translate("Aktiva spelare i hela Extended lobby", "Active players across Extended lobby")}
               accent={{ border: "rgba(56,189,248,0.26)", color: "#38bdf8" }}
             />
             <SummaryCard
               icon={<CasinoRounded sx={{ color: "#a78bfa", fontSize: 20 }} />}
               label={translate("Antal spel", "Tracked games")}
               value={formatNumber(summary.games, locale)}
-              detail={translate("Titlar med aktuell live-data", "Titles with current live data")}
+              detail={state.data?.stale
+                ? translate("Titlar i senaste lyckade snapshot", "Titles in the latest successful snapshot")
+                : translate("Titlar med aktuell live-data", "Titles with current live data")}
               accent={{ border: "rgba(167,139,250,0.26)", color: "#a78bfa" }}
             />
           </Stack>
@@ -277,7 +294,7 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
                 </Typography>
               </Box>
               <Typography sx={{ color: "rgba(203,213,225,0.62)", fontSize: 11, fontWeight: 800, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                {translate("Live players", "Live players")}
+                {state.data?.stale ? translate("Senast sparade spelare", "Last saved players") : translate("Live players", "Live players")}
               </Typography>
             </Stack>
 
@@ -322,7 +339,9 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
                       <Typography sx={{ color: "#7dd3fc", fontWeight: 900, fontSize: { xs: "1.12rem", sm: "1.28rem" }, lineHeight: 1.1, letterSpacing: "-0.025em", fontVariantNumeric: "tabular-nums" }}>
                         {formatNumber(game.players, locale)}
                       </Typography>
-                      <Typography variant="caption" sx={{ color: "rgba(52,211,153,0.78)", fontSize: 10, fontWeight: 750 }}>● Live</Typography>
+                      <Typography variant="caption" sx={{ color: state.data?.stale ? "rgba(251,191,36,0.86)" : "rgba(52,211,153,0.78)", fontSize: 10, fontWeight: 750 }}>
+                        {state.data?.stale ? translate("● Fördröjd", "● Delayed") : "● Live"}
+                      </Typography>
                     </Stack>
                   </Stack>
                 );

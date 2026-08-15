@@ -54,6 +54,23 @@ test("buildLiveHeaderPlayerMetrics always displays the filtered live total", () 
   assert.equal("simulatedTotalPlayers" in metrics, false);
 });
 
+test("buildLiveHeaderPlayerMetrics excludes stale games from ranking and totals", () => {
+  const metrics = buildLiveHeaderPlayerMetrics({
+    playerGames,
+    liveGames: {
+      a: { players: 100 },
+      b: { players: 900, stale: true },
+      c: { players: 300 },
+      d: { players: null, stale: true },
+    },
+  });
+
+  assert.deepEqual(metrics.top3.map((game) => game.id), ["c", "a", "b"]);
+  assert.equal(metrics.totalPlayers, 400);
+  assert.equal(metrics.activeGamesCount, 2);
+  assert.equal(metrics.staleGamesCount, 2);
+});
+
 test("buildMaintenanceWarningParts formats the visible labels and overflow count", () => {
   assert.deepEqual(
     buildMaintenanceWarningParts([
