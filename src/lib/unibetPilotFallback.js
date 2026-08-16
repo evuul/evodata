@@ -51,6 +51,11 @@ export function applyUnibetPilotFallback(items, sample, options = {}) {
       fetchedAt: sample.collectedAt,
       stale: false,
       stuck: false,
+      stuckDays: null,
+      stuckSince: null,
+      stuckLatestAt: null,
+      stuckValue: null,
+      stuckRunLength: 0,
     };
   });
 

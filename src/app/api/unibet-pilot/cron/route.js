@@ -4,9 +4,15 @@ import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { collectUnibetPilotSample } from "@/lib/unibetPilotCollector";
 import { createUnibetPilotFailure } from "@/lib/unibetPilot";
 import { appendUnibetPilotSample } from "@/lib/unibetPilotStore";
-import { getLatestPlayersSnapshot, saveSample, updateGameAthSnapshot } from "@/lib/csStore";
+import {
+  getLatestPlayersSnapshot,
+  saveSample,
+  setLatestPlayersSnapshot,
+  updateGameAthSnapshot,
+} from "@/lib/csStore";
 import { UNIBET_TRACKED_GAMES } from "@/config/games";
 import {
+  buildRecoveredLatestPlayersSnapshot,
   persistRecoverySeriesItems,
   selectUnibetRecoverySeriesItems,
 } from "@/lib/unibetRecoveryPersistence";
@@ -85,6 +91,20 @@ async function persistTrackedExtendedGames(sample) {
   };
 }
 
+async function materializeRecoveredGames(sample) {
+  const current = await getLatestPlayersSnapshot().catch(() => null);
+  const recovered = buildRecoveredLatestPlayersSnapshot(current, sample);
+  if (!recovered.snapshot || !recovered.applied.length) {
+    return { updatedGames: 0, updatedGameIds: [] };
+  }
+
+  await setLatestPlayersSnapshot(recovered.snapshot);
+  return {
+    updatedGames: recovered.applied.length,
+    updatedGameIds: recovered.applied.map((item) => item.id),
+  };
+}
+
 export async function POST(request) {
   const auth = requireCronAuth(request, SECRET, "UNIBET_PILOT_CRON_SECRET is not configured");
   if (!auth.ok) return json({ ok: false, error: auth.error }, auth.status);
@@ -96,6 +116,7 @@ export async function POST(request) {
     const persisted = await persistRecoveredGames(sample);
     const tracked = await persistTrackedExtendedGames(sample);
     sample.seriesSavedGameIds = [...persisted.seriesSavedGameIds, ...tracked.seriesSavedGameIds];
+    const materialized = await materializeRecoveredGames(sample);
     await appendUnibetPilotSample(sample);
     return json({
       ok: true,
@@ -108,6 +129,7 @@ export async function POST(request) {
         totalPlayers: sample.totalPlayers,
         recovered: persisted,
         tracked,
+        materialized,
       },
     });
   } catch (error) {

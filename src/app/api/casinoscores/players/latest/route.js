@@ -4,6 +4,11 @@ export const runtime = "nodejs";
 import { getLatestPlayersSnapshot, getLatestSample, getSeriesBulk } from "@/lib/csStore";
 import { computeTrailingStuckMeta } from "@/lib/stuckGames";
 import { normalizeLatestPlayerSnapshotItem } from "@/lib/livePlayerSnapshot";
+import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
+import {
+  getLatestSuccessfulUnibetPilotSample,
+  getLatestUnibetPilotSample,
+} from "@/lib/unibetPilotStore";
 import { SERIES_SLUGS, CRAZY_TIME_A_RESET_MS } from "../shared";
 
 const CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=120";
@@ -26,11 +31,31 @@ export async function GET() {
     const snapshot = await getLatestPlayersSnapshot();
     if (snapshot?.items && Array.isArray(snapshot.items)) {
       const now = Date.now();
-      const items = snapshot.items.map((item) => normalizeLatestPlayerSnapshotItem(item, now));
+      let items = snapshot.items.map((item) => normalizeLatestPlayerSnapshotItem(item, now));
+      let recoveryUpdatedAt = null;
+      if (items.some((item) => item.stuck)) {
+        try {
+          const latest = await getLatestUnibetPilotSample();
+          const sample = latest?.status === "ok"
+            ? latest
+            : await getLatestSuccessfulUnibetPilotSample();
+          const recovered = applyUnibetPilotFallback(items, sample, { now });
+          items = recovered.items;
+          recoveryUpdatedAt = recovered.applied.length ? sample?.collectedAt ?? null : null;
+        } catch {
+          // The materialized primary snapshot remains usable if recovery storage is unavailable.
+        }
+      }
+      const snapshotUpdatedAt = Date.parse(String(snapshot?.updatedAt || ""));
+      const recoveredUpdatedAt = Date.parse(String(recoveryUpdatedAt || ""));
+      const updatedAt = Number.isFinite(recoveredUpdatedAt)
+        && (!Number.isFinite(snapshotUpdatedAt) || recoveredUpdatedAt > snapshotUpdatedAt)
+        ? recoveryUpdatedAt
+        : snapshot?.updatedAt || null;
       return resJSON({
         ok: true,
         items,
-        updatedAt: snapshot?.updatedAt || null,
+        updatedAt,
         source: "latest-snapshot",
       });
     }

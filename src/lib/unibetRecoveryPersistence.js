@@ -8,6 +8,35 @@ export function selectUnibetRecoverySeriesItems(snapshotItems, sample, options =
   return applyUnibetPilotFallback(snapshotItems, sample, options).applied;
 }
 
+export function buildRecoveredLatestPlayersSnapshot(snapshot, sample, options = {}) {
+  if (!snapshot || !Array.isArray(snapshot.items)) {
+    return { snapshot: null, applied: [] };
+  }
+
+  const repaired = applyUnibetPilotFallback(snapshot.items, sample, options);
+  if (!repaired.applied.length) {
+    return { snapshot, applied: [] };
+  }
+
+  const now = Number.isFinite(Number(options.now)) ? Number(options.now) : Date.now();
+  const existingUpdatedAt = Date.parse(String(snapshot.updatedAt || ""));
+  const recoveryUpdatedAt = Date.parse(String(sample?.collectedAt || ""));
+  const updatedAt = Number.isFinite(recoveryUpdatedAt)
+    && (!Number.isFinite(existingUpdatedAt) || recoveryUpdatedAt > existingUpdatedAt)
+    ? new Date(recoveryUpdatedAt).toISOString()
+    : snapshot.updatedAt ?? null;
+
+  return {
+    snapshot: {
+      ...snapshot,
+      items: repaired.items,
+      updatedAt,
+      materializedAt: new Date(now).toISOString(),
+    },
+    applied: repaired.applied,
+  };
+}
+
 export function partitionPrimarySeriesItems(
   primaryItems,
   snapshotItems,

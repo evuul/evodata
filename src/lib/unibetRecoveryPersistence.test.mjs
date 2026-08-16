@@ -3,6 +3,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  buildRecoveredLatestPlayersSnapshot,
   partitionPrimarySeriesItems,
   persistRecoverySeriesItems,
   selectUnibetRecoverySeriesItems,
@@ -83,6 +84,44 @@ test("selects only stuck games that have a matching Unibet value", () => {
   });
 
   assert.deepEqual(selected.map((item) => item.id), ["auto-roulette"]);
+});
+
+test("materializes recovered games into the latest player snapshot", () => {
+  const result = buildRecoveredLatestPlayersSnapshot({
+    items: snapshotItems,
+    updatedAt: "2026-08-05T09:50:00.000Z",
+    materializedAt: "2026-08-05T09:51:00.000Z",
+  }, pilotSample, {
+    now: Date.parse("2026-08-05T10:01:00.000Z"),
+  });
+
+  assert.deepEqual(result.applied, [
+    { id: "auto-roulette", players: 2_650, fetchedAt: collectedAt },
+  ]);
+  assert.deepEqual(result.snapshot.items[0], {
+    id: "auto-roulette",
+    players: 2_650,
+    fetchedAt: collectedAt,
+    stale: false,
+    stuck: false,
+    stuckDays: null,
+    stuckSince: null,
+    stuckLatestAt: null,
+    stuckValue: null,
+    stuckRunLength: 0,
+  });
+  assert.equal(result.snapshot.updatedAt, collectedAt);
+  assert.equal(result.snapshot.materializedAt, "2026-08-05T10:01:00.000Z");
+});
+
+test("does not rewrite a snapshot when no stuck game can be recovered", () => {
+  const snapshot = { items: [{ id: "crazy-time", players: 10_000, stuck: false }] };
+  const result = buildRecoveredLatestPlayersSnapshot(snapshot, pilotSample, {
+    now: Date.parse("2026-08-05T10:01:00.000Z"),
+  });
+
+  assert.equal(result.snapshot, snapshot);
+  assert.deepEqual(result.applied, []);
 });
 
 test("persists recovery samples independently so one failed game does not block others", async () => {

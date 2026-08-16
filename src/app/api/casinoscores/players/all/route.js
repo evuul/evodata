@@ -21,7 +21,10 @@ import { GAMES as GAME_CONFIG, isUnibetTrackedGame } from "@/config/games";
 import { selectLiveAthCandidates } from "@/lib/liveAthGuard";
 import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
 import { applyUnibetPilotFallback } from "@/lib/unibetPilotFallback";
-import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
+import {
+  getLatestSuccessfulUnibetPilotSample,
+  getLatestUnibetPilotSample,
+} from "@/lib/unibetPilotStore";
 import { lobbyKeyFor, CRAZY_TIME_A_RESET_MS } from "../shared";
 import { isPlayerSampleFresh, LIVE_PLAYER_FRESHNESS_MS } from "@/lib/livePlayerSnapshot";
 
@@ -279,7 +282,10 @@ export async function GET(req) {
 
   if (items.some((entry) => entry.stuck)) {
     try {
-      const pilotSample = await getLatestUnibetPilotSample();
+      const latestPilotSample = await getLatestUnibetPilotSample();
+      const pilotSample = latestPilotSample?.status === "ok"
+        ? latestPilotSample
+        : await getLatestSuccessfulUnibetPilotSample();
       const repaired = applyUnibetPilotFallback(items, pilotSample);
       items.splice(0, items.length, ...repaired.items);
       for (const item of repaired.applied) {
