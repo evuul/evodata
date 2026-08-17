@@ -111,18 +111,20 @@ test("latest Evolution buyback week updates the cumulative program total", () =>
 
 test("includes the verified latest weekly buyback report", () => {
   const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
-  const latestWeek = current.filter((row) => row.Datum >= "2026-08-03" && row.Datum <= "2026-08-07");
+  const latestWeek = current.filter((row) => row.Datum >= "2026-08-10" && row.Datum <= "2026-08-14");
+  const programRows = current.filter((row) => row.Datum >= "2026-05-19" && row.Datum <= "2026-08-14");
 
   assert.deepEqual(latestWeek.map((row) => row.Datum), [
-    "2026-08-03",
-    "2026-08-04",
-    "2026-08-05",
-    "2026-08-06",
-    "2026-08-07",
+    "2026-08-10",
+    "2026-08-11",
+    "2026-08-12",
+    "2026-08-13",
+    "2026-08-14",
   ]);
-  assert.equal(latestWeek.reduce((sum, row) => sum + row.Antal_aktier, 0), 1_039_620);
+  assert.equal(latestWeek.reduce((sum, row) => sum + row.Antal_aktier, 0), 972_212);
   assert.equal(
     latestWeek.reduce((sum, row) => sum + row.Transaktionsvärde, 0),
-    762930032.13,
+    719_994_604.99,
   );
+  assert.equal(programRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 11_790_468);
 });
