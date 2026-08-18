@@ -75,8 +75,8 @@ const FaqPanel = () => {
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                `Founder-programmet är begränsat till ${FOUNDER_PROGRAM.maximumFounders} personer. Du kvalificerar dig när dina sammanlagda donationer når ${FOUNDER_PROGRAM.minimumDonationSek} kr – flera donationer räknas ihop. Founder-status ger permanent tillgång till:`,
-                `The Founder program is limited to ${FOUNDER_PROGRAM.maximumFounders} people. You qualify when your combined donations reach SEK ${FOUNDER_PROGRAM.minimumDonationSek}—multiple donations are added together. Founder status provides permanent access to:`
+                `${FOUNDER_PROGRAM.claimedFounders} av ${FOUNDER_PROGRAM.maximumFounders} Founder-platser är tagna. Du kvalificerar dig när dina sammanlagda donationer når ${FOUNDER_PROGRAM.minimumDonationSek} kr – flera donationer räknas ihop. Founder-status ger permanent tillgång till:`,
+                `${FOUNDER_PROGRAM.claimedFounders} of ${FOUNDER_PROGRAM.maximumFounders} Founder places are taken. You qualify when your combined donations reach SEK ${FOUNDER_PROGRAM.minimumDonationSek}—multiple donations are added together. Founder status provides permanent access to:`
               )}
             </Typography>
             <Stack component="ul" spacing={0.7} sx={{ mt: 1.2, mb: 0, pl: 2.5 }}>

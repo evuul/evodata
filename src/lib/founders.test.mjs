@@ -103,6 +103,16 @@ test("configured founders remain private until their account opts in", () => {
   assert.deepEqual(buildPublishedFounders(FOUNDERS, { publishedIds: new Set() }), []);
 });
 
+test("configured Halvard Founder is qualified and approved for publication", () => {
+  const halvard = FOUNDERS.find((founder) => founder.accountEmail === "halvard.bagoien@gmail.com");
+  const publishedHalvard = buildPublishedFounders(FOUNDERS, { publishedIds: new Set([halvard?.id]) });
+
+  assert.ok(halvard);
+  assert.equal(halvard.qualified, true);
+  assert.equal(halvard.consentToPublish, true);
+  assert.equal(publishedHalvard[0].displayName, "Halvard Bagoien");
+});
+
 test("caps the public Founder directory at 30 people", () => {
   const records = Array.from({ length: 31 }, (_, index) => ({
     id: `founder-${index + 1}`,

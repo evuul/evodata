@@ -13,4 +13,13 @@ export const FOUNDERS = Object.freeze([
     qualified: true,
     consentToPublish: false,
   },
+  {
+    id: "halvard-bagoien",
+    accountEmail: "halvard.bagoien@gmail.com",
+    displayName: "Halvard Bagoien",
+    recognizedAt: "2026-08-18",
+    profileUrl: null,
+    qualified: true,
+    consentToPublish: true,
+  },
 ]);

@@ -413,7 +413,7 @@ export default function LiveLoggedOutPreview() {
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 5.5, md: 8 } }}>
         <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(230px, 0.7fr) minmax(0, 1.3fr) auto" }, gap: { xs: 1.8, md: 2.5 }, alignItems: "center" }}>
           <Box>
-            <Chip icon={<WorkspacePremiumRoundedIcon sx={{ fontSize: "15px!important" }} />} label={translate(`ENDAST ${FOUNDER_PROGRAM.maximumFounders} PLATSER`, `ONLY ${FOUNDER_PROGRAM.maximumFounders} PLACES`)} size="small" sx={{ color: "#fde68a", backgroundColor: "rgba(245,158,11,0.08)", fontWeight: 800, fontSize: 10 }} />
+            <Chip icon={<WorkspacePremiumRoundedIcon sx={{ fontSize: "15px!important" }} />} label={translate(`${FOUNDER_PROGRAM.claimedFounders}/${FOUNDER_PROGRAM.maximumFounders} PLATSER TAGNA`, `${FOUNDER_PROGRAM.claimedFounders}/${FOUNDER_PROGRAM.maximumFounders} PLACES TAKEN`)} size="small" sx={{ color: "#fde68a", backgroundColor: "rgba(245,158,11,0.08)", fontWeight: 800, fontSize: 10 }} />
             <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 24, md: 29 }, fontWeight: 780, mt: 1.2 }}>
               {translate("Bli en av EvoTrackers Founders", "Become an EvoTracker Founder")}
             </Typography>
