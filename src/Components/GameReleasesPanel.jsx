@@ -89,10 +89,10 @@ function ReleaseCard({ release, locale, translate, featured = false }) {
           <Stack spacing={0.7} alignItems="center" sx={{ position: "relative", zIndex: 1, px: 2, textAlign: "center" }}>
             <SportsEsportsRounded sx={{ color: "#fde68a", fontSize: 44 }} />
             <Typography sx={{ color: "#fff", fontWeight: 950, fontSize: { xs: "1.55rem", sm: "2rem" }, letterSpacing: 0.4 }}>
-              Game Night
+              {release.title}
             </Typography>
             <Typography variant="caption" sx={{ color: "rgba(224,231,255,0.78)", fontWeight: 750, textTransform: "uppercase", letterSpacing: 1.4 }}>
-              Hasbro × Evolution
+              Evolution live casino
             </Typography>
           </Stack>
         </Box>

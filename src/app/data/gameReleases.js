@@ -2,6 +2,21 @@
 
 const gameReleases = [
   {
+    id: "disco-balls",
+    title: "Disco Balls",
+    releaseWindow: "2026",
+    type: "game-show",
+    imageAltSv: "Disco Balls från Evolution",
+    imageAltEn: "Disco Balls by Evolution",
+    descriptionSv:
+      "En disco-inspirerad live game show med bollutdragning, växande multiplikatorer och bonusspel med Mr Funky.",
+    descriptionEn:
+      "A disco-themed live game show featuring ball draws, evolving multipliers, and bonus games with Mr Funky.",
+    sourceLabelSv: "Evolution – spelsida",
+    sourceLabelEn: "Evolution – game page",
+    sourceUrl: "https://games.evolution.com/live-casino/game-shows/disco-balls/",
+  },
+  {
     id: "monopoly-filthy-rich",
     title: "MONOPOLY Filthy Rich",
     releaseWindow: "2026",
