@@ -170,6 +170,13 @@ const MAX_SAMPLES = (() => {
   if (Number.isFinite(raw) && raw >= 1000) return Math.min(Math.round(raw), 500000);
   return 5000;
 })();
+const MAX_SAMPLES_PER_DAY_FOR_RECENT_READ = 12 * 24;
+
+export function seriesReadLimit(days, maxSamples = MAX_SAMPLES) {
+  const safeDays = Math.max(1, Number(days) || 1);
+  const recentWindowLimit = Math.ceil(safeDays * MAX_SAMPLES_PER_DAY_FOR_RECENT_READ);
+  return Math.min(Math.max(1, Math.floor(maxSamples)), Math.max(500, recentWindowLimit));
+}
 
 const overviewMem = new Map(); // key -> { snapshot, exp }
 const DEFAULT_OVERVIEW_MEM_TTL = 24 * 60 * 60 * 1000; // 24h fallback
@@ -894,6 +901,7 @@ export async function getSeriesBulk(slugs, days = 30) {
   if (!unique.length) return new Map();
 
   const since = Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000;
+  const readLimit = seriesReadLimit(days);
   const kv = await getKv();
 
   let rawLists = [];
@@ -901,7 +909,7 @@ export async function getSeriesBulk(slugs, days = 30) {
     try {
       const pipeline = kv.pipeline();
       for (const slug of unique) {
-        pipeline.lrange(KEY(slug), 0, MAX_SAMPLES - 1);
+        pipeline.lrange(KEY(slug), 0, readLimit - 1);
       }
       rawLists = await pipeline.exec();
     } catch (err) {
@@ -912,7 +920,7 @@ export async function getSeriesBulk(slugs, days = 30) {
 
   if (!rawLists.length) {
     rawLists = unique.map((slug) =>
-      kv ? kv.lrange(KEY(slug), 0, MAX_SAMPLES - 1) : mem.lrange(KEY(slug), 0, MAX_SAMPLES - 1)
+      kv ? kv.lrange(KEY(slug), 0, readLimit - 1) : mem.lrange(KEY(slug), 0, readLimit - 1)
     );
     if (kv) {
       rawLists = await Promise.all(
@@ -928,7 +936,7 @@ export async function getSeriesBulk(slugs, days = 30) {
   }
 
   if (!kv) {
-    rawLists = unique.map((slug) => mem.lrange(KEY(slug), 0, MAX_SAMPLES - 1));
+    rawLists = unique.map((slug) => mem.lrange(KEY(slug), 0, readLimit - 1));
   }
 
   const map = new Map();
