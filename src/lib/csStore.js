@@ -171,6 +171,7 @@ const MAX_SAMPLES = (() => {
   return 5000;
 })();
 const MAX_SAMPLES_PER_DAY_FOR_RECENT_READ = 12 * 24;
+const DAILY_AGGREGATE_PIPELINE_BATCH_SIZE = 200;
 
 export function seriesReadLimit(days, maxSamples = MAX_SAMPLES) {
   const safeDays = Math.max(1, Number(days) || 1);
@@ -726,7 +727,9 @@ export async function getDailyAggregates(slugs, days = 30) {
   const dateList = pastDates(days + 1);
   const kv = await getKv();
   const requests = [];
-  const pipeline = kv?.pipeline ? kv.pipeline() : null;
+  const pipelines = [];
+  const supportsPipeline = typeof kv?.pipeline === "function";
+  let pipeline = null;
 
   for (const slug of unique) {
     const dateMap = result.get(slug);
@@ -735,7 +738,11 @@ export async function getDailyAggregates(slugs, days = 30) {
       const memEntry = dailyMem.get(key);
       if (memEntry) {
         dateMap.set(date, cloneDaily(memEntry));
-      } else if (pipeline) {
+      } else if (supportsPipeline) {
+        if (requests.length % DAILY_AGGREGATE_PIPELINE_BATCH_SIZE === 0) {
+          pipeline = kv.pipeline();
+          pipelines.push(pipeline);
+        }
         requests.push({ slug, date });
         pipeline.hgetall(key);
       } else if (kv) {
@@ -744,9 +751,9 @@ export async function getDailyAggregates(slugs, days = 30) {
     }
   }
 
-  if (pipeline) {
+  if (pipelines.length) {
     try {
-      const rawResults = await pipeline.exec();
+      const rawResults = (await Promise.all(pipelines.map((batch) => batch.exec()))).flat();
       for (let i = 0; i < requests.length; i++) {
         const { slug, date } = requests[i];
         const raw = rawResults?.[i];
