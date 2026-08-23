@@ -214,11 +214,7 @@ export default function useLivePlayersControlPanelModel() {
     const cached = force ? null : overviewCache.get(cacheKey);
     if (cached) {
       setOverviewError("");
-      setDailyTotals(
-        Array.isArray(cached.rawDailyTotals) && cached.rawDailyTotals.length
-          ? cached.rawDailyTotals
-          : cached.dailyTotals
-      );
+      setDailyTotals(cached.dailyTotals);
       setSlugAverages(cached.slugAverages);
       setSlugDetails(cached.slugDetails);
       const cachedDailyEntries = Array.isArray(cached.slugDailyEntries) ? cached.slugDailyEntries : [];
