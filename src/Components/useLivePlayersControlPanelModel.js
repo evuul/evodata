@@ -302,7 +302,7 @@ export default function useLivePlayersControlPanelModel() {
         : totals;
 
       const payload = {
-        dailyTotals: rawTotals,
+        dailyTotals: totals,
         adjustedDailyTotals: adjustedTotals,
         rawDailyTotals: rawTotals,
         slugAverages: averages,
@@ -318,7 +318,7 @@ export default function useLivePlayersControlPanelModel() {
         overviewCache.set(cacheKey, payload, OVERVIEW_TTL);
       }
 
-      setDailyTotals(rawTotals);
+      setDailyTotals(totals);
       setSlugAverages(averages);
       setSlugDetails(details);
       const map = new Map(slugDailyEntries);

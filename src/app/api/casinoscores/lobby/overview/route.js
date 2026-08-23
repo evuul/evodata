@@ -53,6 +53,7 @@ import {
   mergeMonthlyLobbyActivitySnapshot,
 } from "@/lib/monthlyLobbyActivity";
 import { FORECAST_GAME_IDS } from "@/config/games";
+import { estimatePartialDayAverages } from "@/lib/partialDayEstimate";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -712,6 +713,16 @@ export async function GET(req) {
       stuckBySlug.set(slug, computeTrailingStuckMeta(stuckSeriesMap.get(slug) ?? [], { minRun: 8 }));
     }
     perSlugData = applyTimeWeightedDailyAverages(perSlugData, stuckSeriesMap, todayYmd);
+    const observedDailyTotals = applyDailyTotalOverrides(buildDailyTotals(perSlugData, todayYmd)).slice(-targetDays);
+    const weightedDailyBySlug = new Map(
+      perSlugData.map((item) => [item.slug, dailyAverages(stuckSeriesMap.get(item.slug) ?? [])])
+    );
+    const partialDayEstimate = estimatePartialDayAverages({
+      perSlugData,
+      dailyAggregates,
+      weightedDailyBySlug,
+    });
+    perSlugData = partialDayEstimate.perSlugData;
     dailyTotals = applyDailyTotalOverrides(buildDailyTotals(perSlugData, todayYmd)).slice(-targetDays);
     const stuckAdjusted = buildStuckAdjustedDailyTotals(perSlugData, stuckBySlug, {
       lookbackDays: 14,
@@ -777,7 +788,7 @@ export async function GET(req) {
 
     const slugDaily = Object.fromEntries(perSlugData.map(({ slug, daily }) => [slug, daily]));
     const rawSlugDaily = Object.fromEntries(rawPerSlugData.map(({ slug, daily }) => [slug, daily]));
-    const rawDailyTotals = stuckAdjusted.rawDailyTotals?.length ? stuckAdjusted.rawDailyTotals : dailyTotals;
+    const rawDailyTotals = observedDailyTotals;
 
     const trendDelta = recomputeTrendDelta(dailyTotals);
     const rawTrendDelta = recomputeTrendDelta(rawDailyTotals);
@@ -799,6 +810,7 @@ export async function GET(req) {
       trendDelta,
       rawTrendDelta,
       stuckAdjustment: stuckAdjusted.stuckAdjustment ?? [],
+      estimatedDates: partialDayEstimate.estimatedDates,
       generatedAt: new Date().toISOString(),
       recovery: recoveryMeta,
     }, gameAthSnapshot), targetDays);
