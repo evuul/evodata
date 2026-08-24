@@ -26,6 +26,11 @@ export default function LivePlayersControlPanelOverviewSection({
   hourlyByHourRows,
   stuckLiveGamesCount,
 }) {
+  const todayPeakLoading = overviewLoading && todayPeakDisplayValue == null;
+  const yesterdayPeakLoading = overviewLoading && yesterdayPeakDisplayValue == null;
+  const lobbyAthLoading = overviewLoading && !lobbyAthDisplay;
+  const topGrowthLoading = overviewLoading && !topGrowthDisplay;
+
   return (
     <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
       <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
@@ -126,7 +131,7 @@ export default function LivePlayersControlPanelOverviewSection({
               >
                 {translate("Dagens lobby-peak", "Today's lobby peak")}
               </Typography>
-              {overviewLoading ? (
+              {todayPeakLoading ? (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                   <CircularProgress size={18} sx={{ color: "#fb7185" }} />
                   <Typography variant="body2" sx={{ color: "rgba(251,113,133,0.8)" }}>
@@ -175,7 +180,7 @@ export default function LivePlayersControlPanelOverviewSection({
                 >
                   {translate("Gårdagens peak", "Yesterday's peak")}
                 </Typography>
-                {overviewLoading ? (
+                {yesterdayPeakLoading ? (
                   <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                     <CircularProgress size={18} sx={{ color: "#fbbf24" }} />
                     <Typography variant="body2" sx={{ color: "rgba(251,191,36,0.85)" }}>
@@ -224,7 +229,7 @@ export default function LivePlayersControlPanelOverviewSection({
               >
                 {translate("Lobbyns ATH", "Lobby ATH")}
               </Typography>
-              {overviewLoading ? (
+              {lobbyAthLoading ? (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                   <CircularProgress size={18} sx={{ color: "#93c5fd" }} />
                   <Typography variant="body2" sx={{ color: "rgba(191,219,254,0.85)" }}>
@@ -285,7 +290,7 @@ export default function LivePlayersControlPanelOverviewSection({
                     : `Top growth (${topGrowthDays} days)`
                 )}
               </Typography>
-              {overviewLoading ? (
+              {topGrowthLoading ? (
                 <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1 }}>
                   <CircularProgress size={18} sx={{ color: "#86efac" }} />
                   <Typography variant="body2" sx={{ color: "rgba(134,239,172,0.85)" }}>

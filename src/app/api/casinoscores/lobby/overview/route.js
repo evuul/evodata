@@ -54,6 +54,7 @@ import {
 } from "@/lib/monthlyLobbyActivity";
 import { FORECAST_GAME_IDS } from "@/config/games";
 import { estimatePartialDayAverages } from "@/lib/partialDayEstimate";
+import { composeLobbyOverviewSnapshots } from "@/lib/lobbyOverviewSnapshot";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -404,7 +405,12 @@ export async function GET(req) {
       return respond(payload, 200, headers);
     }
 
-    const storedSnapshot = forceEffective ? null : await getOverviewSnapshot(targetDays);
+    const [storedSnapshot, recentSnapshot] = forceEffective
+      ? [null, null]
+      : await Promise.all([
+          getOverviewSnapshot(targetDays),
+          targetDays > 30 ? getOverviewSnapshot(30) : Promise.resolve(null),
+        ]);
     if (storedSnapshot && storedSnapshot.data) {
       const snapshotMeta =
         storedSnapshot.meta && typeof storedSnapshot.meta === "object"
@@ -420,7 +426,7 @@ export async function GET(req) {
           ? Date.parse(snapshotMeta.staleAfter)
           : Number.NaN;
       const isFresh = Number.isFinite(staleAfterMs) ? staleAfterMs > Date.now() : true;
-      if (isFresh) {
+      if (isFresh || !forceEffective) {
         const cachedAtMs =
           typeof snapshotMeta.cachedAt === "string"
             ? Date.parse(snapshotMeta.cachedAt)
@@ -433,9 +439,14 @@ export async function GET(req) {
         const staleAfterIso = Number.isFinite(staleAfterMs)
           ? new Date(staleAfterMs).toISOString()
           : new Date(Date.now() + refreshIntervalMs).toISOString();
+        const composedSnapshotData = composeLobbyOverviewSnapshots(
+          storedSnapshot.data,
+          recentSnapshot?.data,
+          targetDays
+        );
         const adjustedSnapshotData = withExtendedStaticHistory(
           mergeGameAthIntoOverview(
-            withManualDailyOverrides(storedSnapshot.data, stockholmTodayYMD()),
+            withManualDailyOverrides(composedSnapshotData, stockholmTodayYMD()),
             gameAthSnapshot
           ),
           targetDays
@@ -448,8 +459,10 @@ export async function GET(req) {
           persisted: true,
           source:
             typeof snapshotMeta.source === "string" && snapshotMeta.source.length
-              ? snapshotMeta.source
-              : "snapshot",
+              ? `${snapshotMeta.source}${isFresh ? "" : "-stale-composite"}`
+              : isFresh
+                ? "snapshot"
+                : "snapshot-stale-composite",
         };
         setOverviewCache(overviewKey, adjustedSnapshotData, etag, baseMeta);
         const totalMs = Date.now() - t0;

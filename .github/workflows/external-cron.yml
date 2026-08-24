@@ -18,6 +18,7 @@ on:
         options:
           - all
           - lobby-sync
+          - lobby-snapshot
           - ath-alerts
           - daily-avg
           - short
@@ -92,6 +93,27 @@ jobs:
             -X POST \
             -H "Authorization: Bearer ${CRON_SECRET}" \
             "${CRON_BASE_URL}/api/alerts/daily-avg")"
+          cat "$response_file"
+          test "$status" -ge 200
+          test "$status" -lt 300
+
+  lobby-snapshot:
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '30 * * * *') ||
+      (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'lobby-snapshot'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Materialize lobby trend snapshots
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          response_file="$(mktemp)"
+          status="$(curl -sS -L -o "$response_file" -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "${CRON_BASE_URL}/api/casinoscores/lobby/materialize")"
           cat "$response_file"
           test "$status" -ge 200
           test "$status" -lt 300

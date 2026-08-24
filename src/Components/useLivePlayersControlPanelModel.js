@@ -33,6 +33,7 @@ const STANDARD_TREND_DAY_OPTIONS = [30, 60, 90, 180];
 const EXTENDED_TREND_DAY_OPTIONS = [...STANDARD_TREND_DAY_OPTIONS, 365, 730];
 const MA_WINDOW_OPTIONS = [7, 14, 30];
 const TOP_GROWTH_DAYS = 90;
+const DEFAULT_OVERVIEW_HISTORY_DAYS = 180;
 const STANDARD_ATH_DAY_OPTIONS = [90, 180];
 const EXTENDED_ATH_DAY_OPTIONS = [...STANDARD_ATH_DAY_OPTIONS, 365, 730];
 const INITIAL_VISIBLE_LIVE = 10;
@@ -206,6 +207,13 @@ export default function useLivePlayersControlPanelModel() {
   const [trendMaWindowDays, setTrendMaWindowDays] = useState(30);
   const [gameTrendMaWindowDays, setGameTrendMaWindowDays] = useState(30);
   const [asiaTrendMaWindowDays, setAsiaTrendMaWindowDays] = useState(30);
+  const requiredOverviewDays = Math.max(
+    DEFAULT_OVERVIEW_HISTORY_DAYS,
+    trendDays,
+    athDays,
+    gameTrendDays,
+    asiaTrackerDays
+  );
 
   const fetchOverview = useCallback(async (range, options = {}) => {
     const force = Boolean(options?.force);
@@ -331,15 +339,6 @@ export default function useLivePlayersControlPanelModel() {
       setOverviewGeneratedAt(payload.generatedAt);
     } catch (error) {
       setOverviewError(error instanceof Error ? error.message : String(error));
-      setDailyTotals([]);
-      setSlugAverages([]);
-      setSlugDetails([]);
-      setSlugDailyMap(new Map());
-      setTrendDelta(null);
-      setTodayPeak(null);
-      setYesterdayPeak(null);
-      setLobbyAth(null);
-      setOverviewGeneratedAt(null);
     } finally {
       setOverviewLoading(false);
       overviewCache.cleanup();
@@ -347,9 +346,8 @@ export default function useLivePlayersControlPanelModel() {
   }, [hasExtendedAccess]);
 
   useEffect(() => {
-    const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
-    fetchOverview(range);
-  }, [trendDays, athDays, gameTrendDays, asiaTrackerDays, fetchOverview]);
+    fetchOverview(requiredOverviewDays);
+  }, [requiredOverviewDays, fetchOverview]);
 
   useEffect(() => {
     if (!hasExtendedAccess) {
