@@ -204,6 +204,7 @@ export async function GET(req) {
 
   const items = [];
   let newestTs = 0;
+  let pilotSample = null;
   const lobbyCreatedAt = lobby?.createdAt ? Date.parse(lobby.createdAt) : null;
   const fallbackPromises = [];
   const fallbackIndices = [];
@@ -243,6 +244,23 @@ export async function GET(req) {
     items.push(entry);
   });
 
+  if (items.some((item) => item.players == null)) {
+    try {
+      const latestPilotSample = await getLatestUnibetPilotSample();
+      pilotSample = latestPilotSample?.status === "ok"
+        ? latestPilotSample
+        : await getLatestSuccessfulUnibetPilotSample();
+      const repaired = applyUnibetPilotFallback(items, pilotSample, { allowMissing: true });
+      items.splice(0, items.length, ...repaired.items);
+      for (const item of repaired.applied) {
+        const timestamp = Date.parse(item.fetchedAt);
+        if (Number.isFinite(timestamp)) newestTs = Math.max(newestTs, timestamp);
+      }
+    } catch {
+      // Historic primary samples remain the fallback if the optional Unibet feed is unavailable.
+    }
+  }
+
   if (fallbackPromises.length) {
     const fallbackResults = await Promise.all(fallbackPromises);
     fallbackResults.forEach((sample, idx) => {
@@ -252,6 +270,7 @@ export async function GET(req) {
         seriesId === "crazy-time:a" && sample && sample.ts < CRAZY_TIME_A_RESET_MS ? null : sample;
       if (!usable) return;
       const entry = items[itemIndex];
+      if (entry.players != null) return;
       entry.players = usable.value;
       entry.fetchedAt = new Date(usable.ts).toISOString();
       const isFreshUnibetSample = isUnibetTrackedGame(GAME_CONFIG[itemIndex])
@@ -282,10 +301,12 @@ export async function GET(req) {
 
   if (items.some((entry) => entry.stuck)) {
     try {
-      const latestPilotSample = await getLatestUnibetPilotSample();
-      const pilotSample = latestPilotSample?.status === "ok"
-        ? latestPilotSample
-        : await getLatestSuccessfulUnibetPilotSample();
+      if (!pilotSample) {
+        const latestPilotSample = await getLatestUnibetPilotSample();
+        pilotSample = latestPilotSample?.status === "ok"
+          ? latestPilotSample
+          : await getLatestSuccessfulUnibetPilotSample();
+      }
       const repaired = applyUnibetPilotFallback(items, pilotSample);
       items.splice(0, items.length, ...repaired.items);
       for (const item of repaired.applied) {

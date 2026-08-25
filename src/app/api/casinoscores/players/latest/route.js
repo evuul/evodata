@@ -33,13 +33,13 @@ export async function GET() {
       const now = Date.now();
       let items = snapshot.items.map((item) => normalizeLatestPlayerSnapshotItem(item, now));
       let recoveryUpdatedAt = null;
-      if (items.some((item) => item.stuck)) {
+      if (items.some((item) => item.stuck || item.players == null)) {
         try {
           const latest = await getLatestUnibetPilotSample();
           const sample = latest?.status === "ok"
             ? latest
             : await getLatestSuccessfulUnibetPilotSample();
-          const recovered = applyUnibetPilotFallback(items, sample, { now });
+          const recovered = applyUnibetPilotFallback(items, sample, { now, allowMissing: true });
           items = recovered.items;
           recoveryUpdatedAt = recovered.applied.length ? sample?.collectedAt ?? null : null;
         } catch {

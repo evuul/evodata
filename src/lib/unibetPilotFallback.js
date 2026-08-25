@@ -1,4 +1,4 @@
-// Applies a fresh Unibet value only when the primary game feed is marked as stuck.
+// Applies fresh Unibet values only for frozen or explicitly missing primary readings.
 
 export const UNIBET_PILOT_MAX_AGE_MS = 25 * 60 * 1000;
 
@@ -38,7 +38,8 @@ export function applyUnibetPilotFallback(items, sample, options = {}) {
   );
   const applied = [];
   const resolvedItems = (Array.isArray(items) ? items : []).map((item) => {
-    if (!item?.stuck) return item;
+    const canRepairMissingValue = options.allowMissing === true && item?.players == null;
+    if (!item?.stuck && !canRepairMissingValue) return item;
 
     const pilotId = getUnibetPilotGameId(item.id);
     const players = gamesById.get(pilotId);

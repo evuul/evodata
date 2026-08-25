@@ -10,7 +10,9 @@ import {
   setLatestPlayersSnapshot,
   updateGameAthSnapshot,
 } from "@/lib/csStore";
-import { UNIBET_TRACKED_GAMES } from "@/config/games";
+import { PRIMARY_TRACKED_GAMES, UNIBET_TRACKED_GAMES } from "@/config/games";
+import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
+import { mergeExtendedLobbyPrimaryFallback } from "@/lib/extendedLobby";
 import {
   buildRecoveredLatestPlayersSnapshot,
   persistRecoverySeriesItems,
@@ -23,12 +25,40 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const SECRET = resolveCronSecret(process.env.UNIBET_PILOT_CRON_SECRET, process.env.CRON_SECRET);
+const PRIMARY_GAME_NAMES = new Map(PRIMARY_TRACKED_GAMES.map((game) => [game.id, game.label]));
 
 const json = (data, status = 200) =>
   Response.json(data, {
     status,
     headers: { "Cache-Control": "no-store" },
   });
+
+async function addPrimaryLobbyFallback(sample) {
+  try {
+    const [lobby, snapshot] = await Promise.all([
+      fetchLiveLobbyCounts(),
+      getLatestPlayersSnapshot().catch(() => null),
+    ]);
+    const stuckById = new Map(
+      (Array.isArray(snapshot?.items) ? snapshot.items : []).map((item) => [item?.id, Boolean(item?.stuck)])
+    );
+    const primaryItems = buildLiveLobbyItems(lobby, PRIMARY_TRACKED_GAMES).flatMap((item) => {
+      const name = PRIMARY_GAME_NAMES.get(item?.id);
+      return name ? [{ ...item, name, stuck: stuckById.get(item.id) || false }] : [];
+    });
+    const merged = mergeExtendedLobbyPrimaryFallback(sample, primaryItems);
+    if (merged.games.length === sample.games.length) return sample;
+
+    return {
+      ...merged,
+      gameCount: merged.games.length,
+      totalPlayers: merged.games.reduce((total, game) => total + Number(game.players || 0), 0),
+    };
+  } catch {
+    // A healthy Unibet sample must still be stored when the independent primary source is unavailable.
+    return sample;
+  }
+}
 
 async function persistRecoveredGames(sample) {
   const snapshot = await getLatestPlayersSnapshot().catch(() => null);
@@ -111,7 +141,8 @@ export async function POST(request) {
 
   const startedAt = Date.now();
   try {
-    const sample = await collectUnibetPilotSample();
+    let sample = await collectUnibetPilotSample();
+    sample = await addPrimaryLobbyFallback(sample);
     sample.durationMs = Date.now() - startedAt;
     const persisted = await persistRecoveredGames(sample);
     const tracked = await persistTrackedExtendedGames(sample);
