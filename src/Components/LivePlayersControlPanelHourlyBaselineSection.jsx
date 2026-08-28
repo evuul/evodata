@@ -16,12 +16,18 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
   percentFormatter,
   translate,
 }) {
-  const coverageText = coverage?.distinctDays && coverage?.requestedDays
+  const historyCoverageText = coverage?.distinctDays && coverage?.requestedDays
     ? translate(
         `Historik: ${coverage.distinctDays} av ${coverage.requestedDays} dagar`,
         `History: ${coverage.distinctDays} of ${coverage.requestedDays} days`
       )
     : translate("Historisk datatäckning beräknas", "Historical coverage is being calculated");
+  const gameCoverageText = coverage?.comparableGames != null && coverage?.healthyGames != null
+    ? translate(
+        `Jämförbara spel: ${coverage.comparableGames} av ${coverage.healthyGames}`,
+        `Comparable games: ${coverage.comparableGames} of ${coverage.healthyGames}`
+      )
+    : null;
 
   return (
     <Box
@@ -63,8 +69,13 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
         </Stack>
         <Stack spacing={0.3} sx={{ textAlign: { xs: "left", md: "right" } }}>
           <Typography variant="caption" sx={{ color: "rgba(191,219,254,0.82)" }}>
-            {coverageText}
+            {historyCoverageText}
           </Typography>
+          {gameCoverageText ? (
+            <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.62)" }}>
+              {gameCoverageText}
+            </Typography>
+          ) : null}
           {updatedLabel ? (
             <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.62)" }}>
               {translate(`Live uppdaterad ${updatedLabel}`, `Live updated ${updatedLabel}`)}

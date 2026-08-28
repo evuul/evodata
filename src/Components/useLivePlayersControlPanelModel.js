@@ -555,9 +555,13 @@ export default function useLivePlayersControlPanelModel() {
     if (!coverage || typeof coverage !== "object") return null;
     const requestedDays = Number(coverage.requestedDays);
     const distinctDays = Number(coverage.distinctDays);
+    const healthyGames = Number(coverage.healthyGames);
+    const comparableGames = Number(coverage.comparableGames);
     return {
       requestedDays: Number.isFinite(requestedDays) ? Math.round(requestedDays) : null,
       distinctDays: Number.isFinite(distinctDays) ? Math.round(distinctDays) : null,
+      healthyGames: Number.isFinite(healthyGames) ? Math.round(healthyGames) : null,
+      comparableGames: Number.isFinite(comparableGames) ? Math.round(comparableGames) : null,
       computedAt: coverage.computedAt ?? null,
     };
   }, [lobbyStats?.hourlyCoverage]);

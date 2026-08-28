@@ -41,14 +41,15 @@ test("uses the median when a small set of buckets has a severe upward outlier", 
 });
 
 test("builds 24 rows, excludes stuck games, and reports actual coverage", () => {
-  const buckets = Array.from({ length: 24 }, (_, hour) => ({
+  const activeBuckets = Array.from({ length: 24 }, (_, hour) => ({
     bucket: `${String(hour).padStart(2, "0")}:00`,
     avg: 1_000 + hour * 10,
     samples: 30,
   }));
   const payload = buildHourlyLobbyPayload({
     baseline: {
-      buckets,
+      buckets: activeBuckets,
+      healthyBucketsBySlug: { active: activeBuckets },
       distinctDays: 35,
       samples: 5_000,
       computedAt: "2026-08-28T18:00:00.000Z",
@@ -73,6 +74,31 @@ test("builds 24 rows, excludes stuck games, and reports actual coverage", () => 
     distinctDays: 35,
     samples: 5_000,
     computedAt: "2026-08-28T18:00:00.000Z",
-    source: "baseline-total-v1",
+    source: "healthy-game-baseline-v1",
+    trackedGames: 2,
+    healthyGames: 1,
+    comparableGames: 1,
   });
+});
+
+test("uses the same healthy game universe for live and historical totals", () => {
+  const fullDayBuckets = Array.from({ length: 24 }, (_, hour) => ({
+    bucket: `${String(hour).padStart(2, "0")}:00`,
+    avg: 100,
+    samples: 20,
+  }));
+  const payload = buildHourlyLobbyPayload({
+    baseline: { healthyBucketsBySlug: { healthy: fullDayBuckets, incomplete: [] } },
+    latestSnapshot: {
+      items: [
+        { id: "healthy", players: 150 },
+        { id: "incomplete", players: 500 },
+        { id: "frozen", players: 900, stuck: true },
+      ],
+    },
+  });
+
+  assert.equal(payload.hourlyByHour.every((row) => row.baselineAvg === 100), true);
+  assert.equal(payload.hourlyByHour.every((row) => row.currentTotal === 150), true);
+  assert.equal(payload.coverage.comparableGames, 1);
 });

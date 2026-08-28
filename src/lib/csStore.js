@@ -192,7 +192,7 @@ const DAILY_SNAPSHOT_TTL_MS = (() => {
 })();
 const dailySnapshotMem = new Map(); // key -> { data, exp }
 const BASELINE_PREFIX = "cs:lobby:baseline:";
-const BASELINE_VERSION = "v2";
+const BASELINE_VERSION = "v3";
 const BASELINE_TTL_MS = (() => {
   const raw = Number(process.env.CS_BASELINE_TTL_MS);
   if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000); // cap 48h
@@ -1059,8 +1059,46 @@ export function computeBaselineFromSeries(seriesMap, days, bucketMs = DEFAULT_BA
     }))
     .sort((a, b) => a.bucket.localeCompare(b.bucket));
 
+  const healthyBucketsBySlug = {};
+  seriesMap.forEach((points, slug) => {
+    const normalized = (points || [])
+      .map((point) => ({ ts: Number(point?.ts), value: Number(point?.value) }))
+      .filter((point) => Number.isFinite(point.ts) && Number.isFinite(point.value))
+      .sort((a, b) => a.ts - b.ts);
+    const frozenTimestamps = new Set();
+    let runStart = 0;
+    for (let index = 1; index <= normalized.length; index += 1) {
+      if (index < normalized.length && normalized[index].value === normalized[runStart].value) continue;
+      if (index - runStart >= 4) {
+        for (let runIndex = runStart; runIndex < index; runIndex += 1) {
+          frozenTimestamps.add(normalized[runIndex].ts);
+        }
+      }
+      runStart = index;
+    }
+
+    const healthyBuckets = new Map();
+    for (const point of normalized) {
+      if (frozenTimestamps.has(point.ts)) continue;
+      const label = bucketLabelFromTs(point.ts, bucketMs, BASELINE_TZ);
+      if (!label) continue;
+      const entry = healthyBuckets.get(label) ?? { sum: 0, count: 0 };
+      entry.sum += point.value;
+      entry.count += 1;
+      healthyBuckets.set(label, entry);
+    }
+    healthyBucketsBySlug[String(slug)] = Array.from(healthyBuckets.entries())
+      .map(([bucket, { sum, count }]) => ({
+        bucket,
+        avg: count > 0 ? Math.round((sum / count) * 100) / 100 : null,
+        samples: count,
+      }))
+      .sort((a, b) => a.bucket.localeCompare(b.bucket));
+  });
+
   return {
     buckets: bucketsArr,
+    healthyBucketsBySlug,
     bucketMs,
     samples: tsTotals.size,
     points: samples,

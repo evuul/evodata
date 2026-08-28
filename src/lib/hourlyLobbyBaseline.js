@@ -57,16 +57,35 @@ export function computeHourBaseline(baseline, hour) {
 
 export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Date() }) {
   const latestItems = Array.isArray(latestSnapshot?.items) ? latestSnapshot.items : [];
-  const totalPlayers = latestItems.reduce((sum, item) => {
+  const healthyBucketsBySlug = baseline?.healthyBucketsBySlug && typeof baseline.healthyBucketsBySlug === "object"
+    ? baseline.healthyBucketsBySlug
+    : {};
+  const currentHealthyItems = latestItems.filter((item) => {
     const players = finitePositive(item?.players);
-    return players != null && !item?.stuck ? sum + players : sum;
+    return players != null && !item?.stuck && !item?.stale;
+  });
+  const comparableItems = currentHealthyItems.filter((item) => {
+    const gameBaseline = { buckets: healthyBucketsBySlug[String(item?.id)] };
+    return Array.from({ length: 24 }, (_, index) => {
+      const hour = String(index).padStart(2, "0");
+      return computeHourBaseline(gameBaseline, hour).baselineAvg != null;
+    }).every(Boolean);
+  });
+  const totalPlayers = comparableItems.reduce((sum, item) => {
+    const players = finitePositive(item?.players);
+    return players != null ? sum + players : sum;
   }, 0);
   const currentTotal = finitePositive(totalPlayers) == null ? null : Math.round(totalPlayers);
   const currentHour = stockholmHourLabel(now);
   const hourlyByHour = Array.from({ length: 24 }, (_, index) => {
     const hour = String(index).padStart(2, "0");
-    const baselineRow = computeHourBaseline(baseline, hour);
-    const baselineAvg = finitePositive(baselineRow.baselineAvg);
+    const gameBaselines = comparableItems
+      .map((item) => computeHourBaseline({ buckets: healthyBucketsBySlug[String(item?.id)] }, hour))
+      .filter((row) => finitePositive(row.baselineAvg) != null);
+    const baselineAvg = gameBaselines.length === comparableItems.length
+      ? gameBaselines.reduce((sum, row) => sum + row.baselineAvg, 0)
+      : null;
+    const samples = gameBaselines.reduce((sum, row) => sum + row.samples, 0);
     const deltaPct = currentTotal != null && baselineAvg != null
       ? ((currentTotal - baselineAvg) / baselineAvg) * 100
       : null;
@@ -76,7 +95,7 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
       baselineAvg: baselineAvg == null ? null : Math.round(baselineAvg),
       currentTotal,
       deltaPct: Number.isFinite(deltaPct) ? Math.round(deltaPct * 10) / 10 : null,
-      samples: Number.isFinite(baselineRow.samples) ? Math.round(baselineRow.samples) : 0,
+      samples: Number.isFinite(samples) ? Math.round(samples) : 0,
       isCurrentHour: hour === currentHour,
     };
   });
@@ -94,7 +113,10 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
         ? Math.round(Number(baseline.samples))
         : null,
       computedAt: baseline?.computedAt ?? null,
-      source: baseline?.source ?? null,
+      source: "healthy-game-baseline-v1",
+      trackedGames: latestItems.length,
+      healthyGames: currentHealthyItems.length,
+      comparableGames: comparableItems.length,
     },
     liveUpdatedAt: latestSnapshot?.updatedAt ?? null,
   };
