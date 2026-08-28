@@ -34,6 +34,8 @@ export function AdminPanel({
     handleAdminAthSendNow,
     handleAdminDailyAvgPreview,
     handleAdminDailyAvgSendNow,
+    handleHourlyCampaignPreview,
+    handleHourlyCampaignSend,
     loadAdminActivity,
     loadAdminUsers,
     loadAdminSupport,
@@ -46,6 +48,8 @@ export function AdminPanel({
     lobbyAthTestLoading,
     mailTestMessage,
     previewLoading,
+    hourlyCampaignLoading,
+    hourlyCampaignPreview,
     adminActivityLoading,
     adminActivityError,
     adminActivityRows,
@@ -101,7 +105,8 @@ const exactEmailMatch = useMemo(
     const athOffCount = adminUsersRows.length - athOnCount;
     const dailyAvgOnCount = adminUsersRows.filter((row) => Boolean(row?.dailyAvgEmailEnabled)).length;
     const dailyAvgOffCount = adminUsersRows.length - dailyAvgOnCount;
-    const mailActionLoading = Boolean(mailTestLoading || lobbyAthTestLoading);
+    const mailActionLoading = Boolean(mailTestLoading || lobbyAthTestLoading || hourlyCampaignLoading);
+    const hourlyCampaignRemaining = Number(hourlyCampaignPreview?.remainingRecipients) || 0;
 
     const summaryCards = [
         {
@@ -667,6 +672,43 @@ const exactEmailMatch = useMemo(
                             {mailTestLoading
                                 ? translate("Skickar daily AVG...", "Sending daily AVG...")
                                 : translate("Skicka daily AVG nu", "Send daily AVG now")}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleHourlyCampaignPreview}
+                            disabled={hourlyCampaignLoading || previewLoading}
+                            sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(45,212,191,0.5)",
+                                color: "#99f6e4",
+                                "&:hover": {
+                                    borderColor: "rgba(45,212,191,0.8)",
+                                    backgroundColor: "rgba(45,212,191,0.08)",
+                                },
+                            }}
+                        >
+                            {hourlyCampaignLoading
+                                ? translate("Laddar Hourly-mejl...", "Loading Hourly email...")
+                                : translate("Preview: Hourly Premium", "Preview: Hourly Premium")}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleHourlyCampaignSend}
+                            disabled={mailActionLoading || hourlyCampaignRemaining <= 0}
+                            sx={{
+                                textTransform: "none",
+                                borderColor: "rgba(20,184,166,0.7)",
+                                color: "#5eead4",
+                                "&:hover": {
+                                    borderColor: "rgba(45,212,191,0.95)",
+                                    backgroundColor: "rgba(20,184,166,0.12)",
+                                },
+                            }}
+                        >
+                            {translate(
+                                `Skicka Hourly till ${hourlyCampaignRemaining || "…"}`,
+                                `Send Hourly to ${hourlyCampaignRemaining || "…"}`
+                            )}
                         </Button>
                     </Stack>
                 </Stack>

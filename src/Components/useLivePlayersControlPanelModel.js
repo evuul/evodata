@@ -51,7 +51,6 @@ const ASIA_GAME_KEYS = [
 const ASIA_GAME_KEY_SET = new Set(ASIA_GAME_KEYS);
 const ASIA_AGG_COLOR = "#fde047";
 const SHOW_YESTERDAY_PEAK_CARD = false;
-const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
 class PersistentCache {
   constructor(prefix = "cache_v1_") {
@@ -147,10 +146,12 @@ export default function useLivePlayersControlPanelModel() {
     GAMES: contextGames,
     lastUpdated,
     lobbyStats,
+    hourlyLoading,
+    hourlyError,
+    refreshHourlyStats,
   } = usePlayersLive();
   const { locale } = useLocale();
   const { user } = useAuth();
-  const isAdminView = Boolean(user?.isAdmin);
   const hasExtendedAccess = Boolean(
     user?.isAdmin || user?.isFounder || user?.isSubscriber || isPrimaryAdminEmail(user?.email)
   );
@@ -384,6 +385,15 @@ export default function useLivePlayersControlPanelModel() {
   }, [hasExtendedAccess]);
 
   useEffect(() => {
+    if (detailView !== "hourly") return;
+    if (!hasExtendedAccess) {
+      setDetailView("trend");
+      return;
+    }
+    refreshHourlyStats();
+  }, [detailView, hasExtendedAccess, refreshHourlyStats]);
+
+  useEffect(() => {
     if (detailView !== "ath") return;
     if (!shouldRunAthForceRefresh()) return;
     const range = Math.max(trendDays, athDays, gameTrendDays, asiaTrackerDays);
@@ -506,33 +516,8 @@ export default function useLivePlayersControlPanelModel() {
     }
   }, [stabilizedTodayPeak]);
 
-  const hourlyComparisonMeta = useMemo(() => {
-    if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
-    const cmp = lobbyStats?.hourlyComparison;
-    if (!cmp) return null;
-    const baseline = cmp?.baselineAvg;
-    const samples = cmp?.samples;
-    const hour = String(cmp?.hour || "").trim();
-    const currentLive = Number.isFinite(totalLiveDisplayValue) ? Number(totalLiveDisplayValue) : Number(cmp?.currentTotal);
-    const delta =
-      Number.isFinite(currentLive) && Number.isFinite(baseline) && baseline > 0
-        ? ((currentLive - baseline) / baseline) * 100
-        : Number(cmp?.deltaPct);
-    if (!Number.isFinite(delta) || !Number.isFinite(baseline) || baseline <= 0 || !Number.isFinite(samples) || samples <= 0 || !hour) {
-      return null;
-    }
-    const sign = delta > 0 ? "+" : "";
-    const baselineLabel = numberFormatter.format(Math.round(baseline));
-    const text = translate(
-      `${hour}:00 vs 60d-snitt: ${sign}${percentFormatter.format(delta)}% (bas ${baselineLabel})`,
-      `${hour}:00 vs 60d avg: ${sign}${percentFormatter.format(delta)}% (base ${baselineLabel})`
-    );
-    const color = delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.75)";
-    return { text, color };
-  }, [isAdminView, lobbyStats?.hourlyComparison, numberFormatter, percentFormatter, totalLiveDisplayValue, translate]);
-
   const hourlyByHourRows = useMemo(() => {
-    if (!LOCAL_HOURLY_COMPARE_ENABLED) return [];
+    if (!hasExtendedAccess) return [];
     const rows = Array.isArray(lobbyStats?.hourlyByHour) ? lobbyStats.hourlyByHour : [];
     return rows
       .map((row) => {
@@ -563,7 +548,24 @@ export default function useLivePlayersControlPanelModel() {
       })
       .filter(Boolean)
       .sort((a, b) => a.hour.localeCompare(b.hour));
-  }, [lobbyStats?.hourlyByHour, totalLiveDisplayValue]);
+  }, [hasExtendedAccess, lobbyStats?.hourlyByHour, totalLiveDisplayValue]);
+
+  const hourlyCoverage = useMemo(() => {
+    const coverage = lobbyStats?.hourlyCoverage;
+    if (!coverage || typeof coverage !== "object") return null;
+    const requestedDays = Number(coverage.requestedDays);
+    const distinctDays = Number(coverage.distinctDays);
+    return {
+      requestedDays: Number.isFinite(requestedDays) ? Math.round(requestedDays) : null,
+      distinctDays: Number.isFinite(distinctDays) ? Math.round(distinctDays) : null,
+      computedAt: coverage.computedAt ?? null,
+    };
+  }, [lobbyStats?.hourlyCoverage]);
+
+  const hourlyUpdatedLabel = useMemo(
+    () => formatDateTime(lobbyStats?.hourlyLiveUpdatedAt || hourlyCoverage?.computedAt),
+    [hourlyCoverage?.computedAt, lobbyStats?.hourlyLiveUpdatedAt]
+  );
 
   const todayPeakDisplayValue = useMemo(() => {
     const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;
@@ -968,7 +970,10 @@ export default function useLivePlayersControlPanelModel() {
     topGrowthDisplay,
     topGrowthDays: TOP_GROWTH_DAYS,
     hourlyByHourRows,
-    hourlyComparisonMeta,
+    hourlyCoverage,
+    hourlyUpdatedLabel,
+    hourlyLoading,
+    hourlyError,
     playersUpdatedText,
     totalLiveDisplayValue,
     todayPeakDisplayValue,

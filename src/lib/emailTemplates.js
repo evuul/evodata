@@ -185,6 +185,43 @@ export const buildResetPasswordEmail = ({ email, resetUrl }) => {
   };
 };
 
+export const buildHourlyBaselineLaunchEmail = ({ email, firstName, dashboardUrl }) => {
+  const safeName = escapeHtml(firstName || "there");
+  const safeDashboardUrl = escapeHtml(dashboardUrl || "https://evotracker.org");
+  const body = `
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:16px;">Hi ${safeName},</p>
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      A new Premium &amp; Founder feature is now live in EvoTracker: <strong>Hourly Baseline</strong>.
+    </p>
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      Open the live Gameshow dashboard and select <strong>Hourly</strong> to compare the current lobby total with the usual level for every hour of the day. It is a quick way to spot when activity is stronger or weaker than normal.
+    </p>
+    <div style="margin:14px 0;padding:14px;border-radius:14px;background:rgba(15,23,42,.55);border:1px solid rgba(56,189,248,.35);">
+      <div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#7dd3fc;font-weight:800;margin-bottom:8px;">How to use it</div>
+      <p style="margin:0;color:#cbd5e1;font-size:14px;line-height:1.6;">Use the hourly comparison as a live context signal, not as a forecast or financial advice.</p>
+    </div>
+    <p style="margin:0 0 16px 0;">
+      <a href="${safeDashboardUrl}" target="_blank" rel="noopener"
+         style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#22d3ee,#3b82f6);color:#0b1220;text-decoration:none;font-weight:800;">
+         Open Hourly Baseline
+      </a>
+    </p>
+    <p style="margin:0 0 14px 0;color:#cbd5e1;font-size:15px;line-height:1.65;">
+      Thank you again for supporting EvoTracker. Your Premium membership or Founder contribution helps keep the project moving forward with better data coverage, more reliable tracking, and new features like this one.
+    </p>
+    <p style="margin:0;color:#94a3b8;font-size:14px;">/ Alexander</p>
+  `;
+
+  return {
+    subject: "New: Hourly Baseline is live in EvoTracker",
+    html: shell({
+      title: "Hourly Baseline is live",
+      preheader: "A new Premium & Founder live-data view is ready for you.",
+      body,
+    }),
+  };
+};
+
 export const buildAthAlertEmail = ({
   email,
   firstName,

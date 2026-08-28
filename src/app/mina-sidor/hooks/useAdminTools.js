@@ -24,6 +24,8 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewHtml, setPreviewHtml] = useState("");
+  const [hourlyCampaignLoading, setHourlyCampaignLoading] = useState(false);
+  const [hourlyCampaignPreview, setHourlyCampaignPreview] = useState(null);
 
   // Activity
   const [adminActivityLoading, setAdminActivityLoading] = useState(false);
@@ -205,6 +207,75 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
       setMailTestMessage(translate("Kunde inte hämta daily avg-preview.", "Could not load daily avg preview."));
     } finally {
       setPreviewLoading(false);
+    }
+  };
+
+  const handleHourlyCampaignPreview = async () => {
+    if (!token) return;
+    try {
+      setHourlyCampaignLoading(true);
+      setMailTestMessage("");
+      const payload = await authFetchJson("/api/admin/campaigns/hourly-baseline", {
+        method: "GET",
+        cache: "no-store",
+      });
+      setHourlyCampaignPreview(payload);
+      setPreviewTitle(payload?.subject || "Hourly Baseline launch email");
+      setPreviewHtml(payload?.html || "");
+      setPreviewOpen(true);
+      setMailTestMessage(
+        translate(
+          `Hourly Baseline: ${Number(payload?.eligibleRecipients) || 0} berättigade mottagare, ${Number(payload?.remainingRecipients) || 0} återstår.`,
+          `Hourly Baseline: ${Number(payload?.eligibleRecipients) || 0} eligible recipients, ${Number(payload?.remainingRecipients) || 0} remaining.`
+        )
+      );
+    } catch {
+      setHourlyCampaignPreview(null);
+      setMailTestMessage(translate("Kunde inte hämta kampanj-preview.", "Could not load the campaign preview."));
+    } finally {
+      setHourlyCampaignLoading(false);
+    }
+  };
+
+  const handleHourlyCampaignSend = async () => {
+    const recipientCount = Number(hourlyCampaignPreview?.remainingRecipients) || 0;
+    if (!token || recipientCount <= 0) return;
+    const confirmed = typeof window === "undefined" || window.confirm(
+      translate(
+        `Skicka Hourly Baseline-mejlet till ${recipientCount} Premium- och Founder-medlemmar? Detta går inte att ångra.`,
+        `Send the Hourly Baseline email to ${recipientCount} Premium and Founder members? This cannot be undone.`
+      )
+    );
+    if (!confirmed) return;
+
+    try {
+      setHourlyCampaignLoading(true);
+      setMailTestMessage("");
+      const payload = await authFetchJson("/api/admin/campaigns/hourly-baseline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ send: true }),
+      });
+      setHourlyCampaignPreview((current) => ({
+        ...current,
+        status: payload?.status || "completed",
+        remainingRecipients: 0,
+        completedAt: payload?.completedAt || null,
+      }));
+      setMailTestMessage(
+        translate(
+          `Hourly Baseline skickat till ${Number(payload?.sent) || 0} mottagare.`,
+          `Hourly Baseline sent to ${Number(payload?.sent) || 0} recipients.`
+        )
+      );
+    } catch (error) {
+      setMailTestMessage(
+        String(error?.message || "").includes("already completed")
+          ? translate("Kampanjen har redan skickats.", "The campaign has already been sent.")
+          : translate("Kunde inte slutföra kampanjen. Förhandsgranska igen och försök på nytt.", "Could not complete the campaign. Preview it again and retry.")
+      );
+    } finally {
+      setHourlyCampaignLoading(false);
     }
   };
 
@@ -642,6 +713,7 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
     adminPanel, setAdminPanel,
     adminOverviewLoading, adminOverviewError, adminOverview, loadAdminOverview,
     mailTestLoading, lobbyAthTestLoading, mailTestMessage,
+    hourlyCampaignLoading, hourlyCampaignPreview,
     previewLoading, previewOpen, setPreviewOpen, previewTitle, previewHtml,
     adminActivityLoading, adminActivityError, adminActivityRows, adminActivityGeoSummary, loadAdminActivity,
     adminUsersLoading, adminUsersError, adminUsersRows, adminUsersTotal, loadAdminUsers,
@@ -668,6 +740,8 @@ export function useAdminTools({ token, identity, effectiveIsAdmin, locale, trans
     handleAdminLobbyAthTest,
     handleAdminAthSendNow,
     handleAdminDailyAvgPreview,
-    handleAdminDailyAvgSendNow
+    handleAdminDailyAvgSendNow,
+    handleHourlyCampaignPreview,
+    handleHourlyCampaignSend
   };
 }

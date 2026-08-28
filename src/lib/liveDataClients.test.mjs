@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { buildLobbyStatsUrl } from "./casinoScoresClient.js";
 import { buildOverviewUrl, normalizeOverviewDays } from "./csOverviewClient.js";
+import { HOURLY_LOBBY_URL } from "./hourlyLobbyClient.js";
 import { buildLiveTop3Url } from "./liveTop3Client.js";
 
 test("normalizes lobby overview ranges to the API contract", () => {
@@ -22,12 +23,9 @@ test("normalizes lobby overview ranges to the API contract", () => {
   );
 });
 
-test("separates public and hourly lobby stats resources", () => {
+test("keeps premium hourly data on a separate endpoint", () => {
   assert.equal(buildLobbyStatsUrl(), "/api/casinoscores/lobby/stats");
-  assert.equal(
-    buildLobbyStatsUrl({ includeHourly: true }),
-    "/api/casinoscores/lobby/stats?includeHourly=1"
-  );
+  assert.equal(HOURLY_LOBBY_URL, "/api/casinoscores/lobby/hourly");
 });
 
 test("builds one normalized top-win URL for all dashboard consumers", () => {

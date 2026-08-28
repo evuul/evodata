@@ -10,6 +10,7 @@ import {
   fetchLatestPlayersShared,
   fetchLobbyStatsShared,
 } from "@/lib/casinoScoresClient";
+import { fetchHourlyLobbyBaseline } from "@/lib/hourlyLobbyClient";
 import { subscribeLiveDataSource } from "@/lib/liveDataCoordinator";
 import { finiteNumberOrNull } from "@/lib/livePlayerSnapshot";
 
@@ -20,12 +21,11 @@ export const PLAYERS_POLL_INTERVAL_MS = 20 * 60 * 1000; // 20 minuter
 const MIN_COOLDOWN_MS = PLAYERS_POLL_INTERVAL_MS;
 
 const PlayersLiveContext = createContext(undefined);
-const INCLUDE_HOURLY_LOCAL =
-  process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
 export function PlayersLiveProvider({ children, enabled = true }) {
-  const { user } = useAuth();
-  const isAdmin = Boolean(user?.isAdmin);
+  const { token, user } = useAuth();
+  const hasHourlyAccess = Boolean(user?.isAdmin || user?.isFounder || user?.isSubscriber);
+  const hourlyAccessKey = hasHourlyAccess ? String(user?.email || "").trim().toLowerCase() : null;
   const [data, setData] = useState({}); // { [id]: { players, updated, error? } }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -36,10 +36,16 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     lobbyAth: null,
     hourlyComparison: null,
     hourlyByHour: [],
+    hourlyCoverage: null,
+    hourlyLiveUpdatedAt: null,
     updatedAt: null,
   });
+  const [hourlyLoading, setHourlyLoading] = useState(false);
+  const [hourlyError, setHourlyError] = useState("");
   const lastFetchRef = useRef(0);
   const lastLobbyStatsFetchRef = useRef(0);
+  const lastHourlyStatsFetchRef = useRef({ accessKey: null, at: 0 });
+  const activeHourlyAccessKeyRef = useRef(null);
 
   const fetchLobbyStats = useCallback(
     async (force = false) => {
@@ -50,23 +56,70 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       }
       lastLobbyStatsFetchRef.current = now;
       try {
-        const includeHourly = isAdmin || INCLUDE_HOURLY_LOCAL;
-        const json = await fetchLobbyStatsShared({ includeHourly, force });
+        const json = await fetchLobbyStatsShared({ force });
         if (!json?.ok) return;
-        setLobbyStats({
+        setLobbyStats((current) => ({
+          ...current,
           todayPeak: json.todayPeak ?? null,
           yesterdayPeak: json.yesterdayPeak ?? null,
           lobbyAth: json.lobbyAth ?? null,
-          hourlyComparison: includeHourly ? json.hourlyComparison ?? null : null,
-          hourlyByHour: includeHourly && Array.isArray(json.hourlyByHour) ? json.hourlyByHour : [],
           updatedAt: json.updatedAt ?? null,
-        });
+        }));
       } catch {
         lastLobbyStatsFetchRef.current = 0;
       }
     },
-    [enabled, isAdmin]
+    [enabled]
   );
+
+  const fetchHourlyStats = useCallback(async (force = false) => {
+    if (!enabled || !hourlyAccessKey) return null;
+    const now = Date.now();
+    const previous = lastHourlyStatsFetchRef.current;
+    if (!force && previous.accessKey === hourlyAccessKey && now - previous.at < MIN_COOLDOWN_MS) {
+      return null;
+    }
+
+    lastHourlyStatsFetchRef.current = { accessKey: hourlyAccessKey, at: now };
+    setHourlyLoading(true);
+    setHourlyError("");
+    try {
+      const json = await fetchHourlyLobbyBaseline(token);
+      if (activeHourlyAccessKeyRef.current !== hourlyAccessKey) return null;
+      setLobbyStats((current) => ({
+        ...current,
+        hourlyComparison: json?.hourlyComparison ?? null,
+        hourlyByHour: Array.isArray(json?.hourlyByHour) ? json.hourlyByHour : [],
+        hourlyCoverage: json?.coverage ?? null,
+        hourlyLiveUpdatedAt: json?.liveUpdatedAt ?? null,
+      }));
+      return json;
+    } catch (error) {
+      if (activeHourlyAccessKeyRef.current !== hourlyAccessKey) return null;
+      lastHourlyStatsFetchRef.current = { accessKey: null, at: 0 };
+      setHourlyError(error instanceof Error ? error.message : String(error));
+      return null;
+    } finally {
+      if (activeHourlyAccessKeyRef.current === hourlyAccessKey) {
+        setHourlyLoading(false);
+      }
+    }
+  }, [enabled, hourlyAccessKey, token]);
+
+  useEffect(() => {
+    if (activeHourlyAccessKeyRef.current === hourlyAccessKey) return;
+    activeHourlyAccessKeyRef.current = hourlyAccessKey;
+    lastHourlyStatsFetchRef.current = { accessKey: null, at: 0 };
+    setHourlyLoading(false);
+    setHourlyError("");
+    setLobbyStats((current) => ({
+      ...current,
+      hourlyComparison: null,
+      hourlyByHour: [],
+      hourlyCoverage: null,
+      hourlyLiveUpdatedAt: null,
+    }));
+  }, [hourlyAccessKey]);
 
   const fetchAll = useCallback(async (force = false) => {
     if (!enabled) return null;
@@ -215,8 +268,11 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       refresh: (force = false) => fetchAll(force),
       GAMES,
       lobbyStats,
+      hourlyLoading,
+      hourlyError,
+      refreshHourlyStats: fetchHourlyStats,
     }),
-    [data, loading, error, lastUpdated, fetchAll, lobbyStats]
+    [data, loading, error, lastUpdated, fetchAll, lobbyStats, hourlyLoading, hourlyError, fetchHourlyStats]
   );
 
   return <PlayersLiveContext.Provider value={value}>{children}</PlayersLiveContext.Provider>;

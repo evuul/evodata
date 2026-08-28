@@ -12,6 +12,7 @@ import AthSection from "./LivePlayersControlPanelAthSection";
 import RankingSection from "./LivePlayersControlPanelRankingSection";
 import OverviewSection from "./LivePlayersControlPanelOverviewSection";
 import LiveGamesSection from "./LivePlayersControlPanelLiveGamesSection";
+import HourlyBaselineSection from "./LivePlayersControlPanelHourlyBaselineSection";
 import useLivePlayersControlPanelModel from "./useLivePlayersControlPanelModel";
 
 const LivePlayersControlPanel = () => {
@@ -61,7 +62,10 @@ const LivePlayersControlPanel = () => {
     topGrowthDisplay,
     topGrowthDays: TOP_GROWTH_DAYS,
     hourlyByHourRows,
-    hourlyComparisonMeta,
+    hourlyCoverage,
+    hourlyUpdatedLabel,
+    hourlyLoading,
+    hourlyError,
     playersUpdatedText,
     totalLiveDisplayValue,
     todayPeakDisplayValue,
@@ -106,7 +110,7 @@ const LivePlayersControlPanel = () => {
   const handleMobileSectionChange = (event) => {
     const nextSection = event.target.value;
     setMobileSection(nextSection);
-    if (["trend", "monthly", "gameTrend", "asia", "ranking", "ath"].includes(nextSection)) {
+    if (["trend", "monthly", "hourly", "gameTrend", "asia", "ranking", "ath"].includes(nextSection)) {
       setDetailView(nextSection);
     }
   };
@@ -170,6 +174,9 @@ const LivePlayersControlPanel = () => {
             <MenuItem value="gameTrend">{translate("Speltrend", "Game trend")}</MenuItem>
             <MenuItem value="trend">{translate("Lobbytrend", "Lobby trend")}</MenuItem>
             <MenuItem value="monthly">{translate("Månadsvis", "Monthly")}</MenuItem>
+            {hasExtendedAccess ? (
+              <MenuItem value="hourly">{translate("Timsnitt", "Hourly baseline")}</MenuItem>
+            ) : null}
             <MenuItem value="ath">{translate("ATH", "All-time highs")}</MenuItem>
             <MenuItem value="ranking">{translate("Ranking", "Ranking")}</MenuItem>
             <MenuItem value="asia">{translate("Asia Tracker", "Asia Tracker")}</MenuItem>
@@ -181,11 +188,9 @@ const LivePlayersControlPanel = () => {
             <OverviewSection
               translate={translate}
               numberFormatter={numberFormatter}
-              percentFormatter={percentFormatter}
               loadingLive={loadingLive}
               totalLiveDisplayValue={totalLiveDisplayValue}
               playersUpdatedText={playersUpdatedText}
-              hourlyComparisonMeta={hourlyComparisonMeta}
               overviewLoading={overviewLoading}
               todayPeakDisplayValue={todayPeakDisplayValue}
               todayPeakMetaText={todayPeakMetaText}
@@ -196,7 +201,6 @@ const LivePlayersControlPanel = () => {
               topGrowthDisplay={topGrowthDisplay}
               topGrowthUseMa={topGrowthUseMa}
               topGrowthDays={TOP_GROWTH_DAYS}
-              hourlyByHourRows={hourlyByHourRows}
               stuckLiveGamesCount={stuckLiveGamesCount}
             />
           </Box>
@@ -224,6 +228,8 @@ const LivePlayersControlPanel = () => {
             borderRadius: "999px",
             p: 0.5,
             alignSelf: "center",
+            flexWrap: "wrap",
+            justifyContent: "center",
           }}
         >
           <ToggleButton
@@ -254,6 +260,22 @@ const LivePlayersControlPanel = () => {
           >
             {translate("Månadsvis", "Monthly")}
           </ToggleButton>
+          {hasExtendedAccess ? (
+            <ToggleButton
+              value="hourly"
+              sx={{
+                textTransform: "none",
+                color: "rgba(226,232,240,0.75)",
+                border: 0,
+                borderRadius: "999px!important",
+                px: { xs: 1.75, md: 3 },
+                py: 0.75,
+                "&.Mui-selected": { color: "#f8fafc", backgroundColor: "rgba(14,165,233,0.3)" },
+              }}
+            >
+              {translate("Timsnitt", "Hourly")}
+            </ToggleButton>
+          ) : null}
           <ToggleButton
             value="gameTrend"
             sx={{
@@ -347,6 +369,21 @@ const LivePlayersControlPanel = () => {
               monthlyUpdatedLabel={monthlyUpdatedLabel}
               hasExtendedAccess={hasExtendedAccess}
               numberFormatter={numberFormatter}
+              translate={translate}
+            />
+          </Box>
+        )}
+
+        {detailView === "hourly" && hasExtendedAccess && (
+          <Box sx={{ display: mobileSectionDisplay("hourly") }}>
+            <HourlyBaselineSection
+              rows={hourlyByHourRows}
+              coverage={hourlyCoverage}
+              updatedLabel={hourlyUpdatedLabel}
+              loading={hourlyLoading}
+              error={hourlyError}
+              numberFormatter={numberFormatter}
+              percentFormatter={percentFormatter}
               translate={translate}
             />
           </Box>

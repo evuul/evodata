@@ -25,7 +25,6 @@ import financialCalendarEvents from "@/app/data/financialCalendar";
 import { formatLobbyAthLabel } from "@/lib/liveHeader";
 
 const SHOW_MY_PAGE_NEW_BADGE = true;
-const LOCAL_HOURLY_COMPARE_ENABLED = process.env.NEXT_PUBLIC_LOCAL_HOURLY_COMPARE === "1";
 
 export function useLiveHeaderModel() {
   const theme = useTheme();
@@ -197,7 +196,7 @@ export function useLiveHeaderModel() {
 
   const playersUpdatedLabel = playersLastUpdated ? formatTime(playersLastUpdated) : null;
   const hourlyComparisonMeta = useMemo(() => {
-    if (!isAdminView && !LOCAL_HOURLY_COMPARE_ENABLED) return null;
+    if (!isAdminView) return null;
     const cmp = lobbyStats?.hourlyComparison;
     if (!cmp) return null;
     const baseline = cmp?.baselineAvg;

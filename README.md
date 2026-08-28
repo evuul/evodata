@@ -80,7 +80,7 @@ npm run redis:local:down
 
 Tips för lokal analys:
 - Sätt `LOCAL_REDIS_URL=redis://127.0.0.1:6379` i `.env.local` för att köra lobbydata helt lokalt (utan Upstash-läsning för csStore).
-- Sätt `NEXT_PUBLIC_LOCAL_HOURLY_COMPARE=1` i `.env.local` för att visa timjämförelsen (00–23) lokalt. Default är av, så den följer inte med i pushad version.
+- Timjämförelsen (00–23) laddas från den privata hourly-endpointen för inloggade Premium-, Founder- och adminkonton.
 - Sätt `CS_MAX_SAMPLES` i `.env`/`.env.local` (t.ex. `50000`) för att behålla fler mätpunkter per spel lokalt.
 
 ## Säker underhållskonfiguration

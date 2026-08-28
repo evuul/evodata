@@ -3,11 +3,12 @@
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { getCachedDailyAggregates, getOverviewSnapshot } from "@/lib/csStore";
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
+import { loadHourlyLobbyBaseline } from "@/lib/hourlyLobbyBaseline";
 import { materializeLobbyOverviewSnapshots } from "@/lib/lobbyOverviewMaterializer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
 const STOCKHOLM_DATE = new Intl.DateTimeFormat("sv-SE", {
@@ -38,21 +39,43 @@ function latestDate(snapshot) {
   }, "");
 }
 
+async function warmHourlyBaseline() {
+  try {
+    const baseline = await loadHourlyLobbyBaseline();
+    return {
+      ready: Boolean(baseline?.buckets?.length),
+      distinctDays: Number.isFinite(Number(baseline?.distinctDays))
+        ? Math.round(Number(baseline.distinctDays))
+        : null,
+      computedAt: baseline?.computedAt ?? null,
+    };
+  } catch {
+    return { ready: false, distinctDays: null, computedAt: null };
+  }
+}
+
 async function handler(request) {
   const auth = requireCronAuth(request, SECRET, "CASINOSCORES_CRON_SECRET is not configured");
   if (!auth.ok) {
     return Response.json({ ok: false, error: auth.error }, { status: auth.status });
   }
 
+  const hourlyBaseline = await warmHourlyBaseline();
   const targetDate = shiftYmd(stockholmTodayYmd(), -1);
   const current = await getOverviewSnapshot(30);
   if (targetDate && latestDate(current) >= targetDate) {
-    return Response.json({ ok: true, skipped: true, targetDate, reason: "Snapshot is current" });
+    return Response.json({
+      ok: true,
+      skipped: true,
+      targetDate,
+      reason: "Snapshot is current",
+      hourlyBaseline,
+    });
   }
 
   const dailyAggregates = await getCachedDailyAggregates(SERIES_SLUGS, 120);
   const result = await materializeLobbyOverviewSnapshots(dailyAggregates, targetDate);
-  return Response.json({ ok: true, skipped: false, ...result });
+  return Response.json({ ok: true, skipped: false, hourlyBaseline, ...result });
 }
 
 export async function GET(request) {
