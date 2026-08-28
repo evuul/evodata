@@ -7,7 +7,7 @@ export const maxDuration = 30;
 import {
   normalizePlayers,
   getLatestSample,
-  getOrBuildBaseline,
+  getBaselineSnapshot,
   getGameAthSnapshot,
   getGlobalLobbyAth,
   getLatestPlayersSnapshot,
@@ -335,8 +335,7 @@ export async function GET(req) {
   let baselineEntry = null;
   try {
     baselineBucket = bucketLabelFromTs(Date.now(), BASELINE_BUCKET_MS);
-    const slugs = GAME_CONFIG.map((g) => g.id).filter(Boolean);
-    baseline = await getOrBuildBaseline(slugs, BASELINE_DAYS, BASELINE_BUCKET_MS);
+    baseline = await getBaselineSnapshot(BASELINE_DAYS, BASELINE_BUCKET_MS);
     baselineEntry = baseline?.buckets?.find((b) => b.bucket === baselineBucket) ?? null;
   } catch {
     baseline = null;

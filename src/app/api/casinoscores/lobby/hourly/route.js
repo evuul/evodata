@@ -7,7 +7,7 @@ import { getLatestPlayersSnapshot } from "@/lib/csStore";
 import { hasExtendedDataAccess } from "@/lib/founderAccess";
 import {
   buildHourlyLobbyPayload,
-  loadHourlyLobbyBaseline,
+  getCachedHourlyLobbyBaseline,
 } from "@/lib/hourlyLobbyBaseline";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export async function GET(request) {
     });
 
     const [baseline, latestSnapshot] = await Promise.all([
-      loadHourlyLobbyBaseline(),
+      getCachedHourlyLobbyBaseline(),
       getLatestPlayersSnapshot(),
     ]);
     if (!baseline?.buckets?.length) {

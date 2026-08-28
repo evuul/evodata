@@ -49,7 +49,13 @@ test("builds 24 rows, excludes stuck games, and reports actual coverage", () => 
   const payload = buildHourlyLobbyPayload({
     baseline: {
       buckets: activeBuckets,
-      healthyBucketsBySlug: { active: activeBuckets },
+      healthyHourlyBySlug: {
+        active: activeBuckets.map((row) => ({
+          hour: row.bucket.slice(0, 2),
+          avg: row.avg,
+          samples: row.samples,
+        })),
+      },
       distinctDays: 35,
       samples: 5_000,
       computedAt: "2026-08-28T18:00:00.000Z",
@@ -88,7 +94,16 @@ test("uses the same healthy game universe for live and historical totals", () =>
     samples: 20,
   }));
   const payload = buildHourlyLobbyPayload({
-    baseline: { healthyBucketsBySlug: { healthy: fullDayBuckets, incomplete: [] } },
+    baseline: {
+      healthyHourlyBySlug: {
+        healthy: fullDayBuckets.map((row) => ({
+          hour: row.bucket.slice(0, 2),
+          avg: row.avg,
+          samples: row.samples,
+        })),
+        incomplete: [],
+      },
+    },
     latestSnapshot: {
       items: [
         { id: "healthy", players: 150 },

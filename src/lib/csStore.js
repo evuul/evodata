@@ -192,7 +192,7 @@ const DAILY_SNAPSHOT_TTL_MS = (() => {
 })();
 const dailySnapshotMem = new Map(); // key -> { data, exp }
 const BASELINE_PREFIX = "cs:lobby:baseline:";
-const BASELINE_VERSION = "v3";
+const BASELINE_VERSION = "v4";
 const BASELINE_TTL_MS = (() => {
   const raw = Number(process.env.CS_BASELINE_TTL_MS);
   if (Number.isFinite(raw) && raw > 0) return Math.min(raw, 48 * 60 * 60 * 1000); // cap 48h
@@ -1059,7 +1059,7 @@ export function computeBaselineFromSeries(seriesMap, days, bucketMs = DEFAULT_BA
     }))
     .sort((a, b) => a.bucket.localeCompare(b.bucket));
 
-  const healthyBucketsBySlug = {};
+  const healthyHourlyBySlug = {};
   seriesMap.forEach((points, slug) => {
     const normalized = (points || [])
       .map((point) => ({ ts: Number(point?.ts), value: Number(point?.value) }))
@@ -1077,28 +1077,39 @@ export function computeBaselineFromSeries(seriesMap, days, bucketMs = DEFAULT_BA
       runStart = index;
     }
 
-    const healthyBuckets = new Map();
+    const healthyHours = new Map();
     for (const point of normalized) {
       if (frozenTimestamps.has(point.ts)) continue;
       const label = bucketLabelFromTs(point.ts, bucketMs, BASELINE_TZ);
       if (!label) continue;
-      const entry = healthyBuckets.get(label) ?? { sum: 0, count: 0 };
+      const hour = label.slice(0, 2);
+      const entry = healthyHours.get(hour) ?? { sum: 0, count: 0, values: [] };
       entry.sum += point.value;
       entry.count += 1;
-      healthyBuckets.set(label, entry);
+      entry.values.push(point.value);
+      healthyHours.set(hour, entry);
     }
-    healthyBucketsBySlug[String(slug)] = Array.from(healthyBuckets.entries())
-      .map(([bucket, { sum, count }]) => ({
-        bucket,
-        avg: count > 0 ? Math.round((sum / count) * 100) / 100 : null,
-        samples: count,
-      }))
-      .sort((a, b) => a.bucket.localeCompare(b.bucket));
+    healthyHourlyBySlug[String(slug)] = Array.from(healthyHours.entries())
+      .map(([hour, { sum, count, values }]) => {
+        const mean = count > 0 ? sum / count : null;
+        const sortedValues = values.sort((a, b) => a - b);
+        const middle = Math.floor(sortedValues.length / 2);
+        const median = sortedValues.length % 2 === 0
+          ? (sortedValues[middle - 1] + sortedValues[middle]) / 2
+          : sortedValues[middle];
+        const resolved = mean > 0 && median > 0 && mean / median > 1.35 ? median : mean;
+        return {
+          hour,
+          avg: Number.isFinite(resolved) ? Math.round(resolved * 100) / 100 : null,
+          samples: count,
+        };
+      })
+      .sort((a, b) => a.hour.localeCompare(b.hour));
   });
 
   return {
     buckets: bucketsArr,
-    healthyBucketsBySlug,
+    healthyHourlyBySlug,
     bucketMs,
     samples: tsTotals.size,
     points: samples,

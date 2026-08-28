@@ -1,7 +1,7 @@
 // Builds and loads the materialized hourly lobby baseline used by premium views.
 
 import { GAMES as GAME_CONFIG } from "../config/games.js";
-import { getOrBuildBaseline } from "./csStore.js";
+import { getBaselineSnapshot, getOrBuildBaseline } from "./csStore.js";
 
 export const HOURLY_BASELINE_DAYS = 60;
 export const HOURLY_BASELINE_BUCKET_MS = 5 * 60 * 1000;
@@ -57,18 +57,19 @@ export function computeHourBaseline(baseline, hour) {
 
 export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Date() }) {
   const latestItems = Array.isArray(latestSnapshot?.items) ? latestSnapshot.items : [];
-  const healthyBucketsBySlug = baseline?.healthyBucketsBySlug && typeof baseline.healthyBucketsBySlug === "object"
-    ? baseline.healthyBucketsBySlug
+  const healthyHourlyBySlug = baseline?.healthyHourlyBySlug && typeof baseline.healthyHourlyBySlug === "object"
+    ? baseline.healthyHourlyBySlug
     : {};
   const currentHealthyItems = latestItems.filter((item) => {
     const players = finitePositive(item?.players);
     return players != null && !item?.stuck && !item?.stale;
   });
   const comparableItems = currentHealthyItems.filter((item) => {
-    const gameBaseline = { buckets: healthyBucketsBySlug[String(item?.id)] };
     return Array.from({ length: 24 }, (_, index) => {
       const hour = String(index).padStart(2, "0");
-      return computeHourBaseline(gameBaseline, hour).baselineAvg != null;
+      return finitePositive(
+        healthyHourlyBySlug[String(item?.id)]?.find((row) => row?.hour === hour)?.avg
+      ) != null;
     }).every(Boolean);
   });
   const totalPlayers = comparableItems.reduce((sum, item) => {
@@ -80,10 +81,10 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
   const hourlyByHour = Array.from({ length: 24 }, (_, index) => {
     const hour = String(index).padStart(2, "0");
     const gameBaselines = comparableItems
-      .map((item) => computeHourBaseline({ buckets: healthyBucketsBySlug[String(item?.id)] }, hour))
-      .filter((row) => finitePositive(row.baselineAvg) != null);
+      .map((item) => healthyHourlyBySlug[String(item?.id)]?.find((row) => row?.hour === hour))
+      .filter((row) => finitePositive(row?.avg) != null);
     const baselineAvg = gameBaselines.length === comparableItems.length
-      ? gameBaselines.reduce((sum, row) => sum + row.baselineAvg, 0)
+      ? gameBaselines.reduce((sum, row) => sum + row.avg, 0)
       : null;
     const samples = gameBaselines.reduce((sum, row) => sum + row.samples, 0);
     const deltaPct = currentTotal != null && baselineAvg != null
@@ -128,4 +129,8 @@ export function loadHourlyLobbyBaseline() {
     HOURLY_BASELINE_DAYS,
     HOURLY_BASELINE_BUCKET_MS
   );
+}
+
+export function getCachedHourlyLobbyBaseline() {
+  return getBaselineSnapshot(HOURLY_BASELINE_DAYS, HOURLY_BASELINE_BUCKET_MS);
 }
