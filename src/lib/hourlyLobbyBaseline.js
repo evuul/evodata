@@ -13,7 +13,7 @@ export const HOURLY_BASELINE_BUCKET_MS = 5 * 60 * 1000;
 export const HOURLY_BASELINE_CHUNK_SIZE = 5;
 const HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES = 2_200;
 const HOURLY_BASELINE_CACHE_TTL_MS = 48 * 60 * 60 * 1000;
-const HOURLY_MIN_SAMPLES_PER_GAME_HOUR = 28;
+const HOURLY_MIN_SAMPLES_PER_GAME_HOUR = 10;
 
 const STOCKHOLM_HOUR = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",
@@ -118,29 +118,26 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
     const players = finitePositive(item?.players);
     return players != null && !item?.stuck && !item?.stale;
   });
-  const comparableItems = currentHealthyItems.filter((item) => {
-    return Array.from({ length: 24 }, (_, index) => {
-      const hour = String(index).padStart(2, "0");
-      return isEligibleHourlyRow(
-        healthyHourlyBySlug[String(item?.id)]?.find((row) => row?.hour === hour)
-      );
-    }).every(Boolean);
-  });
-  const totalPlayers = comparableItems.reduce((sum, item) => {
-    const players = finitePositive(item?.players);
-    return players != null ? sum + players : sum;
-  }, 0);
-  const currentTotal = finitePositive(totalPlayers) == null ? null : Math.round(totalPlayers);
   const currentHour = stockholmHourLabel(now);
+  const comparableGameIds = new Set();
   const hourlyByHour = Array.from({ length: 24 }, (_, index) => {
     const hour = String(index).padStart(2, "0");
-    const gameBaselines = comparableItems
-      .map((item) => healthyHourlyBySlug[String(item?.id)]?.find((row) => row?.hour === hour))
-      .filter((row) => finitePositive(row?.avg) != null);
-    const baselineAvg = gameBaselines.length === comparableItems.length
-      ? gameBaselines.reduce((sum, row) => sum + row.avg, 0)
+    const comparableItems = currentHealthyItems.flatMap((item) => {
+      const baselineRow = healthyHourlyBySlug[String(item?.id)]
+        ?.find((row) => row?.hour === hour);
+      return isEligibleHourlyRow(baselineRow) ? [{ item, baselineRow }] : [];
+    });
+    comparableItems.forEach(({ item }) => comparableGameIds.add(String(item.id)));
+    const baselineAvg = comparableItems.length
+      ? comparableItems.reduce((sum, { baselineRow }) => sum + Number(baselineRow.avg), 0)
       : null;
-    const samples = gameBaselines.reduce((sum, row) => sum + row.samples, 0);
+    const currentTotal = comparableItems.length
+      ? comparableItems.reduce((sum, { item }) => sum + Number(item.players), 0)
+      : null;
+    const samples = comparableItems.reduce(
+      (sum, { baselineRow }) => sum + Number(baselineRow.samples),
+      0
+    );
     const deltaPct = currentTotal != null && baselineAvg != null
       ? ((currentTotal - baselineAvg) / baselineAvg) * 100
       : null;
@@ -151,6 +148,7 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
       currentTotal,
       deltaPct: Number.isFinite(deltaPct) ? Math.round(deltaPct * 10) / 10 : null,
       samples: Number.isFinite(samples) ? Math.round(samples) : 0,
+      comparableGames: comparableItems.length,
       isCurrentHour: hour === currentHour,
     };
   });
@@ -171,7 +169,7 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
       source: "healthy-game-baseline-v1",
       trackedGames: latestItems.length,
       healthyGames: currentHealthyItems.length,
-      comparableGames: comparableItems.length,
+      comparableGames: comparableGameIds.size,
     },
     liveUpdatedAt: latestSnapshot?.updatedAt ?? null,
   };

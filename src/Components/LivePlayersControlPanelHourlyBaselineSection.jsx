@@ -24,8 +24,8 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
     : translate("Historisk datatäckning beräknas", "Historical coverage is being calculated");
   const gameCoverageText = coverage?.comparableGames != null && coverage?.healthyGames != null
     ? translate(
-        `Jämförbara spel: ${coverage.comparableGames} av ${coverage.healthyGames}`,
-        `Comparable games: ${coverage.comparableGames} of ${coverage.healthyGames}`
+        `Spel med timdata: ${coverage.comparableGames} av ${coverage.healthyGames}`,
+        `Games with hourly data: ${coverage.comparableGames} of ${coverage.healthyGames}`
       )
     : null;
 
@@ -146,6 +146,7 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
                     {translate("Diff", "Delta")}: {deltaText}
                   </Typography>
                   <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.72)" }}>
+                    {translate("Spel", "Games")}: {numberFormatter.format(row.comparableGames)} ·{" "}
                     {translate("Mätpunkter", "Samples")}: {numberFormatter.format(row.samples)}
                   </Typography>
                 </Box>

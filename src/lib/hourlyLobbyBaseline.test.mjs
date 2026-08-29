@@ -74,6 +74,7 @@ test("builds 24 rows, excludes stuck games, and reports actual coverage", () => 
 
   assert.equal(payload.hourlyByHour.length, 24);
   assert.equal(payload.hourlyByHour.every((row) => row.currentTotal === 1_500), true);
+  assert.equal(payload.hourlyByHour.every((row) => row.comparableGames === 1), true);
   assert.equal(payload.hourlyComparison.hour, "21");
   assert.equal(payload.hourlyComparison.isCurrentHour, true);
   assert.deepEqual(payload.coverage, {
@@ -117,6 +118,47 @@ test("uses the same healthy game universe for live and historical totals", () =>
   assert.equal(payload.hourlyByHour.every((row) => row.baselineAvg === 100), true);
   assert.equal(payload.hourlyByHour.every((row) => row.currentTotal === 150), true);
   assert.equal(payload.coverage.comparableGames, 1);
+});
+
+test("shows partial hourly coverage using matching live and historical games", () => {
+  const payload = buildHourlyLobbyPayload({
+    baseline: {
+      healthyHourlyBySlug: {
+        complete: [
+          { hour: "08", avg: 100, samples: 10 },
+          { hour: "09", avg: 120, samples: 10 },
+        ],
+        partial: [{ hour: "08", avg: 200, samples: 12 }],
+        sparse: [{ hour: "08", avg: 900, samples: 9 }],
+      },
+    },
+    latestSnapshot: {
+      items: [
+        { id: "complete", players: 150 },
+        { id: "partial", players: 250 },
+        { id: "sparse", players: 950 },
+      ],
+    },
+    now: new Date("2026-08-30T06:30:00.000Z"),
+  });
+
+  const hour08 = payload.hourlyByHour.find((row) => row.hour === "08");
+  const hour09 = payload.hourlyByHour.find((row) => row.hour === "09");
+  const hour10 = payload.hourlyByHour.find((row) => row.hour === "10");
+
+  assert.deepEqual(
+    { baselineAvg: hour08.baselineAvg, currentTotal: hour08.currentTotal, comparableGames: hour08.comparableGames },
+    { baselineAvg: 300, currentTotal: 400, comparableGames: 2 }
+  );
+  assert.deepEqual(
+    { baselineAvg: hour09.baselineAvg, currentTotal: hour09.currentTotal, comparableGames: hour09.comparableGames },
+    { baselineAvg: 120, currentTotal: 150, comparableGames: 1 }
+  );
+  assert.deepEqual(
+    { baselineAvg: hour10.baselineAvg, currentTotal: hour10.currentTotal, comparableGames: hour10.comparableGames },
+    { baselineAvg: null, currentTotal: null, comparableGames: 0 }
+  );
+  assert.equal(payload.coverage.comparableGames, 2);
 });
 
 test("incremental baseline batches preserve earlier games and advance the cursor", () => {

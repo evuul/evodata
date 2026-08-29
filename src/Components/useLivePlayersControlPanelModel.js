@@ -524,12 +524,14 @@ export default function useLivePlayersControlPanelModel() {
         const hour = String(row?.hour || "").trim();
         const baseline = Number(row?.baselineAvg);
         const currentTotalFromRow = Number(row?.currentTotal);
-        const currentTotal =
-          Boolean(row?.isCurrentHour) && Number.isFinite(totalLiveDisplayValue)
+        const currentTotal = Number.isFinite(currentTotalFromRow)
+          ? currentTotalFromRow
+          : Boolean(row?.isCurrentHour) && Number.isFinite(totalLiveDisplayValue)
             ? Number(totalLiveDisplayValue)
-            : currentTotalFromRow;
+            : null;
         const delta = Number(row?.deltaPct);
         const samples = Number(row?.samples);
+        const comparableGames = Number(row?.comparableGames);
         if (!hour || !Number.isFinite(baseline) || baseline <= 0) return null;
         const resolvedDelta =
           Number.isFinite(currentTotal) && baseline > 0
@@ -543,6 +545,9 @@ export default function useLivePlayersControlPanelModel() {
           currentTotal: Number.isFinite(currentTotal) && currentTotal > 0 ? Math.round(currentTotal) : null,
           delta: Number.isFinite(resolvedDelta) ? resolvedDelta : null,
           samples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
+          comparableGames: Number.isFinite(comparableGames) && comparableGames > 0
+            ? Math.round(comparableGames)
+            : 0,
           isCurrentHour: Boolean(row?.isCurrentHour),
         };
       })
