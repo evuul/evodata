@@ -1,11 +1,19 @@
-// Builds and loads the materialized hourly lobby baseline used by premium views.
+// Builds and incrementally refreshes the materialized hourly lobby baseline.
 
 import { GAMES as GAME_CONFIG } from "../config/games.js";
-import { getBaselineSnapshot, getOrBuildBaseline } from "./csStore.js";
+import {
+  computeBaselineFromSeries,
+  getBaselineSnapshot,
+  getSeriesBulk,
+  setBaselineSnapshot,
+} from "./csStore.js";
 
-export const HOURLY_BASELINE_DAYS = 60;
+export const HOURLY_BASELINE_DAYS = 14;
 export const HOURLY_BASELINE_BUCKET_MS = 5 * 60 * 1000;
-const HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES = 1_500;
+export const HOURLY_BASELINE_CHUNK_SIZE = 5;
+const HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES = 2_200;
+const HOURLY_BASELINE_CACHE_TTL_MS = 48 * 60 * 60 * 1000;
+const HOURLY_MIN_SAMPLES_PER_GAME_HOUR = 28;
 
 const STOCKHOLM_HOUR = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",
@@ -17,6 +25,51 @@ const finitePositive = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 };
+
+const gameIds = () => GAME_CONFIG.map((game) => game.id).filter(Boolean);
+
+const isEligibleHourlyRow = (row) =>
+  finitePositive(row?.avg) != null
+  && Number.isFinite(Number(row?.samples))
+  && Number(row.samples) >= HOURLY_MIN_SAMPLES_PER_GAME_HOUR;
+
+export function mergeHourlyBaselineBatch({ existing, computed, selectedGameIds, allGameIds, now = new Date() }) {
+  const previous = existing && typeof existing === "object" ? existing : {};
+  const healthyHourlyBySlug = {
+    ...(previous.healthyHourlyBySlug && typeof previous.healthyHourlyBySlug === "object"
+      ? previous.healthyHourlyBySlug
+      : {}),
+  };
+  const computedBySlug = computed?.healthyHourlyBySlug && typeof computed.healthyHourlyBySlug === "object"
+    ? computed.healthyHourlyBySlug
+    : {};
+
+  for (const id of selectedGameIds) {
+    const rows = Array.isArray(computedBySlug[id]) ? computedBySlug[id] : [];
+    if (rows.length) healthyHourlyBySlug[id] = rows;
+  }
+
+  const processedGameIds = new Set(Array.isArray(previous.processedGameIds) ? previous.processedGameIds : []);
+  selectedGameIds.forEach((id) => processedGameIds.add(id));
+  const totalGames = allGameIds.length;
+  const previousCursor = Number.isFinite(Number(previous.nextCursor)) ? Number(previous.nextCursor) : 0;
+  const nextCursor = totalGames > 0 ? (previousCursor + selectedGameIds.length) % totalGames : 0;
+
+  return {
+    healthyHourlyBySlug,
+    processedGameIds: [...processedGameIds].filter((id) => allGameIds.includes(id)),
+    processedGames: [...processedGameIds].filter((id) => allGameIds.includes(id)).length,
+    totalGames,
+    isComplete: allGameIds.length > 0 && allGameIds.every((id) => processedGameIds.has(id)),
+    nextCursor,
+    lastBatchGameIds: selectedGameIds,
+    bucketMs: HOURLY_BASELINE_BUCKET_MS,
+    days: HOURLY_BASELINE_DAYS,
+    distinctDays: Math.max(Number(previous.distinctDays) || 0, Number(computed?.distinctDays) || 0),
+    computedAt: now.toISOString(),
+    source: "healthy-game-hourly-incremental-v1",
+  };
+}
 
 export function stockholmHourLabel(now = new Date()) {
   try {
@@ -68,9 +121,9 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
   const comparableItems = currentHealthyItems.filter((item) => {
     return Array.from({ length: 24 }, (_, index) => {
       const hour = String(index).padStart(2, "0");
-      return finitePositive(
-        healthyHourlyBySlug[String(item?.id)]?.find((row) => row?.hour === hour)?.avg
-      ) != null;
+      return isEligibleHourlyRow(
+        healthyHourlyBySlug[String(item?.id)]?.find((row) => row?.hour === hour)
+      );
     }).every(Boolean);
   });
   const totalPlayers = comparableItems.reduce((sum, item) => {
@@ -124,13 +177,38 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
   };
 }
 
-export function loadHourlyLobbyBaseline() {
-  return getOrBuildBaseline(
-    GAME_CONFIG.map((game) => game.id).filter(Boolean),
+export async function loadHourlyLobbyBaseline() {
+  const allGameIds = gameIds();
+  if (!allGameIds.length) return null;
+  const existing = await getCachedHourlyLobbyBaseline();
+  const cursor = Number.isFinite(Number(existing?.nextCursor))
+    ? Math.max(0, Math.floor(Number(existing.nextCursor))) % allGameIds.length
+    : 0;
+  const selectedGameIds = Array.from(
+    { length: Math.min(HOURLY_BASELINE_CHUNK_SIZE, allGameIds.length) },
+    (_, index) => allGameIds[(cursor + index) % allGameIds.length]
+  );
+  const seriesMap = await getSeriesBulk(selectedGameIds, HOURLY_BASELINE_DAYS, {
+    maxSamplesPerSeries: HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES,
+  });
+  const computed = computeBaselineFromSeries(
+    seriesMap,
+    HOURLY_BASELINE_DAYS,
+    HOURLY_BASELINE_BUCKET_MS
+  );
+  const merged = mergeHourlyBaselineBatch({
+    existing,
+    computed,
+    selectedGameIds,
+    allGameIds,
+  });
+  await setBaselineSnapshot(
     HOURLY_BASELINE_DAYS,
     HOURLY_BASELINE_BUCKET_MS,
-    { maxSamplesPerSeries: HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES }
+    merged,
+    HOURLY_BASELINE_CACHE_TTL_MS
   );
+  return merged;
 }
 
 export function getCachedHourlyLobbyBaseline() {

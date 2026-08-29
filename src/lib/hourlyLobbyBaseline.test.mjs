@@ -5,6 +5,7 @@ import test from "node:test";
 import {
   buildHourlyLobbyPayload,
   computeHourBaseline,
+  mergeHourlyBaselineBatch,
 } from "./hourlyLobbyBaseline.js";
 
 function hourBuckets(hour, values) {
@@ -76,7 +77,7 @@ test("builds 24 rows, excludes stuck games, and reports actual coverage", () => 
   assert.equal(payload.hourlyComparison.hour, "21");
   assert.equal(payload.hourlyComparison.isCurrentHour, true);
   assert.deepEqual(payload.coverage, {
-    requestedDays: 60,
+    requestedDays: 14,
     distinctDays: 35,
     samples: 5_000,
     computedAt: "2026-08-28T18:00:00.000Z",
@@ -91,7 +92,7 @@ test("uses the same healthy game universe for live and historical totals", () =>
   const fullDayBuckets = Array.from({ length: 24 }, (_, hour) => ({
     bucket: `${String(hour).padStart(2, "0")}:00`,
     avg: 100,
-    samples: 20,
+    samples: 30,
   }));
   const payload = buildHourlyLobbyPayload({
     baseline: {
@@ -116,4 +117,30 @@ test("uses the same healthy game universe for live and historical totals", () =>
   assert.equal(payload.hourlyByHour.every((row) => row.baselineAvg === 100), true);
   assert.equal(payload.hourlyByHour.every((row) => row.currentTotal === 150), true);
   assert.equal(payload.coverage.comparableGames, 1);
+});
+
+test("incremental baseline batches preserve earlier games and advance the cursor", () => {
+  const existing = {
+    healthyHourlyBySlug: { game1: [{ hour: "00", avg: 100, samples: 40 }] },
+    processedGameIds: ["game1"],
+    nextCursor: 1,
+    distinctDays: 12,
+  };
+  const merged = mergeHourlyBaselineBatch({
+    existing,
+    computed: {
+      healthyHourlyBySlug: { game2: [{ hour: "00", avg: 200, samples: 45 }] },
+      distinctDays: 14,
+    },
+    selectedGameIds: ["game2"],
+    allGameIds: ["game1", "game2"],
+    now: new Date("2026-08-29T12:00:00.000Z"),
+  });
+
+  assert.deepEqual(Object.keys(merged.healthyHourlyBySlug), ["game1", "game2"]);
+  assert.equal(merged.processedGames, 2);
+  assert.equal(merged.totalGames, 2);
+  assert.equal(merged.isComplete, true);
+  assert.equal(merged.nextCursor, 0);
+  assert.equal(merged.distinctDays, 14);
 });
