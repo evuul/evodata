@@ -28,6 +28,14 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
         `Games with hourly data: ${coverage.comparableGames} of ${coverage.healthyGames}`
       )
     : null;
+  const showIncompleteWarning = coverage?.isComplete === false;
+  const progressText = coverage?.processedGames != null && coverage?.totalGames
+    ? `${coverage.processedGames} av ${coverage.totalGames}`
+    : null;
+  const progressTextEn = coverage?.processedGames != null && coverage?.totalGames
+    ? `${coverage.processedGames} of ${coverage.totalGames}`
+    : null;
+  const hoursRemaining = coverage?.estimatedHoursRemaining;
 
   return (
     <Box
@@ -83,6 +91,26 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
           ) : null}
         </Stack>
       </Stack>
+
+      {showIncompleteWarning ? (
+        <Box
+          role="status"
+          sx={{
+            borderRadius: "10px",
+            border: "1px solid rgba(245,158,11,0.38)",
+            backgroundColor: "rgba(245,158,11,0.09)",
+            px: 1.5,
+            py: 1.15,
+          }}
+        >
+          <Typography variant="body2" sx={{ color: "#fde68a", fontWeight: 700 }}>
+            {translate(
+              `Full timhistorik byggs${progressText ? `: ${progressText} spel klara` : ""}${hoursRemaining ? `. Cirka ${hoursRemaining} timmar återstår` : ""}. Fram tills dess bygger Hourly-siffrorna på ett ofullständigt spelurval och kan vara missvisande.`,
+              `Full hourly coverage is building${progressTextEn ? `: ${progressTextEn} games processed` : ""}${hoursRemaining ? `. Approximately ${hoursRemaining} hours remaining` : ""}. Until then, the Hourly figures use an incomplete game set and may be misleading.`
+            )}
+          </Typography>
+        </Box>
+      ) : null}
 
       {loading && !rows.length ? (
         <Box sx={{ minHeight: 260, display: "flex", alignItems: "center", justifyContent: "center", gap: 1.2 }}>

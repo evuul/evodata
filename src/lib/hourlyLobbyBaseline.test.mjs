@@ -61,6 +61,9 @@ test("builds 24 rows, excludes stuck games, and reports actual coverage", () => 
       samples: 5_000,
       computedAt: "2026-08-28T18:00:00.000Z",
       source: "baseline-total-v1",
+      processedGames: 5,
+      totalGames: 37,
+      isComplete: false,
     },
     latestSnapshot: {
       items: [
@@ -86,6 +89,10 @@ test("builds 24 rows, excludes stuck games, and reports actual coverage", () => 
     trackedGames: 2,
     healthyGames: 1,
     comparableGames: 1,
+    processedGames: 5,
+    totalGames: 37,
+    isComplete: false,
+    estimatedHoursRemaining: 4,
   });
 });
 

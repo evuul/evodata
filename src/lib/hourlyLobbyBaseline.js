@@ -153,6 +153,16 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
     };
   });
   const hourlyComparison = hourlyByHour.find((row) => row.isCurrentHour && row.baselineAvg != null) ?? null;
+  const processedGames = Number.isFinite(Number(baseline?.processedGames))
+    ? Math.max(0, Math.round(Number(baseline.processedGames)))
+    : null;
+  const totalGames = Number.isFinite(Number(baseline?.totalGames))
+    ? Math.max(0, Math.round(Number(baseline.totalGames)))
+    : null;
+  const isComplete = Boolean(baseline?.isComplete);
+  const estimatedHoursRemaining = !isComplete && processedGames != null && totalGames != null
+    ? Math.ceil(Math.max(0, totalGames - processedGames) / HOURLY_BASELINE_CHUNK_SIZE)
+    : 0;
 
   return {
     hourlyComparison,
@@ -170,6 +180,10 @@ export function buildHourlyLobbyPayload({ baseline, latestSnapshot, now = new Da
       trackedGames: latestItems.length,
       healthyGames: currentHealthyItems.length,
       comparableGames: comparableGameIds.size,
+      processedGames,
+      totalGames,
+      isComplete,
+      estimatedHoursRemaining,
     },
     liveUpdatedAt: latestSnapshot?.updatedAt ?? null,
   };
