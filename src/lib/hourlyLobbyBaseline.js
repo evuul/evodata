@@ -5,6 +5,7 @@ import { getBaselineSnapshot, getOrBuildBaseline } from "./csStore.js";
 
 export const HOURLY_BASELINE_DAYS = 60;
 export const HOURLY_BASELINE_BUCKET_MS = 5 * 60 * 1000;
+const HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES = 1_500;
 
 const STOCKHOLM_HOUR = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm",
@@ -127,7 +128,8 @@ export function loadHourlyLobbyBaseline() {
   return getOrBuildBaseline(
     GAME_CONFIG.map((game) => game.id).filter(Boolean),
     HOURLY_BASELINE_DAYS,
-    HOURLY_BASELINE_BUCKET_MS
+    HOURLY_BASELINE_BUCKET_MS,
+    { maxSamplesPerSeries: HOURLY_BASELINE_MAX_SAMPLES_PER_SERIES }
   );
 }
 

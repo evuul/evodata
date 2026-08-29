@@ -903,12 +903,15 @@ function parseSeriesRows(raw, since = Number.NEGATIVE_INFINITY) {
   return parsed;
 }
 
-export async function getSeriesBulk(slugs, days = 30) {
+export async function getSeriesBulk(slugs, days = 30, options = {}) {
   const unique = Array.from(new Set(slugs.filter(Boolean)));
   if (!unique.length) return new Map();
 
   const since = Date.now() - Math.max(1, days) * 24 * 60 * 60 * 1000;
-  const readLimit = seriesReadLimit(days);
+  const configuredLimit = Number(options?.maxSamplesPerSeries);
+  const readLimit = Number.isFinite(configuredLimit) && configuredLimit > 0
+    ? Math.min(seriesReadLimit(days), Math.max(1, Math.floor(configuredLimit)))
+    : seriesReadLimit(days);
   const kv = await getKv();
 
   let rawLists = [];
@@ -1169,11 +1172,11 @@ export async function setBaselineSnapshot(days, bucketMs, data, ttlMs = BASELINE
   }
 }
 
-export async function getOrBuildBaseline(slugs, days = 30, bucketMs = DEFAULT_BASELINE_BUCKET_MS) {
+export async function getOrBuildBaseline(slugs, days = 30, bucketMs = DEFAULT_BASELINE_BUCKET_MS, options = {}) {
   const existing = await getBaselineSnapshot(days, bucketMs, false);
   if (existing) return existing;
 
-  const seriesMap = await getSeriesBulk(slugs, days);
+  const seriesMap = await getSeriesBulk(slugs, days, options);
   const computed = computeBaselineFromSeries(seriesMap, days, bucketMs);
   if (computed) {
     await setBaselineSnapshot(days, bucketMs, computed);
