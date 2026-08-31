@@ -109,22 +109,22 @@ test("latest Evolution buyback week updates the cumulative program total", () =>
   assert.equal(programRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 8760702);
 });
 
-test("includes the verified latest weekly buyback report", () => {
+test("includes the verified 24–28 August 2026 buyback report", () => {
   const current = readJson(new URL("../app/data/buybackData.json", import.meta.url));
-  const latestWeek = current.filter((row) => row.Datum >= "2026-08-17" && row.Datum <= "2026-08-21");
-  const programRows = current.filter((row) => row.Datum >= "2026-05-19" && row.Datum <= "2026-08-21");
+  const latestWeek = current.filter((row) => row.Datum >= "2026-08-24" && row.Datum <= "2026-08-28");
+  const programRows = current.filter((row) => row.Datum >= "2026-05-19" && row.Datum <= "2026-08-28");
 
   assert.deepEqual(latestWeek.map((row) => row.Datum), [
-    "2026-08-17",
-    "2026-08-18",
-    "2026-08-19",
-    "2026-08-20",
-    "2026-08-21",
+    "2026-08-24",
+    "2026-08-25",
+    "2026-08-26",
+    "2026-08-27",
+    "2026-08-28",
   ]);
-  assert.equal(latestWeek.reduce((sum, row) => sum + row.Antal_aktier, 0), 895_687);
+  assert.equal(latestWeek.reduce((sum, row) => sum + row.Antal_aktier, 0), 853_947);
   assert.equal(
     latestWeek.reduce((sum, row) => sum + row.Transaktionsvärde, 0),
-    710_201_783.43,
+    711_845_246.7,
   );
-  assert.equal(programRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 12_686_155);
+  assert.equal(programRows.reduce((sum, row) => sum + row.Antal_aktier, 0), 13_540_102);
 });
