@@ -49,12 +49,14 @@ export default function LivePlayersControlPanelRankingSection({
               background: "rgba(15,23,42,0.55)",
               borderRadius: "12px",
               border: `1px solid ${row.color}33`,
-              padding: "12px 16px",
+              p: { xs: 1.25, sm: "12px 16px" },
+              gap: 1,
+              minWidth: 0,
             }}
           >
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: row.color }} />
-              <Typography sx={{ color: "#f8fafc", fontWeight: 600 }}>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+              <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: row.color, flexShrink: 0 }} />
+              <Typography sx={{ color: "#f8fafc", fontWeight: 600, overflowWrap: "anywhere" }}>
                 #{index + 1} {row.label}
               </Typography>
             </Stack>
@@ -79,7 +81,7 @@ export default function LivePlayersControlPanelRankingSection({
                 </Typography>
               </Stack>
             ) : (
-              <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600 }}>
+              <Typography sx={{ color: "rgba(226,232,240,0.85)", fontWeight: 600, flexShrink: 0 }}>
                 {numberFormatter.format(row.avgPlayers)}
               </Typography>
             )}

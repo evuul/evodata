@@ -10,6 +10,7 @@ import { fetchOverviewSharedWithOptions } from "@/lib/csOverviewClient";
 import { fetchMonthlyLobbyActivity } from "@/lib/monthlyLobbyClient";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { isPrimaryAdminEmail } from "@/lib/adminAccess";
+import { finiteNumberOrNull } from "@/lib/livePlayerSnapshot";
 import {
   getStockholmTodayYmd,
   formatDateTime,
@@ -357,6 +358,7 @@ export default function useLivePlayersControlPanelModel() {
       setMonthlyGeneratedAt(null);
       return undefined;
     }
+    if (detailView !== "monthly") return undefined;
 
     let cancelled = false;
     setMonthlyLoading(true);
@@ -382,7 +384,7 @@ export default function useLivePlayersControlPanelModel() {
     return () => {
       cancelled = true;
     };
-  }, [hasExtendedAccess]);
+  }, [detailView, hasExtendedAccess]);
 
   useEffect(() => {
     if (detailView !== "hourly") return;
@@ -523,15 +525,14 @@ export default function useLivePlayersControlPanelModel() {
       .map((row) => {
         const hour = String(row?.hour || "").trim();
         const baseline = Number(row?.baselineAvg);
-        const currentTotalFromRow = Number(row?.currentTotal);
-        const currentTotal = Number.isFinite(currentTotalFromRow)
-          ? currentTotalFromRow
-          : Boolean(row?.isCurrentHour) && Number.isFinite(totalLiveDisplayValue)
-            ? Number(totalLiveDisplayValue)
-            : null;
-        const delta = Number(row?.deltaPct);
+        const currentTotal = finiteNumberOrNull(row?.currentTotal);
+        const delta = finiteNumberOrNull(row?.deltaPct);
         const samples = Number(row?.samples);
+        const distinctDays = Number(row?.distinctDays);
         const comparableGames = Number(row?.comparableGames);
+        const coverageStage = ["preliminary", "building", "complete"].includes(row?.coverageStage)
+          ? row.coverageStage
+          : "preliminary";
         if (!hour || !Number.isFinite(baseline) || baseline <= 0) return null;
         const resolvedDelta =
           Number.isFinite(currentTotal) && baseline > 0
@@ -545,6 +546,8 @@ export default function useLivePlayersControlPanelModel() {
           currentTotal: Number.isFinite(currentTotal) && currentTotal > 0 ? Math.round(currentTotal) : null,
           delta: Number.isFinite(resolvedDelta) ? resolvedDelta : null,
           samples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
+          distinctDays: Number.isFinite(distinctDays) && distinctDays > 0 ? Math.round(distinctDays) : 0,
+          coverageStage,
           comparableGames: Number.isFinite(comparableGames) && comparableGames > 0
             ? Math.round(comparableGames)
             : 0,
@@ -553,7 +556,7 @@ export default function useLivePlayersControlPanelModel() {
       })
       .filter(Boolean)
       .sort((a, b) => a.hour.localeCompare(b.hour));
-  }, [hasExtendedAccess, lobbyStats?.hourlyByHour, totalLiveDisplayValue]);
+  }, [hasExtendedAccess, lobbyStats?.hourlyByHour]);
 
   const hourlyCoverage = useMemo(() => {
     const coverage = lobbyStats?.hourlyCoverage;
@@ -562,12 +565,23 @@ export default function useLivePlayersControlPanelModel() {
     const distinctDays = Number(coverage.distinctDays);
     const healthyGames = Number(coverage.healthyGames);
     const comparableGames = Number(coverage.comparableGames);
+    const trackedGames = Number(coverage.trackedGames);
+    const samples = Number(coverage.samples);
+    const minimumDistinctDays = Number(coverage.minimumDistinctDays);
+    const readyHours = Number(coverage.readyHours);
     const remainingDays = Number(coverage.remainingDays);
     return {
       requestedDays: Number.isFinite(requestedDays) ? Math.round(requestedDays) : null,
       distinctDays: Number.isFinite(distinctDays) ? Math.round(distinctDays) : null,
       healthyGames: Number.isFinite(healthyGames) ? Math.round(healthyGames) : null,
       comparableGames: Number.isFinite(comparableGames) ? Math.round(comparableGames) : null,
+      trackedGames: Number.isFinite(trackedGames) ? Math.round(trackedGames) : null,
+      samples: Number.isFinite(samples) ? Math.max(0, Math.round(samples)) : 0,
+      minimumDistinctDays: Number.isFinite(minimumDistinctDays)
+        ? Math.max(1, Math.round(minimumDistinctDays))
+        : 3,
+      readyHours: Number.isFinite(readyHours) ? Math.max(0, Math.min(24, Math.round(readyHours))) : 0,
+      universeMatches: coverage.universeMatches !== false,
       isComplete: Boolean(coverage.isComplete),
       remainingDays: Number.isFinite(remainingDays)
         ? Math.max(0, Math.round(remainingDays))

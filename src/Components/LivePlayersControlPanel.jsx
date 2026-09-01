@@ -3,17 +3,20 @@
 // Live players control panel view, fed by a separate model hook.
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import { Box, FormControl, MenuItem, Select, Typography, Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import TrendSection from "./LivePlayersControlPanelTrendSection";
-import MonthlyActivitySection from "./LivePlayersControlPanelMonthlyActivitySection";
-import GameTrendSection from "./LivePlayersControlPanelGameTrendView";
-import AsiaTrackerSection from "./LivePlayersControlPanelAsiaTrackerSection";
-import AthSection from "./LivePlayersControlPanelAthSection";
-import RankingSection from "./LivePlayersControlPanelRankingSection";
 import OverviewSection from "./LivePlayersControlPanelOverviewSection";
 import LiveGamesSection from "./LivePlayersControlPanelLiveGamesSection";
-import HourlyBaselineSection from "./LivePlayersControlPanelHourlyBaselineSection";
 import useLivePlayersControlPanelModel from "./useLivePlayersControlPanelModel";
+
+const SectionLoader = () => <Box sx={{ minHeight: 260 }} aria-hidden="true" />;
+const TrendSection = dynamic(() => import("./LivePlayersControlPanelTrendSection"), { loading: SectionLoader });
+const MonthlyActivitySection = dynamic(() => import("./LivePlayersControlPanelMonthlyActivitySection"), { loading: SectionLoader });
+const GameTrendSection = dynamic(() => import("./LivePlayersControlPanelGameTrendView"), { loading: SectionLoader });
+const AsiaTrackerSection = dynamic(() => import("./LivePlayersControlPanelAsiaTrackerSection"), { loading: SectionLoader });
+const AthSection = dynamic(() => import("./LivePlayersControlPanelAthSection"), { loading: SectionLoader });
+const RankingSection = dynamic(() => import("./LivePlayersControlPanelRankingSection"), { loading: SectionLoader });
+const HourlyBaselineSection = dynamic(() => import("./LivePlayersControlPanelHourlyBaselineSection"), { loading: SectionLoader });
 
 const LivePlayersControlPanel = () => {
   const [mobileSection, setMobileSection] = useState("overview");
@@ -116,6 +119,19 @@ const LivePlayersControlPanel = () => {
   };
 
   const mobileSectionDisplay = (section) => ({ xs: mobileSection === section ? "block" : "none", sm: "block" });
+  const mobileSectionOptions = [
+    { value: "overview", label: translate("Översikt", "Overview") },
+    { value: "liveGames", label: translate("Livespel just nu", "Live games now") },
+    { value: "gameTrend", label: translate("Speltrend", "Game trend") },
+    { value: "trend", label: translate("Lobbytrend", "Lobby trend") },
+    { value: "monthly", label: translate("Månadsvis", "Monthly") },
+    ...(hasExtendedAccess
+      ? [{ value: "hourly", label: translate("Timsnitt", "Hourly baseline") }]
+      : []),
+    { value: "ath", label: translate("ATH", "All-time highs") },
+    { value: "ranking", label: translate("Ranking", "Ranking") },
+    { value: "asia", label: translate("Asia Tracker", "Asia Tracker") },
+  ];
 
   return (
     <Box
@@ -126,17 +142,33 @@ const LivePlayersControlPanel = () => {
         boxShadow: "0 24px 50px rgba(15,23,42,0.45)",
         color: "#f8fafc",
         mx: { xs: -2, sm: -3, md: -4 },
-        px: { xs: 2, sm: 3, md: 4 },
-        py: { xs: 3, md: 4 },
+        px: { xs: 1.5, sm: 3, md: 4 },
+        py: { xs: 2.25, md: 4 },
+        minWidth: 0,
         overflow: "visible",
       }}
     >
-      <Stack spacing={{ xs: 2.2, md: 3.2 }}>
-        <Stack spacing={{ xs: 1, md: 1.25 }} alignItems="center" textAlign="center">
-          <Typography variant="h4" sx={{ fontWeight: 700, fontSize: { xs: "1.8rem", sm: "2.3rem" } }}>
+      <Stack spacing={{ xs: 1.75, md: 3.2 }} sx={{ minWidth: 0 }}>
+        <Stack
+          spacing={{ xs: 0.7, md: 1.25 }}
+          alignItems={{ xs: "flex-start", sm: "center" }}
+          textAlign={{ xs: "left", sm: "center" }}
+        >
+          <Typography
+            variant="h4"
+            sx={{ fontWeight: 700, fontSize: { xs: "1.55rem", sm: "2.3rem" }, lineHeight: { xs: 1.2, sm: 1.25 } }}
+          >
             {translate("Gameshow live-data & historik", "Gameshow live data & history")}
           </Typography>
-          <Typography variant="body1" sx={{ color: "rgba(226,232,240,0.75)", maxWidth: 760, lineHeight: 1.6 }}>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "rgba(226,232,240,0.75)",
+              maxWidth: 760,
+              lineHeight: { xs: 1.5, sm: 1.6 },
+              fontSize: { xs: "0.9rem", sm: "1rem" },
+            }}
+          >
             {translate(
               "En förädlad vy över live-spelare, trendutveckling, ranking och toppnoteringar. Uppdateras automatiskt med lobbydata.",
               "A refined view of live players, trend development, rankings and peak records. Updates automatically with lobby data."
@@ -144,46 +176,70 @@ const LivePlayersControlPanel = () => {
           </Typography>
         </Stack>
 
-        <FormControl size="small" sx={{ display: { xs: "block", sm: "none" }, width: "100%" }}>
-          <Select
-            value={mobileSection}
-            onChange={handleMobileSectionChange}
-            inputProps={{ "aria-label": translate("Välj gameshow-vy", "Choose gameshow view") }}
-            sx={{
-              width: "100%",
-              color: "#f8fafc",
-              fontWeight: 700,
-              borderRadius: "12px",
-              backgroundColor: "rgba(15,23,42,0.72)",
-              "& .MuiSelect-icon": { color: "rgba(226,232,240,0.75)" },
-              "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(56,189,248,0.4)" },
-              "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(56,189,248,0.7)" },
-            }}
-            MenuProps={{
-              PaperProps: {
-                sx: {
-                  maxHeight: 360,
-                  color: "#f8fafc",
-                  backgroundColor: "#111c2f",
+        <Box
+          component="nav"
+          aria-label={translate("Mobilnavigering för gameshow-data", "Mobile navigation for gameshow data")}
+          sx={{
+            display: { xs: "block", sm: "none" },
+            position: "sticky",
+            top: 8,
+            zIndex: 10,
+            mx: -0.5,
+            p: 0.5,
+            borderRadius: "14px",
+            backgroundColor: "rgba(15,23,42,0.94)",
+            boxShadow: "0 8px 24px rgba(2,6,23,0.38)",
+          }}
+        >
+          <FormControl size="small" sx={{ width: "100%" }}>
+            <Select
+              value={mobileSection}
+              onChange={handleMobileSectionChange}
+              inputProps={{ "aria-label": translate("Välj gameshow-vy", "Choose gameshow view") }}
+              renderValue={(value) => {
+                const selectedOption = mobileSectionOptions.find((option) => option.value === value);
+                return (
+                  <Stack direction="row" spacing={0.75} alignItems="baseline">
+                    <Typography component="span" variant="caption" sx={{ color: "rgba(125,211,252,0.8)" }}>
+                      {translate("Vy", "View")}
+                    </Typography>
+                    <Typography component="span" variant="body2" sx={{ color: "#f8fafc", fontWeight: 800 }}>
+                      {selectedOption?.label ?? value}
+                    </Typography>
+                  </Stack>
+                );
+              }}
+              sx={{
+                width: "100%",
+                minHeight: 46,
+                color: "#f8fafc",
+                borderRadius: "11px",
+                backgroundColor: "rgba(30,41,59,0.86)",
+                "& .MuiSelect-icon": { color: "rgba(226,232,240,0.75)" },
+                "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(56,189,248,0.45)" },
+                "&:hover .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(56,189,248,0.7)" },
+                "&.Mui-focused .MuiOutlinedInput-notchedOutline": { borderColor: "#38bdf8" },
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    maxHeight: "min(60vh, 420px)",
+                    color: "#f8fafc",
+                    backgroundColor: "#111c2f",
+                  },
                 },
-              },
-            }}
-          >
-            <MenuItem value="overview">{translate("Översikt", "Overview")}</MenuItem>
-            <MenuItem value="liveGames">{translate("Livespel just nu", "Live games now")}</MenuItem>
-            <MenuItem value="gameTrend">{translate("Speltrend", "Game trend")}</MenuItem>
-            <MenuItem value="trend">{translate("Lobbytrend", "Lobby trend")}</MenuItem>
-            <MenuItem value="monthly">{translate("Månadsvis", "Monthly")}</MenuItem>
-            {hasExtendedAccess ? (
-              <MenuItem value="hourly">{translate("Timsnitt", "Hourly baseline")}</MenuItem>
-            ) : null}
-            <MenuItem value="ath">{translate("ATH", "All-time highs")}</MenuItem>
-            <MenuItem value="ranking">{translate("Ranking", "Ranking")}</MenuItem>
-            <MenuItem value="asia">{translate("Asia Tracker", "Asia Tracker")}</MenuItem>
-          </Select>
-        </FormControl>
+              }}
+            >
+              {mobileSectionOptions.map((option) => (
+                <MenuItem key={option.value} value={option.value} sx={{ minHeight: 46 }}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
 
-        <Stack spacing={{ xs: 2, md: 3 }} sx={{ width: "100%" }}>
+        <Stack spacing={{ xs: 1.5, md: 3 }} sx={{ width: "100%", minWidth: 0 }}>
           <Box sx={{ display: mobileSectionDisplay("overview") }}>
             <OverviewSection
               translate={translate}

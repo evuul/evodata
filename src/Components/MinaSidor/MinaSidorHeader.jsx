@@ -98,10 +98,11 @@ export default function MinaSidorHeader({
   const hourlyChip = (() => {
     if (!isAdminView) return null;
     const baseline = hourlyComparison?.baselineAvg;
+    const comparableLiveTotal = hourlyComparison?.currentTotal;
     const samples = hourlyComparison?.samples;
     const hour = String(hourlyComparison?.hour || "").trim();
     if (
-      !Number.isFinite(totalLivePlayers) ||
+      !Number.isFinite(comparableLiveTotal) ||
       !Number.isFinite(baseline) ||
       baseline <= 0 ||
       !Number.isFinite(samples) ||
@@ -110,7 +111,7 @@ export default function MinaSidorHeader({
     ) {
       return null;
     }
-    const delta = ((totalLivePlayers - baseline) / baseline) * 100;
+    const delta = ((comparableLiveTotal - baseline) / baseline) * 100;
     const sign = delta > 0 ? "+" : "";
     return {
       label: translate(

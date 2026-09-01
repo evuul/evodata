@@ -4,7 +4,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useBuybackData } from "./useBuybackData.js";
-import { fetchOverviewShared } from "../lib/csOverviewClient.js";
 import { fetchShortActivityShared } from "../lib/marketDataClient.js";
 import {
   buildBuybackComplianceSeries,
@@ -13,7 +12,7 @@ import {
 
 const BUYBACK_CASH_EUR = 2_000_000_000;
 const BUYBACK_MANDATE_START_DATE = "2026-05-18";
-const LOBBY_ATH_DAYS = 365;
+const BUYBACK_VOLUME_LOOKBACK_DAYS = 45;
 
 function toTradingVolumeMap(items) {
   const volumeByDate = new Map();
@@ -82,7 +81,6 @@ export function buildBuybackSummary(data, fxRateNumber, stockPriceValue) {
 }
 
 export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
-  const [lobbyAth, setLobbyAth] = useState(null);
   const [activityItems, setActivityItems] = useState([]);
   const {
     data: buybackData,
@@ -103,7 +101,7 @@ export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
     if (!buybackData) return undefined;
     let isActive = true;
 
-    fetchShortActivityShared(365)
+    fetchShortActivityShared(BUYBACK_VOLUME_LOOKBACK_DAYS)
       .then((data) => {
         if (isActive) setActivityItems(Array.isArray(data?.items) ? data.items : []);
       })
@@ -117,38 +115,20 @@ export function useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue }) {
   }, [buybackData]);
 
   useEffect(() => {
-    let isActive = true;
-    const loadLobbyOverview = async () => {
-      try {
-        const data = await fetchOverviewShared(LOBBY_ATH_DAYS);
-        if (!isActive) return;
-        setLobbyAth(data?.ath || null);
-      } catch (error) {
-        if (!isActive) return;
-        console.warn("[LiveHeader] Failed to fetch lobby overview:", error);
-        setLobbyAth(null);
-      }
-    };
-
     const handleFocus = () => {
       if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
-      loadLobbyOverview();
       reloadBuybacks().catch(() => {});
     };
 
-    loadLobbyOverview();
     window.addEventListener("focus", handleFocus);
     window.addEventListener("visibilitychange", handleFocus);
-
     return () => {
-      isActive = false;
       window.removeEventListener("focus", handleFocus);
       window.removeEventListener("visibilitychange", handleFocus);
     };
   }, [reloadBuybacks]);
 
   return {
-    lobbyAth,
     buybackSummary: buybackSummary ? { ...buybackSummary, weeklyBuybackEstimate } : null,
   };
 }

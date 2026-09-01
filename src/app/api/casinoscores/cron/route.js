@@ -191,8 +191,11 @@ async function runCron(req) {
     await Promise.all([
       setLatestPlayersSnapshot({ items: snapshotItems, updatedAt, materializedAt }),
       updateGameAthSnapshot(successfulItems, updatedAt),
-      observedLobby.totalPlayers != null && observedLobby.measuredAt
-        ? saveLobbyTotalSample(observedLobby.measuredAt, observedLobby.totalPlayers)
+      observedLobby.totalPlayers != null && observedLobby.measuredAt && observedLobby.universeKey
+        ? saveLobbyTotalSample(observedLobby.measuredAt, observedLobby.totalPlayers, {
+            universeKey: observedLobby.universeKey,
+            includedGames: observedLobby.includedGames,
+          })
         : Promise.resolve(),
     ]);
 

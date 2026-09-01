@@ -3,7 +3,7 @@
 // Active panel resolver for the live header dashboard area.
 
 import React from "react";
-import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, CircularProgress, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import SupportCallout from "./SupportCallout";
 
 const BUYBACK_CASH_EUR = 2_000_000_000;
@@ -25,10 +25,37 @@ export default function LiveHeaderPanelContent({
   dividendData,
   buybackData,
   sharesData,
+  dataLoading,
+  dataError,
+  onRetryData,
   cashView,
   setCashView,
   panels,
 }) {
+  if (dataLoading) {
+    return (
+      <Stack minHeight={280} alignItems="center" justifyContent="center" spacing={1.2}>
+        <CircularProgress size={24} sx={{ color: "#38bdf8" }} />
+        <Typography variant="body2" sx={{ color: "rgba(226,232,240,0.72)" }}>
+          {translate("Laddar paneldata…", "Loading panel data…")}
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <Stack minHeight={280} alignItems="center" justifyContent="center" spacing={1.2} textAlign="center">
+        <Typography variant="body2" sx={{ color: "#fca5a5" }}>
+          {translate("Paneldata kunde inte laddas.", "Panel data could not be loaded.")}
+        </Typography>
+        <Button type="button" variant="outlined" color="inherit" onClick={onRetryData}>
+          {translate("Försök igen", "Try again")}
+        </Button>
+      </Stack>
+    );
+  }
+
   if (activePanel === "live") return <panels.LivePlayersControlPanel />;
 
   if (activePanel === "extended") return <panels.ExtendedLobbyPanel />;

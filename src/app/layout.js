@@ -3,7 +3,7 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Box from "@mui/material/Box";
-import Providers from "./providers"; // ⬅️ NYTT: gemensam klient-wrapper för alla providers
+import Providers from "./providers";
 
 const geistSans = localFont({
   variable: "--font-geist-sans",
@@ -62,7 +62,6 @@ export default function RootLayout({ children }) {
               width: "100%",
             }}
           >
-            {/* <Sidebar /> */}
             <Box
               sx={{
                 flexGrow: 1,

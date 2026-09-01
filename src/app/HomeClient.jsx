@@ -7,7 +7,6 @@ import { useEffect, useState } from "react";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { useAuth } from "@/context/AuthContext";
 import { useTranslate } from "@/context/LocaleContext";
-import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
 import { dashboardVariantForAuth, resolveHomeDashboardView } from "@/lib/homeDashboardState";
 import OnboardingGuide from "@/Components/OnboardingGuide";
 
@@ -39,29 +38,9 @@ const emptyDataState = {
   value: null,
 };
 
-async function readDefault(modulePromise) {
-  const module = await modulePromise;
-  return module.default;
-}
-
 async function loadLiveHeaderData() {
-  const [financialReports, averagePlayersData, dividendData, historicalBuybacks, currentBuybacks, sharesData] = await Promise.all([
-    readDefault(import("@/app/data/financialReports.json")),
-    readDefault(import("@/app/data/averagePlayers.json")),
-    readDefault(import("@/app/data/dividendData.json")),
-    readDefault(import("@/app/data/oldBuybackData.json")),
-    readDefault(import("@/app/data/buybackData.json")),
-    readDefault(import("@/app/data/amountOfShares.json")),
-    import("@/Components/LiveHeader"),
-  ]);
-
-  return {
-    financialReports,
-    averagePlayersData,
-    dividendData,
-    buybackData: combineBuybackSnapshots(historicalBuybacks, currentBuybacks),
-    sharesData,
-  };
+  await import("@/Components/LiveHeader");
+  return {};
 }
 
 async function loadLoggedOutPreviewData() {

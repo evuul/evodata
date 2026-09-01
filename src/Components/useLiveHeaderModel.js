@@ -94,17 +94,6 @@ export function useLiveHeaderModel() {
     [translate]
   );
 
-  const isMarketOpen = useCallback(() => {
-    const now = new Date();
-    const day = now.getDay();
-    if (day === 0 || day === 6) return false;
-    const hour = now.getHours();
-    const minute = now.getMinutes();
-    const afterOpen = hour > 9 || (hour === 9 && minute >= 0);
-    const beforeClose = hour < 17 || (hour === 17 && minute <= 30);
-    return afterOpen && beforeClose;
-  }, []);
-
   const timeFormatter = useMemo(
     () => new Intl.DateTimeFormat("sv-SE", { hour: "2-digit", minute: "2-digit" }),
     []
@@ -125,7 +114,8 @@ export function useLiveHeaderModel() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   }, [fxRate]);
   const stockPriceValue = stockPrice?.price?.regularMarketPrice?.raw;
-  const { lobbyAth, buybackSummary } = useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue });
+  const { buybackSummary } = useLiveHeaderRemoteData({ fxRateNumber, stockPriceValue });
+  const lobbyAth = lobbyStats?.lobbyAth ?? null;
 
   const lobbyAthLabel = useMemo(() => formatLobbyAthLabel(lobbyAth, translate), [lobbyAth, translate]);
 
@@ -142,12 +132,13 @@ export function useLiveHeaderModel() {
 
   const stockChangeValue = stockPrice?.price?.regularMarketChangePercent?.raw;
   const stockMarketSessionPhase = stockPrice?.marketSessionPhase ?? null;
+  const marketIsOpen = stockMarketSessionPhase === "open";
   const stockSymbol = stockPrice?.price?.symbol ?? "EVO.ST";
   const exchangeName =
     stockPrice?.price?.fullExchangeName ?? stockPrice?.price?.exchangeName ?? "Nasdaq Stockholm";
   const venueChipLabel = `${stockSymbol} · ${exchangeName}`;
   const venueChipLabelMobile = stockSymbol;
-  const marketDotColor = isMarketOpen() ? "#22c55e" : "#f87171";
+  const marketDotColor = marketIsOpen ? "#22c55e" : "#f87171";
 
   const priceDisplay = Number.isFinite(stockPriceValue)
     ? `${stockPriceValue.toLocaleString("sv-SE", {
@@ -202,7 +193,7 @@ export function useLiveHeaderModel() {
     const baseline = cmp?.baselineAvg;
     const samples = cmp?.samples;
     const hour = String(cmp?.hour || "").trim();
-    const currentLive = Number.isFinite(playersValue) ? Number(playersValue) : Number(cmp?.currentTotal);
+    const currentLive = Number(cmp?.currentTotal);
     const delta =
       Number.isFinite(currentLive) && Number.isFinite(baseline) && baseline > 0
         ? ((currentLive - baseline) / baseline) * 100
@@ -224,7 +215,7 @@ export function useLiveHeaderModel() {
     );
     const color = delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.72)";
     return { text, color };
-  }, [isAdminView, lobbyStats?.hourlyComparison, playersValue, translate]);
+  }, [isAdminView, lobbyStats?.hourlyComparison, translate]);
   const stockUpdatedLabel = stockLastUpdated ? formatTime(stockLastUpdated) : null;
 
   const blankningChipLabel = loadingShort
@@ -238,7 +229,7 @@ export function useLiveHeaderModel() {
     : Number.isFinite(shortPercent)
     ? translate(`Blankning ${shortPercent.toFixed(2)}%`, `Short interest ${shortPercent.toFixed(2)}%`)
     : translate("Blankning –", "Short interest –");
-  const marketStatusChip = isMarketOpen()
+  const marketStatusChip = marketIsOpen
     ? {
         label: translate("Marknaden öppen", "Market open"),
         bg: "rgba(16,185,129,0.18)",
@@ -367,7 +358,6 @@ export function useLiveHeaderModel() {
     cashView,
     setCashView,
     fmtCap,
-    isMarketOpen,
     formatTime,
     shortPercent,
     loadingShort,

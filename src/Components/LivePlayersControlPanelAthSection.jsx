@@ -108,15 +108,26 @@ export default function LivePlayersControlPanelAthSection({
                 p: 1.25,
               }}
             >
-              <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1}>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: row.color }} />
-                  <Typography sx={{ color: "#f8fafc", fontWeight: 600 }}>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                justifyContent="space-between"
+                alignItems={{ xs: "stretch", sm: "center" }}
+                spacing={{ xs: 1, sm: 1 }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: row.color, flexShrink: 0 }} />
+                  <Typography sx={{ color: "#f8fafc", fontWeight: 600, overflowWrap: "anywhere" }}>
                     #{index + 1} {row.label}
                   </Typography>
                 </Stack>
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Stack spacing={0} alignItems="flex-end">
+                <Stack
+                  direction="row"
+                  spacing={{ xs: 1.25, sm: 2 }}
+                  alignItems="stretch"
+                  justifyContent={{ xs: "space-between", sm: "flex-end" }}
+                  sx={{ width: { xs: "100%", sm: "auto" } }}
+                >
+                  <Stack spacing={0} alignItems={{ xs: "flex-start", sm: "flex-end" }} sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
                       {translate("ATH", "ATH")}
                     </Typography>
@@ -128,7 +139,7 @@ export default function LivePlayersControlPanelAthSection({
                     </Typography>
                   </Stack>
                   <Divider orientation="vertical" flexItem sx={{ borderColor: "rgba(148,163,184,0.2)" }} />
-                  <Stack spacing={0} alignItems="flex-end">
+                  <Stack spacing={0} alignItems="flex-end" sx={{ minWidth: 0, flex: 1 }}>
                     <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.75)" }}>
                       {translate("Senaste", "Latest")}
                     </Typography>

@@ -5,6 +5,21 @@
 import React from "react";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 
+const overviewCardSx = (frameColor) => ({
+  background: "rgba(15,23,42,0.45)",
+  borderRadius: "16px",
+  border: "1px solid transparent",
+  boxShadow: `inset 0 0 0 1px ${frameColor}`,
+  boxSizing: "border-box",
+  p: { xs: 2, md: 2.5 },
+  width: { xs: "100%", sm: 320 },
+  mx: "auto",
+  minHeight: 180,
+  display: "flex",
+  flexDirection: "column",
+  gap: 1,
+});
+
 export default function LivePlayersControlPanelOverviewSection({
   translate,
   numberFormatter,
@@ -44,16 +59,7 @@ export default function LivePlayersControlPanelOverviewSection({
           <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
             <Box
               sx={{
-                background: "rgba(15,23,42,0.45)",
-                borderRadius: "16px",
-                border: "1px solid rgba(52,211,153,0.45)",
-                p: { xs: 2, md: 2.5 },
-                width: { xs: "100%", sm: 320 },
-                mx: "auto",
-                minHeight: 180,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
+                ...overviewCardSx("rgba(52,211,153,0.55)"),
                 textAlign: "center",
               }}
             >
@@ -104,18 +110,7 @@ export default function LivePlayersControlPanelOverviewSection({
 
           <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
             <Box
-              sx={{
-                background: "rgba(15,23,42,0.45)",
-                borderRadius: "16px",
-                border: "1px solid rgba(251,113,133,0.25)",
-                p: { xs: 2, md: 2.5 },
-                width: { xs: "100%", sm: 320 },
-                mx: "auto",
-                minHeight: 180,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-              }}
+              sx={overviewCardSx("rgba(251,113,133,0.42)")}
             >
               <Typography
                 variant="overline"
@@ -153,18 +148,7 @@ export default function LivePlayersControlPanelOverviewSection({
           {showYesterdayPeakCard && (
             <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
               <Box
-                sx={{
-                  background: "rgba(15,23,42,0.45)",
-                  borderRadius: "16px",
-                  border: "1px solid rgba(251,191,36,0.25)",
-                  p: { xs: 2, md: 2.5 },
-                  width: { xs: "100%", sm: 320 },
-                  mx: "auto",
-                  minHeight: 180,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 1,
-                }}
+                sx={overviewCardSx("rgba(251,191,36,0.42)")}
               >
                 <Typography
                   variant="overline"
@@ -202,18 +186,7 @@ export default function LivePlayersControlPanelOverviewSection({
 
           <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
             <Box
-              sx={{
-                background: "rgba(15,23,42,0.45)",
-                borderRadius: "16px",
-                border: "1px solid rgba(96,165,250,0.25)",
-                p: { xs: 2, md: 2.5 },
-                width: { xs: "100%", sm: 320 },
-                mx: "auto",
-                minHeight: 180,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-              }}
+              sx={overviewCardSx("rgba(96,165,250,0.42)")}
             >
               <Typography
                 variant="overline"
@@ -256,18 +229,7 @@ export default function LivePlayersControlPanelOverviewSection({
 
           <Box sx={{ width: { xs: "100%", sm: 320 }, display: "flex", justifyContent: "center" }}>
             <Box
-              sx={{
-                background: "rgba(15,23,42,0.45)",
-                borderRadius: "16px",
-                border: "1px solid rgba(34,197,94,0.28)",
-                p: { xs: 2, md: 2.5 },
-                width: { xs: "100%", sm: 320 },
-                mx: "auto",
-                minHeight: 180,
-                display: "flex",
-                flexDirection: "column",
-                gap: 1,
-              }}
+              sx={overviewCardSx("rgba(34,197,94,0.44)")}
             >
               <Typography
                 variant="overline"

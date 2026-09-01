@@ -905,7 +905,18 @@ function parseSeriesRows(raw, since = Number.NEGATIVE_INFINITY) {
       const o = typeof r === "string" ? JSON.parse(r) : r;
       const normalized = normalizePlayers(o?.value);
       if (o && Number.isFinite(o.ts) && normalized != null && o.ts >= since) {
-        parsed.push({ ts: o.ts, value: normalized });
+        const universeKey = typeof o.universeKey === "string" && o.universeKey.length <= 80
+          ? o.universeKey
+          : null;
+        const includedGames = Number.isInteger(Number(o.includedGames)) && Number(o.includedGames) > 0
+          ? Number(o.includedGames)
+          : null;
+        parsed.push({
+          ts: o.ts,
+          value: normalized,
+          ...(universeKey ? { universeKey } : {}),
+          ...(includedGames ? { includedGames } : {}),
+        });
       }
     } catch {
       // ignore bad rows
@@ -978,13 +989,29 @@ export async function getSeriesBulk(slugs, days = 30, options = {}) {
  * @param {string} isoTs - ISO timestamp
  * @param {number} players
  */
-async function saveSampleWithRetention(slug, isoTs, players, { maxSamples = MAX_SAMPLES, updateDaily = true } = {}) {
+async function saveSampleWithRetention(
+  slug,
+  isoTs,
+  players,
+  { maxSamples = MAX_SAMPLES, updateDaily = true, metadata = null } = {}
+) {
   const ts = Date.parse(isoTs);
   if (!Number.isFinite(ts)) throw new Error("Bad timestamp");
   const normalized = normalizePlayers(players);
   if (normalized == null) throw new Error("Bad value");
 
-  const entry = JSON.stringify({ ts, value: normalized });
+  const universeKey = typeof metadata?.universeKey === "string" && metadata.universeKey.length <= 80
+    ? metadata.universeKey
+    : null;
+  const includedGames = Number.isInteger(Number(metadata?.includedGames)) && Number(metadata.includedGames) > 0
+    ? Number(metadata.includedGames)
+    : null;
+  const entry = JSON.stringify({
+    ts,
+    value: normalized,
+    ...(universeKey ? { universeKey } : {}),
+    ...(includedGames ? { includedGames } : {}),
+  });
   const key = KEY(slug);
 
   const kv = await getKv();
@@ -1005,11 +1032,12 @@ export async function saveSample(slug, isoTs, players) {
   return saveSampleWithRetention(slug, isoTs, players);
 }
 
-// Persists the complete lobby total independently of per-game chart history.
-export async function saveLobbyTotalSample(isoTs, players) {
+// Persists a lobby total and its game-universe signature independently of per-game history.
+export async function saveLobbyTotalSample(isoTs, players, metadata = null) {
   return saveSampleWithRetention(LOBBY_TOTAL_SERIES_ID, isoTs, players, {
     maxSamples: LOBBY_TOTAL_MAX_SAMPLES,
     updateDaily: false,
+    metadata,
   });
 }
 
@@ -1022,6 +1050,14 @@ export async function getLobbyTotalSeries(days = 60) {
     ? await kv.lrange(KEY(LOBBY_TOTAL_SERIES_ID), 0, readLimit - 1)
     : mem.lrange(KEY(LOBBY_TOTAL_SERIES_ID), 0, readLimit - 1);
   return parseSeriesRows(raw, since);
+}
+
+export async function getLatestLobbyTotalSample() {
+  const kv = await getKv();
+  const raw = kv
+    ? await kv.lrange(KEY(LOBBY_TOTAL_SERIES_ID), 0, 0)
+    : mem.lrange(KEY(LOBBY_TOTAL_SERIES_ID), 0, 0);
+  return parseSeriesRows(raw).at(-1) ?? null;
 }
 
 /**

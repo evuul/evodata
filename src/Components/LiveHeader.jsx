@@ -9,6 +9,7 @@ import LiveHeaderTopBar from "./LiveHeaderTopBar";
 import LiveHeaderOverviewSection from "./LiveHeaderOverviewSection";
 import LiveHeaderPanelSwitcher from "./LiveHeaderPanelSwitcher";
 import LiveHeaderPanelContent from "./LiveHeaderPanelContent";
+import useDashboardPanelData from "./useDashboardPanelData";
 import { useLiveHeaderModel } from "./useLiveHeaderModel";
 
 const PanelLoader = () => (
@@ -40,7 +41,7 @@ const FinancialCalendarPanel = dynamic(() => import("./FinancialCalendarPanel"),
 const GameReleasesPanel = dynamic(() => import("./GameReleasesPanel"), { ssr: false, loading: PanelLoader });
 const ExtendedLobbyPanel = dynamic(() => import("./ExtendedLobbyPanel"), { ssr: false, loading: PanelLoader });
 
-export default function LiveHeader({ financialReports, averagePlayersData, dividendData, buybackData, sharesData }) {
+export default function LiveHeader() {
   const {
     isMobileMenu,
     loadingPlayers,
@@ -98,16 +99,25 @@ export default function LiveHeader({ financialReports, averagePlayersData, divid
     scrollToCard,
     translate,
   } = useLiveHeaderModel();
+  const {
+    data: panelData,
+    loading: panelDataLoading,
+    error: panelDataError,
+    retry: retryPanelData,
+  } = useDashboardPanelData({ activePanel, cashView });
 
   const panelContent = (
     <LiveHeaderPanelContent
       activePanel={activePanel}
       translate={translate}
-      financialReports={financialReports}
-      averagePlayersData={averagePlayersData}
-      dividendData={dividendData}
-      buybackData={buybackData}
-      sharesData={sharesData}
+      financialReports={panelData.financialReports}
+      averagePlayersData={panelData.averagePlayersData}
+      dividendData={panelData.dividendData}
+      buybackData={panelData.buybackData}
+      sharesData={panelData.sharesData}
+      dataLoading={panelDataLoading}
+      dataError={panelDataError}
+      onRetryData={retryPanelData}
       cashView={cashView}
       setCashView={setCashView}
       panels={{

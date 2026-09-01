@@ -36,10 +36,13 @@ env:
 jobs:
   lobby-sync:
     if: |
-      github.event_name == 'schedule' ||
+      (github.event_name == 'schedule' && github.event.schedule == '7,17,27,37,47,57 * * * *') ||
       (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'lobby-sync'))
     runs-on: ubuntu-latest
     timeout-minutes: 4
+    concurrency:
+      group: external-cron-lobby-sync
+      cancel-in-progress: false
     steps:
       # Extended Lobby is scheduled independently by Cloudflare. Keeping this job primary-only
       # prevents a slow third-party Unibet request from delaying the public lobby refresh.

@@ -8,6 +8,7 @@ import { hasExtendedDataAccess } from "@/lib/founderAccess";
 import {
   buildHourlyLobbyPayload,
   getCachedHourlyLobbyBaseline,
+  HOURLY_BASELINE_SOURCE,
 } from "@/lib/hourlyLobbyBaseline";
 
 export const dynamic = "force-dynamic";
@@ -31,14 +32,11 @@ export async function GET(request) {
       includeHourly: true,
     });
 
-    const [baseline, latestSnapshot] = await Promise.all([
+    const [cachedBaseline, latestSnapshot] = await Promise.all([
       getCachedHourlyLobbyBaseline(),
       getLatestPlayersSnapshot(),
     ]);
-    if (!Array.isArray(baseline?.hourlyByHour) || !baseline.hourlyByHour.some((row) => Number(row?.baselineAvg) > 0)) {
-      return json({ ok: false, error: "Hourly comparison is being prepared" }, 503);
-    }
-
+    const baseline = cachedBaseline?.source === HOURLY_BASELINE_SOURCE ? cachedBaseline : null;
     return json({
       ok: true,
       ...buildHourlyLobbyPayload({ baseline, latestSnapshot }),
