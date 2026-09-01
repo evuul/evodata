@@ -4,6 +4,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { COOKIE_SESSION_MARKER, fetchAuthJson } from "@/lib/clientApi";
+import { isPasswordResetEnabled } from "@/lib/passwordResetAvailability";
 
 const STORAGE_KEY = "evodata.auth";
 const AuthContext = createContext(undefined);
@@ -20,7 +21,7 @@ const FORGOT_PASSWORD_PATH = "/api/auth/forgot-password";
 const RESET_PASSWORD_PATH = "/api/auth/reset-password";
 const CHANGE_PASSWORD_PATH = "/api/auth/change-password";
 const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
-const PASSWORD_RESET_ENABLED = process.env.NEXT_PUBLIC_PASSWORD_RESET_ENABLED === "true";
+const PASSWORD_RESET_ENABLED = isPasswordResetEnabled(process.env.NEXT_PUBLIC_PASSWORD_RESET_ENABLED);
 const GUEST_AUTH_STATE = AUTH_DISABLED
   ? { token: "guest-token", user: null, accessExpiresAt: null, initialized: true }
   : { token: null, user: null, accessExpiresAt: null, initialized: false };
