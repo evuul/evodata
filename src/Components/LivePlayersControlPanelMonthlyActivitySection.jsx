@@ -8,6 +8,7 @@ import LockRounded from "@mui/icons-material/LockRounded";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
+import { MOBILE_CHART_MARGIN, MOBILE_PLAYER_AXIS_WIDTH } from "@/lib/liveDashboardPresentation";
 import { findLatestMonthlyComparison } from "@/lib/monthlyLobbyActivity";
 
 const YEAR_COLORS = ["#38bdf8", "#a78bfa"];
@@ -148,10 +149,10 @@ export default function LivePlayersControlPanelMonthlyActivitySection({
           ) : null}
           <Box sx={{ height: { xs: 280, md: 340 }, mx: { xs: -1, md: 0 } }}>
             <ResponsiveContainer>
-              <BarChart data={chartData} margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 12, right: 16, left: -10, bottom: 0 }} barCategoryGap={isMobile ? "20%" : "26%"} barGap={isMobile ? 2 : 4}>
+              <BarChart data={chartData} margin={isMobile ? MOBILE_CHART_MARGIN : { top: 12, right: 16, left: -10, bottom: 0 }} barCategoryGap={isMobile ? "20%" : "26%"} barGap={isMobile ? 2 : 4}>
                 <CartesianGrid stroke="rgba(148,163,184,0.14)" strokeDasharray="4 4" vertical={false} />
                 <XAxis dataKey={monthLabelKey} tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }} tickLine={false} axisLine={{ stroke: "rgba(148,163,184,0.25)" }} />
-                <YAxis width={isMobile ? 40 : 58} tickFormatter={formatAxis} tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }} tickLine={false} axisLine={{ stroke: "rgba(148,163,184,0.25)" }} />
+                <YAxis width={isMobile ? MOBILE_PLAYER_AXIS_WIDTH : 58} tickFormatter={formatAxis} tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }} tickLine={false} axisLine={{ stroke: "rgba(148,163,184,0.25)" }} />
                 <RechartsTooltip
                   contentStyle={{ background: "rgba(15,23,42,0.96)", border: "1px solid rgba(96,165,250,0.32)", borderRadius: 12, color: "#f8fafc" }}
                   labelFormatter={(label) => translate(`${label}`, `${label}`)}

@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
+import { MOBILE_CHART_MARGIN, MOBILE_PLAYER_AXIS_WIDTH } from "@/lib/liveDashboardPresentation";
 import HistoryRangeSelector from "./HistoryRangeSelector";
 
 const formatDateOnly = (value) => {
@@ -417,7 +418,7 @@ export default function LivePlayersControlPanelAsiaTrackerSection({
             <ResponsiveContainer>
               <AreaChart
                 data={trendChartData}
-                margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+                margin={isMobile ? MOBILE_CHART_MARGIN : { top: 10, right: 16, left: -10, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="asiaTrendGradient" x1="0" y1="0" x2="0" y2="1">
@@ -442,7 +443,7 @@ export default function LivePlayersControlPanelAsiaTrackerSection({
                   tickLine={false}
                   axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
                   tickFormatter={formatPlayersAxis}
-                  width={isMobile ? 40 : 60}
+                  width={isMobile ? MOBILE_PLAYER_AXIS_WIDTH : 60}
                 />
                 <RechartsTooltip
                   contentStyle={{
@@ -480,7 +481,7 @@ export default function LivePlayersControlPanelAsiaTrackerSection({
           <ResponsiveContainer>
             <BarChart
               data={gameChartData}
-              margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+              margin={isMobile ? MOBILE_CHART_MARGIN : { top: 10, right: 16, left: -10, bottom: 0 }}
               barCategoryGap={isMobile ? "18%" : "22%"}
             >
               <CartesianGrid stroke="rgba(148,163,184,0.15)" strokeDasharray="4 4" />
@@ -500,7 +501,7 @@ export default function LivePlayersControlPanelAsiaTrackerSection({
                 tickFormatter={formatPlayersAxis}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? MOBILE_PLAYER_AXIS_WIDTH : 60}
               />
               <RechartsTooltip
                 contentStyle={{

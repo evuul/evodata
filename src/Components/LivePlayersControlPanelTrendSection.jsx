@@ -18,6 +18,7 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tool
 import { useTheme } from "@mui/material/styles";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
 import { computeTrendDiff } from "@/lib/livePlayersControlPanel";
+import { MOBILE_CHART_MARGIN, MOBILE_PLAYER_AXIS_WIDTH } from "@/lib/liveDashboardPresentation";
 import HistoryRangeSelector from "./HistoryRangeSelector";
 
 const formatDateOnly = (value) => {
@@ -263,7 +264,7 @@ export default function LivePlayersControlPanelTrendSection({
           <ResponsiveContainer>
             <AreaChart
               data={trendChartData}
-              margin={isMobile ? { top: 8, right: 8, left: -18, bottom: 0 } : { top: 10, right: 16, left: -10, bottom: 0 }}
+              margin={isMobile ? MOBILE_CHART_MARGIN : { top: 10, right: 16, left: -10, bottom: 0 }}
             >
               <defs>
                 <linearGradient id="liveTrendGradient" x1="0" y1="0" x2="0" y2="1">
@@ -287,7 +288,7 @@ export default function LivePlayersControlPanelTrendSection({
                 tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.75)" }}
                 tickLine={false}
                 axisLine={{ stroke: "rgba(148,163,184,0.25)" }}
-                width={isMobile ? 40 : 60}
+                width={isMobile ? MOBILE_PLAYER_AXIS_WIDTH : 60}
                 tickFormatter={formatPlayersAxis}
               />
               <RechartsTooltip

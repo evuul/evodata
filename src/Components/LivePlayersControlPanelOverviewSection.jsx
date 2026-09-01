@@ -4,12 +4,12 @@
 
 import React from "react";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { mobileAccentFrameSx } from "@/lib/liveDashboardPresentation";
 
 const overviewCardSx = (frameColor) => ({
+  ...mobileAccentFrameSx(frameColor),
   background: "rgba(15,23,42,0.45)",
   borderRadius: "16px",
-  border: "1px solid transparent",
-  boxShadow: `inset 0 0 0 1px ${frameColor}`,
   boxSizing: "border-box",
   p: { xs: 2, md: 2.5 },
   width: { xs: "100%", sm: 320 },

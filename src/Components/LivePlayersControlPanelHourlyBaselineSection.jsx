@@ -17,6 +17,11 @@ import {
   YAxis,
 } from "recharts";
 import useMediaQuery from "@/lib/useMuiMediaQuery";
+import {
+  MOBILE_CHART_MARGIN,
+  MOBILE_PLAYER_AXIS_WIDTH,
+  mobileAccentFrameSx,
+} from "@/lib/liveDashboardPresentation";
 
 function deltaPresentation(delta, percentFormatter) {
   if (!Number.isFinite(delta)) {
@@ -131,11 +136,10 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
   return (
     <Box
       sx={{
+        ...mobileAccentFrameSx("rgba(56,189,248,0.44)"),
         width: "100%",
         background: "rgba(15,23,42,0.45)",
         borderRadius: "16px",
-        border: "1px solid transparent",
-        boxShadow: "inset 0 0 0 1px rgba(56,189,248,0.44)",
         boxSizing: "border-box",
         p: { xs: 1.5, sm: 2, md: 2.5 },
         minWidth: 0,
@@ -306,7 +310,7 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={chartRows}
-                  margin={isMobile ? { top: 16, right: 10, left: -18, bottom: 0 } : { top: 18, right: 20, left: -6, bottom: 0 }}
+                  margin={isMobile ? { ...MOBILE_CHART_MARGIN, top: 16, right: 10 } : { top: 18, right: 20, left: -6, bottom: 0 }}
                 >
                   <defs>
                     <linearGradient id="hourlyBaselineGradient" x1="0" y1="0" x2="0" y2="1">
@@ -329,7 +333,7 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
                     tick={{ fontSize: isMobile ? 10 : 11, fill: "rgba(148,163,184,0.78)" }}
                     tickLine={false}
                     axisLine={false}
-                    width={isMobile ? 42 : 64}
+                    width={isMobile ? MOBILE_PLAYER_AXIS_WIDTH : 64}
                     tickFormatter={formatPlayersAxis}
                   />
                   <RechartsTooltip
