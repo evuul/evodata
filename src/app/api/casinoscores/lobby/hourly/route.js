@@ -35,7 +35,7 @@ export async function GET(request) {
       getCachedHourlyLobbyBaseline(),
       getLatestPlayersSnapshot(),
     ]);
-    if (!Object.keys(baseline?.healthyHourlyBySlug || {}).length) {
+    if (!Array.isArray(baseline?.hourlyByHour) || !baseline.hourlyByHour.some((row) => Number(row?.baselineAvg) > 0)) {
       return json({ ok: false, error: "Hourly comparison is being prepared" }, 503);
     }
 

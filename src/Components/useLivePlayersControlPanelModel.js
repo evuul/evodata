@@ -562,19 +562,15 @@ export default function useLivePlayersControlPanelModel() {
     const distinctDays = Number(coverage.distinctDays);
     const healthyGames = Number(coverage.healthyGames);
     const comparableGames = Number(coverage.comparableGames);
-    const processedGames = Number(coverage.processedGames);
-    const totalGames = Number(coverage.totalGames);
-    const estimatedHoursRemaining = Number(coverage.estimatedHoursRemaining);
+    const remainingDays = Number(coverage.remainingDays);
     return {
       requestedDays: Number.isFinite(requestedDays) ? Math.round(requestedDays) : null,
       distinctDays: Number.isFinite(distinctDays) ? Math.round(distinctDays) : null,
       healthyGames: Number.isFinite(healthyGames) ? Math.round(healthyGames) : null,
       comparableGames: Number.isFinite(comparableGames) ? Math.round(comparableGames) : null,
-      processedGames: Number.isFinite(processedGames) ? Math.round(processedGames) : null,
-      totalGames: Number.isFinite(totalGames) ? Math.round(totalGames) : null,
       isComplete: Boolean(coverage.isComplete),
-      estimatedHoursRemaining: Number.isFinite(estimatedHoursRemaining)
-        ? Math.max(0, Math.round(estimatedHoursRemaining))
+      remainingDays: Number.isFinite(remainingDays)
+        ? Math.max(0, Math.round(remainingDays))
         : null,
       computedAt: coverage.computedAt ?? null,
     };

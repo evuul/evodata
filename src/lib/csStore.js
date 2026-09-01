@@ -165,10 +165,16 @@ const mem = {
 };
 
 const KEY = (slug) => `cs:${slug}:samples`;
+export const LOBBY_TOTAL_SERIES_ID = "lobby-total:v1";
 const MAX_SAMPLES = (() => {
   const raw = Number(process.env.CS_MAX_SAMPLES);
   if (Number.isFinite(raw) && raw >= 1000) return Math.min(Math.round(raw), 500000);
   return 5000;
+})();
+const LOBBY_TOTAL_MAX_SAMPLES = (() => {
+  const raw = Number(process.env.CS_LOBBY_TOTAL_MAX_SAMPLES);
+  if (Number.isFinite(raw) && raw >= 8_640) return Math.min(Math.round(raw), 100_000);
+  return 52_560; // One year at one sample every ten minutes.
 })();
 const MAX_SAMPLES_PER_DAY_FOR_RECENT_READ = 12 * 24;
 const DAILY_AGGREGATE_PIPELINE_BATCH_SIZE = 200;
@@ -177,6 +183,12 @@ export function seriesReadLimit(days, maxSamples = MAX_SAMPLES) {
   const safeDays = Math.max(1, Number(days) || 1);
   const recentWindowLimit = Math.ceil(safeDays * MAX_SAMPLES_PER_DAY_FOR_RECENT_READ);
   return Math.min(Math.max(1, Math.floor(maxSamples)), Math.max(500, recentWindowLimit));
+}
+
+export function lobbyTotalReadLimit(days, maxSamples = LOBBY_TOTAL_MAX_SAMPLES) {
+  const safeDays = Math.max(1, Number(days) || 1);
+  const tenMinuteSamples = Math.ceil(safeDays * 24 * 6 * 1.25);
+  return Math.min(Math.max(1, Math.floor(maxSamples)), Math.max(500, tenMinuteSamples));
 }
 
 const overviewMem = new Map(); // key -> { snapshot, exp }
@@ -966,7 +978,7 @@ export async function getSeriesBulk(slugs, days = 30, options = {}) {
  * @param {string} isoTs - ISO timestamp
  * @param {number} players
  */
-export async function saveSample(slug, isoTs, players) {
+async function saveSampleWithRetention(slug, isoTs, players, { maxSamples = MAX_SAMPLES, updateDaily = true } = {}) {
   const ts = Date.parse(isoTs);
   if (!Number.isFinite(ts)) throw new Error("Bad timestamp");
   const normalized = normalizePlayers(players);
@@ -978,15 +990,38 @@ export async function saveSample(slug, isoTs, players) {
   const kv = await getKv();
   if (kv) {
     await kv.lpush(key, entry);
-    await kv.ltrim(key, 0, MAX_SAMPLES - 1);
+    await kv.ltrim(key, 0, maxSamples - 1);
     if (DEBUG) console.log(`[csStore] KV save ${slug} ts=${ts} value=${normalized}`);
   } else {
     mem.lpush(key, entry);
-    mem.ltrim(key, 0, MAX_SAMPLES - 1);
+    mem.ltrim(key, 0, maxSamples - 1);
     if (DEBUG) console.log(`[csStore] MEM save ${slug} ts=${ts} value=${normalized}`);
   }
 
-  await updateDailyAggregate(slug, ts, normalized);
+  if (updateDaily) await updateDailyAggregate(slug, ts, normalized);
+}
+
+export async function saveSample(slug, isoTs, players) {
+  return saveSampleWithRetention(slug, isoTs, players);
+}
+
+// Persists the complete lobby total independently of per-game chart history.
+export async function saveLobbyTotalSample(isoTs, players) {
+  return saveSampleWithRetention(LOBBY_TOTAL_SERIES_ID, isoTs, players, {
+    maxSamples: LOBBY_TOTAL_MAX_SAMPLES,
+    updateDaily: false,
+  });
+}
+
+export async function getLobbyTotalSeries(days = 60) {
+  const safeDays = Math.min(60, Math.max(1, Number(days) || 1));
+  const since = Date.now() - safeDays * 24 * 60 * 60 * 1000;
+  const readLimit = lobbyTotalReadLimit(safeDays);
+  const kv = await getKv();
+  const raw = kv
+    ? await kv.lrange(KEY(LOBBY_TOTAL_SERIES_ID), 0, readLimit - 1)
+    : mem.lrange(KEY(LOBBY_TOTAL_SERIES_ID), 0, readLimit - 1);
+  return parseSeriesRows(raw, since);
 }
 
 /**

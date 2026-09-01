@@ -24,18 +24,12 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
     : translate("Historisk datatäckning beräknas", "Historical coverage is being calculated");
   const gameCoverageText = coverage?.comparableGames != null && coverage?.healthyGames != null
     ? translate(
-        `Spel med timdata: ${coverage.comparableGames} av ${coverage.healthyGames}`,
-        `Games with hourly data: ${coverage.comparableGames} of ${coverage.healthyGames}`
+        `Live-spel: ${coverage.comparableGames} av ${coverage.healthyGames}`,
+        `Live games: ${coverage.comparableGames} of ${coverage.healthyGames}`
       )
     : null;
   const showIncompleteWarning = coverage?.isComplete === false;
-  const progressText = coverage?.processedGames != null && coverage?.totalGames
-    ? `${coverage.processedGames} av ${coverage.totalGames}`
-    : null;
-  const progressTextEn = coverage?.processedGames != null && coverage?.totalGames
-    ? `${coverage.processedGames} of ${coverage.totalGames}`
-    : null;
-  const hoursRemaining = coverage?.estimatedHoursRemaining;
+  const daysRemaining = coverage?.remainingDays;
 
   return (
     <Box
@@ -105,8 +99,8 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
         >
           <Typography variant="body2" sx={{ color: "#fde68a", fontWeight: 700 }}>
             {translate(
-              `Full timhistorik byggs${progressText ? `: ${progressText} spel klara` : ""}${hoursRemaining ? `. Cirka ${hoursRemaining} timmar återstår` : ""}. Fram tills dess bygger Hourly-siffrorna på ett ofullständigt spelurval och kan vara missvisande.`,
-              `Full hourly coverage is building${progressTextEn ? `: ${progressTextEn} games processed` : ""}${hoursRemaining ? `. Approximately ${hoursRemaining} hours remaining` : ""}. Until then, the Hourly figures use an incomplete game set and may be misleading.`
+              `Timhistorik byggs från den kompletta lobbyn${daysRemaining ? `. Cirka ${daysRemaining} dagar återstår till 60 dagars historik` : ""}. Fram tills dess baseras snitten på färre dagar och kan vara mindre stabila.`,
+              `Hourly history is building from the complete lobby${daysRemaining ? `. Approximately ${daysRemaining} days remain until 60 days of history` : ""}. Until then, averages use fewer days and may be less stable.`
             )}
           </Typography>
         </Box>

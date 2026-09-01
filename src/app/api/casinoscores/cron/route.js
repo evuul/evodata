@@ -9,6 +9,7 @@ import {
   getLatestPlayersSnapshot,
   getSeriesBulk,
   maybeUpdateDailyLobbyPeak,
+  saveLobbyTotalSample,
   setGlobalLobbyAth,
   setLatestPlayersSnapshot,
   saveSample,
@@ -20,6 +21,7 @@ import { GAMES as GAME_CONFIG, PRIMARY_TRACKED_GAMES } from "@/config/games";
 import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
 import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { partitionPrimarySeriesItems } from "@/lib/unibetRecoveryPersistence";
+import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
 import {
   finiteNumberOrNull,
   isPlayerSampleFresh,
@@ -185,26 +187,25 @@ async function runCron(req) {
       .at(-1) ?? new Date().toISOString();
 
     const materializedAt = new Date().toISOString();
+    const observedLobby = summarizeObservedLobby(snapshotItems);
     await Promise.all([
       setLatestPlayersSnapshot({ items: snapshotItems, updatedAt, materializedAt }),
       updateGameAthSnapshot(successfulItems, updatedAt),
+      observedLobby.totalPlayers != null && observedLobby.measuredAt
+        ? saveLobbyTotalSample(observedLobby.measuredAt, observedLobby.totalPlayers)
+        : Promise.resolve(),
     ]);
 
-    const stuckIds = new Set(snapshotItems.filter((item) => item.stuck).map((item) => item.id));
-    const totalPlayers = successfulItems.reduce(
-      (sum, item) => (stuckIds.has(item.id) ? sum : sum + item.players),
-      0
-    );
-    const newestTimestamp = Date.parse(updatedAt);
-    if (totalPlayers > 0 && Number.isFinite(newestTimestamp)) {
+    const newestTimestamp = Date.parse(observedLobby.measuredAt);
+    if (observedLobby.totalPlayers != null && Number.isFinite(newestTimestamp)) {
       try {
-        const updatedPeak = await maybeUpdateDailyLobbyPeak(totalPlayers, newestTimestamp);
+        const updatedPeak = await maybeUpdateDailyLobbyPeak(observedLobby.totalPlayers, newestTimestamp);
         const existingAth = await getGlobalLobbyAth();
-        if (!Number.isFinite(Number(existingAth?.value)) || totalPlayers > Number(existingAth.value)) {
+        if (!Number.isFinite(Number(existingAth?.value)) || observedLobby.totalPlayers > Number(existingAth.value)) {
           await setGlobalLobbyAth({
-            value: totalPlayers,
-            date: updatedPeak?.date ?? updatedAt.slice(0, 10),
-            at: updatedAt,
+            value: observedLobby.totalPlayers,
+            date: updatedPeak?.date ?? observedLobby.measuredAt.slice(0, 10),
+            at: observedLobby.measuredAt,
           });
         }
       } catch {
