@@ -3,7 +3,7 @@
 // Presents the premium hourly lobby baseline as a dedicated dashboard view.
 
 import React from "react";
-import { Box, Chip, CircularProgress, Grid, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, CircularProgress, Collapse, Grid, Stack, Typography } from "@mui/material";
 import WorkspacePremiumRounded from "@mui/icons-material/WorkspacePremiumRounded";
 
 export default function LivePlayersControlPanelHourlyBaselineSection({
@@ -16,6 +16,7 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
   percentFormatter,
   translate,
 }) {
+  const [showCollectionDetails, setShowCollectionDetails] = React.useState(false);
   const historyCoverageText = coverage?.distinctDays && coverage?.requestedDays
     ? translate(
         `Historik: ${coverage.distinctDays} av ${coverage.requestedDays} dagar`,
@@ -183,6 +184,32 @@ export default function LivePlayersControlPanelHourlyBaselineSection({
           </Typography>
         </Box>
       )}
+
+      <Box sx={{ borderTop: "1px solid rgba(148,163,184,0.16)", pt: 0.35 }}>
+        <Button
+          type="button"
+          size="small"
+          onClick={() => setShowCollectionDetails((previous) => !previous)}
+          aria-expanded={showCollectionDetails}
+          aria-controls="hourly-collection-details"
+          sx={{ color: "rgba(191,219,254,0.88)", px: 0.6, textTransform: "none", fontWeight: 700 }}
+        >
+          {translate(
+            showCollectionDetails ? "Dölj hur data samlas in" : "Visa hur data samlas in",
+            showCollectionDetails ? "Hide how data is collected" : "Show how data is collected"
+          )}
+        </Button>
+        <Collapse in={showCollectionDetails}>
+          <Box id="hourly-collection-details" sx={{ px: 0.6, pt: 0.45, pb: 0.2 }}>
+            <Typography variant="body2" sx={{ color: "rgba(148,163,184,0.82)", lineHeight: 1.6 }}>
+              {translate(
+                "Vi sparar den totala, friska lobbyn var tionde minut. De första jämförelserna visas när tillräckligt många mätpunkter har samlats in, men efter några dagar blir snitten mer användbara. Efter 60 dagar bygger de på ett fullt rullande historikfönster. Rådata sparas i upp till ett år, medan Hourly bara visar de senaste 60 dagarna.",
+                "We save the total healthy lobby every ten minutes. The first comparisons appear once enough samples have been collected, but averages become more useful after a few days. After 60 days, they use a complete rolling history window. Raw data is retained for up to one year, while Hourly shows only the most recent 60 days."
+              )}
+            </Typography>
+          </Box>
+        </Collapse>
+      </Box>
     </Box>
   );
 }
