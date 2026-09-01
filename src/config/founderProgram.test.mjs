@@ -5,7 +5,7 @@ import test from "node:test";
 import { FOUNDER_BENEFITS, FOUNDER_PROGRAM } from "./founderProgram.js";
 
 test("keeps the Founder program limited to 30 places", () => {
-  assert.equal(FOUNDER_PROGRAM.claimedFounders, 2);
+  assert.equal(FOUNDER_PROGRAM.claimedFounders, 3);
   assert.equal(FOUNDER_PROGRAM.maximumFounders, 30);
   assert.equal(FOUNDER_PROGRAM.minimumDonationSek, 500);
   assert.equal(FOUNDER_PROGRAM.cumulativeDonations, true);

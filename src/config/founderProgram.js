@@ -2,7 +2,7 @@
 
 export const FOUNDER_PROGRAM = Object.freeze({
   minimumDonationSek: 500,
-  claimedFounders: 2,
+  claimedFounders: 3,
   maximumFounders: 30,
   launchedAt: "2026-07-31",
   cumulativeDonations: true,

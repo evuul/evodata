@@ -8,6 +8,7 @@ import {
   isFounderEmail,
   normalizeHistoryDays,
 } from "./founderAccess.js";
+import { FOUNDERS } from "../app/data/founders.js";
 
 const records = [
   {
@@ -30,6 +31,10 @@ test("matches Founder accounts case-insensitively", () => {
     recognizedAt: "2026-07-31",
   });
   assert.equal(isFounderEmail("founder@example.com", records), true);
+});
+
+test("grants Carl Lindblom the configured Founder entitlement", () => {
+  assert.equal(isFounderEmail(" Carl.Lindblom@gmail.com ", FOUNDERS), true);
 });
 
 test("rejects missing, unknown, and unqualified accounts", () => {

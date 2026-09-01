@@ -22,4 +22,13 @@ export const FOUNDERS = Object.freeze([
     qualified: true,
     consentToPublish: true,
   },
+  {
+    id: "carl-lindblom",
+    accountEmail: "carl.lindblom@gmail.com",
+    displayName: "Carl Lindblom",
+    recognizedAt: "2026-09-01",
+    profileUrl: null,
+    qualified: true,
+    consentToPublish: false,
+  },
 ]);
