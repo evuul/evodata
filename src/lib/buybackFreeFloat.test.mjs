@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   FREE_FLOAT_OWNER_ASSUMPTIONS,
+  FREE_FLOAT_PREVIOUS_OWNERS,
+  FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE,
+  FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
+  FREE_FLOAT_SNAPSHOT_DATE,
   buildShareholderRows,
   calculateBuybackPctOfFreeFloat,
   calculateIndicativeFreeFloat,
@@ -15,24 +19,23 @@ test("keeps Candle Lake's flagged holding in the ownership list", () => {
 
   assert.deepEqual(
     { shares: candleLake?.shares, holdingDate: candleLake?.holdingDate },
-    { shares: 59_798_619, holdingDate: "2026-07-24" }
+    { shares: 59_798_619, holdingDate: "2026-08-13" }
   );
 });
 
-test("keeps Richard Livingstone's current holding separate from the previous snapshot", () => {
-  const current = FREE_FLOAT_OWNER_ASSUMPTIONS.find((owner) => owner.id === "richard-livingstone");
-  const [row] = buildShareholderRows({
+test("compares the latest owner list with the preceding snapshot", () => {
+  const rows = buildShareholderRows({
     totalShares: 199_226_613,
-    owners: current ? [current] : [],
-    previousOwners: [{ id: "richard-livingstone", shares: 4_056_678 }],
-    previousTotalShares: 199_226_613,
+    previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
+    previousTotalShares: FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
   });
+  const changes = new Map(rows.map((row) => [row.id, row.changeShares]));
 
-  assert.deepEqual(
-    { shares: current?.shares, holdingDate: current?.holdingDate },
-    { shares: 3_794_978, holdingDate: "2026-07-29" }
-  );
-  assert.equal(row.changeShares, -261_700);
+  assert.equal(changes.get("capital-group"), -332_311);
+  assert.equal(changes.get("blackrock"), -136_053);
+  assert.equal(changes.get("vanguard"), 31_611);
+  assert.equal(changes.get("dart"), 0);
+  assert.equal(changes.get("richard-livingstone"), 0);
 });
 
 test("uses the latest shareholder snapshot for institutional and pension owners", () => {
@@ -49,15 +52,20 @@ test("uses the latest shareholder snapshot for institutional and pension owners"
       current.get("avanza-fonder"),
     ].map((owner) => ({ id: owner?.id, shares: owner?.shares, holdingDate: owner?.holdingDate })),
     [
-      { id: "capital-group", shares: 8_881_653, holdingDate: "2026-06-30" },
-      { id: "blackrock", shares: 6_340_096, holdingDate: "2026-07-31" },
-      { id: "vanguard", shares: 5_424_981, holdingDate: "2026-06-30" },
+      { id: "capital-group", shares: 8_549_342, holdingDate: "2026-08-22" },
+      { id: "blackrock", shares: 6_204_043, holdingDate: "2026-08-31" },
+      { id: "vanguard", shares: 5_456_592, holdingDate: "2026-07-31" },
       { id: "avanza-pension", shares: 1_935_448, holdingDate: "2026-07-29" },
       { id: "futur-pension", shares: 1_762_611, holdingDate: "2026-07-29" },
       { id: "henric-wiman", shares: 1_708_776, holdingDate: "2026-07-29" },
       { id: "avanza-fonder", shares: 1_677_678, holdingDate: "2026-07-31" },
     ],
   );
+});
+
+test("uses the latest holding date as the owner-list snapshot date", () => {
+  assert.equal(FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE, "2026-07-31");
+  assert.equal(FREE_FLOAT_SNAPSHOT_DATE, "2026-08-31");
 });
 
 test("calculates free float after treasury shares and excluded strategic owners", () => {
