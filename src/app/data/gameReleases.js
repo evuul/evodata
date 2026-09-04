@@ -4,7 +4,7 @@ const gameReleases = [
   {
     id: "disco-balls",
     title: "Disco Balls",
-    releaseWindow: "2026",
+    releaseDate: "2026-09-09",
     type: "game-show",
     imageAltSv: "Disco Balls från Evolution",
     imageAltEn: "Disco Balls by Evolution",
