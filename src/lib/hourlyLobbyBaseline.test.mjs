@@ -1,225 +1,144 @@
-// Verifies total-lobby hourly baselines and full-lobby live comparisons.
+// Verifies equal-day reference statistics, coverage gates, and daily materialization failures.
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  buildHourlyBaselineFromTotalSeries,
-  buildHourlyLobbyPayload,
-  HOURLY_BASELINE_SOURCE,
-  hourlyCoverageStage,
-  preferLastReadyHourlyBaseline,
-  shouldReuseHourlyLobbyBaseline,
-} from "./hourlyLobbyBaseline.js";
-import { buildLobbyUniverseKey } from "./liveLobbyPeak.js";
+import { buildHourlyBaseline } from "./hourlyLobbyAggregation.js";
+import { loadHourlyLobbyBaseline, shouldReuseHourlyLobbyBaseline } from "./hourlyLobbyBaseline.js";
+import { cohortSignature, HOURLY_SLOT_MS } from "./hourlyLobbyPolicy.js";
 
-function stockholmTimestamp(day, hour, minute = 0) {
-  return Date.parse(`${day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+02:00`);
+const now = Date.parse("2026-09-06T10:00:00Z");
+const signature = cohortSignature();
+function hour(day, value = 100, minutes = [0, 10, 20, 30], hour = "09") {
+  return minutes.map((minute) => {
+    const ts = Date.parse(`${day}T${hour}:${String(minute).padStart(2, "0")}:00+02:00`);
+    return { ts, newestTs: ts, value, signature };
+  });
 }
+const days = ["2026-08-30", "2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05"];
+const readyPoints = () => days.flatMap((day) => hour(day));
 
-test("builds a dynamic hourly baseline from matching lobby samples", () => {
-  const universeKey = buildLobbyUniverseKey(["one", "two"]);
-  const points = [];
-  for (const day of ["2026-08-01", "2026-08-02", "2026-08-03"]) {
-    for (let hour = 0; hour < 24; hour += 1) {
-      points.push({ ts: stockholmTimestamp(day, hour, 0), value: 1_000 + hour * 10, universeKey, includedGames: 2 });
-      points.push({ ts: stockholmTimestamp(day, hour, 10), value: 1_000 + hour * 10, universeKey, includedGames: 2 });
-      points.push({ ts: stockholmTimestamp(day, hour, 20), value: 1_000 + hour * 10, universeKey, includedGames: 2 });
-    }
-  }
+test("requires seven covered days and weights days equally instead of substituting a median", () => {
+  const points = days.flatMap((day, index) => hour(day, index === 6 ? 1500 : 100, index === 6 ? [0, 10, 20, 30, 40, 50] : undefined));
+  const baseline = buildHourlyBaseline(points, { now });
+  assert.equal(baseline.hourlyByHour[9].baselineAvg, 300);
+  assert.equal(baseline.hourlyByHour[9].distinctDays, 7);
+  assert.equal(baseline.hourlyByHour[9].recentDistinctDays, 7);
+  assert.equal(baseline.readyHours, 1);
+  assert.equal(baseline.hourlyByHour[10].baselineAvg, null);
+});
 
-  const baseline = buildHourlyBaselineFromTotalSeries(points, {
-    days: 60,
-    now: new Date("2026-08-03T22:30:00.000Z"),
+test("sparse hours and repeated copies of a sample cannot satisfy the coverage gate", () => {
+  const points = days.flatMap((day) => hour(day, 100, [0, 10]));
+  const result = buildHourlyBaseline([...points, ...points, ...points], { now });
+  assert.equal(result.samples, 14);
+  assert.equal(result.hourlyByHour[9].distinctDays, 0);
+  assert.equal(result.readyHours, 0);
+});
+
+test("deduplicates ten-minute slots deterministically and ignores mismatched universes", () => {
+  const points = readyPoints();
+  const replacement = { ...points[0], ts: points[0].ts + 1000, newestTs: points[0].ts + 1000, value: 200 };
+  const mismatched = points.map((p) => ({ ...p, signature: "new-game-universe", value: 100000 }));
+  const forward = buildHourlyBaseline([...points, replacement, ...mismatched], { now });
+  const reverse = buildHourlyBaseline([...mismatched, replacement, ...points].reverse(), { now });
+  assert.deepEqual(forward, reverse);
+  assert.equal(forward.samples, 28);
+  assert.ok(Math.abs(forward.hourlyByHour[9].baselineAvg - (6 * 100 + 125) / 7) < 0.0001);
+});
+
+test("accepts genuine zeroes, rejects invalid values, and excludes incomplete calendar days", () => {
+  const points = days.flatMap((day) => hour(day, 0));
+  const extra = [null, NaN, -1, Infinity, "100", true].flatMap((value) => hour("2026-08-29", value));
+  const result = buildHourlyBaseline([...points, ...extra, ...hour("2026-09-06"), ...hour("2026-09-07")], { now });
+  assert.equal(result.hourlyByHour[9].baselineAvg, 0);
+  assert.equal(result.samples, 28);
+});
+
+test("old coverage stays visible as a historical reference instead of disappearing", () => {
+  const old = Array.from({ length: 10 }, (_, i) => hour(`2026-08-${String(i + 1).padStart(2, "0")}`)).flat();
+  const result = buildHourlyBaseline(old, { now });
+  assert.equal(result.hourlyByHour[9].distinctDays, 10);
+  assert.equal(result.hourlyByHour[9].baselineAvg, 100);
+  assert.equal(result.hourlyByHour[9].status, "historical-reference");
+  assert.equal(result.hourlyByHour[9].lastDay, "2026-08-10");
+  assert.equal(result.recentHours, 0);
+  assert.equal(buildHourlyBaseline([...old, ...days.slice(-3).flatMap((day) => hour(day))], { now }).readyHours, 1);
+});
+
+test("counts a repeated autumn hour once and does not fabricate the missing spring hour", () => {
+  const makeUtcHour = (timestamp) => Array.from({ length: 4 }, (_, index) => {
+    const ts = Date.parse(timestamp) + index * HOURLY_SLOT_MS;
+    return { ts, newestTs: ts, value: 100, signature };
   });
-
-  assert.equal(baseline.distinctDays, 3);
-  assert.equal(baseline.isComplete, false);
-  assert.equal(baseline.hourlyByHour.length, 24);
-  assert.equal(baseline.readyHours, 24);
-  assert.equal(baseline.comparableGames, 2);
-  assert.deepEqual(baseline.hourlyByHour[8], {
-    hour: "08",
-    baselineAvg: 1_080,
-    samples: 9,
-    distinctDays: 3,
-    coverageStage: "preliminary",
-  });
+  const autumn = buildHourlyBaseline([
+    ...makeUtcHour("2026-10-25T00:00:00Z"), ...makeUtcHour("2026-10-25T01:00:00Z"),
+  ], { now: Date.parse("2026-10-26T12:00:00Z") });
+  assert.equal(autumn.hourlyByHour[2].distinctDays, 1);
+  assert.equal(autumn.hourlyByHour[2].samples, 8);
+  const spring = buildHourlyBaseline([
+    ...makeUtcHour("2026-03-29T00:00:00Z"), ...makeUtcHour("2026-03-29T01:00:00Z"),
+  ], { now: Date.parse("2026-03-30T12:00:00Z") });
+  assert.equal(spring.hourlyByHour[2].distinctDays, 0);
+  assert.equal(spring.hourlyByHour[1].distinctDays, 1);
+  assert.equal(spring.hourlyByHour[3].distinctDays, 1);
 });
 
-test("uses a median when a total-lobby hour contains a severe upward outlier", () => {
-  const universeKey = buildLobbyUniverseKey(["one"]);
-  const points = [100, 105, 110, 1_000].map((value, index) => ({
-    ts: stockholmTimestamp(`2026-08-0${index + 1}`, 9, 10),
-    value,
-    universeKey,
-    includedGames: 1,
-  }));
-  const baseline = buildHourlyBaselineFromTotalSeries(points, {
-    days: 60,
-    now: new Date("2026-08-04T21:30:00.000Z"),
-  });
-
-  assert.equal(baseline.hourlyByHour[9].baselineAvg, 108);
+test("materializes once per Stockholm day even when no hours are ready", async () => {
+  const baseline = { ...buildHourlyBaseline([], { now }), expansion: { version: 1 } };
+  assert.equal(shouldReuseHourlyLobbyBaseline(baseline, now), true);
+  assert.equal(shouldReuseHourlyLobbyBaseline(baseline, now + 86400000), false);
+  assert.equal(shouldReuseHourlyLobbyBaseline({ ...baseline, signature: "different" }, now), false);
+  const result = await loadHourlyLobbyBaseline({ now, getBaseline: async () => baseline,
+    getObservations: async () => assert.fail("must not reread history"), setBaseline: async () => assert.fail("must not rewrite") });
+  assert.equal(result, baseline);
 });
 
-test("weights each observed day equally when collection cadence differs", () => {
-  const universeKey = buildLobbyUniverseKey(["one"]);
-  const points = [
-    ...[0, 10, 20, 30, 40, 50].map((minute) => ({
-      ts: stockholmTimestamp("2026-08-01", 9, minute),
-      value: 100,
-      universeKey,
-      includedGames: 1,
-    })),
-    { ts: stockholmTimestamp("2026-08-02", 9, 10), value: 200, universeKey, includedGames: 1 },
-    { ts: stockholmTimestamp("2026-08-03", 9, 10), value: 300, universeKey, includedGames: 1 },
-  ];
-
-  const baseline = buildHourlyBaselineFromTotalSeries(points, {
-    now: new Date("2026-08-03T21:30:00.000Z"),
-  });
-
-  assert.equal(baseline.hourlyByHour[9].baselineAvg, 200);
-  assert.equal(baseline.hourlyByHour[9].samples, 8);
-  assert.equal(baseline.hourlyByHour[9].distinctDays, 3);
+test("failed reads preserve the previous result, but valid empty windows replace expired evidence", async () => {
+  const old = buildHourlyBaseline(readyPoints(), { now: now - 86400000 });
+  let writes = 0;
+  await assert.rejects(loadHourlyLobbyBaseline({ now, getBaseline: async () => old,
+    getObservations: async () => { throw new Error("read failed"); }, setBaseline: async () => { writes++; } }));
+  assert.equal(writes, 0);
+  await loadHourlyLobbyBaseline({ now, getBaseline: async () => old,
+    getObservations: async () => [], getHistory: async () => null,
+    getGameObservations: async () => [],
+    setBaseline: async (value) => { assert.equal(value.readyHours, 0); writes++; } });
+  assert.equal(writes, 1);
 });
 
-test("selects the game universe with the broadest day coverage", () => {
-  const oneDayUniverse = buildLobbyUniverseKey(["one"]);
-  const threeDayUniverse = buildLobbyUniverseKey(["one", "two"]);
-  const points = [
-    ...[0, 10, 20, 30, 40, 50].map((minute) => ({
-      ts: stockholmTimestamp("2026-08-01", 9, minute),
-      value: 100,
-      universeKey: oneDayUniverse,
-      includedGames: 1,
-    })),
-    ...["2026-08-01", "2026-08-02", "2026-08-03"].map((day) => ({
-      ts: stockholmTimestamp(day, 9, 5),
-      value: 200,
-      universeKey: threeDayUniverse,
-      includedGames: 2,
-    })),
-  ];
-
-  const baseline = buildHourlyBaselineFromTotalSeries(points, {
-    now: new Date("2026-08-03T21:30:00.000Z"),
-  });
-
-  assert.equal(baseline.universeKey, threeDayUniverse);
-  assert.equal(baseline.comparableGames, 2);
-  assert.equal(baseline.hourlyByHour[9].baselineAvg, 200);
+test("two readings must span twenty minutes, and seven independent days are still required", () => {
+  const points = days.flatMap((day) => hour(day, 200, [0, 20]));
+  assert.equal(buildHourlyBaseline(points, { now }).hourlyByHour[9].baselineAvg, 200);
+  assert.equal(buildHourlyBaseline(points.slice(2), { now }).readyHours, 0);
+  const close = days.flatMap((day) => hour(day, 200, [0, 10]));
+  assert.equal(buildHourlyBaseline(close, { now }).readyHours, 0);
 });
 
-test("compares the full current lobby total only with the current hour", () => {
-  const universeKey = buildLobbyUniverseKey(["one", "two"]);
-  const baseline = {
-    hourlyByHour: Array.from({ length: 24 }, (_, hour) => ({
-      hour: String(hour).padStart(2, "0"),
-      baselineAvg: 1_000 + hour,
-      samples: 24,
-      distinctDays: 4,
-    })),
-    distinctDays: 4,
-    samples: 576,
-    readyHours: 24,
-    minimumDistinctDays: 3,
-    universeKey,
-    comparableGames: 2,
-    computedAt: "2026-08-30T12:00:00.000Z",
-  };
-  const payload = buildHourlyLobbyPayload({
-    baseline,
-    latestSnapshot: {
-      items: [
-        { id: "one", players: 1_500, fetchedAt: "2026-08-30T12:00:00.000Z" },
-        { id: "two", players: 2_500, fetchedAt: "2026-08-30T12:00:00.000Z" },
-        { id: "stuck", players: 900, stuck: true, fetchedAt: "2026-08-30T12:00:00.000Z" },
-      ],
-      updatedAt: "2026-08-30T12:00:00.000Z",
-    },
-    now: new Date("2026-08-30T12:10:00.000Z"),
-  });
-
-  const currentHour = payload.hourlyByHour.find((row) => row.isCurrentHour);
-  assert.equal(currentHour.currentTotal, 4_000);
-  assert.equal(currentHour.deltaPct, 294.5);
-  assert.equal(
-    payload.hourlyByHour.filter((row) => !row.isCurrentHour).every(
-      (row) => row.currentTotal === null && row.deltaPct === null
-    ),
-    true
-  );
-  assert.equal(payload.hourlyByHour.every((row) => row.comparableGames === 2), true);
-  assert.equal(payload.coverage.remainingDays, 56);
-  assert.equal(payload.hourlyComparison.hour, "14");
+test("failed candidate reads preserve the published baseline", async () => {
+  const old = buildHourlyBaseline(readyPoints(), { now: now - 86400000 });
+  await assert.rejects(loadHourlyLobbyBaseline({ now, getBaseline: async () => old,
+    getObservations: async () => [], getHistory: async () => null,
+    getGameObservations: async () => { throw new Error("candidate read failed"); },
+    setBaseline: async () => assert.fail("must not erase the published reference") }), /candidate read failed/);
 });
 
-test("does not compare totals from different game universes", () => {
-  const baseline = {
-    hourlyByHour: [{ hour: "14", baselineAvg: 1_000, samples: 12 }],
-    universeKey: buildLobbyUniverseKey(["one", "two"]),
-    readyHours: 1,
-  };
-  const payload = buildHourlyLobbyPayload({
-    baseline,
-    latestSnapshot: {
-      items: [{ id: "one", players: 1_500, fetchedAt: "2026-08-30T12:00:00.000Z" }],
-    },
-    now: new Date("2026-08-30T12:10:00.000Z"),
-  });
-
-  assert.equal(payload.hourlyComparison, null);
-  assert.equal(payload.coverage.universeMatches, false);
-  assert.equal(payload.hourlyByHour.every((row) => row.currentTotal === null), true);
+test("a rejected concurrent publication returns the actually stored baseline", async () => {
+  const published = { ...buildHourlyBaseline(readyPoints(), { now }), expansion: { version: 1 } };
+  const result = await loadHourlyLobbyBaseline({ now, force: true, getBaseline: async () => published,
+    getObservations: async () => [], getHistory: async () => null, getGameObservations: async () => [],
+    setBaseline: async () => false });
+  assert.equal(result, published);
 });
 
-test("reports collection progress without publishing a one-sample average", () => {
-  const universeKey = buildLobbyUniverseKey(["one"]);
-  const baseline = buildHourlyBaselineFromTotalSeries([
-    { ts: stockholmTimestamp("2026-08-01", 9, 0), value: 100, universeKey, includedGames: 1 },
-  ], {
-    now: new Date("2026-08-01T21:00:00.000Z"),
-  });
-  const payload = buildHourlyLobbyPayload({ baseline, latestSnapshot: null });
-
-  assert.equal(payload.ready, false);
-  assert.equal(payload.coverage.samples, 1);
-  assert.equal(payload.coverage.readyHours, 0);
-  assert.equal(payload.coverage.minimumDistinctDays, 3);
-});
-
-test("classifies hourly coverage by distinct-day quality", () => {
-  assert.equal(hourlyCoverageStage(2), "collecting");
-  assert.equal(hourlyCoverageStage(3), "preliminary");
-  assert.equal(hourlyCoverageStage(7), "building");
-  assert.equal(hourlyCoverageStage(60), "complete");
-});
-
-test("reuses a materialized baseline when no newer lobby sample exists", () => {
-  const baseline = {
-    source: HOURLY_BASELINE_SOURCE,
-    sourceLatestSampleAt: "2026-08-30T12:10:00.000Z",
-    readyHours: 4,
-  };
-
-  assert.equal(shouldReuseHourlyLobbyBaseline(baseline, {
-    ts: Date.parse("2026-08-30T12:10:00.000Z"),
-  }), true);
-  assert.equal(shouldReuseHourlyLobbyBaseline(baseline, {
-    ts: Date.parse("2026-08-30T12:20:00.000Z"),
-  }), false);
-});
-
-test("keeps the last ready baseline instead of replacing it with an empty rebuild", () => {
-  const existing = { source: HOURLY_BASELINE_SOURCE, readyHours: 8 };
-  const emptyCandidate = { source: HOURLY_BASELINE_SOURCE, readyHours: 0 };
-  const readyCandidate = { source: HOURLY_BASELINE_SOURCE, readyHours: 9 };
-
-  assert.equal(preferLastReadyHourlyBaseline(existing, emptyCandidate), existing);
-  assert.equal(preferLastReadyHourlyBaseline(existing, readyCandidate), readyCandidate);
-  assert.equal(
-    preferLastReadyHourlyBaseline({ source: "legacy", readyHours: 8 }, emptyCandidate),
-    emptyCandidate
-  );
+test("archived readings are disclosed and never double-count overlapping verified observations", () => {
+  const verified = readyPoints();
+  const archived = verified.map((point) => ({ ...point, quality: "reconstructed", value: 10000 }));
+  const historical = buildHourlyBaseline(archived, { now });
+  assert.equal(historical.hourlyByHour[9].status, "historical-reference");
+  assert.equal(historical.hourlyByHour[9].reconstructedDays, 7);
+  const forward = buildHourlyBaseline([...archived, ...verified], { now });
+  const reverse = buildHourlyBaseline([...verified, ...archived], { now });
+  assert.deepEqual(forward, reverse);
+  assert.equal(forward.hourlyByHour[9].baselineAvg, 100);
+  assert.equal(forward.hourlyByHour[9].reconstructedDays, 0);
 });

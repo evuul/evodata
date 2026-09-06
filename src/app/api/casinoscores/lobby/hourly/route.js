@@ -3,13 +3,9 @@
 import { buildPublicErrorBody, logApiError } from "@/lib/apiErrors";
 import { resolveRequestUser } from "@/lib/authSession";
 import { recordCostEvent } from "@/lib/csCostTracker";
-import { getLatestPlayersSnapshot } from "@/lib/csStore";
 import { hasExtendedDataAccess } from "@/lib/founderAccess";
-import {
-  buildHourlyLobbyPayload,
-  getCachedHourlyLobbyBaseline,
-  HOURLY_BASELINE_SOURCE,
-} from "@/lib/hourlyLobbyBaseline";
+import { getCachedHourlyLobbyBaseline } from "@/lib/hourlyLobbyBaseline";
+import { publishedHourlyCohort } from "@/lib/hourlyLobbyCohortSelection";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -32,15 +28,9 @@ export async function GET(request) {
       includeHourly: true,
     });
 
-    const [cachedBaseline, latestSnapshot] = await Promise.all([
-      getCachedHourlyLobbyBaseline(),
-      getLatestPlayersSnapshot(),
-    ]);
-    const baseline = cachedBaseline?.source === HOURLY_BASELINE_SOURCE ? cachedBaseline : null;
-    return json({
-      ok: true,
-      ...buildHourlyLobbyPayload({ baseline, latestSnapshot }),
-    });
+    const cached = await getCachedHourlyLobbyBaseline();
+    const baseline = publishedHourlyCohort(cached) ? cached : null;
+    return json({ ok: true, baseline });
   } catch (error) {
     logApiError({ route: "casinoscores-lobby-hourly", stage: "build-hourly-baseline", error });
     return json(buildPublicErrorBody({ message: "Kunde inte hämta timjämförelsen just nu." }), 500);

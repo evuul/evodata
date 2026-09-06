@@ -22,3 +22,12 @@ test("materialized refresh skips only inside the configured interval", () => {
   assert.equal(shouldSkipMaterializedRefresh({ materializedAt, now, minIntervalMs: 5 * 60 * 1000 }), false);
   assert.equal(shouldSkipMaterializedRefresh({ materializedAt: "invalid", now, minIntervalMs: 20 * 60 * 1000 }), false);
 });
+
+test("recovery updates cannot postpone primary collection", async () => {
+  const { shouldSkipPrimaryLobbyRefresh } = await import("./upstashCostPolicy.js");
+  const now = Date.parse("2026-09-06T10:10:00Z");
+  const recovered = { materializedAt: "2026-09-06T10:09:00Z", primaryMaterializedAt: "2026-09-06T10:00:00Z" };
+  assert.equal(shouldSkipPrimaryLobbyRefresh({ snapshot: recovered, now }), false);
+  assert.equal(shouldSkipPrimaryLobbyRefresh({ snapshot: { materializedAt: recovered.materializedAt }, now }), false);
+  assert.equal(shouldSkipPrimaryLobbyRefresh({ snapshot: { primaryMaterializedAt: "2026-09-06T10:09:00Z" }, now }), true);
+});

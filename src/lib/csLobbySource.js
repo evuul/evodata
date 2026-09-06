@@ -15,7 +15,7 @@ const parseCreatedAtMs = (payload) => {
 
 const isSourceFresh = (payload, now) => {
   const createdAt = parseCreatedAtMs(payload);
-  return Number.isFinite(createdAt) && now - createdAt <= SOURCE_STALE_AFTER_MS;
+  return Number.isFinite(createdAt) && createdAt <= now && now - createdAt <= SOURCE_STALE_AFTER_MS;
 };
 
 function getLobbySources() {
@@ -51,6 +51,7 @@ export async function fetchLiveLobbyCounts({ force = false, fetchImpl = fetch, n
           ...(source.authorization ? { Authorization: source.authorization } : {}),
         },
         cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
       });
       if (!response.ok) throw new Error(`Lobby HTTP ${response.status}`);
       const payload = await response.json();

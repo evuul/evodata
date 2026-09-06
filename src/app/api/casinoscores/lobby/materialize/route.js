@@ -43,18 +43,14 @@ async function warmHourlyBaseline() {
   try {
     const baseline = await loadHourlyLobbyBaseline();
     return {
-      ready: Boolean(baseline?.hourlyByHour?.some((row) => Number(row?.baselineAvg) > 0)),
-      isComplete: Boolean(baseline?.isComplete),
-      distinctDays: Number.isFinite(Number(baseline?.distinctDays))
-        ? Math.round(Number(baseline.distinctDays))
-        : null,
+      ok: true,
+      readyHours: baseline.readyHours,
       computedAt: baseline?.computedAt ?? null,
     };
   } catch {
     return {
-      ready: false,
-      isComplete: false,
-      distinctDays: null,
+      ok: false,
+      readyHours: 0,
       computedAt: null,
     };
   }

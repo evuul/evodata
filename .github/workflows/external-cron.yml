@@ -36,7 +36,7 @@ env:
 jobs:
   lobby-sync:
     if: |
-      (github.event_name == 'schedule' && github.event.schedule == '7,17,27,37,47,57 * * * *') ||
+      (github.event_name == 'schedule' && vars.LOBBY_SCHEDULER != 'cloudflare' && github.event.schedule == '7,17,27,37,47,57 * * * *') ||
       (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'lobby-sync'))
     runs-on: ubuntu-latest
     timeout-minutes: 4
@@ -102,7 +102,7 @@ jobs:
 
   lobby-snapshot:
     if: |
-      (github.event_name == 'schedule' && github.event.schedule == '30 * * * *') ||
+      (github.event_name == 'schedule' && vars.LOBBY_SCHEDULER != 'cloudflare' && github.event.schedule == '30 * * * *') ||
       (github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'lobby-snapshot'))
     runs-on: ubuntu-latest
     timeout-minutes: 4

@@ -149,6 +149,7 @@ export default function useLivePlayersControlPanelModel() {
     lobbyStats,
     hourlyLoading,
     hourlyError,
+    hourlyView,
     refreshHourlyStats,
   } = usePlayersLive();
   const { locale } = useLocale();
@@ -518,82 +519,9 @@ export default function useLivePlayersControlPanelModel() {
     }
   }, [stabilizedTodayPeak]);
 
-  const hourlyByHourRows = useMemo(() => {
-    if (!hasExtendedAccess) return [];
-    const rows = Array.isArray(lobbyStats?.hourlyByHour) ? lobbyStats.hourlyByHour : [];
-    return rows
-      .map((row) => {
-        const hour = String(row?.hour || "").trim();
-        const baseline = Number(row?.baselineAvg);
-        const currentTotal = finiteNumberOrNull(row?.currentTotal);
-        const delta = finiteNumberOrNull(row?.deltaPct);
-        const samples = Number(row?.samples);
-        const distinctDays = Number(row?.distinctDays);
-        const comparableGames = Number(row?.comparableGames);
-        const coverageStage = ["preliminary", "building", "complete"].includes(row?.coverageStage)
-          ? row.coverageStage
-          : "preliminary";
-        if (!hour || !Number.isFinite(baseline) || baseline <= 0) return null;
-        const resolvedDelta =
-          Number.isFinite(currentTotal) && baseline > 0
-            ? ((currentTotal - baseline) / baseline) * 100
-            : Number.isFinite(delta)
-            ? delta
-            : null;
-        return {
-          hour,
-          baseline: Math.round(baseline),
-          currentTotal: Number.isFinite(currentTotal) && currentTotal > 0 ? Math.round(currentTotal) : null,
-          delta: Number.isFinite(resolvedDelta) ? resolvedDelta : null,
-          samples: Number.isFinite(samples) && samples > 0 ? Math.round(samples) : 0,
-          distinctDays: Number.isFinite(distinctDays) && distinctDays > 0 ? Math.round(distinctDays) : 0,
-          coverageStage,
-          comparableGames: Number.isFinite(comparableGames) && comparableGames > 0
-            ? Math.round(comparableGames)
-            : 0,
-          isCurrentHour: Boolean(row?.isCurrentHour),
-        };
-      })
-      .filter(Boolean)
-      .sort((a, b) => a.hour.localeCompare(b.hour));
-  }, [hasExtendedAccess, lobbyStats?.hourlyByHour]);
-
-  const hourlyCoverage = useMemo(() => {
-    const coverage = lobbyStats?.hourlyCoverage;
-    if (!coverage || typeof coverage !== "object") return null;
-    const requestedDays = Number(coverage.requestedDays);
-    const distinctDays = Number(coverage.distinctDays);
-    const healthyGames = Number(coverage.healthyGames);
-    const comparableGames = Number(coverage.comparableGames);
-    const trackedGames = Number(coverage.trackedGames);
-    const samples = Number(coverage.samples);
-    const minimumDistinctDays = Number(coverage.minimumDistinctDays);
-    const readyHours = Number(coverage.readyHours);
-    const remainingDays = Number(coverage.remainingDays);
-    return {
-      requestedDays: Number.isFinite(requestedDays) ? Math.round(requestedDays) : null,
-      distinctDays: Number.isFinite(distinctDays) ? Math.round(distinctDays) : null,
-      healthyGames: Number.isFinite(healthyGames) ? Math.round(healthyGames) : null,
-      comparableGames: Number.isFinite(comparableGames) ? Math.round(comparableGames) : null,
-      trackedGames: Number.isFinite(trackedGames) ? Math.round(trackedGames) : null,
-      samples: Number.isFinite(samples) ? Math.max(0, Math.round(samples)) : 0,
-      minimumDistinctDays: Number.isFinite(minimumDistinctDays)
-        ? Math.max(1, Math.round(minimumDistinctDays))
-        : 3,
-      readyHours: Number.isFinite(readyHours) ? Math.max(0, Math.min(24, Math.round(readyHours))) : 0,
-      universeMatches: coverage.universeMatches !== false,
-      isComplete: Boolean(coverage.isComplete),
-      remainingDays: Number.isFinite(remainingDays)
-        ? Math.max(0, Math.round(remainingDays))
-        : null,
-      computedAt: coverage.computedAt ?? null,
-    };
-  }, [lobbyStats?.hourlyCoverage]);
-
-  const hourlyUpdatedLabel = useMemo(
-    () => formatDateTime(lobbyStats?.hourlyLiveUpdatedAt || hourlyCoverage?.computedAt),
-    [hourlyCoverage?.computedAt, lobbyStats?.hourlyLiveUpdatedAt]
-  );
+  const hourlyByHourRows = hourlyView.rows;
+  const hourlyCoverage = hourlyView.coverage;
+  const hourlyUpdatedLabel = formatDateTime(hourlyCoverage.liveUpdatedAt);
 
   const todayPeakDisplayValue = useMemo(() => {
     const peakValue = Number.isFinite(stabilizedTodayPeak?.value) ? stabilizedTodayPeak.value : null;

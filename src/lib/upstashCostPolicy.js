@@ -14,3 +14,7 @@ export function shouldSkipMaterializedRefresh({ materializedAt, now = Date.now()
   const age = current - previous;
   return age >= 0 && age < interval;
 }
+
+export function shouldSkipPrimaryLobbyRefresh({ snapshot, now = Date.now(), minIntervalMs = 8 * 60 * 1000 }) {
+  return shouldSkipMaterializedRefresh({ materializedAt: snapshot?.primaryMaterializedAt, now, minIntervalMs });
+}

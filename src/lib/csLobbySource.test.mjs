@@ -39,3 +39,16 @@ test("fetchLiveLobbyCounts falls back when the primary lobby source is unavailab
   assert.equal(calls.length, 2);
   assert.equal(lobby.createdAt, "2026-08-04T19:59:00.000Z");
 });
+
+test("a future source time cannot bypass the fresh fallback and requests have timeouts", async () => {
+  let calls = 0;
+  const source = await fetchLiveLobbyCounts({ force: true, now: Date.parse("2026-09-06T10:00:00Z"),
+    fetchImpl: async (_url, options) => {
+      assert.ok(options.signal);
+      calls++;
+      return Response.json({ createdAt: calls === 1 ? "2026-09-07T10:00:00Z" : "2026-09-06T09:59:00Z" });
+    },
+  });
+  assert.equal(calls, 2);
+  assert.equal(source.createdAt, "2026-09-06T09:59:00Z");
+});

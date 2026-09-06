@@ -15,3 +15,10 @@ test("lobby sync runs only on its dedicated schedule and is serialized", async (
   assert.match(lobbyJob, /group: external-cron-lobby-sync/);
   assert.equal(workflow.match(/\/api\/casinoscores\/cron/g)?.length, 1);
 });
+
+test("Cloudflare handover disables duplicate automatic lobby jobs while retaining manual dispatch", async () => {
+  const workflow = await readFile(workflowUrl, "utf8");
+  assert.equal(workflow.match(/vars\.LOBBY_SCHEDULER != 'cloudflare'/g)?.length, 2);
+  assert.match(workflow, /workflow_dispatch.*inputs\.job == 'lobby-sync'/);
+  assert.match(workflow, /workflow_dispatch.*inputs\.job == 'lobby-snapshot'/);
+});

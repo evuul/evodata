@@ -2,6 +2,7 @@
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import {
@@ -9,19 +10,22 @@ import {
   getLatestPlayersSnapshot,
   getSeriesBulk,
   maybeUpdateDailyLobbyPeak,
-  saveLobbyTotalSample,
   setGlobalLobbyAth,
   setLatestPlayersSnapshot,
   saveSample,
   updateGameAthSnapshot,
 } from "@/lib/csStore";
 import { computeTrailingStuckMeta, continueKnownStuckMeta } from "@/lib/stuckGames";
-import { shouldSkipMaterializedRefresh } from "@/lib/upstashCostPolicy";
+import { shouldSkipPrimaryLobbyRefresh } from "@/lib/upstashCostPolicy";
 import { GAMES as GAME_CONFIG, PRIMARY_TRACKED_GAMES } from "@/config/games";
 import { buildLiveLobbyItems, fetchLiveLobbyCounts } from "@/lib/csLobbySource";
 import { getLatestUnibetPilotSample } from "@/lib/unibetPilotStore";
 import { partitionPrimarySeriesItems } from "@/lib/unibetRecoveryPersistence";
 import { summarizeObservedLobby } from "@/lib/liveLobbyPeak";
+import { saveHourlyLobbyObservation } from "@/lib/hourlyLobbyStore";
+import { saveHourlyGameObservations } from "@/lib/hourlyLobbyGameStore";
+import { validHourlyPlayers } from "@/lib/hourlyLobbyPolicy";
+import { HOURLY_LOBBY_COHORT } from "@/config/hourlyLobbyCohort";
 import {
   finiteNumberOrNull,
   isPlayerSampleFresh,
@@ -29,12 +33,13 @@ import {
 } from "@/lib/livePlayerSnapshot";
 
 const SECRET = resolveCronSecret(process.env.CASINOSCORES_CRON_SECRET, process.env.CRON_SECRET);
-const STUCK_LOOKBACK_DAYS = 90;
+const STUCK_LOOKBACK_DAYS = 2;
+const STUCK_RECENT_SAMPLE_LIMIT = 32;
 const STUCK_MIN_RUN = 4;
 const STUCK_MIN_DAYS = 0;
 const CRON_MIN_INTERVAL_MS = (() => {
   const configured = Number(process.env.CS_CRON_MIN_INTERVAL_MS);
-  if (!Number.isFinite(configured) || configured <= 0) return 10 * 60 * 1000;
+  if (!Number.isFinite(configured) || configured <= 0) return 8 * 60 * 1000;
   return Math.min(Math.max(configured, 60 * 1000), 60 * 60 * 1000);
 })();
 
@@ -78,8 +83,8 @@ async function runCron(req) {
   }
 
   const previousSnapshot = await getLatestPlayersSnapshot().catch(() => null);
-  if (shouldSkipMaterializedRefresh({
-    materializedAt: previousSnapshot?.materializedAt,
+  if (shouldSkipPrimaryLobbyRefresh({
+    snapshot: previousSnapshot,
     minIntervalMs: CRON_MIN_INTERVAL_MS,
   })) {
     return json({
@@ -101,11 +106,12 @@ async function runCron(req) {
   }
 
   const successfulItems = liveItems
-    .filter((item) => item?.id && Number.isFinite(Number(item.players)) && item.fetchedAt)
+    .filter((item) => item?.id && validHourlyPlayers(item.players) != null
+      && isPlayerSampleFresh(item.fetchedAt, { maxAgeMs: LIVE_PLAYER_FRESHNESS_MS }))
     .map((item) => ({ id: item.id, players: Number(item.players), fetchedAt: item.fetchedAt }));
   const results = PRIMARY_TRACKED_GAMES.map((game) => {
     const item = liveItems.find((candidate) => candidate.id === game.id);
-    const ok = Boolean(item && Number.isFinite(Number(item.players)) && item.fetchedAt);
+    const ok = successfulItems.some((candidate) => candidate.id === game.id);
     return {
       slug: game.apiSlug,
       variant: game.apiVariant === "a" ? "a" : "default",
@@ -113,12 +119,13 @@ async function runCron(req) {
       ok,
       players: item?.players ?? null,
       fetchedAt: item?.fetchedAt ?? null,
-      error: ok ? undefined : sourceError || "No live lobby value",
+      error: ok ? undefined : sourceError ? "Lobby source unavailable" : "No fresh lobby value",
     };
   });
   const fetched = successfulItems.length;
   let saved = 0;
   let recoveryDeferred = 0;
+  let hourly = { saved: false, reason: "no-fresh-lobby" };
 
   if (successfulItems.length) {
     let primarySamples = successfulItems;
@@ -137,7 +144,9 @@ async function runCron(req) {
     saved = await saveSamples(primarySamples);
 
     const ids = GAME_CONFIG.map((game) => game.id).filter(Boolean);
-    const seriesMap = await getSeriesBulk(ids, STUCK_LOOKBACK_DAYS).catch(() => new Map());
+    const seriesMap = await getSeriesBulk(ids, STUCK_LOOKBACK_DAYS, {
+      maxSamplesPerSeries: STUCK_RECENT_SAMPLE_LIMIT,
+    }).catch(() => new Map());
     const previousById = new Map(
       Array.isArray(previousSnapshot?.items)
         ? previousSnapshot.items.filter((item) => item?.id).map((item) => [item.id, item])
@@ -187,17 +196,23 @@ async function runCron(req) {
       .at(-1) ?? new Date().toISOString();
 
     const materializedAt = new Date().toISOString();
+    const qualityVerified = HOURLY_LOBBY_COHORT.gameIds.every((id) => (seriesMap.get(id)?.length ?? 0) >= STUCK_MIN_RUN);
     const observedLobby = summarizeObservedLobby(snapshotItems);
     await Promise.all([
-      setLatestPlayersSnapshot({ items: snapshotItems, updatedAt, materializedAt }),
+      setLatestPlayersSnapshot({ items: snapshotItems, updatedAt, materializedAt, primaryMaterializedAt: materializedAt, hourlyQualityVerified: qualityVerified }),
       updateGameAthSnapshot(successfulItems, updatedAt),
-      observedLobby.totalPlayers != null && observedLobby.measuredAt && observedLobby.universeKey
-        ? saveLobbyTotalSample(observedLobby.measuredAt, observedLobby.totalPlayers, {
-            universeKey: observedLobby.universeKey,
-            includedGames: observedLobby.includedGames,
-          })
-        : Promise.resolve(),
     ]);
+    try {
+      const candidates = await saveHourlyGameObservations(snapshotItems.map((item) => ({
+        ...item, qualityVerified: (seriesMap.get(item.id)?.length ?? 0) >= STUCK_MIN_RUN,
+      })), { source: "primary" });
+      hourly = qualityVerified
+        ? await saveHourlyLobbyObservation(snapshotItems)
+        : { saved: false, reason: "insufficient-quality-history" };
+      hourly.candidates = candidates;
+    } catch {
+      hourly = { saved: false, reason: "storage-unavailable" };
+    }
 
     const newestTimestamp = Date.parse(observedLobby.measuredAt);
     if (observedLobby.totalPlayers != null && Number.isFinite(newestTimestamp)) {
@@ -218,14 +233,16 @@ async function runCron(req) {
   }
 
   return json({
-    ok: fetched === results.length,
+    ok: fetched > 0,
+    complete: fetched === results.length,
     fetched,
     saved,
     recoveryDeferred,
+    hourly,
     total: results.length,
     results,
     timestamp: new Date().toISOString(),
-  });
+  }, fetched > 0 ? 200 : 502);
 }
 
 export async function POST(req) {

@@ -210,8 +210,8 @@ export function useLiveHeaderModel() {
     }
     const sign = delta > 0 ? "+" : "";
     const text = translate(
-      `${hour}:00 vs 60d snitt: ${sign}${delta.toFixed(1)}% (bas ${Math.round(baseline).toLocaleString("sv-SE")})`,
-      `${hour}:00 vs 60d avg: ${sign}${delta.toFixed(1)}% (base ${Math.round(baseline).toLocaleString("sv-SE")})`
+      `${hour}:00 · ${cmp.comparableGames} spel · ${cmp.requestedDays}d snitt: ${sign}${delta.toFixed(1)}% (bas ${Math.round(baseline).toLocaleString("sv-SE")})`,
+      `${hour}:00 · ${cmp.comparableGames} games · ${cmp.requestedDays}d avg: ${sign}${delta.toFixed(1)}% (base ${Math.round(baseline).toLocaleString("sv-SE")})`
     );
     const color = delta > 0 ? "#86efac" : delta < 0 ? "#fca5a5" : "rgba(148,163,184,0.72)";
     return { text, color };

@@ -19,6 +19,8 @@ import {
   selectUnibetRecoverySeriesItems,
 } from "@/lib/unibetRecoveryPersistence";
 import { selectUnibetTrackedSeriesItems } from "@/lib/unibetTrackedGames";
+import { saveHourlyLobbyObservation } from "@/lib/hourlyLobbyStore";
+import { saveHourlyGameObservations, selectHourlyUnibetCandidates } from "@/lib/hourlyLobbyGameStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -129,7 +131,16 @@ async function materializeRecoveredGames(sample) {
   }
 
   await setLatestPlayersSnapshot(recovered.snapshot);
+  let hourly;
+  try {
+    hourly = recovered.snapshot.hourlyQualityVerified === true
+      ? await saveHourlyLobbyObservation(recovered.snapshot.items)
+      : { saved: false, reason: "insufficient-quality-history" };
+  } catch {
+    hourly = { saved: false, reason: "storage-unavailable" };
+  }
   return {
+    hourly,
     updatedGames: recovered.applied.length,
     updatedGameIds: recovered.applied.map((item) => item.id),
   };
@@ -142,6 +153,13 @@ export async function POST(request) {
   const startedAt = Date.now();
   try {
     let sample = await collectUnibetPilotSample();
+    let hourlyCandidates;
+    try {
+      // Capture native source readings before primary fallback can assign them a new collection time.
+      hourlyCandidates = await saveHourlyGameObservations(selectHourlyUnibetCandidates(sample), { source: "unibet" });
+    } catch {
+      hourlyCandidates = { savedGames: 0, reason: "storage-unavailable" };
+    }
     sample = await addPrimaryLobbyFallback(sample);
     sample.durationMs = Date.now() - startedAt;
     const persisted = await persistRecoveredGames(sample);
@@ -161,6 +179,7 @@ export async function POST(request) {
         recovered: persisted,
         tracked,
         materialized,
+        hourlyCandidates,
       },
     });
   } catch (error) {

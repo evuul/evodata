@@ -4,15 +4,17 @@
 
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { GAMES as GAME_CONFIG } from "@/config/games";
+import { useHourlyLobbyComparison } from "@/hooks/useHourlyLobbyComparison";
 import { useAuth } from "@/context/AuthContext";
 import {
   fetchAllPlayersShared,
   fetchLatestPlayersShared,
   fetchLobbyStatsShared,
 } from "@/lib/casinoScoresClient";
-import { fetchHourlyLobbyBaseline } from "@/lib/hourlyLobbyClient";
+import { fetchHourlyLobbyBaseline, shouldReuseHourlyRequest } from "@/lib/hourlyLobbyClient";
 import { subscribeLiveDataSource } from "@/lib/liveDataCoordinator";
 import { finiteNumberOrNull } from "@/lib/livePlayerSnapshot";
+import { HOURLY_BASELINE_DAYS } from "@/lib/hourlyLobbyPolicy";
 
 export const GAMES = GAME_CONFIG;
 
@@ -34,10 +36,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     todayPeak: null,
     yesterdayPeak: null,
     lobbyAth: null,
-    hourlyComparison: null,
-    hourlyByHour: [],
-    hourlyCoverage: null,
-    hourlyLiveUpdatedAt: null,
+    hourlyBaseline: null,
     updatedAt: null,
   });
   const [hourlyLoading, setHourlyLoading] = useState(false);
@@ -76,31 +75,30 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     if (!enabled || !hourlyAccessKey) return null;
     const now = Date.now();
     const previous = lastHourlyStatsFetchRef.current;
-    if (!force && previous.accessKey === hourlyAccessKey && now - previous.at < MIN_COOLDOWN_MS) {
+    if (!force && shouldReuseHourlyRequest(previous, hourlyAccessKey, now)) {
       return null;
     }
 
-    lastHourlyStatsFetchRef.current = { accessKey: hourlyAccessKey, at: now };
+    const requestState = { accessKey: hourlyAccessKey, at: now };
+    lastHourlyStatsFetchRef.current = requestState;
     setHourlyLoading(true);
     setHourlyError("");
     try {
       const json = await fetchHourlyLobbyBaseline(token);
-      if (activeHourlyAccessKeyRef.current !== hourlyAccessKey) return null;
+      if (activeHourlyAccessKeyRef.current !== hourlyAccessKey || lastHourlyStatsFetchRef.current !== requestState) return null;
       setLobbyStats((current) => ({
         ...current,
-        hourlyComparison: json?.hourlyComparison ?? null,
-        hourlyByHour: Array.isArray(json?.hourlyByHour) ? json.hourlyByHour : [],
-        hourlyCoverage: json?.coverage ?? null,
-        hourlyLiveUpdatedAt: json?.liveUpdatedAt ?? null,
+        hourlyBaseline: json?.baseline ?? null,
       }));
       return json;
     } catch (error) {
-      if (activeHourlyAccessKeyRef.current !== hourlyAccessKey) return null;
-      lastHourlyStatsFetchRef.current = { accessKey: null, at: 0 };
+      if (activeHourlyAccessKeyRef.current !== hourlyAccessKey || lastHourlyStatsFetchRef.current !== requestState) return null;
+      requestState.failed = true;
       setHourlyError(error instanceof Error ? error.message : String(error));
       return null;
     } finally {
-      if (activeHourlyAccessKeyRef.current === hourlyAccessKey) {
+      if (activeHourlyAccessKeyRef.current === hourlyAccessKey
+          && lastHourlyStatsFetchRef.current === requestState) {
         setHourlyLoading(false);
       }
     }
@@ -114,10 +112,7 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     setHourlyError("");
     setLobbyStats((current) => ({
       ...current,
-      hourlyComparison: null,
-      hourlyByHour: [],
-      hourlyCoverage: null,
-      hourlyLiveUpdatedAt: null,
+      hourlyBaseline: null,
     }));
   }, [hourlyAccessKey]);
 
@@ -259,6 +254,23 @@ export function PlayersLiveProvider({ children, enabled = true }) {
     };
   }, [enabled, fetchAll, hydrateFromCache]);
 
+  const hourlyView = useHourlyLobbyComparison({
+    baseline: lobbyStats.hourlyBaseline,
+    liveGames: data,
+    enabled: enabled && hasHourlyAccess && lastHourlyStatsFetchRef.current.accessKey === hourlyAccessKey
+      && activeHourlyAccessKeyRef.current === hourlyAccessKey,
+    refreshBaseline: fetchHourlyStats,
+  });
+  const hourlyComparison = useMemo(() => {
+    const row = hourlyView.rows.find((candidate) => candidate.isCurrentHour && candidate.delta != null);
+    return row ? {
+      ...row,
+      baselineAvg: row.baseline,
+      requestedDays: HOURLY_BASELINE_DAYS,
+      comparableGames: hourlyView.coverage.expectedGames,
+    } : null;
+  }, [hourlyView]);
+
   const value = useMemo(
     () => ({
       data,
@@ -267,12 +279,13 @@ export function PlayersLiveProvider({ children, enabled = true }) {
       lastUpdated,
       refresh: (force = false) => fetchAll(force),
       GAMES,
-      lobbyStats,
+      lobbyStats: { ...lobbyStats, hourlyComparison },
+      hourlyView,
       hourlyLoading,
       hourlyError,
       refreshHourlyStats: fetchHourlyStats,
     }),
-    [data, loading, error, lastUpdated, fetchAll, lobbyStats, hourlyLoading, hourlyError, fetchHourlyStats]
+    [data, loading, error, lastUpdated, fetchAll, lobbyStats, hourlyComparison, hourlyView, hourlyLoading, hourlyError, fetchHourlyStats]
   );
 
   return <PlayersLiveContext.Provider value={value}>{children}</PlayersLiveContext.Provider>;

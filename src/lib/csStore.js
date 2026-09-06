@@ -113,19 +113,24 @@ function createLocalRedisAdapter(client) {
 }
 
 // Prova använda @vercel/kv om env finns – dynamisk import så build inte bryr sig lokalt
-async function getKv() {
+export async function getKv() {
   if (kvClient !== null) return kvClient; // cache
   const localRedisUrl = String(process.env.LOCAL_REDIS_URL || "").trim();
   if (localRedisUrl) {
     try {
       const redisMod = await import("redis");
-      const client = redisMod.createClient({ url: localRedisUrl });
+      const client = redisMod.createClient({
+        url: localRedisUrl,
+        socket: { connectTimeout: 1500, reconnectStrategy: () => false },
+      });
+      // Connection errors are handled by connect(); an absent local service must allow REST fallback.
+      client.on("error", () => {});
       await client.connect();
       kvClient = createLocalRedisAdapter(client);
       if (DEBUG) console.log("[csStore] Using LOCAL_REDIS_URL adapter");
       return kvClient;
-    } catch (err) {
-      if (DEBUG) console.warn("[csStore] LOCAL_REDIS_URL connect failed, fallback to KV_REST:", err);
+    } catch {
+      if (DEBUG) console.warn("[csStore] Local Redis unavailable; trying configured KV REST storage");
     }
   }
   if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {

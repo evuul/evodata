@@ -115,8 +115,8 @@ export default function MinaSidorHeader({
     const sign = delta > 0 ? "+" : "";
     return {
       label: translate(
-        `${hour}:00 vs 60d snitt ${sign}${delta.toFixed(1)}%`,
-        `${hour}:00 vs 60d avg ${sign}${delta.toFixed(1)}%`
+        `${hour}:00 · ${hourlyComparison.comparableGames} spel · ${hourlyComparison.requestedDays}d snitt ${sign}${delta.toFixed(1)}%`,
+        `${hour}:00 · ${hourlyComparison.comparableGames} games · ${hourlyComparison.requestedDays}d avg ${sign}${delta.toFixed(1)}%`
       ),
       color: delta > 0 ? "#86efac" : delta < 0 ? "#fecaca" : "rgba(226,232,240,0.85)",
       bg:

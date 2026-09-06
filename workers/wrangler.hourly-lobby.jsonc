@@ -1,0 +1,13 @@
+// Dedicated scheduler; CRON_SECRET is supplied with Wrangler secrets, never in this file.
+{
+  "name": "evodata-hourly-lobby-scheduler",
+  "main": "hourlyLobbyScheduler.js",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "triggers": {
+    "crons": ["7,17,27,37,47,57 * * * *", "35 3 * * *"]
+  },
+  "vars": {
+    "CRON_BASE_URL": "https://evodata.vercel.app"
+  }
+}
