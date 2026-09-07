@@ -57,20 +57,20 @@ test("categorizes localized roulette names in legacy samples", () => {
   assert.deepEqual(payload.games.map((game) => game.category), ["roulette", "roulette"]);
 });
 
-test("fills a missing Unibet game from a fresh primary lobby reading", () => {
+test("fills missing games and keeps the highest fresh lobby value", () => {
   const sample = {
     collectedAt: "2026-08-25T08:40:00.000Z",
     games: [{ id: "crazy-time", name: "Crazy Time", players: 12_000 }],
   };
   const merged = mergeExtendedLobbyPrimaryFallback(sample, [
     { id: "ice-fishing", name: "Ice Fishing", players: 20_389, fetchedAt: "2026-08-25T08:39:00.000Z" },
-    { id: "crazy-time", name: "Crazy Time", players: 11_000, fetchedAt: "2026-08-25T08:39:00.000Z" },
+    { id: "crazy-time", name: "Crazy Time", players: 13_000, fetchedAt: "2026-08-25T08:39:00.000Z" },
     { id: "stale-game", name: "Stale Game", players: 99, fetchedAt: "2026-08-25T08:10:00.000Z" },
     { id: "stuck-game", name: "Stuck Game", players: 88, fetchedAt: "2026-08-25T08:39:00.000Z", stuck: true },
   ], { now: Date.parse("2026-08-25T08:40:00.000Z") });
 
   assert.deepEqual(merged.games, [
-    { id: "crazy-time", name: "Crazy Time", players: 12_000 },
+    { id: "crazy-time", name: "Crazy Time", players: 13_000 },
     { id: "ice-fishing", name: "Ice Fishing", players: 20_389 },
   ]);
 });

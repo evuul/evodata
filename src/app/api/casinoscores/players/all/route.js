@@ -250,7 +250,10 @@ export async function GET(req) {
       pilotSample = latestPilotSample?.status === "ok"
         ? latestPilotSample
         : await getLatestSuccessfulUnibetPilotSample();
-      const repaired = applyUnibetPilotFallback(items, pilotSample, { allowMissing: true });
+      const repaired = applyUnibetPilotFallback(items, pilotSample, {
+        allowMissing: true,
+        preferHigher: true,
+      });
       items.splice(0, items.length, ...repaired.items);
       for (const item of repaired.applied) {
         const timestamp = Date.parse(item.fetchedAt);
@@ -307,7 +310,7 @@ export async function GET(req) {
           ? latestPilotSample
           : await getLatestSuccessfulUnibetPilotSample();
       }
-      const repaired = applyUnibetPilotFallback(items, pilotSample);
+      const repaired = applyUnibetPilotFallback(items, pilotSample, { preferHigher: true });
       items.splice(0, items.length, ...repaired.items);
       for (const item of repaired.applied) {
         const timestamp = Date.parse(item.fetchedAt);
