@@ -244,24 +244,22 @@ export async function GET(req) {
     items.push(entry);
   });
 
-  if (items.some((item) => item.players == null)) {
-    try {
-      const latestPilotSample = await getLatestUnibetPilotSample();
-      pilotSample = latestPilotSample?.status === "ok"
-        ? latestPilotSample
-        : await getLatestSuccessfulUnibetPilotSample();
-      const repaired = applyUnibetPilotFallback(items, pilotSample, {
-        allowMissing: true,
-        preferHigher: true,
-      });
-      items.splice(0, items.length, ...repaired.items);
-      for (const item of repaired.applied) {
-        const timestamp = Date.parse(item.fetchedAt);
-        if (Number.isFinite(timestamp)) newestTs = Math.max(newestTs, timestamp);
-      }
-    } catch {
-      // Historic primary samples remain the fallback if the optional Unibet feed is unavailable.
+  try {
+    const latestPilotSample = await getLatestUnibetPilotSample();
+    pilotSample = latestPilotSample?.status === "ok"
+      ? latestPilotSample
+      : await getLatestSuccessfulUnibetPilotSample();
+    const reconciled = applyUnibetPilotFallback(items, pilotSample, {
+      allowMissing: true,
+      preferHigher: true,
+    });
+    items.splice(0, items.length, ...reconciled.items);
+    for (const item of reconciled.applied) {
+      const timestamp = Date.parse(item.fetchedAt);
+      if (Number.isFinite(timestamp)) newestTs = Math.max(newestTs, timestamp);
     }
+  } catch {
+    // Primary readings remain available when the independent Unibet source is unavailable.
   }
 
   if (fallbackPromises.length) {
