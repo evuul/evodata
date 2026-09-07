@@ -1,6 +1,7 @@
 // Builds the private Extended lobby response and safely fills temporary source gaps.
 
 import { LIVE_PLAYER_FRESHNESS_MS, isPlayerSampleFresh } from "./livePlayerSnapshot.js";
+import { getUnibetPilotGameId } from "./unibetPilotFallback.js";
 
 const EXTENDED_LOBBY_CATEGORIES = new Set(["gameshows", "roulette", "baccarat"]);
 export const EXTENDED_LOBBY_STALE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
@@ -24,23 +25,23 @@ const normalizeGame = (game) => {
   return { id, name, players: Math.round(players), category: inferCategory(game) };
 };
 
-/** Adds only fresh, non-frozen primary-lobby games missing from the Unibet sample. */
+/** Adds fresh primary games missing from Unibet and keeps the highest valid value for shared games. */
 export function mergeExtendedLobbyPrimaryFallback(
   sample,
   primaryItems,
   { now = Date.now(), maxAgeMs = EXTENDED_LOBBY_CROSS_FALLBACK_MAX_AGE_MS } = {}
 ) {
   const games = Array.isArray(sample?.games) ? [...sample.games] : [];
-  const existingIds = new Set(games.map((game) => String(game?.id || "").trim()).filter(Boolean));
 
   for (const item of Array.isArray(primaryItems) ? primaryItems : []) {
     const id = String(item?.id || "").trim();
+    const pilotId = getUnibetPilotGameId(id);
     const name = String(item?.name || "").replace(/\s+/g, " ").trim();
     const players = Number(item?.players);
+    const existingIndex = games.findIndex((game) => String(game?.id || "").trim() === pilotId);
     if (
       !id ||
       !name ||
-      existingIds.has(id) ||
       !Number.isFinite(players) ||
       players < 0 ||
       item?.stale ||
@@ -50,13 +51,19 @@ export function mergeExtendedLobbyPrimaryFallback(
       continue;
     }
 
+    if (existingIndex >= 0) {
+      if (players > Number(games[existingIndex]?.players)) {
+        games[existingIndex] = { ...games[existingIndex], players: Math.round(players) };
+      }
+      continue;
+    }
+
     games.push({
       id,
       name,
       players: Math.round(players),
       ...(item?.category ? { category: item.category } : {}),
     });
-    existingIds.add(id);
   }
 
   return { ...sample, games };

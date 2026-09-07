@@ -1,4 +1,4 @@
-// Applies fresh Unibet values only for frozen or explicitly missing primary readings.
+// Reconciles fresh Unibet readings with primary-lobby values.
 
 export const UNIBET_PILOT_MAX_AGE_MS = 25 * 60 * 1000;
 
@@ -39,10 +39,14 @@ export function applyUnibetPilotFallback(items, sample, options = {}) {
   const applied = [];
   const resolvedItems = (Array.isArray(items) ? items : []).map((item) => {
     const canRepairMissingValue = options.allowMissing === true && item?.players == null;
-    if (!item?.stuck && !canRepairMissingValue) return item;
-
     const pilotId = getUnibetPilotGameId(item.id);
     const players = gamesById.get(pilotId);
+    const primaryPlayers = toFinitePlayers(item?.players);
+    const canUseHigherPilotValue = options.preferHigher === true
+      && players != null
+      && (primaryPlayers == null || players > primaryPlayers);
+
+    if (!item?.stuck && !canRepairMissingValue && !canUseHigherPilotValue) return item;
     if (players == null) return item;
 
     applied.push({ id: item.id, players, fetchedAt: sample.collectedAt });

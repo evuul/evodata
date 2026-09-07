@@ -73,6 +73,31 @@ test("fills an explicitly missing primary value when the caller opts in", () => 
   assert.equal(result.items[1].players, 12_000);
 });
 
+test("uses the higher fresh value when callers reconcile both lobby sources", () => {
+  const result = applyUnibetPilotFallback([
+    { id: "ice-fishing", players: 34_490, stuck: false, stale: false },
+    { id: "monopoly-big-baller", players: 20_972, stuck: false, stale: false },
+  ], {
+    status: "ok",
+    collectedAt: "2026-08-05T12:01:00.000Z",
+    games: [
+      { id: "ice-fishing", players: 39_575 },
+      { id: "monopoly-big-baller", players: 20_000 },
+    ],
+  }, {
+    now: Date.parse("2026-08-05T12:02:00.000Z"),
+    preferHigher: true,
+  });
+
+  assert.deepEqual(result.applied, [{
+    id: "ice-fishing",
+    players: 39_575,
+    fetchedAt: "2026-08-05T12:01:00.000Z",
+  }]);
+  assert.equal(result.items[0].players, 39_575);
+  assert.equal(result.items[1].players, 20_972);
+});
+
 test("rejects an old or malformed pilot sample", () => {
   assert.equal(isFreshUnibetPilotSample(sample, { now: Date.parse("2026-08-04T19:20:01.000Z") }), false);
   const result = applyUnibetPilotFallback([{ id: "auto-roulette", players: 2_458, stuck: true }], sample, {
