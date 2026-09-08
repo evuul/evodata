@@ -21,6 +21,9 @@ import {
 import { selectUnibetTrackedSeriesItems } from "@/lib/unibetTrackedGames";
 import { saveHourlyLobbyObservation } from "@/lib/hourlyLobbyStore";
 import { saveHourlyGameObservations, selectHourlyUnibetCandidates } from "@/lib/hourlyLobbyGameStore";
+import { selectRegularLobbyReadings } from "@/lib/regularLobbyDaily";
+import { continueKnownStuckMeta } from "@/lib/stuckGames";
+import { refreshRegularLobbyDaily } from "@/lib/regularLobbyDailyMaterializer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,29 +39,32 @@ const json = (data, status = 200) =>
   });
 
 async function addPrimaryLobbyFallback(sample) {
+  const regularLobbyReadings = selectRegularLobbyReadings([], sample);
   try {
     const [lobby, snapshot] = await Promise.all([
       fetchLiveLobbyCounts(),
       getLatestPlayersSnapshot().catch(() => null),
     ]);
-    const stuckById = new Map(
-      (Array.isArray(snapshot?.items) ? snapshot.items : []).map((item) => [item?.id, Boolean(item?.stuck)])
+    const previousById = new Map(
+      (Array.isArray(snapshot?.items) ? snapshot.items : []).map((item) => [item?.id, item])
     );
     const primaryItems = buildLiveLobbyItems(lobby, PRIMARY_TRACKED_GAMES).flatMap((item) => {
       const name = PRIMARY_GAME_NAMES.get(item?.id);
-      return name ? [{ ...item, name, stuck: stuckById.get(item.id) || false }] : [];
+      return name ? [{ ...item, name, stuck: Boolean(continueKnownStuckMeta(previousById.get(item.id), item)) }] : [];
     });
     const merged = mergeExtendedLobbyPrimaryFallback(sample, primaryItems);
-    if (merged.games.length === sample.games.length) return sample;
+    const readings = selectRegularLobbyReadings(primaryItems, sample, { now: Date.parse(sample.collectedAt) });
+    if (merged.games.length === sample.games.length) return { ...sample, regularLobbyReadings: readings };
 
     return {
       ...merged,
+      regularLobbyReadings: readings,
       gameCount: merged.games.length,
       totalPlayers: merged.games.reduce((total, game) => total + Number(game.players || 0), 0),
     };
   } catch {
     // A healthy Unibet sample must still be stored when the independent primary source is unavailable.
-    return sample;
+    return { ...sample, regularLobbyReadings };
   }
 }
 
@@ -167,6 +173,13 @@ export async function POST(request) {
     sample.seriesSavedGameIds = [...persisted.seriesSavedGameIds, ...tracked.seriesSavedGameIds];
     const materialized = await materializeRecoveredGames(sample);
     await appendUnibetPilotSample(sample);
+    let daily;
+    try {
+      daily = await refreshRegularLobbyDaily();
+    } catch {
+      // Keep the native readings available so the next collection can retry publication.
+      daily = { ok: false, reason: "daily-materialization-unavailable" };
+    }
     return json({
       ok: true,
       pilot: true,
@@ -180,6 +193,7 @@ export async function POST(request) {
         tracked,
         materialized,
         hourlyCandidates,
+        daily,
       },
     });
   } catch (error) {

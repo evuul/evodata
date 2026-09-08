@@ -1,15 +1,19 @@
 // Rolls persisted lobby overview snapshots forward from one completed aggregate day.
 
 import { FORECAST_GAME_IDS } from "@/config/games";
-import { getOverviewSnapshot, setOverviewSnapshot } from "@/lib/csStore";
+import { getOverviewSnapshot, setOverviewSnapshot, getMonthlyLobbyActivitySnapshot, setMonthlyLobbyActivitySnapshot } from "@/lib/csStore";
+import { mergeMonthlyLobbyActivitySnapshot } from "./monthlyLobbyActivity.js";
 import {
   appendDailyAggregateDateToOverview,
   composeLobbyOverviewSnapshots,
 } from "@/lib/lobbyOverviewSnapshot";
+import { getRegularLobbyDailyHistory } from "./regularLobbyDailyStore.js";
+import { applyRegularLobbyDailyToOverview } from "./regularLobbyDailySnapshot.js";
 
 export const MATERIALIZED_OVERVIEW_RANGES = Object.freeze([30, 60, 90, 180, 365, 730]);
 
 export async function materializeLobbyOverviewSnapshots(dailyAggregates, targetDate) {
+  const corrections = await getRegularLobbyDailyHistory();
   const snapshots = await Promise.all(
     MATERIALIZED_OVERVIEW_RANGES.map((days) => getOverviewSnapshot(days))
   );
@@ -24,13 +28,14 @@ export async function materializeLobbyOverviewSnapshots(dailyAggregates, targetD
     const stored = snapshots[index];
     if (!stored?.data) continue;
     const composed = composeLobbyOverviewSnapshots(stored.data, recentData, days);
-    const data = appendDailyAggregateDateToOverview(
+    const appended = appendDailyAggregateDateToOverview(
       composed,
       dailyAggregates,
       targetDate,
       days,
       FORECAST_GAME_IDS
     );
+    const data = applyRegularLobbyDailyToOverview(appended, corrections, { days });
     if (!data) continue;
     await setOverviewSnapshot(days, {
       data,
@@ -42,6 +47,10 @@ export async function materializeLobbyOverviewSnapshots(dailyAggregates, targetD
         source: "daily-materialized-snapshot",
       },
     });
+    if (days === 730) {
+      const monthly = await getMonthlyLobbyActivitySnapshot();
+      await setMonthlyLobbyActivitySnapshot(mergeMonthlyLobbyActivitySnapshot(monthly, data.rawDailyTotals ?? data.dailyTotals, cachedAt));
+    }
     updated += 1;
   }
 

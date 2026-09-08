@@ -1,9 +1,11 @@
-// Sends the scheduled daily player summary with bounded Redis reads.
+// Sends scheduled lobby reports after the completed day's coverage has been verified.
 
 import { NextResponse } from "next/server";
 import { getJson, getUserIndexKey, getUserKey, mgetJson, setJson } from "@/lib/authStore";
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { getCachedDailyAggregates } from "@/lib/csStore";
+import { materializeRegularLobbyDay } from "@/lib/regularLobbyDailyMaterializer";
+import { previousRegularLobbyDay } from "@/lib/regularLobbyDaily";
 import { SERIES_SLUGS } from "@/app/api/casinoscores/players/shared";
 import { GAMES as GAME_CONFIG } from "@/config/games";
 import { isMailerConfigured, sendEmail } from "@/lib/mailer";
@@ -260,6 +262,10 @@ async function handler(req) {
   }
 
   const lastSentYmd = (await getJson(LAST_SENT_KEY))?.ymd || null;
+  const regularDay = await materializeRegularLobbyDay(previousRegularLobbyDay());
+  if (!regularDay.complete) {
+    return json({ ok: true, sent: 0, skipped: true, reason: "Insufficient daily lobby coverage", coverage: regularDay.coverage });
+  }
   const dailyAgg = await getCachedDailyAggregates(SERIES_SLUGS, 120).catch(() => new Map());
   let recoveryMeta = null;
   if (shouldUseLiveTrackerRecovery(process.env)) {

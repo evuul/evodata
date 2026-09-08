@@ -5,6 +5,7 @@ import { getCachedDailyAggregates, getOverviewSnapshot } from "@/lib/csStore";
 import { requireCronAuth, resolveCronSecret } from "@/lib/cronAuth";
 import { loadHourlyLobbyBaseline } from "@/lib/hourlyLobbyBaseline";
 import { materializeLobbyOverviewSnapshots } from "@/lib/lobbyOverviewMaterializer";
+import { materializeRegularLobbyDay } from "@/lib/regularLobbyDailyMaterializer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -64,8 +65,12 @@ async function handler(request) {
 
   const hourlyBaseline = await warmHourlyBaseline();
   const targetDate = shiftYmd(stockholmTodayYmd(), -1);
+  const regularDay = await materializeRegularLobbyDay(targetDate);
+  if (!regularDay.complete) {
+    return Response.json({ ok: false, targetDate, reason: regularDay.reason, coverage: regularDay.coverage }, { status: 503 });
+  }
   const current = await getOverviewSnapshot(30);
-  if (targetDate && latestDate(current) >= targetDate) {
+  if (targetDate && latestDate(current) >= targetDate && current?.data?.dailyQuality?.[targetDate]?.method === regularDay.method) {
     return Response.json({
       ok: true,
       skipped: true,

@@ -55,6 +55,8 @@ import {
 import { FORECAST_GAME_IDS } from "@/config/games";
 import { estimatePartialDayAverages } from "@/lib/partialDayEstimate";
 import { composeLobbyOverviewSnapshots } from "@/lib/lobbyOverviewSnapshot";
+import { getRegularLobbyDailyHistory } from "@/lib/regularLobbyDailyStore";
+import { applyRegularLobbyDailyToOverview } from "@/lib/regularLobbyDailySnapshot";
 
 const TZ = "Europe/Stockholm";
 const BUCKET_MS = 60 * 1000; // 1 min
@@ -344,7 +346,10 @@ export async function GET(req) {
     const daysParam = Number(searchParams.get("days"));
     const targetDays = normalizeHistoryDays(daysParam, { hasExtendedAccess });
     const effectiveHistoryDays = limitHistoryReadDays(targetDays, stockholmTodayYMD());
-    const gameAthSnapshot = await getGameAthSnapshot().catch(() => null);
+    const [gameAthSnapshot, corrections] = await Promise.all([
+      getGameAthSnapshot().catch(() => null), getRegularLobbyDailyHistory(),
+    ]);
+    const withCorrectedDays = payload => applyRegularLobbyDailyToOverview(payload, corrections, { days: targetDays });
     const recoveryEnabled = shouldUseLiveTrackerRecovery(process.env);
     const forceEffective = recoveryEnabled;
 
@@ -359,13 +364,13 @@ export async function GET(req) {
           : cachedEntry.exp - OVERVIEW_TTL_MS;
       const storedMeta =
         cachedEntry.meta && typeof cachedEntry.meta === "object" ? cachedEntry.meta : {};
-      const adjustedData = withExtendedStaticHistory(
+      const adjustedData = withCorrectedDays(withExtendedStaticHistory(
         mergeGameAthIntoOverview(
           withManualDailyOverrides(cachedEntry.data, stockholmTodayYMD()),
           gameAthSnapshot
         ),
         targetDays
-      );
+      ));
       if (adjustedData !== cachedEntry.data) {
         cachedEntry.data = adjustedData;
         cachedEntry.etag = makeEtag(adjustedData);
@@ -444,13 +449,13 @@ export async function GET(req) {
           recentSnapshot?.data,
           targetDays
         );
-        const adjustedSnapshotData = withExtendedStaticHistory(
+        const adjustedSnapshotData = withCorrectedDays(withExtendedStaticHistory(
           mergeGameAthIntoOverview(
             withManualDailyOverrides(composedSnapshotData, stockholmTodayYMD()),
             gameAthSnapshot
           ),
           targetDays
-        );
+        ));
         const etag = makeEtag(adjustedSnapshotData);
         const baseMeta = {
           refreshIntervalMs,
@@ -806,7 +811,7 @@ export async function GET(req) {
     const trendDelta = recomputeTrendDelta(dailyTotals);
     const rawTrendDelta = recomputeTrendDelta(rawDailyTotals);
 
-    const basePayload = withExtendedStaticHistory(mergeGameAthIntoOverview({
+    const basePayload = withCorrectedDays(withExtendedStaticHistory(mergeGameAthIntoOverview({
       ok: true,
       dailyTotals,
       forecastDailyTotals,
@@ -826,7 +831,7 @@ export async function GET(req) {
       estimatedDates: partialDayEstimate.estimatedDates,
       generatedAt: new Date().toISOString(),
       recovery: recoveryMeta,
-    }, gameAthSnapshot), targetDays);
+    }, gameAthSnapshot), targetDays));
 
     const etag = makeEtag(basePayload);
 

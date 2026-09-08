@@ -799,14 +799,17 @@ export async function getDailyAggregates(slugs, days = 30) {
 }
 
 export async function getCachedDailyAggregates(slugs, days = 30, { force = false, ttlMs } = {}) {
+  const { getRegularLobbyDailyHistory } = await import("./regularLobbyDailyStore.js");
+  const { applyRegularLobbyDailyToAggregates } = await import("./regularLobbyDailySnapshot.js");
+  const corrections = await getRegularLobbyDailyHistory();
   if (!force) {
     const cached = await getDailySnapshot(days);
-    if (cached) return deserializeDailyAggregates(cached);
+    if (cached) return applyRegularLobbyDailyToAggregates(deserializeDailyAggregates(cached), corrections);
   }
 
   const aggregates = await getDailyAggregates(slugs, days);
   await setDailySnapshot(days, serializeDailyAggregates(aggregates), ttlMs);
-  return aggregates;
+  return applyRegularLobbyDailyToAggregates(aggregates, corrections);
 }
 
 function clearDailyCacheForSlug(slug) {
