@@ -6,6 +6,8 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { Box, CircularProgress, Stack, Typography } from "@mui/material";
 import LiveHeaderTopBar from "./LiveHeaderTopBar";
+import LiveHeaderNewsFlash from "./LiveHeaderNewsFlash";
+import { usePlayersLive } from "../context/PlayersLiveContext";
 import LiveHeaderOverviewSection from "./LiveHeaderOverviewSection";
 import LiveHeaderPanelSwitcher from "./LiveHeaderPanelSwitcher";
 import LiveHeaderPanelContent from "./LiveHeaderPanelContent";
@@ -42,6 +44,7 @@ const GameReleasesPanel = dynamic(() => import("./GameReleasesPanel"), { ssr: fa
 const ExtendedLobbyPanel = dynamic(() => import("./ExtendedLobbyPanel"), { ssr: false, loading: PanelLoader });
 
 export default function LiveHeader() {
+  const { data: liveGames } = usePlayersLive();
   const {
     isMobileMenu,
     loadingPlayers,
@@ -181,6 +184,8 @@ export default function LiveHeader() {
           setLocale={setLocale}
           showMyPageNewBadge={showMyPageNewBadge}
         />
+
+        <LiveHeaderNewsFlash translate={translate} locale={locale} game={liveGames?.["disco-balls"]} />
 
         {isLivePanel && !isMobileMenu ? <Stack spacing={{ xs: 1.4, sm: 1.6 }} alignItems="center" textAlign="center">
           <Typography

@@ -1,3 +1,5 @@
+// Verifies the active game catalog and its tracking sources.
+
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -49,7 +51,7 @@ test("replaces frozen games with high-activity Unibet games in forecast coverage
   for (const retiredId of ["lightning-bac-bo", "gold-bar-roulette", "video-poker", "cs-roulette"]) {
     assert.equal(gameIds.has(retiredId), false, `${retiredId} should no longer be tracked`);
   }
-  assert.deepEqual(UNIBET_TRACKED_GAMES.map((game) => game.id), replacementIds);
+  assert.deepEqual(UNIBET_TRACKED_GAMES.map((game) => game.id), [...replacementIds, "disco-balls"]);
   assert.equal(isUnibetTrackedGame(UNIBET_TRACKED_GAMES[0]), true);
   assert.equal(isUnibetTrackedGame(GAMES.find((game) => game.id === "crazy-time")), false);
   for (const replacementId of replacementIds) {

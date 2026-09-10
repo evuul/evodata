@@ -55,6 +55,7 @@ const ALL_GAMES = [
   { id: "dragon-tiger", label: "Dragon Tiger", source: "unibet", unibetId: "dragon-tiger" },
   { id: "turkce-lightning-rulet", label: "Türkçe Lightning Rulet", source: "unibet", unibetId: "turkce-lightning-rulet" },
   { id: "speed-auto-roulette", label: "Speed Auto Roulette", source: "unibet", unibetId: "speed-auto-roulette" },
+  { id: "disco-balls", label: "Disco Balls", source: "unibet", unibetId: "disco-balls" },
 ];
 
 export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);
@@ -111,6 +112,7 @@ export const COLORS = {
   "dragon-tiger": "#F97316",
   "turkce-lightning-rulet": "#EAB308",
   "speed-auto-roulette": "#38BDF8",
+  "disco-balls": "#E879F9",
 };
 
 /** Hur många som räknas som “Top N” i listor/header */
