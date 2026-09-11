@@ -64,7 +64,7 @@ export async function saveHourlyGameObservations(items = [], {
   const duplicates = new Set();
   const seen = new Set();
   const identity = (item) => allowMultipleSlots
-    ? `${item?.id}:${Math.floor(Date.parse(item?.fetchedAt) / HOURLY_SLOT_MS)}`
+    ? `${item?.id}:${Date.parse(item?.fetchedAt)}`
     : item?.id;
   for (const item of items) {
     const key = identity(item);
