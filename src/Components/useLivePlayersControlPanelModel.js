@@ -10,6 +10,7 @@ import { fetchOverviewSharedWithOptions } from "@/lib/csOverviewClient";
 import { fetchMonthlyLobbyActivity } from "@/lib/monthlyLobbyClient";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { isPrimaryAdminEmail } from "@/lib/adminAccess";
+import { normalizeLobbyTrendRows } from "@/lib/lobbyTrendEstimates";
 import { finiteNumberOrNull } from "@/lib/livePlayerSnapshot";
 import {
   getStockholmTodayYmd,
@@ -252,11 +253,7 @@ export default function useLivePlayersControlPanelModel() {
         extendedAccess: usesExtendedHistory,
       });
 
-      const totals = Array.isArray(json?.dailyTotals)
-        ? json.dailyTotals
-            .map((row) => ({ date: row?.date, avgPlayers: Number(row?.avgPlayers) }))
-            .filter((row) => row?.date && Number.isFinite(row?.avgPlayers))
-        : [];
+      const totals = normalizeLobbyTrendRows(json);
 
       const averages = Array.isArray(json?.slugAverages)
         ? json.slugAverages
@@ -597,6 +594,7 @@ export default function useLivePlayersControlPanelModel() {
       .slice(-sliceCount)
       .map((row) => ({
         date: row.date,
+        estimated: row.estimated === true,
         players: Number.isFinite(row.avgPlayers) ? Math.round(row.avgPlayers) : null,
       }))
       .filter((row) => row.players != null);

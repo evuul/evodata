@@ -1,5 +1,6 @@
 // Applies verified regular-lobby days consistently to trends, forecasts and aggregate consumers.
 
+import { applyApprovedLobbyTrendEstimates } from "./lobbyTrendEstimates.js";
 import { GAMES, FORECAST_GAME_IDS } from "../config/games.js";
 import { REGULAR_LOBBY_DAILY_METHOD, regularLobbyCatalogForDate } from "./regularLobbyDaily.js";
 import { composeLobbyOverviewSnapshots } from "./lobbyOverviewSnapshot.js";
@@ -72,7 +73,7 @@ export function applyRegularLobbyDailyToOverview(overview, records, {
       forecastDailyTotals: [{ date: record.date, avgPlayers: Math.round(forecast * 100) / 100 }],
     }, days);
   }
-  if (!correctedDates.size) return overview;
+  if (!correctedDates.size) return applyApprovedLobbyTrendEstimates(overview, { days });
   result = composeLobbyOverviewSnapshots(result, {}, days);
   const allowedByDate = new Map([...correctedDates].map(date => [
     date, new Set(regularLobbyCatalogForDate(date, catalog).map(game => game.id)),
@@ -80,10 +81,10 @@ export function applyRegularLobbyDailyToOverview(overview, records, {
   const pruneUntrackedDates = values => Object.fromEntries(Object.entries(values ?? {}).map(([id, rows]) => [
     id, rows.filter(row => !correctedDates.has(row.date) || allowedByDate.get(row.date).has(id)),
   ]));
-  return {
+  return applyApprovedLobbyTrendEstimates({
     ...result, dailyQuality: quality,
     slugDaily: pruneUntrackedDates(result.slugDaily), rawSlugDaily: pruneUntrackedDates(result.rawSlugDaily),
     estimatedDates: (result.estimatedDates ?? []).filter(date => !correctedDates.has(date)),
     averages: { ...result.averages, days7: result.dailyTotals.slice(-7), days30: result.dailyTotals.slice(-30) },
-  };
+  }, { days });
 }

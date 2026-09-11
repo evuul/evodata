@@ -298,9 +298,11 @@ export default function LivePlayersControlPanelTrendSection({
                   borderRadius: 12,
                   color: "#f8fafc",
                 }}
-                formatter={(value) => [
+                formatter={(value, _name, item) => [
                   `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
-                  tooltipLabel,
+                  item?.payload?.estimated
+                    ? `${tooltipLabel} (${translate("uppskattat", "estimated")})`
+                    : tooltipLabel,
                 ]}
               />
               <Area
@@ -328,6 +330,14 @@ export default function LivePlayersControlPanelTrendSection({
           </Box>
         )}
       </Box>
+      {trendChartData?.some(row => row.estimated) ? (
+        <Typography variant="caption" sx={{ color: "#fde68a" }}>
+          {translate(
+            "9 september är uppskattad som snittet av 8 och 10 september.",
+            "September 9 is estimated as the average of September 8 and 10."
+          )}
+        </Typography>
+      ) : null}
     </Box>
   );
 }
