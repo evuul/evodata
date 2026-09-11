@@ -330,7 +330,7 @@ export default function LivePlayersControlPanelTrendSection({
           </Box>
         )}
       </Box>
-      {trendChartData?.some(row => row.estimated) ? (
+      {trendChartData?.some(row => row.date === "2026-09-09" && row.estimated) ? (
         <Typography variant="caption" sx={{ color: "#fde68a" }}>
           {translate(
             "9 september är uppskattad som snittet av 8 och 10 september.",
