@@ -71,9 +71,9 @@ test("collection uses source time, rejects old observations, and ignores new gam
 });
 
 test("the cohort stays independent of the changing general game catalog", () => {
-  assert.equal(HOURLY_LOBBY_COHORT.gameIds.length, 24);
+  assert.equal(HOURLY_LOBBY_COHORT.gameIds.length, 22);
   assert.ok(Object.isFrozen(HOURLY_LOBBY_COHORT.gameIds));
-  assert.equal(new Set(HOURLY_LOBBY_COHORT.gameIds).size, 24);
+  assert.equal(new Set(HOURLY_LOBBY_COHORT.gameIds).size, 22);
   assert.equal(HOURLY_LOBBY_COHORT.gameIds.includes("craps-live"), false);
   assert.equal(HOURLY_LOBBY_COHORT.gameIds.includes("dragon-tiger"), false);
   assert.equal(HOURLY_LOBBY_COHORT.gameIds.includes("fan-tan-live"), false);

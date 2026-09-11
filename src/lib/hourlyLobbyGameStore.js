@@ -1,7 +1,6 @@
-// Stores bounded candidate-game readings alongside the existing complete 24-game observations.
+// Stores bounded, verified per-game readings for rebuilding a shared hourly lobby timeline.
 
 import { GAMES } from "../config/games.js";
-import { HOURLY_LOBBY_COHORT } from "../config/hourlyLobbyCohort.js";
 import { getKv } from "./csStore.js";
 import { HOURLY_BASELINE_DAYS, HOURLY_SLOT_MS, hourlyWindow, shiftHourlyDay, stockholmParts, validHourlyPlayers } from "./hourlyLobbyPolicy.js";
 import { isPlayerSampleFresh } from "./livePlayerSnapshot.js";
@@ -35,11 +34,12 @@ export function selectHourlyUnibetCandidates(sample, { catalog = GAMES } = {}) {
   const values = new Map();
   const duplicates = new Set();
   for (const game of sample.games) {
-    if (!game || typeof game.id !== "string") continue;
+    if (!game || typeof game.id !== "string" || game.provider !== "Evolution"
+        || !/@evolution$/i.test(String(game.href || ""))) continue;
     if (values.has(game.id)) duplicates.add(game.id);
     values.set(game.id, game.players);
   }
-  return catalog.filter(({ id }) => !HOURLY_LOBBY_COHORT.gameIds.includes(id)).flatMap((game) => {
+  return catalog.flatMap((game) => {
     const id = game.unibetId ?? getUnibetPilotGameId(game.id);
     const players = validHourlyPlayers(values.get(id));
     return players == null || duplicates.has(id) ? [] : [{
@@ -48,12 +48,18 @@ export function selectHourlyUnibetCandidates(sample, { catalog = GAMES } = {}) {
   });
 }
 
+export function selectHourlyPrimaryCandidates(readings) {
+  return (Array.isArray(readings) ? readings : [])
+    .filter((item) => item?.source === "primary")
+    .map((item) => ({ ...item, qualityVerified: true }));
+}
+
 export async function saveHourlyGameObservations(items = [], {
-  source, now = Date.now(), catalog = GAMES, getRedis = getKv,
+  source, now = Date.now(), catalog = GAMES, getRedis = getKv, maxAgeMs = HOURLY_SLOT_MS,
 } = {}) {
   if (!["primary", "unibet"].includes(source)) throw new Error("Invalid Hourly source");
   if (!Array.isArray(items)) throw new Error("Invalid Hourly readings");
-  const allowed = new Set(catalog.filter(({ id }) => !HOURLY_LOBBY_COHORT.gameIds.includes(id)).map(({ id }) => id));
+  const allowed = new Set(catalog.map(({ id }) => id));
   const duplicates = new Set();
   const seen = new Set();
   for (const item of items) { if (seen.has(item?.id)) duplicates.add(item?.id); seen.add(item?.id); }
@@ -61,11 +67,11 @@ export async function saveHourlyGameObservations(items = [], {
   for (const item of items) {
     const value = validHourlyPlayers(item?.players);
     if (!allowed.has(item?.id) || duplicates.has(item.id) || value == null || item.stale || item.stuck
-        || item.qualityVerified !== true || !isPlayerSampleFresh(item.fetchedAt, { now, maxAgeMs: HOURLY_SLOT_MS })) continue;
+        || item.qualityVerified !== true || !isPlayerSampleFresh(item.fetchedAt, { now, maxAgeMs })) continue;
     const ts = Date.parse(item.fetchedAt);
     const key = `${PREFIX}${stockholmParts(ts).day}`;
     const entries = days.get(key) ?? [];
-    entries.push([`${source}:${item.id}:${Math.floor(ts / HOURLY_SLOT_MS)}`, [item.id, ts, value, source]]);
+    entries.push([`${source}:${item.id}:${Math.floor(ts / HOURLY_SLOT_MS)}`, [item.id, ts, value, source, true]]);
     days.set(key, entries);
   }
   if (!days.size) return { savedGames: 0, reason: "no-eligible-readings" };
@@ -106,9 +112,9 @@ export async function getHourlyGameObservations({ now = Date.now(), getRedis = g
     } else rows = batch.map((key) => memory.get(key)?.expiresAt > now ? memory.get(key).values : {});
     for (const row of rows) for (const raw of Object.values(row ?? {})) {
       const value = typeof raw === "string" ? JSON.parse(raw) : raw;
-      if (!Array.isArray(value) || value.length !== 4) throw new Error("Invalid candidate history row");
-      const [id, ts, players, source] = value;
-      points.push({ id, ts, value: players, source });
+      if (!Array.isArray(value) || ![4, 5].includes(value.length)) throw new Error("Invalid candidate history row");
+      const [id, ts, players, source, qualityVerified = false] = value;
+      points.push({ id, ts, value: players, source, qualityVerified });
     }
   }
   return points;

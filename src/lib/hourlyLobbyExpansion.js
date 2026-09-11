@@ -22,7 +22,10 @@ function indexGameReadings(points, now, allowed) {
   for (const { id, source, points: readings } of bySource.values()) {
     const slots = games.get(id) ?? new Map();
     // Clean each source separately: alternating recovery values must not disguise a frozen primary feed.
-    for (const [ts, value] of usableHourlySeries(readings, now)) {
+    const usable = source === "primary" && readings.every((point) => point.qualityVerified === true)
+      ? readings.map((point) => [point.ts, point.value])
+      : usableHourlySeries(readings, now);
+    for (const [ts, value] of usable) {
       lastReading.set(id, Math.max(lastReading.get(id) ?? 0, ts));
       const slot = Math.floor(ts / HOURLY_SLOT_MS);
       const previous = slots.get(slot);
@@ -57,6 +60,28 @@ function joinObservations(basePoints, gameIds, games, base) {
   return { cohort, points };
 }
 
+function joinGameReadings(gameIds, games, base) {
+  const cohort = expandedHourlyCohort(gameIds, base);
+  const signature = cohortSignature(cohort);
+  const anchor = games.get(gameIds[0]);
+  if (!anchor) return { cohort, points: [] };
+  const points = [];
+  for (const [slot, anchorReading] of anchor) {
+    const readings = gameIds.map((id) => games.get(id)?.get(slot));
+    if (readings.some((reading) => !reading)) continue;
+    const oldestTs = Math.min(...readings.map((reading) => reading.ts));
+    const newestTs = Math.max(...readings.map((reading) => reading.ts));
+    if (newestTs - oldestTs > HOURLY_MAX_SOURCE_SKEW_MS) continue;
+    points.push({
+      ts: oldestTs,
+      newestTs,
+      signature,
+      value: readings.reduce((sum, reading) => sum + reading.value, 0),
+    });
+  }
+  return { cohort, points };
+}
+
 export function buildExpandingHourlyBaseline({
   observations, gameObservations = [], previous, now = Date.now(), base = HOURLY_LOBBY_COHORT, catalog = GAMES,
 }) {
@@ -64,8 +89,9 @@ export function buildExpandingHourlyBaseline({
   const previousCohort = publishedHourlyCohort(previous, { base, catalog });
   let selected = [...(previousCohort?.gameIds ?? base.gameIds)];
   const evaluate = (ids) => {
-    const joined = joinObservations(observations, ids, games, base);
-    return buildHourlyBaseline(joined.points, { now, cohort: joined.cohort });
+    const legacy = joinObservations(observations, ids, games, base);
+    const native = joinGameReadings(ids, games, base);
+    return buildHourlyBaseline([...legacy.points, ...native.points], { now, cohort: native.cohort });
   };
   const addedGameIds = [];
   for (const { id } of catalog) {

@@ -77,17 +77,43 @@ test("frozen primary readings cannot be hidden by alternating recovery readings"
   assert.deepEqual(onlyFrozen.cohort.gameIds, ["base"]);
 });
 
+test("primary readings already verified at collection are not rejected a second time", () => {
+  const data = fixtures();
+  const verified = data.gameObservations.map((point) => ({
+    ...point, source: "primary", value: 500, qualityVerified: true,
+  }));
+  const result = build({ gameObservations: verified });
+  assert.deepEqual(result.cohort.gameIds, ["base", "new-one"]);
+  assert.equal(result.recentHours, 24);
+});
+
 test("published expansion controls live membership and missing included games pause all deltas", () => {
   const data = fixtures(7, HOURLY_LOBBY_COHORT);
   const baseline = buildExpandingHourlyBaseline({ ...data,
     gameObservations: data.gameObservations.map((point) => ({ ...point, id: "dragon-tiger" })), now });
-  assert.equal(baseline.cohort.gameIds.length, 25);
+  assert.equal(baseline.cohort.gameIds.length, HOURLY_LOBBY_COHORT.gameIds.length + 1);
   const items = baseline.cohort.gameIds.map((id) => ({ id, players: 100, fetchedAt: new Date(now).toISOString() }));
   const result = buildHourlyLobbyComparison({ baseline, items, now });
-  assert.equal(result.currentTotal, 2500);
-  assert.equal(result.coverage.expectedGames, 25);
+  assert.equal(result.currentTotal, (HOURLY_LOBBY_COHORT.gameIds.length + 1) * 100);
+  assert.equal(result.coverage.expectedGames, HOURLY_LOBBY_COHORT.gameIds.length + 1);
   assert.equal(buildHourlyLobbyComparison({ baseline, items: items.filter((item) => item.id !== "dragon-tiger"), now }).currentTotal, null);
-  assert.equal(buildHourlyLobbyComparison({ baseline, items: [...items, { id: "unknown", players: 1000000 }], now }).currentTotal, 2500);
+  assert.equal(buildHourlyLobbyComparison({ baseline, items: [...items, { id: "unknown", players: 1000000 }], now }).currentTotal, (HOURLY_LOBBY_COHORT.gameIds.length + 1) * 100);
   assert.equal(publishedHourlyCohort({ ...baseline, signature: "wrong" }), null);
   assert.equal(publishedHourlyCohort({ ...baseline, cohort: { ...baseline.cohort, gameIds: [...baseline.cohort.gameIds, "unknown"] } }), null);
+});
+
+test("complete per-game history repairs a sparse base timeline and expands the shared cohort", () => {
+  const data = fixtures();
+  const baseGames = data.observations.map((point) => ({
+    id: "base", ts: point.ts, value: point.value, source: "unibet",
+  }));
+  const sparseBase = data.observations.filter((_, index) => index % 48 === 0);
+  const result = buildExpandingHourlyBaseline({
+    observations: sparseBase,
+    gameObservations: [...baseGames, ...data.gameObservations],
+    now, base, catalog,
+  });
+  assert.deepEqual(result.cohort.gameIds, ["base", "new-one"]);
+  assert.equal(result.recentHours, 24);
+  assert.equal(result.hourlyByHour[10].lastDay, "2026-09-05");
 });

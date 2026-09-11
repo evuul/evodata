@@ -20,7 +20,7 @@ import {
 } from "@/lib/unibetRecoveryPersistence";
 import { selectUnibetTrackedSeriesItems } from "@/lib/unibetTrackedGames";
 import { saveHourlyLobbyObservation } from "@/lib/hourlyLobbyStore";
-import { saveHourlyGameObservations, selectHourlyUnibetCandidates } from "@/lib/hourlyLobbyGameStore";
+import { saveHourlyGameObservations, selectHourlyPrimaryCandidates, selectHourlyUnibetCandidates } from "@/lib/hourlyLobbyGameStore";
 import { selectRegularLobbyReadings } from "@/lib/regularLobbyDaily";
 import { continueKnownStuckMeta } from "@/lib/stuckGames";
 import { refreshRegularLobbyDaily } from "@/lib/regularLobbyDailyMaterializer";
@@ -167,6 +167,16 @@ export async function POST(request) {
       hourlyCandidates = { savedGames: 0, reason: "storage-unavailable" };
     }
     sample = await addPrimaryLobbyFallback(sample);
+    let hourlyPrimaryCandidates;
+    let hourlyBase;
+    try {
+      const primaryReadings = selectHourlyPrimaryCandidates(sample.regularLobbyReadings);
+      hourlyPrimaryCandidates = await saveHourlyGameObservations(primaryReadings, { source: "primary" });
+      hourlyBase = await saveHourlyLobbyObservation(sample.regularLobbyReadings);
+    } catch {
+      hourlyPrimaryCandidates = { savedGames: 0, reason: "storage-unavailable" };
+      hourlyBase = { saved: false, reason: "storage-unavailable" };
+    }
     sample.durationMs = Date.now() - startedAt;
     const persisted = await persistRecoveredGames(sample);
     const tracked = await persistTrackedExtendedGames(sample);
@@ -193,6 +203,8 @@ export async function POST(request) {
         tracked,
         materialized,
         hourlyCandidates,
+        hourlyPrimaryCandidates,
+        hourlyBase,
         daily,
       },
     });

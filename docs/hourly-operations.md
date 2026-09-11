@@ -4,15 +4,15 @@ Beskriver Hourly-vyns datakällor, kvalitetsregler och drift. Applikationskod oc
 
 ## Samma spel i historik och live
 
-`src/config/hourlyLobbyCohort.js` definierar startgruppen med 24 primära spel. Att ett spel läggs till i spellistan räcker inte för att ändra jämförelsen. Övriga spel tas med automatiskt först när de klarar den gemensamma täckningskontrollen nedan.
+`src/config/hourlyLobbyCohort.js` definierar startgruppen med 22 spel som finns stabilt i Unibets tiominutersflöde. Att ett spel läggs till i spellistan räcker inte för att ändra jämförelsen. Övriga spel tas med automatiskt först när de klarar den gemensamma täckningskontrollen nedan.
 
-De åtta är Immersive Roulette, Monopoly Roulette, Fan Tan, Auto Roulette, Bac Bo, Super Andar Bahar, Speed Baccarat A och Gold Vault Roulette. Granskningen den 6 september 2026 hittade långa frysta värden och blandade återhämtningsmätningar för dessa spel. De utesluts från både historik och livejämförelse, för alla timmar. Inga spel väljs bort dynamiskt beroende på spelarantal eller dagens täckning.
+Fortune Roulette och Mega Roulette finns inte i Unibets tre Evolution-listor och behöver därför bygga verifierad historik från huvudkällan. Disco Balls började samlas den 9 september. Inga spel väljs bort dynamiskt beroende på spelarantal eller dagens täckning.
 
 Vid bortfall bland de inkluderade spelen pausas livedeltan. Urvalet krymper inte och saknade spel räknas inte som noll. Varje utökning får en ny signatur över hela spelurvalet; olika urval skarvas aldrig ihop.
 
 ## Automatisk utökning till hela lobbyn
 
-Huvudinsamlingen fortsätter spara kompletta observationer för startgruppen. Därutöver sparas separata, tillgängliga mätningar för väntande lobbyspel. Huvudkällan måste klara befintlig kvalitetskontroll. Unibet-mätningar tas direkt från den ursprungliga insamlingen innan någon fallback läggs till, så att äldre källtider inte flyttas fram. Inga nya anrop till spelleverantörerna eller nya besökaranrop behövs.
+Unibet-insamlingen sparar verifierade spelmätningar för hela spellistan och kompletta observationer för startgruppen. Fortune Roulette och Mega Roulette sparas från huvudkällan när dess värden är färska och kvalitetskontrollerade. Unibet-mätningar tas direkt från den ursprungliga insamlingen innan någon fallback läggs till, så att äldre källtider inte flyttas fram. Inga nya besökaranrop behövs.
 
 Kandidatmätningar sparas i `cs:hourly:candidates:v1:day:<Stockholmsdatum>` som kompakta poster per spel, källa och tiominutersintervall, med 90 dagars retention. Ett Lua-anrop sparar alla giltiga kandidater från körningen. Dubbletter ökar inte täckningen; konflikter vid samma tidsstämpel ogiltigförklaras. De två källorna hålls isär vid kontroll av frysta värden. Återhämtningsvärden kan därför inte dölja en fryst huvudkälla genom att växla med dess värden.
 
@@ -24,7 +24,7 @@ Vid godkänd utökning räknas hela timkurvan om på de gemensamma observationer
 
 Vyn visar inkluderat antal, väntande spel, klara timmar per kandidat och senaste användbara mätdatum. Den förklarar att nivåändringen när ett urval utökas inte är spelartillväxt. Status räknas om dagligen; inget fast datum för inkludering utlovas. De extra databasläsningarna sker vid materialisering, aldrig för varje sidbesök.
 
-**Aktivering:** både huvudcron, Unibet-cron och materialiseringskoden måste driftsättas. Befintliga äldre råserier för väntande spel uppgraderas inte automatiskt till verifierad kandidathistorik. Den nya insamlingen behöver bygga gemensam täckning; enbart en UI-uppdatering startar inte serverns schemalagda insamling.
+**Aktivering:** Unibet-cron och materialiseringskoden måste vara driftsatta. Befintlig verifierbar historik återfylls med det granskade driftsscriptet; därefter bygger insamlingen vidare på samma nycklar.
 
 Siffrorna gäller det fasta urvalet av bevakade spel, inte verifierat unika personer i hela Evolution.
 
@@ -95,3 +95,8 @@ Huvudinsamlingens separata `primaryMaterializedAt` och åtta minuters cooldown h
 ## Verifiering
 
 Kör `npm test` och `npm run build`. För verkliga Redis-tester: sätt `HOURLY_TEST_REDIS_URL` till en separat instans på localhost. Testerna kontrollerar atomära skrivningar, arkivets skydd mot överskrivning och isolerade nycklar. De får inte köras mot extern Redis.
+## Unibet history recovery
+
+Hourly stores verified readings for every tracked game from the ten-minute Unibet collection. The baseline builder can reconstruct the original cohort and additions from simultaneous per-game slots, so sparse primary collection does not hold back otherwise complete history.
+
+Use `scripts/backfillHourlyUnibetHistory.mjs` to inspect retained coverage. Production publication requires `--write`, an explicit `--output` rollback file, production KV REST credentials, and no `LOCAL_REDIS_URL`. The operation is idempotent: existing newer source slots win, conflicts are invalidated, and a cohort can expand but never shrink during publication.

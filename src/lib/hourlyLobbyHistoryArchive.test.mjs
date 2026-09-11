@@ -22,7 +22,7 @@ test("reuses the archived compact history without reading raw game lists again",
     saveArchive: async () => assert.fail("must not rewrite history") });
   assert.equal(result, archive);
   assert.equal(archive.points.length, 14);
-  assert.equal(archive.coverage.rawSamples, 336);
+  assert.equal(archive.coverage.rawSamples, HOURLY_LOBBY_COHORT.gameIds.length * 14);
   assert.ok(hourlyArchiveObservations(archive).every((point) => point.quality === "reconstructed"));
 });
 
@@ -34,10 +34,11 @@ test("initial materialization incorporates real archived data even when the new 
     getObservations: async () => [], getHistory: async () => archive, setBaseline: async () => {} });
   assert.equal(stored, archive);
   assert.equal(baseline.readyHours, 1);
-  assert.equal(baseline.hourlyByHour[9].baselineAvg, 3636);
+  const gameCount = HOURLY_LOBBY_COHORT.gameIds.length;
+  assert.equal(baseline.hourlyByHour[9].baselineAvg, gameCount * 140 + gameCount * (gameCount - 1) / 2);
   assert.equal(baseline.hourlyByHour[9].recentDistinctDays, 0);
   assert.equal(baseline.hourlyByHour[9].status, "historical-reference");
-  assert.equal(baseline.history.rawSamples, 336);
+  assert.equal(baseline.history.rawSamples, HOURLY_LOBBY_COHORT.gameIds.length * 14);
 });
 
 test("a failed import preserves the previous baseline and an empty database is eligible for a later import", async () => {
@@ -67,7 +68,7 @@ test("the source read is limited to fixed games and bounded batches, and rejects
     } };
   } };
   const result = await readHourlyGameHistory({ getRedis: async () => redis });
-  assert.equal(Object.keys(result).length, 24);
+  assert.equal(Object.keys(result).length, HOURLY_LOBBY_COHORT.gameIds.length);
   assert.equal(largestBatch, 6);
   assert.ok(commands.every(([key, first, last]) => key.startsWith("cs:") && first === 0 && last === 4999));
   assert.ok(Object.values(result).every((rows) => rows.length === 1));
