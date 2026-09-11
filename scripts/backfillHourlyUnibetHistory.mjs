@@ -86,11 +86,13 @@ if (values.write) {
       source: "unibet",
       now: newestAt,
       maxAgeMs: 90 * 24 * 60 * 60 * 1000,
+      allowMultipleSlots: true,
     }),
     primary: await saveHourlyGameObservations(primaryItems, {
       source: "primary",
       now: newestAt,
       maxAgeMs: 90 * 24 * 60 * 60 * 1000,
+      allowMultipleSlots: true,
     }),
   };
   const baseline = await loadHourlyLobbyBaseline({ now: newestAt, force: true });

@@ -56,17 +56,25 @@ export function selectHourlyPrimaryCandidates(readings) {
 
 export async function saveHourlyGameObservations(items = [], {
   source, now = Date.now(), catalog = GAMES, getRedis = getKv, maxAgeMs = HOURLY_SLOT_MS,
+  allowMultipleSlots = false,
 } = {}) {
   if (!["primary", "unibet"].includes(source)) throw new Error("Invalid Hourly source");
   if (!Array.isArray(items)) throw new Error("Invalid Hourly readings");
   const allowed = new Set(catalog.map(({ id }) => id));
   const duplicates = new Set();
   const seen = new Set();
-  for (const item of items) { if (seen.has(item?.id)) duplicates.add(item?.id); seen.add(item?.id); }
+  const identity = (item) => allowMultipleSlots
+    ? `${item?.id}:${Math.floor(Date.parse(item?.fetchedAt) / HOURLY_SLOT_MS)}`
+    : item?.id;
+  for (const item of items) {
+    const key = identity(item);
+    if (seen.has(key)) duplicates.add(key);
+    seen.add(key);
+  }
   const days = new Map();
   for (const item of items) {
     const value = validHourlyPlayers(item?.players);
-    if (!allowed.has(item?.id) || duplicates.has(item.id) || value == null || item.stale || item.stuck
+    if (!allowed.has(item?.id) || duplicates.has(identity(item)) || value == null || item.stale || item.stuck
         || item.qualityVerified !== true || !isPlayerSampleFresh(item.fetchedAt, { now, maxAgeMs })) continue;
     const ts = Date.parse(item.fetchedAt);
     const key = `${PREFIX}${stockholmParts(ts).day}`;

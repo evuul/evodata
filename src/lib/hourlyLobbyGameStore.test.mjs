@@ -58,6 +58,16 @@ test("retries stay in the original source slot, and conflicting copies are inval
   assert.equal(points[0].qualityVerified, true);
 });
 
+test("backfills distinct historical slots while rejecting conflicts inside one slot", async () => {
+  const id = "candidate-history";
+  const options = { now: now + 20 * 60000, source: "unibet", catalog: [{ id }], getRedis: memory,
+    maxAgeMs: 86400000, allowMultipleSlots: true };
+  const history = [item(id), item(id, { fetchedAt: new Date(now + 10 * 60000).toISOString() })];
+  assert.equal((await saveHourlyGameObservations(history, options)).savedGames, 2);
+  const conflict = [item(id), item(id, { players: 200 })];
+  assert.equal((await saveHourlyGameObservations(conflict, options)).savedGames, 0);
+});
+
 test("two sources remain distinct and current incomplete days do not enter materialization", async () => {
   const id = "candidate-sources";
   for (const source of ["primary", "unibet"]) {
