@@ -87,12 +87,14 @@ if (values.write) {
       now: newestAt,
       maxAgeMs: 90 * 24 * 60 * 60 * 1000,
       allowMultipleSlots: true,
+      restoreInvalid: true,
     }),
     primary: await saveHourlyGameObservations(primaryItems, {
       source: "primary",
       now: newestAt,
       maxAgeMs: 90 * 24 * 60 * 60 * 1000,
       allowMultipleSlots: true,
+      restoreInvalid: true,
     }),
   };
   const baseline = await loadHourlyLobbyBaseline({ now: newestAt, force: true });

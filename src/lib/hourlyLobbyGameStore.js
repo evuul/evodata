@@ -20,6 +20,9 @@ for _, entry in ipairs(entries) do
   if not current or current[2] < incoming[2] then
     redis.call("HSET", KEYS[1], entry[1], cjson.encode(incoming))
     saved = saved + 1
+  elseif current[2] == incoming[2] and current[3] == false and ARGV[3] == "1" then
+    redis.call("HSET", KEYS[1], entry[1], cjson.encode(incoming))
+    saved = saved + 1
   elseif current[2] == incoming[2] and current[3] ~= incoming[3] then
     current[3] = false
     redis.call("HSET", KEYS[1], entry[1], cjson.encode(current))
@@ -56,7 +59,7 @@ export function selectHourlyPrimaryCandidates(readings) {
 
 export async function saveHourlyGameObservations(items = [], {
   source, now = Date.now(), catalog = GAMES, getRedis = getKv, maxAgeMs = HOURLY_SLOT_MS,
-  allowMultipleSlots = false,
+  allowMultipleSlots = false, restoreInvalid = false,
 } = {}) {
   if (!["primary", "unibet"].includes(source)) throw new Error("Invalid Hourly source");
   if (!Array.isArray(items)) throw new Error("Invalid Hourly readings");
@@ -89,12 +92,14 @@ export async function saveHourlyGameObservations(items = [], {
   let savedGames = 0;
   for (const [key, entries] of days) {
     if (redis) {
-      savedGames += Number(await redis.createScript(SAVE_HOURLY_GAMES_SCRIPT).eval([key], [JSON.stringify(entries), String(RETENTION_SECONDS)]));
+      savedGames += Number(await redis.createScript(SAVE_HOURLY_GAMES_SCRIPT).eval(
+        [key], [JSON.stringify(entries), String(RETENTION_SECONDS), restoreInvalid ? "1" : "0"]
+      ));
     } else {
       const day = memory.get(key) ?? { values: {}, expiresAt: now + RETENTION_SECONDS * 1000 };
       for (const [field, value] of entries) {
         const old = day.values[field];
-        if (!old || old[1] < value[1]) { day.values[field] = value; savedGames++; }
+        if (!old || old[1] < value[1] || (old[1] === value[1] && old[2] === null && restoreInvalid)) { day.values[field] = value; savedGames++; }
         else if (old[1] === value[1] && old[2] !== value[2]) old[2] = null;
       }
       memory.set(key, day);

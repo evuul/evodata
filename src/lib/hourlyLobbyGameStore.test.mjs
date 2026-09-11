@@ -56,6 +56,9 @@ test("retries stay in the original source slot, and conflicting copies are inval
   assert.equal(points[0].value, null);
   assert.equal(points[0].ts, now);
   assert.equal(points[0].qualityVerified, true);
+  await saveHourlyGameObservations([item(id, { players: 300 })], { ...options, restoreInvalid: true });
+  const restored = (await getHourlyGameObservations({ now: tomorrow, getRedis: memory })).find((point) => point.id === id);
+  assert.equal(restored.value, 300);
 });
 
 test("backfills distinct historical slots while rejecting conflicts inside one slot", async () => {
