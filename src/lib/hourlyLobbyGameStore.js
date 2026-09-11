@@ -21,7 +21,7 @@ for _, entry in ipairs(entries) do
     redis.call("HSET", KEYS[1], entry[1], cjson.encode(incoming))
     saved = saved + 1
   elseif current[2] == incoming[2] and current[3] ~= incoming[3] then
-    current[3] = cjson.null
+    current[3] = false
     redis.call("HSET", KEYS[1], entry[1], cjson.encode(current))
   end
 end
@@ -122,7 +122,7 @@ export async function getHourlyGameObservations({ now = Date.now(), getRedis = g
       const value = typeof raw === "string" ? JSON.parse(raw) : raw;
       if (!Array.isArray(value) || ![4, 5].includes(value.length)) throw new Error("Invalid candidate history row");
       const [id, ts, players, source, qualityVerified = false] = value;
-      points.push({ id, ts, value: players, source, qualityVerified });
+      points.push({ id, ts, value: players === false ? null : players, source, qualityVerified });
     }
   }
   return points;
