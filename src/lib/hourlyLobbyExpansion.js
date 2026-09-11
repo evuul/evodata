@@ -91,7 +91,12 @@ export function buildExpandingHourlyBaseline({
   const evaluate = (ids) => {
     const legacy = joinObservations(observations, ids, games, base);
     const native = joinGameReadings(ids, games, base);
-    return buildHourlyBaseline([...legacy.points, ...native.points], { now, cohort: native.cohort });
+    const nativeBaseline = buildHourlyBaseline(native.points, { now, cohort: native.cohort });
+    // Complete verified per-game history is the strongest source and must not be
+    // downgraded by differently aligned reconstructed slots from the old archive.
+    return nativeBaseline.recentHours === 24
+      ? nativeBaseline
+      : buildHourlyBaseline([...legacy.points, ...native.points], { now, cohort: native.cohort });
   };
   const addedGameIds = [];
   for (const { id } of catalog) {

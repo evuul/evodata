@@ -117,3 +117,23 @@ test("complete per-game history repairs a sparse base timeline and expands the s
   assert.equal(result.recentHours, 24);
   assert.equal(result.hourlyByHour[10].lastDay, "2026-09-05");
 });
+
+test("reconstructed archive slots cannot downgrade complete verified per-game history", () => {
+  const data = fixtures();
+  const baseGames = data.observations.map((point) => ({
+    id: "base", ts: point.ts, value: point.value, source: "unibet",
+  }));
+  const reconstructed = data.observations.map((point, index) => ({
+    ...point,
+    ts: index % 4 ? point.ts + 9 * 60000 : point.ts,
+    newestTs: index % 4 ? point.ts + 9 * 60000 : point.ts,
+    quality: "reconstructed",
+  }));
+  const result = buildExpandingHourlyBaseline({
+    observations: reconstructed,
+    gameObservations: [...baseGames, ...data.gameObservations],
+    now, base, catalog,
+  });
+  assert.deepEqual(result.cohort.gameIds, ["base", "new-one"]);
+  assert.equal(result.recentHours, 24);
+});
