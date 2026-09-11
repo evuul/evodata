@@ -39,6 +39,7 @@ const newestAt = Math.max(
   ...unibetItems.map((item) => Date.parse(item.fetchedAt)),
   ...primaryItems.map((item) => Date.parse(item.fetchedAt))
 );
+const materializedAt = Date.now();
 const report = {
   samples: samples.length,
   readings: unibetItems.length + primaryItems.length,
@@ -67,7 +68,7 @@ const preview = buildExpandingHourlyBaseline({
     })),
   ],
   previous,
-  now: newestAt,
+  now: materializedAt,
 });
 report.preview = {
   games: preview.cohort.gameIds,
@@ -97,7 +98,7 @@ if (values.write) {
       restoreInvalid: true,
     }),
   };
-  const baseline = await loadHourlyLobbyBaseline({ now: newestAt, force: true });
+  const baseline = await loadHourlyLobbyBaseline({ now: materializedAt, force: true });
   report.baseline = {
     computedAt: baseline.computedAt,
     games: baseline.cohort.gameIds,
