@@ -2,9 +2,9 @@
 
 Beskriver hur spelartrenden väljer källa, kontrollerar täckning och publicerar avslutade dygn.
 
-`GAMES` i `src/config/games.js` styr hela spelurvalet. Den 8 september 2026 omfattar det 37 spel. Unibets större Extended Lobby får inte bidra med andra spel. Alias som `crazy-time:a` och `fan-tan-live` mappas före jämförelsen.
+`GAMES` i `src/config/games.js` styr hela spelurvalet. Spel med `dailyTrackingFrom` ingår först från sitt första hela mätdygn. Till och med den 9 september 2026 omfattar urvalet 37 spel; från den 10 september ingår även Disco Balls (38 spel). Samma datumstyrda urval används vid beräkning och validering av sparade dygn. Unibets större Extended Lobby får inte bidra med andra spel. Alias som `crazy-time:a` och `fan-tan-live` mappas före jämförelsen.
 
-Unibet-insamlingen sparar `regularLobbyReadings` tillsammans med sin befintliga historik. För varje vanligt lobbyspel väljs det högsta giltiga värdet från Unibet och huvudkällan, högst 20 minuter gammalt. Ursprunglig källa och mättid bevaras. Frysta, framtida, saknade och ogiltiga värden används inte. En förändrad huvudmätning hålls inte kvar som fryst enbart på grund av en äldre snapshot.
+Unibet-insamlingen sparar `regularLobbyReadings` tillsammans med sin befintliga historik. För varje vanligt lobbyspel väljs det högsta giltiga värdet från Unibet och huvudkällan, högst 20 minuter gammalt. Ursprunglig källa och mättid bevaras. Vid återberäkning kan luckor i `regularLobbyReadings` fyllas från samma observations verifierade Unibet-rader (`provider` och Evolution-id). Redan giltiga mätningar bevaras. Rader tillagda från huvudkällan utan ursprunglig mättid får inte behandlas som färsk Unibet-data. Frysta, framtida, saknade och ogiltiga värden används inte. En förändrad huvudmätning hålls inte kvar som fryst enbart på grund av en äldre snapshot.
 
 Dygnsberäkningen använder högst en komplett observation per tiominutersintervall. Vid flera insamlingar i samma intervall används den senaste kompletta observationen. Samtliga konfigurerade spel måste finnas i varje observation. Dygnssnittet är summan av spelsnitten från samma intervall; två källor ger inte två röster. Detta är ett snitt av observationer, inte ett kontinuerligt mätt antal unika personer.
 

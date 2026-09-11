@@ -10,7 +10,7 @@ import { selectUnibetTrackedSeriesItems } from "./unibetTrackedGames.js";
 
 test("tracks Disco Balls through Unibet in the regular lobby", () => {
   assert.deepEqual(GAMES.filter((game) => game.id === "disco-balls"), [
-    { id: "disco-balls", label: "Disco Balls", source: "unibet", unibetId: "disco-balls" },
+    { id: "disco-balls", label: "Disco Balls", source: "unibet", unibetId: "disco-balls", dailyTrackingFrom: "2026-09-10" },
   ]);
   assert.equal(PRIMARY_TRACKED_GAMES.some((game) => game.id === "disco-balls"), false);
   assert.notEqual(getGameColor("disco-balls"), "#ffffff");

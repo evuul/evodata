@@ -1,11 +1,11 @@
 // Applies verified regular-lobby days consistently to trends, forecasts and aggregate consumers.
 
 import { GAMES, FORECAST_GAME_IDS } from "../config/games.js";
-import { REGULAR_LOBBY_DAILY_METHOD } from "./regularLobbyDaily.js";
+import { REGULAR_LOBBY_DAILY_METHOD, regularLobbyCatalogForDate } from "./regularLobbyDaily.js";
 import { composeLobbyOverviewSnapshots } from "./lobbyOverviewSnapshot.js";
 
 export function isRegularLobbyDailyRecord(record, catalog = GAMES) {
-  const ids = catalog.map(game => game.id).sort();
+  const ids = regularLobbyCatalogForDate(record?.date, catalog).map(game => game.id).sort();
   const validCoverage = Number.isInteger(record?.coverage?.slots) && Number.isInteger(record?.coverage?.expectedSlots)
     && [138, 144, 150].includes(record.coverage.expectedSlots)
     && record.coverage.slots >= 0 && record.coverage.slots <= record.coverage.expectedSlots
@@ -28,6 +28,9 @@ export function applyRegularLobbyDailyToAggregates(aggregates, records, { catalo
     if (!record.complete) {
       for (const dates of result.values()) dates.delete(record.date);
       continue;
+    }
+    for (const [id, dates] of result) {
+      if (!record.gameIds.includes(id)) dates.delete(record.date);
     }
     for (const [id, average] of Object.entries(record.averages)) {
       const dates = result.get(id);
@@ -71,9 +74,11 @@ export function applyRegularLobbyDailyToOverview(overview, records, {
   }
   if (!correctedDates.size) return overview;
   result = composeLobbyOverviewSnapshots(result, {}, days);
-  const allowed = new Set(catalog.map(game => game.id));
+  const allowedByDate = new Map([...correctedDates].map(date => [
+    date, new Set(regularLobbyCatalogForDate(date, catalog).map(game => game.id)),
+  ]));
   const pruneUntrackedDates = values => Object.fromEntries(Object.entries(values ?? {}).map(([id, rows]) => [
-    id, allowed.has(id) ? rows : rows.filter(row => !correctedDates.has(row.date)),
+    id, rows.filter(row => !correctedDates.has(row.date) || allowedByDate.get(row.date).has(id)),
   ]));
   return {
     ...result, dailyQuality: quality,

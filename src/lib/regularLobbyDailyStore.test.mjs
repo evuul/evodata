@@ -3,14 +3,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createClient } from "redis";
-import { GAMES } from "../config/games.js";
-import { REGULAR_LOBBY_DAILY_METHOD } from "./regularLobbyDaily.js";
+import { REGULAR_LOBBY_DAILY_METHOD, regularLobbyCatalogForDate } from "./regularLobbyDaily.js";
 import { getRegularLobbyDailyHistory, saveRegularLobbyDailyHistory, REGULAR_LOBBY_DAILY_KEY } from "./regularLobbyDailyStore.js";
 
+const dailyGames = regularLobbyCatalogForDate("2026-09-07");
 const record = {
   date: "2026-09-07", method: REGULAR_LOBBY_DAILY_METHOD, complete: true,
-  computedAt: "2026-09-08T00:00:00Z", gameIds: GAMES.map(g => g.id).sort(),
-  averages: Object.fromEntries(GAMES.map(g => [g.id, 100])),
+  computedAt: "2026-09-08T00:00:00Z", gameIds: dailyGames.map(g => g.id).sort(),
+  averages: Object.fromEntries(dailyGames.map(g => [g.id, 100])),
   coverage: { slots: 144, expectedSlots: 144, missingHours: [] },
 };
 
@@ -40,7 +40,7 @@ test("Redis merges concurrent days and prevents older or sparser replacements", 
     ]);
     assert.equal((await getRegularLobbyDailyHistory(options)).length, 2);
     await saveRegularLobbyDailyHistory([{ ...record, computedAt: "2026-09-09T00:00:00Z", coverage: { ...record.coverage, slots: 140 } }], options);
-    await saveRegularLobbyDailyHistory([{ ...record, computedAt: "2026-09-07T23:00:00Z", averages: Object.fromEntries(GAMES.map(g => [g.id, 1])) }], options);
+    await saveRegularLobbyDailyHistory([{ ...record, computedAt: "2026-09-07T23:00:00Z", averages: Object.fromEntries(dailyGames.map(g => [g.id, 1])) }], options);
     const stored = (await getRegularLobbyDailyHistory(options)).find(r => r.date === record.date);
     assert.equal(stored.coverage.slots, 144);
     assert.equal(stored.averages["crazy-time"], 100);

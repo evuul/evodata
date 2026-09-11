@@ -23,6 +23,11 @@ export function previousRegularLobbyDay(now = Date.now()) {
   return date.toISOString().slice(0, 10);
 }
 
+// New games enter daily totals from their first full tracking day.
+export function regularLobbyCatalogForDate(date, catalog = GAMES) {
+  return catalog.filter(game => !game.dailyTrackingFrom || game.dailyTrackingFrom <= date);
+}
+
 function playersOrNull(value) {
   const players = finiteNumberOrNull(value);
   return Number.isInteger(players) && players >= 0 && players <= 5_000_000 ? players : null;
@@ -99,9 +104,29 @@ function primaryHistory(seriesByGame, samples, catalog) {
   }));
 }
 
+// Recorded readings retain provenance; only verified native Unibet rows can fill omissions.
+function reconcileRecordedReadings(sample, catalog, now) {
+  const recorded = selectRegularLobbyReadings(
+    sample.regularLobbyReadings.filter(p => p.source === "primary"), {
+      status: "ok", collectedAt: sample.collectedAt,
+      games: sample.regularLobbyReadings.filter(p => p.source === "unibet")
+        .map(p => ({ ...p, id: getUnibetPilotGameId(p.id) })),
+    }, { now, catalog }
+  );
+  const present = new Set(recorded.map(reading => reading.id));
+  const nativeSample = {
+    ...sample,
+    games: (sample.games ?? []).filter(game => game.provider === "Evolution"
+      && /@evolution$/i.test(game.href ?? "")),
+  };
+  const missingCatalog = catalog.filter(game => !present.has(game.id));
+  return [...recorded, ...selectRegularLobbyReadings([], nativeSample, { now, catalog: missingCatalog })];
+}
+
 export function buildRegularLobbyDaily(samples, seriesByGame, date, { catalog = GAMES, now = Date.now() } = {}) {
   const expected = expectedDaySlots(date);
   if (calendarParts(now).date <= date) throw new Error("Only completed lobby days can be averaged");
+  catalog = regularLobbyCatalogForDate(date, catalog);
   const gameIds = catalog.map(g => g.id).sort();
   if (!gameIds.length || new Set(gameIds).size !== gameIds.length) throw new Error("Invalid regular lobby catalog");
   const allSamples = (Array.isArray(samples) ? samples : []).filter(s => s?.status === "ok" && Number.isFinite(Date.parse(s.collectedAt)));
@@ -114,11 +139,8 @@ export function buildRegularLobbyDaily(samples, seriesByGame, date, { catalog = 
       const p = history.get(game.id).findLast(point => point.ts <= ts);
       return p ? [{ id: game.id, players: p.value, fetchedAt: new Date(p.ts).toISOString(), stuck: p.stuck }] : [];
     });
-    const readings = sample.regularLobbyReadings
-      ? selectRegularLobbyReadings(sample.regularLobbyReadings.filter(p => p.source === "primary"), {
-          status: "ok", collectedAt: sample.collectedAt,
-          games: sample.regularLobbyReadings.filter(p => p.source === "unibet").map(p => ({ ...p, id: getUnibetPilotGameId(p.id) })),
-        }, { now: ts, catalog })
+    const readings = Array.isArray(sample.regularLobbyReadings)
+      ? reconcileRecordedReadings(sample, catalog, ts)
       : selectRegularLobbyReadings(primary, sample, { now: ts, catalog });
     if (readings.length !== catalog.length) continue;
     const slot = Math.floor(ts / REGULAR_LOBBY_SLOT_MS) * REGULAR_LOBBY_SLOT_MS;

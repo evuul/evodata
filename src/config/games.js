@@ -55,7 +55,7 @@ const ALL_GAMES = [
   { id: "dragon-tiger", label: "Dragon Tiger", source: "unibet", unibetId: "dragon-tiger" },
   { id: "turkce-lightning-rulet", label: "Türkçe Lightning Rulet", source: "unibet", unibetId: "turkce-lightning-rulet" },
   { id: "speed-auto-roulette", label: "Speed Auto Roulette", source: "unibet", unibetId: "speed-auto-roulette" },
-  { id: "disco-balls", label: "Disco Balls", source: "unibet", unibetId: "disco-balls" },
+  { id: "disco-balls", label: "Disco Balls", source: "unibet", unibetId: "disco-balls", dailyTrackingFrom: "2026-09-10" },
 ];
 
 export const GAMES = ALL_GAMES.filter((game) => game?.enabled !== false);

@@ -157,3 +157,42 @@ test("regular collections publish yesterday and retry an interrupted overview up
   assert.equal(failed.ok, false);
   assert.equal(published, 1);
 });
+
+
+test("new games do not invalidate days before their first full tracking day", () => {
+  const expanded = [...catalog, { id: "new-game", dailyTrackingFrom: "2026-09-08" }];
+  const oldDay = buildRegularLobbyDaily(daySamples(), new Map(), date, { catalog: expanded, now });
+  assert.equal(oldDay.complete, true);
+  assert.deepEqual(oldDay.gameIds, ["one", "two"]);
+  assert.equal(isRegularLobbyDailyRecord(oldDay, expanded), true);
+  const nextDay = buildRegularLobbyDaily(daySamples({ ts: now }), new Map(), "2026-09-08", {
+    catalog: expanded, now: now + 86400000,
+  });
+  assert.equal(nextDay.complete, false);
+  const base = { dailyTotals: [], slugDaily: { "new-game": [{ date, avg: 999 }] } };
+  assert.deepEqual(applyRegularLobbyDailyToOverview(base, [oldDay], { catalog: expanded }).slugDaily["new-game"], []);
+  const aggregates = new Map([["new-game", new Map([[date, { sum: 999, count: 1 }]])]]);
+  assert.equal(applyRegularLobbyDailyToAggregates(aggregates, [oldDay], { catalog: expanded }).get("new-game").has(date), false);
+});
+
+test("native Unibet rows fill omissions in recorded readings without changing existing values", () => {
+  const samples = daySamples().map(sample => ({
+    ...sample,
+    regularLobbyReadings: [{ id: "one", players: 900, source: "primary", fetchedAt: sample.collectedAt }],
+    games: sample.games.map(game => ({ ...game, provider: "Evolution", href: `${game.id}@evolution` })),
+  }));
+  const record = buildRegularLobbyDaily(samples, new Map(), date, { catalog, now });
+  assert.equal(record.complete, true);
+  assert.equal(record.averages.one, 900);
+  assert.equal(record.averages.two, 171.5);
+  assert.deepEqual(record.sourceCounts, { primary: 144, unibet: 144 });
+  assert.equal(record.averages["extended-only"], undefined);
+
+  for (const override of [{ provider: undefined }, { href: undefined }, { players: null },
+    { stale: true }, { stuck: true }, { fetchedAt: new Date(start - 1200001).toISOString() }]) {
+    const invalid = samples.map(sample => ({ ...sample,
+      games: sample.games.map(game => game.id === "two" ? { ...game, ...override } : game),
+    }));
+    assert.equal(buildRegularLobbyDaily(invalid, new Map(), date, { catalog, now }).complete, false);
+  }
+});
