@@ -45,6 +45,26 @@ test("stale, frozen, missing, invalid and duplicate source values never win", ()
   assert.equal(selectRegularLobbyReadings([], duplicate, { now: start, catalog }).length, 0);
 });
 
+test("a native-only game missing from complete Unibet lists is recorded as offline", () => {
+  const fetchedAt = new Date(start).toISOString();
+  const nativeCatalog = [{ id: "offline", source: "unibet", unibetId: "offline" }];
+  const complete = {
+    status: "ok",
+    collectedAt: fetchedAt,
+    sourceUrls: ["livecasinogameshowslobby", "livecasinoroulettelobby", "livecasinobaccaratlobby"],
+    games: [],
+  };
+  assert.deepEqual(selectRegularLobbyReadings([], complete, {
+    now: start, catalog: nativeCatalog,
+  }), [{ id: "offline", players: 0, fetchedAt, source: "unibet" }]);
+  assert.deepEqual(selectRegularLobbyReadings([], {
+    ...complete, sourceUrls: complete.sourceUrls.slice(1),
+  }, { now: start, catalog: nativeCatalog }), []);
+  assert.deepEqual(selectRegularLobbyReadings([], {
+    ...complete, games: [{ id: "offline", players: null }],
+  }, { now: start, catalog: nativeCatalog }), []);
+});
+
 test("all 37 regular games contribute once, with retries carrying no extra weight", () => {
   const samples = daySamples({ games: GAMES.map(g => ({ id: g.unibetId ?? getUnibetPilotGameId(g.id) })) });
   const result = buildRegularLobbyDaily([...samples, ...samples], new Map(), date, { now });
@@ -91,6 +111,18 @@ test("six observations, missing games and concentrated gaps fail daily coverage"
   }
   assert.throws(() => buildRegularLobbyDaily(samples, new Map(), date, { catalog, now: start }), /completed/);
   assert.throws(() => buildRegularLobbyDaily([], new Map(), "2026-02-30", { catalog, now }), /Invalid/);
+});
+
+test("a well-covered day tolerates four missing slots in one hour but rejects five", () => {
+  const samples = daySamples();
+  const fourMissing = samples.filter((_, index) => index < 60 || index >= 64);
+  const accepted = buildRegularLobbyDaily(fourMissing, new Map(), date, { catalog, now });
+  assert.equal(accepted.complete, true);
+  assert.deepEqual(accepted.coverage, { slots: 140, expectedSlots: 144, missingHours: [] });
+  const fiveMissing = samples.filter((_, index) => index < 60 || index >= 65);
+  const rejected = buildRegularLobbyDaily(fiveMissing, new Map(), date, { catalog, now });
+  assert.equal(rejected.complete, false);
+  assert.deepEqual(rejected.coverage.missingHours, [10]);
 });
 
 test("Stockholm daylight saving days have 138 or 150 equally weighted slots", () => {

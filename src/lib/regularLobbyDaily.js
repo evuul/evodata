@@ -4,9 +4,10 @@ import { GAMES } from "../config/games.js";
 import { isPlayerSampleFresh, finiteNumberOrNull } from "./livePlayerSnapshot.js";
 import { getUnibetPilotGameId } from "./unibetPilotFallback.js";
 
-export const REGULAR_LOBBY_DAILY_METHOD = "regular-lobby-max-fresh-v1";
+export const REGULAR_LOBBY_DAILY_METHOD = "regular-lobby-max-fresh-v2";
 export const REGULAR_LOBBY_SLOT_MS = 10 * 60 * 1000;
 const MAX_AGE_MS = 20 * 60 * 1000;
+const MIN_SLOTS_PER_HOUR = 2;
 const calendar = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit",
   hour: "2-digit", hourCycle: "h23",
@@ -42,14 +43,27 @@ function uniqueById(items) {
   return result;
 }
 
+function hasCompleteUnibetLists(sample) {
+  const urls = Array.isArray(sample?.sourceUrls) ? sample.sourceUrls.map(url => String(url).toLowerCase()) : [];
+  return ["gameshows", "roulette", "baccarat"].every(category =>
+    urls.some(url => url.includes(`livecasino${category}lobby`))
+  );
+}
+
 export function selectRegularLobbyReadings(primaryItems, sample, { now = Date.now(), catalog = GAMES } = {}) {
   const primary = uniqueById(primaryItems);
   const pilot = uniqueById(sample?.status === "ok" ? sample.games : []);
   return catalog.flatMap(game => {
-    const native = pilot.get(game.unibetId ?? getUnibetPilotGameId(game.id));
+    const nativeId = game.unibetId ?? getUnibetPilotGameId(game.id);
+    const native = pilot.get(nativeId);
+    const unavailableNative = game.source === "unibet" && sample?.status === "ok"
+      && hasCompleteUnibetLists(sample) && !pilot.has(nativeId)
+      ? { players: 0, fetchedAt: sample.collectedAt, source: "unibet" }
+      : null;
     const candidates = [
       { ...primary.get(game.id), source: "primary" },
       { ...native, fetchedAt: native?.fetchedAt ?? sample?.collectedAt, source: native?.source ?? "unibet" },
+      { ...unavailableNative },
     ].filter(item => playersOrNull(item.players) != null && !item.stale && !item.stuck
       && ["primary", "unibet"].includes(item.source)
       && isPlayerSampleFresh(item.fetchedAt, { now, maxAgeMs: MAX_AGE_MS }));
@@ -154,7 +168,9 @@ export function buildRegularLobbyDaily(samples, seriesByGame, date, { catalog = 
     const { hour } = calendarParts(slot);
     actualByHour.set(hour, (actualByHour.get(hour) ?? 0) + 1);
   }
-  const missingHours = [...expectedByHour].filter(([hour, count]) => (actualByHour.get(hour) ?? 0) < Math.ceil(count / 2)).map(([hour]) => hour);
+  const missingHours = [...expectedByHour]
+    .filter(([hour]) => (actualByHour.get(hour) ?? 0) < MIN_SLOTS_PER_HOUR)
+    .map(([hour]) => hour);
   const complete = slots.size >= Math.ceil(expected.length * 0.9) && !missingHours.length;
   const coverage = { slots: slots.size, expectedSlots: expected.length, missingHours };
   if (!complete) return {
