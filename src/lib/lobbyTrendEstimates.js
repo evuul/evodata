@@ -1,6 +1,6 @@
 // Fills explicitly approved trend gaps from adjacent measured days and preserves their provenance.
 
-const APPROVED_ESTIMATE_DATES = ["2026-09-09", "2026-09-17"];
+const APPROVED_ESTIMATE_DATES = ["2026-09-09", "2026-09-15", "2026-09-17"];
 
 function adjacentDate(date, offset) {
   const value = new Date(`${date}T12:00:00Z`);

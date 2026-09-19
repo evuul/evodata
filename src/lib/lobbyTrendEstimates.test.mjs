@@ -98,3 +98,26 @@ test("fills September 17 only when its persisted partial average is unavailable"
     observedCoveragePct: 93.75,
   });
 });
+
+test("fills September 15 from its adjacent complete days", () => {
+  const input = {
+    dailyTotals: [
+      { date: "2026-09-14", avgPlayers: 69585.96 },
+      { date: "2026-09-16", avgPlayers: 74452.25 },
+    ],
+    dailyQuality: {
+      "2026-09-14": { complete: true },
+      "2026-09-15": { complete: false, slots: 102, expectedSlots: 144, missingHours: [13, 14, 15, 16, 17, 18] },
+      "2026-09-16": { complete: true },
+    },
+  };
+
+  const result = applyApprovedLobbyTrendEstimates(input);
+
+  assert.deepEqual(result.dailyTotals[1], {
+    date: "2026-09-15",
+    avgPlayers: 72019.11,
+    estimated: true,
+  });
+  assert.deepEqual(result.estimatedDates, ["2026-09-15"]);
+});
