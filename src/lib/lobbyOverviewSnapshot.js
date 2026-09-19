@@ -105,6 +105,10 @@ export function composeLobbyOverviewSnapshots(older, newer, targetDays) {
       ...(Array.isArray(older.estimatedDates) ? older.estimatedDates : []),
       ...(Array.isArray(newer.estimatedDates) ? newer.estimatedDates : []),
     ])).sort(),
+    partialDates: Array.from(new Set([
+      ...(Array.isArray(older.partialDates) ? older.partialDates : []),
+      ...(Array.isArray(newer.partialDates) ? newer.partialDates : []),
+    ])).sort(),
   };
 }
 

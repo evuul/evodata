@@ -11,7 +11,7 @@ export async function materializeRegularLobbyDay(date, {
   readDays = getRegularLobbyDailyHistory, saveDays = saveRegularLobbyDailyHistory,
 } = {}) {
   const existing = (await readDays()).find(record => record.date === date);
-  if (existing?.complete) return { ...existing, skipped: true };
+  if (existing?.complete || existing?.partial) return { ...existing, skipped: true };
   // Each request stays below the REST response size limit; two days cover yesterday after midnight.
   const [history, series] = await Promise.all([
     readHistory(288), readSeries(GAMES.map(game => game.id), 3),
@@ -30,9 +30,15 @@ export async function refreshRegularLobbyDaily({
 } = {}) {
   const date = previousRegularLobbyDay(now);
   const record = await materializeDay(date, { now });
-  if (!record.complete) return { ok: false, date, reason: record.reason, coverage: record.coverage };
+  if (!record.complete && !record.partial) {
+    return { ok: false, date, reason: record.reason, coverage: record.coverage };
+  }
   const overview = await readOverview(30);
   const current = overview?.data?.dailyQuality?.[date];
-  if (!current?.complete || current.method !== record.method) await publishOverview(new Map(), date);
-  return { ok: true, date, coverage: record.coverage };
+  const alreadyPublished = current?.method === record.method && (
+    current.complete === true
+    || (record.partial === true && current.partial === true && current.slots >= record.coverage?.slots)
+  );
+  if (!alreadyPublished) await publishOverview(new Map(), date);
+  return { ok: true, date, partial: record.partial === true, coverage: record.coverage };
 }

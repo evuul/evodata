@@ -102,27 +102,41 @@ test("frozen primary runs cannot lift the daily average", () => {
   assert.equal(result.sourceCounts.primary, 0);
 });
 
-test("six observations, missing games and concentrated gaps fail daily coverage", () => {
+test("thin or game-incomplete days stay hidden while a well-covered gap remains usable", () => {
   const samples = daySamples();
-  for (const subset of [samples.slice(0, 6), samples.filter((_, i) => i < 60 || i >= 66), samples.map(s => ({ ...s, games: s.games.slice(0, 1) }))]) {
+  for (const subset of [samples.slice(0, 6), samples.map(s => ({ ...s, games: s.games.slice(0, 1) }))]) {
     const result = buildRegularLobbyDaily(subset, new Map(), date, { catalog, now });
     assert.equal(result.complete, false);
+    assert.equal(result.partial, undefined);
     assert.equal(result.avgPlayers, undefined);
   }
+  const partial = buildRegularLobbyDaily(
+    samples.filter((_, index) => index < 60 || index >= 66),
+    new Map(),
+    date,
+    { catalog, now }
+  );
+  assert.equal(partial.complete, false);
+  assert.equal(partial.partial, true);
+  assert.equal(partial.observedCoveragePct, 95.83);
+  assert.equal(partial.avgPlayers, 343.78);
+  assert.deepEqual(partial.coverage.missingHours, [10]);
+  assert.equal(isRegularLobbyDailyRecord(partial, catalog), true);
   assert.throws(() => buildRegularLobbyDaily(samples, new Map(), date, { catalog, now: start }), /completed/);
   assert.throws(() => buildRegularLobbyDaily([], new Map(), "2026-02-30", { catalog, now }), /Invalid/);
 });
 
-test("a well-covered day tolerates four missing slots in one hour but rejects five", () => {
+test("a well-covered day tolerates four missing slots in one hour and marks five as partial", () => {
   const samples = daySamples();
   const fourMissing = samples.filter((_, index) => index < 60 || index >= 64);
   const accepted = buildRegularLobbyDaily(fourMissing, new Map(), date, { catalog, now });
   assert.equal(accepted.complete, true);
   assert.deepEqual(accepted.coverage, { slots: 140, expectedSlots: 144, missingHours: [] });
   const fiveMissing = samples.filter((_, index) => index < 60 || index >= 65);
-  const rejected = buildRegularLobbyDaily(fiveMissing, new Map(), date, { catalog, now });
-  assert.equal(rejected.complete, false);
-  assert.deepEqual(rejected.coverage.missingHours, [10]);
+  const partial = buildRegularLobbyDaily(fiveMissing, new Map(), date, { catalog, now });
+  assert.equal(partial.complete, false);
+  assert.equal(partial.partial, true);
+  assert.deepEqual(partial.coverage.missingHours, [10]);
 });
 
 test("Stockholm daylight saving days have 138 or 150 equally weighted slots", () => {
@@ -159,9 +173,32 @@ test("corrections update every trend view and aggregate consumer without mutatin
   assert.equal(applyRegularLobbyDailyToAggregates(aggregates, [incomplete], { catalog }).get("one").has(date), false);
 });
 
+test("partial corrections remain visible with explicit coverage provenance", () => {
+  const samples = daySamples().filter((_, index) => index < 60 || index >= 66);
+  const partial = buildRegularLobbyDaily(samples, new Map(), date, { catalog, now });
+  const base = {
+    dailyTotals: [],
+    slugDaily: { one: [], two: [] },
+    averages: { days7: [] },
+    generatedAt: "2026-09-07T00:00:00.000Z",
+  };
+  const result = applyRegularLobbyDailyToOverview(base, [partial], { catalog });
+  assert.deepEqual(result.partialDates, [date]);
+  assert.equal(result.dailyTotals[0].partial, true);
+  assert.equal(result.dailyTotals[0].observedCoveragePct, 95.83);
+  assert.equal(result.dailyQuality[date].complete, false);
+  assert.equal(result.dailyQuality[date].partial, true);
+  assert.equal(result.generatedAt, partial.computedAt);
+});
+
 test("materialization skips persisted days and propagates source or persistence failures", async () => {
   const existing = { date, complete: true };
   assert.equal((await materializeRegularLobbyDay(date, { readDays: async () => [existing], readHistory: () => assert.fail("unexpected read") })).skipped, true);
+  const existingPartial = { date, complete: false, partial: true };
+  assert.equal((await materializeRegularLobbyDay(date, {
+    readDays: async () => [existingPartial],
+    readHistory: () => assert.fail("unexpected read"),
+  })).skipped, true);
   await assert.rejects(materializeRegularLobbyDay(date, {
     readDays: async () => [], readHistory: async () => { throw new Error("source failed"); }, readSeries: async () => new Map(),
   }), /source failed/);
@@ -188,6 +225,19 @@ test("regular collections publish yesterday and retry an interrupted overview up
   const failed = await refreshRegularLobbyDaily({ ...options, materializeDay: async () => ({ complete: false, reason: "insufficient-daily-coverage" }) });
   assert.equal(failed.ok, false);
   assert.equal(published, 1);
+  const partial = buildRegularLobbyDaily(daySamples().slice(0, 100), new Map(), date, { catalog, now });
+  const partialResult = await refreshRegularLobbyDaily({ ...options, materializeDay: async () => partial });
+  assert.equal(partialResult.ok, true);
+  assert.equal(partialResult.partial, true);
+  assert.equal(published, 2);
+  await refreshRegularLobbyDaily({
+    ...options,
+    materializeDay: async () => partial,
+    readOverview: async () => ({ data: { dailyQuality: {
+      [date]: { complete: false, partial: true, method: partial.method, slots: partial.coverage.slots },
+    } } }),
+  });
+  assert.equal(published, 2);
 });
 
 

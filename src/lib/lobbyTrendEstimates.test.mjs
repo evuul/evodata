@@ -60,3 +60,41 @@ test("only fills the approved day and carries the estimated marker into chart in
   assert.equal(normalizeLobbyTrendRows(result)[0].estimated, false);
   assert.deepEqual(normalizeLobbyTrendRows({ dailyTotals: [{ date: "2026-09-09", avgPlayers: null }] }), []);
 });
+
+test("fills September 17 only when its persisted partial average is unavailable", () => {
+  const input = {
+    dailyTotals: [
+      { date: "2026-09-16", avgPlayers: 74452.25 },
+      { date: "2026-09-18", avgPlayers: 72067.74 },
+    ],
+    dailyQuality: {
+      "2026-09-16": { complete: true },
+      "2026-09-17": { complete: false, slots: 135, expectedSlots: 144, missingHours: [9] },
+      "2026-09-18": { complete: true },
+    },
+  };
+  const estimated = applyApprovedLobbyTrendEstimates(input);
+  assert.deepEqual(estimated.dailyTotals[1], {
+    date: "2026-09-17",
+    avgPlayers: 73260,
+    estimated: true,
+  });
+
+  const partial = {
+    ...input,
+    dailyTotals: [
+      input.dailyTotals[0],
+      { date: "2026-09-17", avgPlayers: 73100, partial: true, observedCoveragePct: 93.75 },
+      input.dailyTotals[1],
+    ],
+    partialDates: ["2026-09-17"],
+  };
+  assert.equal(applyApprovedLobbyTrendEstimates(partial), partial);
+  assert.deepEqual(normalizeLobbyTrendRows(partial)[1], {
+    date: "2026-09-17",
+    avgPlayers: 73100,
+    estimated: false,
+    partial: true,
+    observedCoveragePct: 93.75,
+  });
+});

@@ -1,4 +1,4 @@
-// Runs the lobby collector on Cloudflare's schedule and refreshes Hourly after a completed day.
+// Runs primary, recovery, and daily lobby jobs on Cloudflare's dedicated schedules.
 
 export async function runLobbySchedule(cron, env, fetchImpl = fetch) {
   const base = new URL(env.CRON_BASE_URL);
@@ -7,6 +7,7 @@ export async function runLobbySchedule(cron, env, fetchImpl = fetch) {
   }
   const routes = {
     "7,17,27,37,47,57 * * * *": "/api/casinoscores/cron",
+    "9,19,29,39,49,59 * * * *": "/api/unibet-pilot/cron",
     "35 3 * * *": "/api/casinoscores/lobby/materialize",
   };
   const path = routes[cron];

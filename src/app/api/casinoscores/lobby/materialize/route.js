@@ -66,7 +66,7 @@ async function handler(request) {
   const hourlyBaseline = await warmHourlyBaseline();
   const targetDate = shiftYmd(stockholmTodayYmd(), -1);
   const regularDay = await materializeRegularLobbyDay(targetDate);
-  if (!regularDay.complete) {
+  if (!regularDay.complete && !regularDay.partial) {
     return Response.json({ ok: false, targetDate, reason: regularDay.reason, coverage: regularDay.coverage }, { status: 503 });
   }
   const current = await getOverviewSnapshot(30);

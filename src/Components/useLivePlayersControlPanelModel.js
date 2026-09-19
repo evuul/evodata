@@ -595,6 +595,8 @@ export default function useLivePlayersControlPanelModel() {
       .map((row) => ({
         date: row.date,
         estimated: row.estimated === true,
+        partial: row.partial === true,
+        observedCoveragePct: Number.isFinite(row.observedCoveragePct) ? row.observedCoveragePct : null,
         players: Number.isFinite(row.avgPlayers) ? Math.round(row.avgPlayers) : null,
       }))
       .filter((row) => row.players != null);

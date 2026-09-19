@@ -7,7 +7,11 @@ import worker, { runLobbySchedule } from "../../workers/hourlyLobbyScheduler.js"
 const env = { CRON_BASE_URL: "https://example.com", CRON_SECRET: "test-only-secret" };
 
 test("sends one authenticated request to the scheduled route", async () => {
-  for (const [cron, path] of [["7,17,27,37,47,57 * * * *", "/api/casinoscores/cron"], ["35 3 * * *", "/api/casinoscores/lobby/materialize"]]) {
+  for (const [cron, path] of [
+    ["7,17,27,37,47,57 * * * *", "/api/casinoscores/cron"],
+    ["9,19,29,39,49,59 * * * *", "/api/unibet-pilot/cron"],
+    ["35 3 * * *", "/api/casinoscores/lobby/materialize"],
+  ]) {
     let calls = 0;
     const result = await runLobbySchedule(cron, env, async (url, options) => {
       calls++;

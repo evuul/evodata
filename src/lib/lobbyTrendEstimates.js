@@ -1,6 +1,6 @@
 // Fills explicitly approved trend gaps from adjacent measured days and preserves their provenance.
 
-const APPROVED_ESTIMATE_DATES = ["2026-09-09"];
+const APPROVED_ESTIMATE_DATES = ["2026-09-09", "2026-09-17"];
 
 function adjacentDate(date, offset) {
   const value = new Date(`${date}T12:00:00Z`);
@@ -16,6 +16,7 @@ export function applyApprovedLobbyTrendEstimates(overview, { days = 730 } = {}) 
   let changed = false;
   for (const date of APPROVED_ESTIMATE_DATES) {
     if (quality[date]?.complete !== false) continue;
+    if (rows.has(date)) continue;
     const sourceDates = [adjacentDate(date, -1), adjacentDate(date, 1)];
     const sources = sourceDates.map(sourceDate => rows.get(sourceDate));
     if (sources.some(row => !row || row.estimated || estimatedDates.has(row.date)
@@ -37,7 +38,19 @@ export function applyApprovedLobbyTrendEstimates(overview, { days = 730 } = {}) 
 
 export function normalizeLobbyTrendRows(overview) {
   const estimates = new Set(overview?.estimatedDates ?? []);
+  const partialDates = new Set(overview?.partialDates ?? []);
   return (Array.isArray(overview?.dailyTotals) ? overview.dailyTotals : [])
     .filter(row => row?.date && row.avgPlayers != null && Number.isFinite(Number(row.avgPlayers)))
-    .map(row => ({ date: row.date, avgPlayers: Number(row.avgPlayers), estimated: row.estimated === true || estimates.has(row.date) }));
+    .map(row => {
+      const estimated = row.estimated === true || estimates.has(row.date);
+      const quality = overview?.dailyQuality?.[row.date];
+      const observedCoveragePct = Number(row.observedCoveragePct ?? quality?.observedCoveragePct);
+      return {
+        date: row.date,
+        avgPlayers: Number(row.avgPlayers),
+        estimated,
+        ...(!estimated && (row.partial === true || partialDates.has(row.date)) ? { partial: true } : null),
+        ...(Number.isFinite(observedCoveragePct) ? { observedCoveragePct } : null),
+      };
+    });
 }

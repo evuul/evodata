@@ -15,18 +15,30 @@ export function isRegularLobbyDailyRecord(record, catalog = GAMES) {
     && /^\d{4}-\d{2}-\d{2}$/.test(record.date) && Number.isFinite(Date.parse(record.computedAt))
     && JSON.stringify(record.gameIds) === JSON.stringify(ids);
   if (!validCoverage || !validIdentity) return false;
-  if (record.complete === false) return record.reason === "insufficient-daily-coverage";
-  return record.complete === true
-    && Object.keys(record.averages ?? {}).length === ids.length
-    && ids.every(id => Number.isFinite(record.averages[id]) && record.averages[id] >= 0 && record.averages[id] <= 5_000_000)
-    && record.coverage.slots >= Math.ceil(record.coverage.expectedSlots * 0.9)
-    && record.coverage.missingHours.length === 0;
+  const hasValidAverages = Object.keys(record.averages ?? {}).length === ids.length
+    && ids.every(id => Number.isFinite(record.averages[id]) && record.averages[id] >= 0 && record.averages[id] <= 5_000_000);
+  if (record.complete === true) {
+    return hasValidAverages
+      && record.coverage.slots >= Math.ceil(record.coverage.expectedSlots * 0.9)
+      && record.coverage.missingHours.length === 0;
+  }
+  if (record.complete !== false || record.reason !== "insufficient-daily-coverage") return false;
+  if (record.partial !== true) return record.averages == null && record.avgPlayers == null;
+  return hasValidAverages
+    && record.coverage.slots >= Math.ceil(record.coverage.expectedSlots * 0.5)
+    && Number.isFinite(record.observedCoveragePct)
+    && record.observedCoveragePct >= 50
+    && record.observedCoveragePct < 100;
+}
+
+export function hasUsableRegularLobbyAverage(record) {
+  return record?.complete === true || record?.partial === true;
 }
 
 export function applyRegularLobbyDailyToAggregates(aggregates, records, { catalog = GAMES } = {}) {
   const result = new Map([...aggregates].map(([id, dates]) => [id, new Map(dates)]));
   for (const record of records.filter(r => isRegularLobbyDailyRecord(r, catalog))) {
-    if (!record.complete) {
+    if (!hasUsableRegularLobbyAverage(record)) {
       for (const dates of result.values()) dates.delete(record.date);
       continue;
     }
@@ -52,10 +64,25 @@ export function applyRegularLobbyDailyToOverview(overview, records, {
   let result = overview;
   const quality = { ...overview.dailyQuality };
   const correctedDates = new Set();
+  const partialDates = new Set(Array.isArray(overview.partialDates) ? overview.partialDates : []);
+  let generatedAt = overview.generatedAt ?? null;
   for (const record of records.filter(r => isRegularLobbyDailyRecord(r, catalog)).sort((a, b) => a.date.localeCompare(b.date))) {
-    quality[record.date] = { method: record.method, complete: record.complete, games: record.gameIds.length, ...record.coverage };
+    const observedCoveragePct = Number.isFinite(record.observedCoveragePct)
+      ? record.observedCoveragePct
+      : Math.round((record.coverage.slots / record.coverage.expectedSlots) * 10_000) / 100;
+    quality[record.date] = {
+      method: record.method,
+      complete: record.complete,
+      partial: record.partial === true,
+      observedCoveragePct,
+      games: record.gameIds.length,
+      ...record.coverage,
+    };
     correctedDates.add(record.date);
-    if (!record.complete) {
+    partialDates.delete(record.date);
+    if (record.partial === true) partialDates.add(record.date);
+    if (record.computedAt && (!generatedAt || record.computedAt > generatedAt)) generatedAt = record.computedAt;
+    if (!hasUsableRegularLobbyAverage(record)) {
       const keep = row => row.date !== record.date;
       const filterGames = values => Object.fromEntries(Object.entries(values ?? {}).map(([id, rows]) => [id, rows.filter(keep)]));
       result = {
@@ -65,12 +92,20 @@ export function applyRegularLobbyDailyToOverview(overview, records, {
       };
       continue;
     }
-    const row = { date: record.date, avgPlayers: Math.round(Object.values(record.averages).reduce((n, avg) => n + avg, 0) * 100) / 100 };
-    const slugDaily = Object.fromEntries(Object.entries(record.averages).map(([id, avg]) => [id, [{ date: record.date, avg }]]));
+    const provenance = record.partial === true ? { partial: true, observedCoveragePct } : {};
+    const row = {
+      date: record.date,
+      avgPlayers: Math.round(Object.values(record.averages).reduce((n, avg) => n + avg, 0) * 100) / 100,
+      ...provenance,
+    };
+    const slugDaily = Object.fromEntries(Object.entries(record.averages).map(([id, avg]) => [
+      id,
+      [{ date: record.date, avg, ...provenance }],
+    ]));
     const forecast = Object.entries(record.averages).filter(([id]) => forecastIds.has(id)).reduce((n, [, avg]) => n + avg, 0);
     result = composeLobbyOverviewSnapshots(result, {
       dailyTotals: [row], rawDailyTotals: [row], adjustedDailyTotals: [row], slugDaily, rawSlugDaily: slugDaily,
-      forecastDailyTotals: [{ date: record.date, avgPlayers: Math.round(forecast * 100) / 100 }],
+      forecastDailyTotals: [{ date: record.date, avgPlayers: Math.round(forecast * 100) / 100, ...provenance }],
     }, days);
   }
   if (!correctedDates.size) return applyApprovedLobbyTrendEstimates(overview, { days });
@@ -82,8 +117,9 @@ export function applyRegularLobbyDailyToOverview(overview, records, {
     id, rows.filter(row => !correctedDates.has(row.date) || allowedByDate.get(row.date).has(id)),
   ]));
   return applyApprovedLobbyTrendEstimates({
-    ...result, dailyQuality: quality,
+    ...result, dailyQuality: quality, generatedAt,
     slugDaily: pruneUntrackedDates(result.slugDaily), rawSlugDaily: pruneUntrackedDates(result.rawSlugDaily),
+    partialDates: [...partialDates].sort(),
     estimatedDates: (result.estimatedDates ?? []).filter(date => !correctedDates.has(date)),
     averages: { ...result.averages, days7: result.dailyTotals.slice(-7), days30: result.dailyTotals.slice(-30) },
   }, { days });

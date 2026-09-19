@@ -69,6 +69,14 @@ export default function LivePlayersControlPanelTrendSection({
 
   const movingAverageLabel = translate(`Glidande snitt ${movingAverageDays}d`, `Moving avg ${movingAverageDays}d`);
   const tooltipLabel = movingAverageOn ? movingAverageLabel : translate("Genomsnitt", "Average");
+  const partialRows = useMemo(
+    () => (Array.isArray(trendChartData) ? trendChartData.filter((row) => row.partial) : []),
+    [trendChartData]
+  );
+  const estimatedRows = useMemo(
+    () => (Array.isArray(trendChartData) ? trendChartData.filter((row) => row.estimated) : []),
+    [trendChartData]
+  );
   const maxXTicks = isMobile ? 4 : 6;
   const fallbackSummary = useMemo(() => computeTrendDiff(trendChartData), [trendChartData]);
   const resolvedSummary = useMemo(() => {
@@ -300,7 +308,9 @@ export default function LivePlayersControlPanelTrendSection({
                 }}
                 formatter={(value, _name, item) => [
                   `${numberFormatter.format(value)} ${translate("spelare", "players")}`,
-                  item?.payload?.estimated
+                  item?.payload?.partial
+                    ? `${tooltipLabel} (${translate("partiellt", "partial")}, ${percentFormatter.format(item.payload.observedCoveragePct)}%)`
+                    : item?.payload?.estimated
                     ? `${tooltipLabel} (${translate("uppskattat", "estimated")})`
                     : tooltipLabel,
                 ]}
@@ -330,11 +340,19 @@ export default function LivePlayersControlPanelTrendSection({
           </Box>
         )}
       </Box>
-      {trendChartData?.some(row => row.date === "2026-09-09" && row.estimated) ? (
+      {partialRows.length ? (
         <Typography variant="caption" sx={{ color: "#fde68a" }}>
           {translate(
-            "9 september är uppskattad som snittet av 8 och 10 september.",
-            "September 9 is estimated as the average of September 8 and 10."
+            `Partiella dagar visar snittet av tillgängliga mätningar: ${partialRows.map((row) => `${formatDateOnly(row.date)} (${percentFormatter.format(row.observedCoveragePct)}%)`).join(", ")}.`,
+            `Partial days show the average of available observations: ${partialRows.map((row) => `${formatDateOnly(row.date)} (${percentFormatter.format(row.observedCoveragePct)}%)`).join(", ")}.`
+          )}
+        </Typography>
+      ) : null}
+      {estimatedRows.length ? (
+        <Typography variant="caption" sx={{ color: "#fde68a" }}>
+          {translate(
+            `Saknade dagar är uppskattade från närliggande kompletta dagar: ${estimatedRows.map((row) => formatDateOnly(row.date)).join(", ")}.`,
+            `Missing days are estimated from adjacent complete days: ${estimatedRows.map((row) => formatDateOnly(row.date)).join(", ")}.`
           )}
         </Typography>
       ) : null}

@@ -1,4 +1,4 @@
-// Reconciles the regular lobby's fresh sources and averages equally spaced complete observations.
+// Reconciles fresh regular-lobby sources into complete or explicitly partial daily averages.
 
 import { GAMES } from "../config/games.js";
 import { isPlayerSampleFresh, finiteNumberOrNull } from "./livePlayerSnapshot.js";
@@ -8,6 +8,7 @@ export const REGULAR_LOBBY_DAILY_METHOD = "regular-lobby-max-fresh-v2";
 export const REGULAR_LOBBY_SLOT_MS = 10 * 60 * 1000;
 const MAX_AGE_MS = 20 * 60 * 1000;
 const MIN_SLOTS_PER_HOUR = 2;
+const MIN_PARTIAL_COVERAGE_RATIO = 0.5;
 const calendar = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Stockholm", year: "numeric", month: "2-digit", day: "2-digit",
   hour: "2-digit", hourCycle: "h23",
@@ -173,7 +174,8 @@ export function buildRegularLobbyDaily(samples, seriesByGame, date, { catalog = 
     .map(([hour]) => hour);
   const complete = slots.size >= Math.ceil(expected.length * 0.9) && !missingHours.length;
   const coverage = { slots: slots.size, expectedSlots: expected.length, missingHours };
-  if (!complete) return {
+  const partial = !complete && slots.size >= Math.ceil(expected.length * MIN_PARTIAL_COVERAGE_RATIO);
+  if (!complete && !partial) return {
     date, complete: false, method: REGULAR_LOBBY_DAILY_METHOD, computedAt: new Date(now).toISOString(),
     coverage, gameIds, reason: "insufficient-daily-coverage",
   };
@@ -184,9 +186,12 @@ export function buildRegularLobbyDaily(samples, seriesByGame, date, { catalog = 
     sourceCounts[reading.source]++;
   }
   const averages = Object.fromEntries(gameIds.map(id => [id, Math.round(totals[id] / slots.size * 100) / 100]));
+  const observedCoveragePct = Math.round((slots.size / expected.length) * 10_000) / 100;
   return {
-    date, complete: true, method: REGULAR_LOBBY_DAILY_METHOD, gameIds, coverage, sourceCounts, averages,
+    date, complete, partial, method: REGULAR_LOBBY_DAILY_METHOD, gameIds, coverage, sourceCounts, averages,
     avgPlayers: Math.round(Object.values(averages).reduce((sum, avg) => sum + avg, 0) * 100) / 100,
+    observedCoveragePct,
+    ...(partial ? { reason: "insufficient-daily-coverage" } : null),
     computedAt: new Date(now).toISOString(),
   };
 }
