@@ -19,7 +19,7 @@ test("keeps Candle Lake's flagged holding in the ownership list", () => {
 
   assert.deepEqual(
     { shares: candleLake?.shares, holdingDate: candleLake?.holdingDate },
-    { shares: 59_798_619, holdingDate: "2026-08-13" }
+    { shares: 59_910_335, holdingDate: "2026-09-15" }
   );
 });
 
@@ -31,11 +31,11 @@ test("compares the latest owner list with the preceding snapshot", () => {
   });
   const changes = new Map(rows.map((row) => [row.id, row.changeShares]));
 
-  assert.equal(changes.get("capital-group"), -332_311);
-  assert.equal(changes.get("blackrock"), -136_053);
-  assert.equal(changes.get("vanguard"), 31_611);
-  assert.equal(changes.get("dart"), 0);
-  assert.equal(changes.get("richard-livingstone"), 0);
+  assert.equal(changes.get("capital-group"), -1_797_678);
+  assert.equal(changes.get("blackrock"), -26_468);
+  assert.equal(changes.get("vanguard"), 26_508);
+  assert.equal(changes.get("dart"), 111_716);
+  assert.equal(changes.get("richard-livingstone"), -246_000);
 });
 
 test("uses the latest shareholder snapshot for institutional and pension owners", () => {
@@ -52,20 +52,20 @@ test("uses the latest shareholder snapshot for institutional and pension owners"
       current.get("avanza-fonder"),
     ].map((owner) => ({ id: owner?.id, shares: owner?.shares, holdingDate: owner?.holdingDate })),
     [
-      { id: "capital-group", shares: 8_549_342, holdingDate: "2026-08-22" },
-      { id: "blackrock", shares: 6_204_043, holdingDate: "2026-08-31" },
-      { id: "vanguard", shares: 5_456_592, holdingDate: "2026-07-31" },
-      { id: "avanza-pension", shares: 1_935_448, holdingDate: "2026-07-29" },
-      { id: "futur-pension", shares: 1_762_611, holdingDate: "2026-07-29" },
-      { id: "henric-wiman", shares: 1_708_776, holdingDate: "2026-07-29" },
-      { id: "avanza-fonder", shares: 1_677_678, holdingDate: "2026-07-31" },
+      { id: "capital-group", shares: 6_751_664, holdingDate: "2026-09-10" },
+      { id: "blackrock", shares: 6_177_575, holdingDate: "2026-09-10" },
+      { id: "vanguard", shares: 5_483_100, holdingDate: "2026-09-10" },
+      { id: "avanza-pension", shares: 1_896_986, holdingDate: "2026-08-27" },
+      { id: "futur-pension", shares: 1_640_825, holdingDate: "2026-08-27" },
+      { id: "henric-wiman", shares: 1_698_776, holdingDate: "2026-09-10" },
+      { id: "avanza-fonder", shares: 1_662_505, holdingDate: "2026-09-10" },
     ],
   );
 });
 
 test("uses the latest holding date as the owner-list snapshot date", () => {
-  assert.equal(FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE, "2026-07-31");
-  assert.equal(FREE_FLOAT_SNAPSHOT_DATE, "2026-08-31");
+  assert.equal(FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE, "2026-08-31");
+  assert.equal(FREE_FLOAT_SNAPSHOT_DATE, "2026-09-15");
 });
 
 test("calculates free float after treasury shares and excluded strategic owners", () => {

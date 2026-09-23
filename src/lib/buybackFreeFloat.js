@@ -4,8 +4,8 @@ export const FREE_FLOAT_OWNER_ASSUMPTIONS = Object.freeze([
   Object.freeze({
     id: "dart",
     name: "Candle Lake Ltd (Kenneth Dart)",
-    shares: 59_798_619,
-    holdingDate: "2026-08-13",
+    shares: 59_910_335,
+    holdingDate: "2026-09-15",
     category: "Strategisk ägare",
     excludeFromStrategicFloat: true,
   }),
@@ -13,25 +13,25 @@ export const FREE_FLOAT_OWNER_ASSUMPTIONS = Object.freeze([
     id: "osterbahr",
     name: "Österbahr Ventures AB",
     shares: 21_763_850,
-    holdingDate: "2026-02-10",
+    holdingDate: "2026-09-10",
     category: "Strategisk ägare",
     excludeFromStrategicFloat: true,
   }),
-  Object.freeze({ id: "capital-group", name: "Capital Group", shares: 8_549_342, holdingDate: "2026-08-22", category: "Fond" }),
-  Object.freeze({ id: "blackrock", name: "BlackRock", shares: 6_204_043, holdingDate: "2026-08-31", category: "Fond" }),
-  Object.freeze({ id: "vanguard", name: "Vanguard", shares: 5_456_592, holdingDate: "2026-07-31", category: "Fond" }),
-  Object.freeze({ id: "richard-livingstone", name: "Richard Livingstone", shares: 3_794_978, holdingDate: "2026-07-29", category: "Privat ägare" }),
-  Object.freeze({ id: "avanza-pension", name: "Avanza Pension", shares: 1_935_448, holdingDate: "2026-07-29", category: "Pension" }),
-  Object.freeze({ id: "futur-pension", name: "Futur Pension", shares: 1_762_611, holdingDate: "2026-07-29", category: "Pension" }),
-  Object.freeze({ id: "avanza-fonder", name: "Avanza Fonder", shares: 1_677_678, holdingDate: "2026-07-31", category: "Fond" }),
-  Object.freeze({ id: "henric-wiman", name: "Henric Wiman privat och genom bolag", shares: 1_708_776, holdingDate: "2026-07-29", category: "Privat ägare" }),
+  Object.freeze({ id: "capital-group", name: "Capital Group", shares: 6_751_664, holdingDate: "2026-09-10", category: "Fond" }),
+  Object.freeze({ id: "blackrock", name: "BlackRock", shares: 6_177_575, holdingDate: "2026-09-10", category: "Fond" }),
+  Object.freeze({ id: "vanguard", name: "Vanguard", shares: 5_483_100, holdingDate: "2026-09-10", category: "Fond" }),
+  Object.freeze({ id: "richard-livingstone", name: "Richard Livingstone", shares: 3_548_978, holdingDate: "2026-09-10", category: "Privat ägare" }),
+  Object.freeze({ id: "avanza-pension", name: "Avanza Pension", shares: 1_896_986, holdingDate: "2026-08-27", category: "Pension" }),
+  Object.freeze({ id: "futur-pension", name: "Futur Pension", shares: 1_640_825, holdingDate: "2026-08-27", category: "Pension" }),
+  Object.freeze({ id: "avanza-fonder", name: "Avanza Fonder", shares: 1_662_505, holdingDate: "2026-09-10", category: "Fond" }),
+  Object.freeze({ id: "henric-wiman", name: "Henric Wiman privat och genom bolag", shares: 1_698_776, holdingDate: "2026-09-10", category: "Privat ägare" }),
 ]);
 
 export const FREE_FLOAT_SNAPSHOT_DATE = FREE_FLOAT_OWNER_ASSUMPTIONS.reduce(
   (latest, owner) => (owner.holdingDate > latest ? owner.holdingDate : latest),
   ""
 );
-export const FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE = "2026-07-31";
+export const FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE = "2026-08-31";
 export const FREE_FLOAT_PREVIOUS_TOTAL_SHARES = 199_226_613;
 export const FREE_FLOAT_TREASURY_SHARES = 5_141_528;
 
@@ -141,14 +141,14 @@ export const calculateShareholderOverview = ({
 export const FREE_FLOAT_PREVIOUS_OWNERS = Object.freeze([
   Object.freeze({ id: "dart", shares: 59_798_619 }),
   Object.freeze({ id: "osterbahr", shares: 21_763_850 }),
-  Object.freeze({ id: "capital-group", shares: 8_881_653 }),
-  Object.freeze({ id: "blackrock", shares: 6_340_096 }),
-  Object.freeze({ id: "vanguard", shares: 5_424_981 }),
+  Object.freeze({ id: "capital-group", shares: 8_549_342 }),
+  Object.freeze({ id: "blackrock", shares: 6_204_043 }),
+  Object.freeze({ id: "vanguard", shares: 5_456_592 }),
   Object.freeze({ id: "richard-livingstone", shares: 3_794_978 }),
   Object.freeze({ id: "avanza-pension", shares: 1_935_448 }),
   Object.freeze({ id: "futur-pension", shares: 1_762_611 }),
-  Object.freeze({ id: "henric-wiman", shares: 1_708_776 }),
   Object.freeze({ id: "avanza-fonder", shares: 1_677_678 }),
+  Object.freeze({ id: "henric-wiman", shares: 1_708_776 }),
 ]);
 
 export const FREE_FLOAT_SOURCE_URL =
