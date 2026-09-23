@@ -68,6 +68,18 @@ const financialCalendarEvents = [
     sourceUrl: "https://www.evolution.com/investors/financial-data/financial-calendar",
   },
   {
+    id: "egm-share-cancellation-2026",
+    date: "2026-09-22",
+    category: "governance",
+    titleSv: "Extra bolagsstämma – indragning av återköpta aktier",
+    titleEn: "Extra General Meeting – cancellation of repurchased shares",
+    descriptionSv: "Stämman godkände indragning av upp till 19 922 661 återköpta aktier. Evolution innehade 16 168 492 egna aktier vid stämmodagen. Indragningen träder i kraft först efter registrering hos Bolagsverket.",
+    descriptionEn: "The meeting approved the cancellation of up to 19,922,661 repurchased shares. Evolution held 16,168,492 treasury shares on the meeting date. The cancellation takes effect only after registration with the Swedish Companies Registration Office.",
+    sourceLabelSv: "Evolution – extra bolagsstämma",
+    sourceLabelEn: "Evolution – Extra General Meeting",
+    sourceUrl: "https://www.evolution.com/investors/corporate-governance/general-meetings",
+  },
+  {
     id: "q3-report-2026",
     date: "2026-10-23",
     category: "report",
