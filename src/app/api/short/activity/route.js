@@ -1,3 +1,5 @@
+// Serves trading and short-interest history using the registered share count for each date.
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const runtime = "nodejs";
@@ -6,7 +8,7 @@ import { NextResponse } from "next/server";
 import yahooFinance, { withYahooThrottle } from "@/lib/yahooFinanceClient";
 
 import { loadShortHistory } from "@/lib/shortHistoryStore";
-import { totalSharesData } from "@/Components/buybacks/utils";
+import { getTotalSharesForDate } from "@/Components/buybacks/utils";
 import {
   buildDaysToCoverEstimate,
   resolveCurrentShortContext,
@@ -46,22 +48,6 @@ function clampDays(value) {
   const n = Number.parseInt(value, 10);
   if (!Number.isFinite(n)) return DEFAULT_DAYS;
   return Math.max(7, Math.min(MAX_DAYS, n));
-}
-
-function getTotalSharesForDate(dateStr) {
-  const year = Number.parseInt(String(dateStr).slice(0, 4), 10);
-  if (!Number.isFinite(year)) {
-    return totalSharesData[totalSharesData.length - 1]?.totalShares ?? null;
-  }
-  let candidate = null;
-  for (const entry of totalSharesData) {
-    const entryYear = Number.parseInt(entry.date, 10);
-    if (!Number.isFinite(entryYear)) continue;
-    if (entryYear <= year) {
-      candidate = entry.totalShares;
-    }
-  }
-  return candidate ?? totalSharesData[totalSharesData.length - 1]?.totalShares ?? null;
 }
 
 function toDateString(value) {

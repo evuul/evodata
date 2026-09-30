@@ -64,15 +64,17 @@ import {
   formatBuybackAxisTick,
   buildNiceYAxisConfig,
   totalSharesData,
+  getTotalSharesForDate,
 } from './buybacks/utils';
 import { combineBuybackSnapshots } from '@/lib/buybackSnapshots';
+import { calculateTreasuryShares } from '@/lib/buybackMandate';
+import { shareCapitalChanges } from '@/app/data/shareCapital';
 import {
   calculateShareholderOverview,
   FREE_FLOAT_PREVIOUS_OWNERS,
   FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
   FREE_FLOAT_PREVIOUS_SNAPSHOT_DATE,
   FREE_FLOAT_SNAPSHOT_DATE,
-  FREE_FLOAT_TREASURY_SHARES,
   FREE_FLOAT_OWNER_ASSUMPTIONS,
   buildInsiderOwnershipTrend,
 } from '@/lib/buybackFreeFloat';
@@ -282,19 +284,17 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   const getShareBaseForDate = useCallback(
     (date) => {
       if (!(date instanceof Date) || Number.isNaN(date.getTime())) return latestTotalSharesCount;
-      const year = date.getFullYear();
-      const match = totalSharesData.find((entry) => Number(entry.date) === year);
-      return match?.totalShares || latestTotalSharesCount;
+      return getTotalSharesForDate(date.toISOString().slice(0, 10));
     },
     [latestTotalSharesCount]
   );
   const weekNowShareBase = useMemo(
     () => getShareBaseForDate(weekNow.periodStart),
-    [getShareBaseForDate, weekNow.periodStart?.getTime()]
+    [getShareBaseForDate, weekNow.periodStart]
   );
   const weekPrevShareBase = useMemo(
     () => getShareBaseForDate(weekPrev.periodStart),
-    [getShareBaseForDate, weekPrev.periodStart?.getTime()]
+    [getShareBaseForDate, weekPrev.periodStart]
   );
   const weekNowPercentOfShares =
     Number.isFinite(weekNow.totalShares) && Number.isFinite(weekNowShareBase) && weekNowShareBase > 0
@@ -420,15 +420,17 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
   }, [isMobile, viewMode]);
 
   // ---- Subview derived data ----
-  const evolutionOwnershipData = useMemo(
-    () => {
-      const series = calculateEvolutionOwnershipPerYear(combinedBuybacks);
-      if (!series.length || !Number.isFinite(stats.sharesBought) || stats.sharesBought <= 0) return series;
-      return series.map((point, index) => index === series.length - 1 ? { ...point, shares: stats.sharesBought } : point);
-    },
-    [combinedBuybacks, stats.sharesBought]
+  const treasuryShares = useMemo(
+    () => calculateTreasuryShares({ buybackData: combinedBuybacks }),
+    [combinedBuybacks]
   );
-  const cancelledShares = useMemo(() => calculateCancelledShares(oldData), [oldData]);
+  const evolutionOwnershipData = useMemo(
+    () => calculateEvolutionOwnershipPerYear(combinedBuybacks).map((point, index, series) =>
+      index === series.length - 1 ? { ...point, shares: treasuryShares } : point
+    ),
+    [combinedBuybacks, treasuryShares]
+  );
+  const cancelledShares = useMemo(() => calculateCancelledShares(combinedBuybacks), [combinedBuybacks]);
   const ownershipPercentageData = useMemo(
     () =>
       totalSharesData.map((item) => {
@@ -442,7 +444,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
     () => combinedBuybacks.reduce((latest, row) => {
       const date = String(row?.Datum || "").slice(0, 10);
       return date > latest ? date : latest;
-    }, ""),
+    }, shareCapitalChanges.at(-1)?.date || ''),
     [combinedBuybacks]
   );
   const latestOwnershipPercentage = useMemo(() => {
@@ -458,7 +460,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         {
           id: 'evolution-treasury',
           name: 'Evolution AB (egna aktier)',
-          shares: Math.max(stats.sharesBought, 0),
+          shares: treasuryShares,
           holdingDate: latestEvolutionSnapshotDate || FREE_FLOAT_SNAPSHOT_DATE,
           category: 'Bolagets egna aktier',
           excludeFromStrategicFloat: false,
@@ -477,13 +479,13 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
       ];
       return calculateShareholderOverview({
         totalShares: latestTotalSharesCount,
-        companyTreasuryShares: stats.sharesBought > 0 ? stats.sharesBought : FREE_FLOAT_TREASURY_SHARES,
+        companyTreasuryShares: treasuryShares,
         owners,
         previousOwners: FREE_FLOAT_PREVIOUS_OWNERS,
         previousTotalShares: FREE_FLOAT_PREVIOUS_TOTAL_SHARES,
       });
     },
-    [latestTotalSharesCount, latestEvolutionSnapshotDate, stats.sharesBought]
+    [latestTotalSharesCount, latestEvolutionSnapshotDate, treasuryShares]
   );
   const totalBuybackShares = useMemo(
     () => combinedBuybacks.reduce((sum, row) => sum + Math.max(Number(row?.Antal_aktier) || 0, 0), 0),
@@ -1002,7 +1004,7 @@ export default function LiveStockBuyBackInfo({ buybackCash = 0, dividendData, fi
         <Box sx={{ mt: 2, mx: { xs: -3, sm: -3, md: 0 } }}>
           <SharePoolView
             totalShares={latestTotalSharesCount}
-            verifiedTreasuryShares={stats.sharesBought}
+            verifiedTreasuryShares={treasuryShares}
             latestWeekShares={weeklyBuybackEstimate?.estimatedShares || weekNow.totalShares}
             latestWeekTradingDays={weeklyBuybackEstimate?.tradingDays || weekNow.entries.length}
             latestWeekEnd={latestVerifiedBuybackDate || weekNow.periodEnd}

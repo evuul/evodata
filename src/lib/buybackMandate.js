@@ -1,5 +1,7 @@
 // Normalizes buyback execution and share-count changes for valuation models.
 
+import { shareCapitalChanges } from "../app/data/shareCapital.js";
+
 export const DEFAULT_BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 export const CURRENT_BUYBACK_MANDATE_START_DATE = "2026-05-18";
 export const CURRENT_BUYBACK_EXECUTION_START_DATE = "2026-05-19";
@@ -57,6 +59,39 @@ export const normalizeBuybackExecutions = (buybackData = []) => {
   });
 
   return [...uniqueRows.values()].sort((a, b) => a.date.localeCompare(b.date));
+};
+
+// A cancellation can appear in the capital history and transaction feed; count it once.
+export const getShareCancellations = (buybackData = []) => {
+  const uniqueRows = new Map();
+  const rows = [
+    ...shareCapitalChanges.map((change) => ({ date: change.date, shares: change.cancelledShares })),
+    ...(Array.isArray(buybackData) ? buybackData : [])
+      .filter((row) => Number(row?.Antal_aktier) < 0)
+      .map((row) => ({ date: row.Datum, shares: -Number(row.Antal_aktier) })),
+  ];
+  for (const row of rows) {
+    const date = normalizeDate(row.date);
+    const shares = toFiniteNumber(row.shares);
+    if (!date || !Number.isSafeInteger(shares) || shares <= 0) continue;
+    uniqueRows.set(`${date}:${shares}`, { date, shares });
+  }
+  return [...uniqueRows.values()].sort((a, b) => a.date.localeCompare(b.date));
+};
+
+export const calculateTreasuryShares = ({
+  buybackData = [],
+  programStartDate = CURRENT_BUYBACK_MANDATE_START_DATE,
+} = {}) => {
+  const startDate = normalizeDate(programStartDate);
+  if (!startDate) return 0;
+  const bought = normalizeBuybackExecutions(buybackData)
+    .filter((row) => row.date >= startDate)
+    .reduce((sum, row) => sum + row.shares, 0);
+  const cancelled = getShareCancellations(buybackData)
+    .filter((row) => row.date >= startDate)
+    .reduce((sum, row) => sum + row.shares, 0);
+  return Math.max(bought - cancelled, 0);
 };
 
 const sumRows = (rows) =>

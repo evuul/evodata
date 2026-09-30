@@ -1,6 +1,9 @@
 // Shared constants and utilities for StockBuybackInfo
 
-// Totala aktier över tid (utan att ta hänsyn till indragningar)
+import { shareCapitalChanges } from "../../app/data/shareCapital.js";
+import { getShareCancellations } from "../../lib/buybackMandate.js";
+
+// Registrerade aktier per år, inklusive genomförda indragningar.
 export const totalSharesData = [
   { date: "2019", totalShares: 181622725 },
   { date: "2020", totalShares: 183927915 },
@@ -9,8 +12,21 @@ export const totalSharesData = [
   { date: "2023", totalShares: 213566498 },
   { date: "2024", totalShares: 209562751 },
   { date: "2025", totalShares: 204462162 },
-  { date: "2026", totalShares: 199226613 },
+  { date: "2026", totalShares: shareCapitalChanges.at(-1).totalShares },
 ];
+
+export const getTotalSharesForDate = (dateStr) => {
+  const date = String(dateStr ?? "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T00:00:00Z`))) {
+    return totalSharesData.at(-1)?.totalShares ?? null;
+  }
+  const change = shareCapitalChanges.find((entry) => date < entry.date && date.slice(0, 4) === entry.date.slice(0, 4));
+  if (change) return change.previousTotalShares;
+  const latestChange = shareCapitalChanges.filter((entry) => entry.date <= date).at(-1);
+  if (latestChange) return latestChange.totalShares;
+  return totalSharesData.filter((entry) => entry.date <= date.slice(0, 4)).at(-1)?.totalShares
+    ?? totalSharesData.at(-1)?.totalShares ?? null;
+};
 
 export const calculateEvolutionOwnershipPerYear = (data) => {
   const ownershipByYear = {};
@@ -26,19 +42,19 @@ export const calculateEvolutionOwnershipPerYear = (data) => {
 };
 
 export const calculateCancelledShares = (data) =>
-  data.filter((item) => item.Antal_aktier < 0).reduce((sum, item) => sum + Math.abs(item.Antal_aktier), 0);
+  getShareCancellations(data).reduce((sum, row) => sum + row.shares, 0);
 
 export const calculateShareholderReturns = (dividendData, buybackData) => {
   const dividendsByYear = {};
   (dividendData.historicalDividends || []).forEach((dividend) => {
     const year = new Date(dividend.date).getFullYear();
-    const totalSharesForYear = totalSharesData.find((s) => s.date === String(year))?.totalShares || 0;
+    const totalSharesForYear = getTotalSharesForDate(dividend.date) || 0;
     const totalDividend = (dividend.dividendPerShare || 0) * totalSharesForYear;
     dividendsByYear[year] = (dividendsByYear[year] || 0) + totalDividend;
   });
   (dividendData.plannedDividends || []).forEach((planned) => {
     const year = new Date(planned.exDate).getFullYear();
-    const totalSharesForYear = totalSharesData.find((s) => s.date === String(year))?.totalShares || 0;
+    const totalSharesForYear = getTotalSharesForDate(planned.exDate) || 0;
     const totalDividend = (planned.dividendPerShare || 0) * totalSharesForYear;
     dividendsByYear[year] = (dividendsByYear[year] || 0) + totalDividend;
   });

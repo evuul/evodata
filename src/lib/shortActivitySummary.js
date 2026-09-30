@@ -1,24 +1,8 @@
 // Helpers for the short activity summary and current short-interest resolution.
 
-import { totalSharesData } from "../Components/buybacks/utils.js";
+import { getTotalSharesForDate } from "../Components/buybacks/utils.js";
 import { EVO_LEI } from "./fiShortRegister.js";
 import { resolveFiShortSnapshot } from "./fiShortSnapshot.js";
-
-function getTotalSharesForDate(dateStr) {
-  const year = Number.parseInt(String(dateStr).slice(0, 4), 10);
-  if (!Number.isFinite(year)) {
-    return totalSharesData[totalSharesData.length - 1]?.totalShares ?? null;
-  }
-  let candidate = null;
-  for (const entry of totalSharesData) {
-    const entryYear = Number.parseInt(entry.date, 10);
-    if (!Number.isFinite(entryYear)) continue;
-    if (entryYear <= year) {
-      candidate = entry.totalShares;
-    }
-  }
-  return candidate ?? totalSharesData[totalSharesData.length - 1]?.totalShares ?? null;
-}
 
 export function buildDaysToCoverEstimate(shortHistory, tradingDates, totalVolume, latestTrading, currentShortContext = null) {
   const latestShort = Array.isArray(shortHistory) && shortHistory.length ? shortHistory[shortHistory.length - 1] : null;

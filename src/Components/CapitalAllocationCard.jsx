@@ -14,13 +14,13 @@ import { useStockPriceContext } from "@/context/StockPriceContext";
 import { useFxRateContext } from "@/context/FxRateContext";
 import { useTranslate } from "@/context/LocaleContext";
 import { findLatestReport, sortReports } from "@/lib/reportUtils";
-import { calculateEvolutionOwnershipPerYear, totalSharesData } from "./buybacks/utils";
+import { totalSharesData } from "./buybacks/utils";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
+import { calculateTreasuryShares, CURRENT_BUYBACK_MANDATE_START_DATE } from "@/lib/buybackMandate";
 import { useBuybackData } from "./useBuybackData";
 
 const DEFAULT_MANDATE_SEK = Number(process.env.NEXT_PUBLIC_BUYBACK_MANDATE_SEK) || null;
 const BUYBACKS_ACTIVE = process.env.NEXT_PUBLIC_BUYBACKS_ACTIVE !== "0";
-const CURRENT_BUYBACK_MANDATE_START_DATE = "2026-05-18";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const formatPct = (value) =>
@@ -44,9 +44,10 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     }
     return null;
   }, [buybackResponse]);
-  const effectiveBuybackData = Array.isArray(remoteBuybackData)
-    ? remoteBuybackData
-    : (Array.isArray(buybackData) ? buybackData : []);
+  const effectiveBuybackData = useMemo(
+    () => Array.isArray(remoteBuybackData) ? remoteBuybackData : (Array.isArray(buybackData) ? buybackData : []),
+    [remoteBuybackData, buybackData]
+  );
 
   const { latestDividend, ttmEps, ttmOcf, latestReport } = useMemo(() => {
     const reports = sortReports(financialReports?.financialReports || []);
@@ -88,38 +89,19 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     return { last12mBuybacksSek: total || null };
   }, [effectiveBuybackData]);
   const currentMandateRows = useMemo(
-    () =>
-      effectiveBuybackData.filter(
-        (row) => row?.Datum && row.Datum >= CURRENT_BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0
-      ),
+    () => effectiveBuybackData.filter(
+      (row) => row?.Datum >= CURRENT_BUYBACK_MANDATE_START_DATE && Number(row?.Antal_aktier) > 0
+    ),
     [effectiveBuybackData]
   );
-  const currentMandateShares = useMemo(
-    () => currentMandateRows.reduce((sum, row) => sum + (Number(row?.Antal_aktier) || 0), 0),
-    [currentMandateRows]
+  const treasuryShares = useMemo(
+    () => calculateTreasuryShares({ buybackData: effectiveBuybackData }),
+    [effectiveBuybackData]
   );
-  const evolutionOwnershipData = useMemo(() => calculateEvolutionOwnershipPerYear(effectiveBuybackData), [effectiveBuybackData]);
-  const latestEvolutionShares = useMemo(
-    () => (evolutionOwnershipData.length ? evolutionOwnershipData[evolutionOwnershipData.length - 1].shares : null),
-    [evolutionOwnershipData]
+  const sharesExOwnership = useMemo(
+    () => Number.isFinite(sharesOutstanding) ? Math.max(sharesOutstanding - treasuryShares, 0) : null,
+    [sharesOutstanding, treasuryShares]
   );
-  const ownershipFromApi = useMemo(() => {
-    if (!remoteBuybackData) return null;
-    const ownership = calculateEvolutionOwnershipPerYear(remoteBuybackData);
-    const latest = ownership.length ? ownership[ownership.length - 1].shares : null;
-    return Number.isFinite(latest) ? latest : null;
-  }, [remoteBuybackData]);
-  const sharesExOwnership = useMemo(() => {
-    if (!Number.isFinite(sharesOutstanding)) return null;
-    const owned = currentMandateShares > 0
-      ? currentMandateShares
-      : Number.isFinite(ownershipFromApi)
-      ? ownershipFromApi
-      : Number.isFinite(latestEvolutionShares)
-      ? latestEvolutionShares
-      : 0;
-    return Math.max(sharesOutstanding - owned, 0);
-  }, [sharesOutstanding, currentMandateShares, latestEvolutionShares, ownershipFromApi]);
 
   const inferredMarketCap = useMemo(() => {
     if (Number.isFinite(marketCap)) return marketCap;
@@ -173,7 +155,7 @@ export default function CapitalAllocationCard({ dividendData, buybackData, finan
     }
     if (!Number.isFinite(DEFAULT_MANDATE_SEK)) return null;
     return Math.max(DEFAULT_MANDATE_SEK - spent, 0);
-  }, [buybackBudgetSek, currentMandateRows, DEFAULT_MANDATE_SEK]);
+  }, [buybackBudgetSek, currentMandateRows]);
 
   const latestQuarterLabel = latestReport ? `${latestReport.year} ${latestReport.quarter}` : "–";
   return (
