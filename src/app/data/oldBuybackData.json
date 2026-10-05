@@ -12,11 +12,11 @@
     "Snittkurs": 320.43
   },
   {
-    "Datum": "2021-06-01",
+    "Datum": "2020-07-01",
     "Antal_aktier": -338000,
     "Snittkurs": 0,
     "Transaktionsvärde": 0,
-    "Kommentar": "Indragning av återköpta aktier enligt årsstämmans beslut 2021"
+    "Kommentar": "Indragning av 338 000 aktier registrerad 1 juli 2020 enligt erbjudandehandlingen för NetEnt"
   },
   {
     "Datum": "2021-12-06",
@@ -165,9 +165,10 @@
   {
     "Datum": "2023-06-01",
     "Antal_aktier": -199333,
+    "transactionType": "transfer",
     "Snittkurs": 0,
     "Transaktionsvärde": 0,
-    "Kommentar": "Indragning av återköpta aktier enligt årsstämmans beslut 2023"
+    "Kommentar": "Överlåtelse av egna aktier som tilläggsköpeskilling till BTG:s säljare enligt årsredovisningen 2023"
   },
   {
     "Datum": "2023-11-27",

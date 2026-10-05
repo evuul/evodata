@@ -45,9 +45,13 @@ test("uses Evolution's reported treasury-share snapshot as the current holding",
   const latestBuybackDate = buybacks.at(-1).Datum;
   const snapshot = treasuryShareSnapshots.at(-1);
 
-  assert.deepEqual(snapshot, { date: "2026-10-02", shares: 17_157_092 });
+  assert.deepEqual(snapshot, { date: "2026-10-02", shares: 957_092 });
   assert.equal(latestBuybackDate, snapshot.date);
   assert.equal(calculateTreasuryShares({ buybackData: buybacks }), snapshot.shares);
+  const bought = buybacks.filter((row) => row.Datum >= "2026-05-19")
+    .reduce((sum, row) => sum + row.Antal_aktier, 0);
+  assert.equal(bought - change.cancelledShares, snapshot.shares);
+  assert.equal(change.totalShares - snapshot.shares, 182_101_029);
 });
 
 test("applies only post-snapshot transactions to Evolution's reported holding", () => {
@@ -57,7 +61,31 @@ test("applies only post-snapshot transactions to Evolution's reported holding", 
     { Datum: "2026-10-06", Antal_aktier: -50, Transaktionsvärde: 0 },
   ];
 
-  assert.equal(calculateTreasuryShares({ buybackData: afterSnapshot }), 17_157_142);
+  assert.equal(calculateTreasuryShares({ buybackData: afterSnapshot }), 957_142);
+});
+
+test("historical cancellations exclude the BTG treasury transfer", () => {
+  const historicalBuybacks = readData("oldBuybackData");
+  const cancellations = getShareCancellations(historicalBuybacks);
+  assert.equal(calculateCancelledShares(historicalBuybacks), 33_678_586);
+  assert.equal(cancellations.some((row) => row.shares === 199_333), false);
+  assert.ok(cancellations.some((row) => row.date === "2020-07-01" && row.shares === 338_000));
+});
+
+test("registered share history uses year-end totals rather than EPS averages", () => {
+  assert.deepEqual(totalSharesData.slice(1, 6), [
+    { date: "2020", totalShares: 212_327_008 },
+    { date: "2021", totalShares: 215_111_115 },
+    { date: "2022", totalShares: 215_111_115 },
+    { date: "2023", totalShares: 215_604_777 },
+    { date: "2024", totalShares: 211_833_204 },
+  ]);
+});
+
+test("fallback treasury holdings include executions on the program start date", () => {
+  assert.equal(calculateTreasuryShares({ programStartDate: "2027-01-01", buybackData: [
+    { Datum: "2027-01-01", Antal_aktier: 100, Transaktionsvärde: 1_000 },
+  ] }), 100);
 });
 
 test("capital and transaction disclosures of the same cancellation are counted once", () => {

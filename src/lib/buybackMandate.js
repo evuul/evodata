@@ -61,13 +61,13 @@ export const normalizeBuybackExecutions = (buybackData = []) => {
   return [...uniqueRows.values()].sort((a, b) => a.date.localeCompare(b.date));
 };
 
-// A cancellation can appear in the capital history and transaction feed; count it once.
+// Treasury transfers do not retire shares; count duplicate cancellation disclosures once.
 export const getShareCancellations = (buybackData = []) => {
   const uniqueRows = new Map();
   const rows = [
     ...shareCapitalChanges.map((change) => ({ date: change.date, shares: change.cancelledShares })),
     ...(Array.isArray(buybackData) ? buybackData : [])
-      .filter((row) => Number(row?.Antal_aktier) < 0)
+      .filter((row) => Number(row?.Antal_aktier) < 0 && row?.transactionType !== "transfer")
       .map((row) => ({ date: row.Datum, shares: -Number(row.Antal_aktier) })),
   ];
   for (const row of rows) {
@@ -94,10 +94,10 @@ export const calculateTreasuryShares = ({
     .at(-1);
   const baselineDate = snapshot?.date ?? startDate;
   const bought = executions
-    .filter((row) => row.date > baselineDate)
+    .filter((row) => snapshot ? row.date > baselineDate : row.date >= baselineDate)
     .reduce((sum, row) => sum + row.shares, 0);
   const cancelled = getShareCancellations(buybackData)
-    .filter((row) => row.date > baselineDate)
+    .filter((row) => snapshot ? row.date > baselineDate : row.date >= baselineDate)
     .reduce((sum, row) => sum + row.shares, 0);
   return Math.max((snapshot?.shares ?? 0) + bought - cancelled, 0);
 };

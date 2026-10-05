@@ -1,4 +1,5 @@
 "use client";
+// Presents registered share counts, treasury holdings and cumulative cancellations.
 import React, { useId } from "react";
 import {
   Box,
@@ -169,13 +170,13 @@ const TotalSharesView = ({
           }}
         >
           <Typography variant="subtitle2" sx={{ color: COLORS.textSecondary }}>
-            {translate("Makulerade aktier", "Cancelled shares")}
+            {translate("Makulerade aktier totalt", "Cancelled shares in total")}
           </Typography>
           <Typography variant="h5" sx={{ color: COLORS.textPrimary, fontWeight: 700 }}>
             {Number.isFinite(cancelledShares) ? cancelledShares.toLocaleString("sv-SE") : "–"}
           </Typography>
           <Typography variant="caption" sx={{ color: COLORS.textSecondary }}>
-            {translate("Totalt indragna sedan programstart", "Total retired since program start")}
+            {translate("Historiska indragningar sedan 2020", "Historical cancellations since 2020")}
           </Typography>
         </Box>
       </Stack>

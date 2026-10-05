@@ -6,11 +6,11 @@ import { getShareCancellations } from "../../lib/buybackMandate.js";
 // Registrerade aktier per år, inklusive genomförda indragningar.
 export const totalSharesData = [
   { date: "2019", totalShares: 181622725 },
-  { date: "2020", totalShares: 183927915 },
+  { date: "2020", totalShares: 212327008 },
   { date: "2021", totalShares: 215111115 },
-  { date: "2022", totalShares: 213771346 },
-  { date: "2023", totalShares: 213566498 },
-  { date: "2024", totalShares: 209562751 },
+  { date: "2022", totalShares: 215111115 },
+  { date: "2023", totalShares: 215604777 },
+  { date: "2024", totalShares: 211833204 },
   { date: "2025", totalShares: 204462162 },
   { date: "2026", totalShares: shareCapitalChanges.at(-1).totalShares },
 ];
