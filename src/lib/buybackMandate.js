@@ -1,6 +1,6 @@
 // Normalizes buyback execution and share-count changes for valuation models.
 
-import { shareCapitalChanges } from "../app/data/shareCapital.js";
+import { shareCapitalChanges, treasuryShareSnapshots } from "../app/data/shareCapital.js";
 
 export const DEFAULT_BUYBACK_MANDATE_CASH_EUR = 2_000_000_000;
 export const CURRENT_BUYBACK_MANDATE_START_DATE = "2026-05-18";
@@ -85,13 +85,21 @@ export const calculateTreasuryShares = ({
 } = {}) => {
   const startDate = normalizeDate(programStartDate);
   if (!startDate) return 0;
-  const bought = normalizeBuybackExecutions(buybackData)
-    .filter((row) => row.date >= startDate)
+  const executions = normalizeBuybackExecutions(buybackData)
+    .filter((row) => row.date >= startDate);
+  const latestExecutionDate = executions.at(-1)?.date;
+  const snapshot = treasuryShareSnapshots
+    .filter((row) => row.date >= startDate && row.date <= latestExecutionDate)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .at(-1);
+  const baselineDate = snapshot?.date ?? startDate;
+  const bought = executions
+    .filter((row) => row.date > baselineDate)
     .reduce((sum, row) => sum + row.shares, 0);
   const cancelled = getShareCancellations(buybackData)
-    .filter((row) => row.date >= startDate)
+    .filter((row) => row.date > baselineDate)
     .reduce((sum, row) => sum + row.shares, 0);
-  return Math.max(bought - cancelled, 0);
+  return Math.max((snapshot?.shares ?? 0) + bought - cancelled, 0);
 };
 
 const sumRows = (rows) =>

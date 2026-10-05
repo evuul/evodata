@@ -8,3 +8,7 @@ export const shareCapitalChanges = Object.freeze([
     cancelledShares: 16_168_492,
   }),
 ]);
+
+export const treasuryShareSnapshots = Object.freeze([
+  Object.freeze({ date: "2026-10-02", shares: 17_157_092 }),
+]);
