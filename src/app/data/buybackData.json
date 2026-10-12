@@ -2006,5 +2006,45 @@
     "Snittkurs": 801.401,
     "Dagsvolym": 0,
     "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-10-05",
+    "Antal_aktier": 84090,
+    "Transaktionsvärde": 67991162.91,
+    "Snittkurs": 808.5523,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-10-06",
+    "Antal_aktier": 83237,
+    "Transaktionsvärde": 68188765.89,
+    "Snittkurs": 819.2122,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-10-07",
+    "Antal_aktier": 85000,
+    "Transaktionsvärde": 69126207.5,
+    "Snittkurs": 813.2495,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-10-08",
+    "Antal_aktier": 100000,
+    "Transaktionsvärde": 80915000,
+    "Snittkurs": 809.15,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
+  },
+  {
+    "Datum": "2026-10-09",
+    "Antal_aktier": 95000,
+    "Transaktionsvärde": 77277313,
+    "Snittkurs": 813.4454,
+    "Dagsvolym": 0,
+    "Procent_dagsvolym": 0
   }
 ]

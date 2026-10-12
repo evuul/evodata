@@ -45,23 +45,23 @@ test("uses Evolution's reported treasury-share snapshot as the current holding",
   const latestBuybackDate = buybacks.at(-1).Datum;
   const snapshot = treasuryShareSnapshots.at(-1);
 
-  assert.deepEqual(snapshot, { date: "2026-10-02", shares: 957_092 });
+  assert.deepEqual(snapshot, { date: "2026-10-09", shares: 1_404_419 });
   assert.equal(latestBuybackDate, snapshot.date);
   assert.equal(calculateTreasuryShares({ buybackData: buybacks }), snapshot.shares);
   const bought = buybacks.filter((row) => row.Datum >= "2026-05-19")
     .reduce((sum, row) => sum + row.Antal_aktier, 0);
   assert.equal(bought - change.cancelledShares, snapshot.shares);
-  assert.equal(change.totalShares - snapshot.shares, 182_101_029);
+  assert.equal(change.totalShares - snapshot.shares, 181_653_702);
 });
 
 test("applies only post-snapshot transactions to Evolution's reported holding", () => {
   const afterSnapshot = [
     ...buybacks,
-    { Datum: "2026-10-05", Antal_aktier: 100, Transaktionsvärde: 80_000 },
-    { Datum: "2026-10-06", Antal_aktier: -50, Transaktionsvärde: 0 },
+    { Datum: "2026-10-12", Antal_aktier: 100, Transaktionsvärde: 80_000 },
+    { Datum: "2026-10-13", Antal_aktier: -50, Transaktionsvärde: 0 },
   ];
 
-  assert.equal(calculateTreasuryShares({ buybackData: afterSnapshot }), 957_142);
+  assert.equal(calculateTreasuryShares({ buybackData: afterSnapshot }), 1_404_469);
 });
 
 test("historical cancellations exclude the BTG treasury transfer", () => {
