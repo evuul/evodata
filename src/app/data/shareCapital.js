@@ -13,4 +13,5 @@ export const treasuryShareSnapshots = Object.freeze([
   // Evolution's 5 October disclosure reports the holding after the September cancellation.
   Object.freeze({ date: "2026-10-02", shares: 957_092 }),
   Object.freeze({ date: "2026-10-09", shares: 1_404_419 }),
+  Object.freeze({ date: "2026-10-16", shares: 1_906_627 }),
 ]);
