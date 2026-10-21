@@ -36,12 +36,13 @@ import { readStoredJson, removeStoredValue, writeStoredJson } from '@/lib/client
 import { useBuybackData } from './useBuybackData';
 import { fetchFinancialReportsShared } from '@/lib/marketDataClient';
 import ValuationScenarioWorkshop from './ValuationScenarioWorkshop';
+import ValuationModelDetails from './ValuationModelDetails';
 
 const currency0 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 });
 const currency2 = new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const number1 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 1 });
 const number2 = new Intl.NumberFormat('sv-SE', { maximumFractionDigits: 2 });
-const CUSTOM_SCENARIO_STORAGE_KEY = 'evodata.valuation.custom-scenario.v1';
+const CUSTOM_SCENARIO_STORAGE_KEY = 'evodata.valuation.custom-scenario.v3';
 
 const SCENARIO_STYLE = {
   fair: { color: '#22c55e', Icon: InsightsIcon, sv: 'Bas', en: 'Base' },
@@ -56,9 +57,16 @@ const WARNING_LABELS = {
   non_consecutive_quarters: ['Kvartalsserien innehåller luckor', 'The quarterly series contains gaps'],
   not_enough_reports: ['Minst åtta sammanhängande kvartal krävs', 'Eight consecutive quarters are required'],
   invalid_fx: ['Giltig EUR/SEK-kurs saknas', 'A valid EUR/SEK rate is missing'],
-  missing_shares: ['Aktiesnapshot saknas; återköp påverkar inte EPS', 'Share snapshot missing; buybacks do not affect EPS'],
+  missing_shares: ['Giltigt aktuellt aktieantal saknas', 'A valid current outstanding share count is missing'],
   missing_buyback_data: ['Genomförda återköp saknas', 'Executed buybacks are missing'],
   buybacks_exceed_reported_cash: ['Återköp efter rapporten överstiger rapporterad kassa', 'Post-report buybacks exceed reported cash'],
+  invalid_latest_report: ['Senaste rapporten är ofullständig; äldre kvartal ersätter den inte', 'The latest report is incomplete; older quarters cannot replace it'],
+  missing_cash_flow_inputs: ['Verifierat kassaflödesunderlag saknas för senaste fyra kvartalen', 'Verified cash-flow inputs are missing for the latest four quarters'],
+  missing_balance_inputs: ['Underlag för kassa och åtaganden saknas', 'Cash and liability inputs are missing'],
+  unsupported_financial_debt: ['Modellen kräver separat skuldmodellering för räntebärande lån', 'Interest-bearing loans require separate debt modelling'],
+  non_positive_cash_flow: ['Kassaflödet kan inte värderas med den här modellen', 'Cash flow cannot be valued with this model'],
+  unpriced_buybacks: ['Återköp utan verifierat belopp finns; inget kassatillägg ges', 'Buybacks with unverified spend exist; no cash bonus is included'],
+  cash_below_reserve: ['Rapportkassan minus kända återköp understiger modellens reserver; nyare operativt kassaflöde ingår inte', 'Reported cash less known buybacks is below model reserves; newer operating cash flow is excluded'],
   scenario_ordering: ['Scenarioordningen behöver granskas', 'Scenario ordering needs review'],
 };
 
@@ -91,11 +99,11 @@ const formatSekBillions = (value, suffix = 'md SEK') =>
 const formatSek0 = (value) => Number.isFinite(value) ? currency0.format(value) : '–';
 const formatSek2 = (value) => Number.isFinite(value) ? currency2.format(value) : '–';
 
-function MetricCard({ label, value, helper, color = '#e2e8f0', sx = {} }) {
+function MetricCard({ label, value, helper, color = '#e2e8f0', sx = {}, testId }) {
   return (
     <Box sx={{ ...panelSx, p: 2, height: '100%', ...sx }}>
       <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.82)' }}>{label}</Typography>
-      <Typography variant="h6" sx={{ color, fontWeight: 800, mt: 0.35 }}>{value}</Typography>
+      <Typography data-testid={testId} variant="h6" sx={{ color, fontWeight: 800, mt: 0.35 }}>{value}</Typography>
       {helper && <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.68)', display: 'block', mt: 0.45 }}>{helper}</Typography>}
     </Box>
   );
@@ -133,14 +141,14 @@ function ScenarioCard({ scenario, selected, onSelect, translate }) {
       </Stack>
       <Typography variant="h5" sx={{ color: '#f8fafc', fontWeight: 850, mt: 1.1 }}>{formatSek0(scenario.impliedPriceSEK)}</Typography>
       <Typography variant="body2" sx={{ color: scenario.upsidePct >= 0 ? '#86efac' : '#fca5a5', fontWeight: 700, mt: 0.2 }}>{formatPercent(scenario.upsidePct)} {translate('mot kurs', 'vs price')}</Typography>
-      <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)', display: 'block', mt: 0.6 }}>{number2.format(scenario.pe)}x P/E · {number1.format(scenario.discountRate * 100)}% WACC</Typography>
+      <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)', display: 'block', mt: 0.6 }}>{number2.format(scenario.pe)}x P/E · {number1.format(scenario.discountRate * 100)}% {translate('avkastningskrav', 'cost of equity')}</Typography>
     </Box>
   );
 }
 
 function VerifiedBuybacksPanel({ buyback, translate }) {
   const executionStartDate = buyback?.executionStartDate ?? buyback?.mandateStartDate ?? '–';
-  const snapshotDate = buyback?.snapshotDate ?? buyback?.cashSnapshotDate ?? '–';
+  const snapshotDate = buyback?.cashSnapshotDate ?? buyback?.snapshotDate ?? '–';
 
   return (
     <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}>
@@ -230,10 +238,10 @@ function VerifiedBuybacksPanel({ buyback, translate }) {
           </Box>
           <Box>
             <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)' }}>
-              {translate('EPS-effekt', 'EPS effect')}
+              {translate('Minskning sedan aktiesnapshot', 'Reduction since share snapshot')}
             </Typography>
             <Typography sx={{ color: '#86efac', fontWeight: 750 }}>
-              {formatPercent((buyback?.executedEpsBoost ?? 0) * 100)}
+              {formatPercent((buyback?.executedShareReduction ?? 0) * 100)}
             </Typography>
           </Box>
         </Box>
@@ -244,8 +252,8 @@ function VerifiedBuybacksPanel({ buyback, translate }) {
         sx={{ color: 'rgba(148,163,184,0.7)', display: 'block', mt: 1 }}
       >
         {translate(
-          'Endast verifierade återköp efter rapportsnapshoten påverkar värderingen; outnyttjat mandat räknas inte in.',
-          'Only verified buybacks after the report snapshot affect valuation; unused authorization is excluded.'
+          'Bolagets kassaflöde och vinst delas med aktuellt aktieantal. Kända återköp efter kassans rapportdatum dras från kassan. Outnyttjat mandat räknas inte in.',
+          'Company cash flow and earnings are divided by current outstanding shares. Known buybacks after the cash report date reduce cash. Unused authorization is excluded.'
         )}
       </Typography>
     </Box>
@@ -344,11 +352,11 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
         <Stack spacing={1.1} alignItems="center" textAlign="center">
           <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap">
             <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ color: '#f8fafc', fontWeight: 800 }}>{translate('Fair value-modell', 'Fair value model')}</Typography>
-            <Chip size="small" icon={<InsightsIcon sx={{ color: '#bae6fd !important' }} />} label={translate('Modell v2', 'Model v2')} sx={{ color: '#bae6fd', bgcolor: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)' }} />
+            <Chip size="small" icon={<InsightsIcon sx={{ color: '#bae6fd !important' }} />} label={translate('Modell v3 · FCFE', 'Model v3 · FCFE')} sx={{ color: '#bae6fd', bgcolor: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.3)' }} />
             {fairValue.latestLabel && <Chip size="small" label={translate(`Rapport ${fairValue.latestLabel}`, `Report ${fairValue.latestLabel}`)} sx={{ color: '#cbd5e1', bgcolor: 'rgba(148,163,184,0.1)' }} />}
           </Stack>
           <Typography variant="body2" sx={{ color: 'rgba(203,213,225,0.72)', maxWidth: 680 }}>
-            {translate('Driverbaserad värdering med DCF, forward P/E och verifierade återköp.', 'Driver-based valuation using DCF, forward P/E, and verified buybacks.')}
+            {translate('Bolagsbaserade kassaflöden och vinster värderas per aktuell utestående aktie. Avkastningskravet avser eget kapital i EUR.', 'Company-level cash flows and earnings are valued per current outstanding share. The discount rate is the required EUR equity return.')}
           </Typography>
           <Stack direction="row" spacing={0.8} flexWrap="wrap" justifyContent="center">
             <Chip size="small" icon={<CurrencyExchangeIcon sx={{ color: '#c4b5fd !important' }} />} label={`${fxPair} ${Number.isFinite(fx) ? number2.format(fx) : '–'}`} sx={{ color: '#ddd6fe', bgcolor: 'rgba(139,92,246,0.12)' }} />
@@ -358,7 +366,7 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
         </Stack>
 
         {dataUnavailable ? (
-          <Box sx={{ ...panelSx, p: 3 }}><Stack direction="row" spacing={1} alignItems="center"><WarningAmberRoundedIcon sx={{ color: '#fbbf24' }} /><Typography sx={{ color: '#e2e8f0' }}>{translate('Modellen kan inte beräknas. Kontrollera EUR/SEK och åtta sammanhängande kvartal.', 'The model cannot be calculated. Check EUR/SEK and eight consecutive quarters.')}</Typography></Stack></Box>
+          <Box sx={{ ...panelSx, p: 3 }}><Stack direction="row" spacing={1} alignItems="center"><WarningAmberRoundedIcon sx={{ color: '#fbbf24' }} /><Typography sx={{ color: '#e2e8f0' }}>{translate('Modellen kan inte beräknas. Kontrollera EUR/SEK, aktieantal och rapporternas kassaflödesunderlag.', 'The model cannot be calculated. Check EUR/SEK, share count and reported cash-flow inputs.')}</Typography></Stack></Box>
         ) : (
           <>
             <ToggleButtonGroup value={scenarioId} exclusive onChange={handleScenarioChange} size="small" sx={{ alignSelf: 'center', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 1, '& .MuiToggleButtonGroup-grouped': { border: '1px solid rgba(148,163,184,0.24) !important' } }}>
@@ -374,11 +382,12 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
                   <Stack direction="row" spacing={0.7} justifyContent="center" alignItems="center"><activeStyle.Icon sx={{ color: activeStyle.color }} /><Typography variant="subtitle2" sx={{ color: activeStyle.color, fontWeight: 750 }}>{translate(activeStyle.sv, activeStyle.en)} · Fair value</Typography></Stack>
                   <Typography variant="h3" sx={{ color: '#f8fafc', fontWeight: 850, mt: 0.55 }}>{formatSek0(activeScenario?.impliedPriceSEK)}</Typography>
                   <Typography sx={{ color: activeScenario?.upsidePct >= 0 ? '#86efac' : '#fca5a5', fontWeight: 750 }}>{formatPercent(activeScenario?.upsidePct)} {translate('mot kurs', 'vs price')}</Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.75)', display: 'block', mt: 0.55 }}>{translate(`Intervall ${rangeLabel}`, `Range ${rangeLabel}`)}</Typography>
+                  <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block', mt: 0.55 }}>{translate(`Scenariointervall ${rangeLabel}`, `Scenario range ${rangeLabel}`)}</Typography>
+                  <Typography sx={{ color: '#cbd5e1', fontSize: 12 }}>{translate('Bear–Bas–Bull är scenarier, inte ett statistiskt konfidensintervall.', 'Bear–Base–Bull are scenarios, not a statistical confidence interval.')}</Typography>
                 </Box>
               </Box>
               <Box>
-                <MetricCard label={translate('Antaganden', 'Assumptions')} value={translate(`${formatPercent(activeScenario?.growth * 100)} tillväxt`, `${formatPercent(activeScenario?.growth * 100)} growth`)} helper={translate(`${number1.format(activeScenario?.margin)}% marginal · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% WACC`, `${number1.format(activeScenario?.margin)}% margin · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% WACC`)} />
+                <MetricCard label={translate('Antaganden', 'Assumptions')} value={translate(`${formatPercent(activeScenario?.growth * 100)} tillväxt`, `${formatPercent(activeScenario?.growth * 100)} growth`)} helper={translate(`${number1.format(activeScenario?.margin)}% marginal · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% ${translate('avkastningskrav', 'cost of equity')}`, `${number1.format(activeScenario?.margin)}% margin · ${number2.format(activeScenario?.pe)}x P/E · ${number1.format(activeScenario?.discountRate * 100)}% ${translate('avkastningskrav', 'cost of equity')}`)} />
               </Box>
             </Box>
 
@@ -403,18 +412,19 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
                 <Typography variant="h6" sx={{ color: activeStyle.color, fontWeight: 800 }}>{selectedValueLabel}</Typography>
               </Stack>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, minmax(0, 1fr))' }, gap: 1.5, mt: 0.2, maxWidth: 760, mx: 'auto' }}>
-                <MetricCard label="Owner earnings-DCF" value={formatSek0(activeScenario?.dcfValueSEK)} helper={`${number1.format(activeScenario?.discountRate * 100)}% WACC · ${number1.format(activeScenario?.terminalGrowth * 100)}% terminal`} color="#a7f3d0" />
-                <MetricCard label="Forward P/E" value={formatSek0(activeScenario?.peValueSEK)} helper={`${number2.format(activeScenario?.pe)}x · EPS ${formatSek2(activeScenario?.fwdEpsSEK)}`} color="#bae6fd" />
+                <MetricCard testId="dcf-value" label="FCFE-DCF" value={formatSek0(activeScenario?.dcfValueSEK)} helper={`${number1.format(activeScenario?.discountRate * 100)}% ${translate('avkastningskrav', 'cost of equity')} · ${number1.format(activeScenario?.terminalGrowth * 100)}% terminal`} color="#a7f3d0" />
+                <MetricCard label="Forward P/E" value={formatSek0(activeScenario?.peValueSEK)} helper={`${number2.format(activeScenario?.pe)}x · EPS ${formatSek2(activeScenario?.fwdEpsSEK)} + ${translate('överskottskassa', 'excess cash')}`} color="#bae6fd" />
                 <MetricCard label={translate('Sammanvägt', 'Blended')} value={formatSek0(activeScenario?.impliedPriceSEK)} helper={translate('55% DCF · 45% P/E', '55% DCF · 45% P/E')} color={activeStyle.color} />
               </Box>
             </Box>
 
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}>
               <VerifiedBuybacksPanel buyback={buyback} translate={translate} />
-              <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('DCF-känslighet', 'DCF sensitivity')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>{translate('WACC rader · terminal tillväxt kolumner', 'WACC rows · terminal growth columns')}</Typography><Box sx={{ display: 'grid', gridTemplateColumns: '54px repeat(3, 1fr)', gap: 0.5, mt: 1.2 }}><Box />{fairValue.sensitivity.terminalGrowthRates.map((rate) => <Typography key={rate} variant="caption" sx={{ textAlign: 'center', color: '#94a3b8' }}>{number1.format(rate * 100)}%</Typography>)}{fairValue.sensitivity.discountRates.flatMap((rate, rowIndex) => [<Typography key={`r-${rate}`} variant="caption" sx={{ color: '#94a3b8', alignSelf: 'center' }}>{number1.format(rate * 100)}%</Typography>, ...fairValue.sensitivity.values[rowIndex].map((value, columnIndex) => <Box key={`${rate}-${columnIndex}`} sx={{ py: 0.7, textAlign: 'center', borderRadius: '8px', bgcolor: rate === 0.1 && columnIndex === 1 ? 'rgba(34,197,94,0.16)' : 'rgba(30,41,59,0.7)' }}><Typography variant="caption" sx={{ color: '#e2e8f0', fontWeight: 700 }}>{formatSek0(value)}</Typography></Box>),])}</Box></Box>
+              <Box sx={{ ...panelSx, p: { xs: 1.7, sm: 2.2 }, minWidth: 0 }}><Typography variant="subtitle1" sx={{ color: '#f8fafc', fontWeight: 750 }}>{translate('DCF-känslighet', 'DCF sensitivity')}</Typography><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.7)' }}>{translate('Avkastningskrav rader · terminal tillväxt kolumner', 'Cost of equity rows · terminal growth columns')}</Typography><Box sx={{ display: 'grid', gridTemplateColumns: '54px repeat(3, 1fr)', gap: 0.5, mt: 1.2 }}><Box />{activeScenario.sensitivity.terminalGrowthRates.map((rate) => <Typography key={rate} variant="caption" sx={{ textAlign: 'center', color: '#94a3b8' }}>{number1.format(rate * 100)}%</Typography>)}{activeScenario.sensitivity.discountRates.flatMap((rate, rowIndex) => [<Typography key={`r-${rate}`} variant="caption" sx={{ color: '#94a3b8', alignSelf: 'center' }}>{number1.format(rate * 100)}%</Typography>, ...activeScenario.sensitivity.values[rowIndex].map((value, columnIndex) => <Box key={`${rate}-${columnIndex}`} sx={{ py: 0.7, textAlign: 'center', borderRadius: '8px', bgcolor: rowIndex === 1 && columnIndex === 1 ? 'rgba(34,197,94,0.16)' : 'rgba(30,41,59,0.7)' }}><Typography variant="caption" sx={{ color: '#e2e8f0', fontWeight: 700 }}>{formatSek0(value)}</Typography></Box>),])}</Box></Box>
             </Box>
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.2, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}><MetricCard label="TTM EPS" value={formatSek2(fairValue.annualEpsTTMSEK)} /><MetricCard label={translate('Normaliserad EPS', 'Normalized EPS')} value={formatSek2(fairValue.annualEpsNormSEK)} helper="8Q" /><MetricCard label={translate('Owner earnings/aktie', 'Owner earnings/share')} value={formatSek2(fairValue.ownerEarningsPerShareSEK)} helper="OCF − 12% capex" /><MetricCard label={translate('Bas: omsättning', 'Base: revenue')} value={formatPercent(fairValue.revenueGrowth * 100)} helper="65% TTM · 35% senaste kvartal" /></Box>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', md: 'repeat(4, minmax(0, 1fr))' }, gap: 1.2, width: '100%', maxWidth: 940, alignSelf: 'center', marginInline: 'auto' }}><MetricCard label="TTM EPS" value={formatSek2(fairValue.annualEpsTTMSEK)} /><MetricCard label={translate('Normaliserad EPS', 'Normalized EPS')} value={formatSek2(fairValue.annualEpsNormSEK)} helper={translate('Justerad TTM-vinst / dagens aktier', 'Adjusted TTM earnings / current shares')} /><MetricCard label={translate('FCFE/aktie', 'FCFE/share')} value={formatSek2(fairValue.ownerEarningsPerShareSEK)} helper={translate('TTM efter capex, leasing och justeringar', 'TTM after capex, leases and adjustments')} /><MetricCard label={translate('Bas: omsättning', 'Base: revenue')} value={formatPercent(fairValue.revenueGrowth * 100)} helper="65% TTM · 35% senaste kvartal" /></Box>
+            <ValuationModelDetails model={fairValue} scenario={activeScenario} translate={translate} />
           </>
         )}
 
@@ -422,7 +432,7 @@ export default function LiveAiFairValue({ reports = [], buybackData = [], shares
 
         <Divider sx={{ borderColor: 'rgba(148,163,184,0.16)' }} />
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
-          <Stack direction="row" spacing={0.7} alignItems="flex-start"><InfoOutlinedIcon sx={{ color: '#93c5fd', fontSize: 18, mt: 0.1 }} /><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)' }}>{translate('Transparent modell: DCF med fem års avtagande tillväxt, 15% likviditetsreserv och explicit WACC. Återköp räknas först när de är verifierade.', 'Transparent model: DCF with five years of fading growth, 15% liquidity reserve, and explicit WACC. Buybacks are included only after verification.')}</Typography></Stack>
+          <Stack direction="row" spacing={0.7} alignItems="flex-start"><InfoOutlinedIcon sx={{ color: '#93c5fd', fontSize: 18, mt: 0.1 }} /><Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)' }}>{translate('FCFE diskonteras med aktieägarnas avkastningskrav i EUR. Både DCF och P/E inkluderar samma tillgängliga överskottskassa. Viktningen är fortsatt 55/45 och är inte historiskt kalibrerad.', 'FCFE is discounted at the required EUR equity return. DCF and P/E both include the same available excess cash. The 55/45 weighting is unchanged and has not been historically calibrated.')}</Typography></Stack>
           <Typography variant="caption" sx={{ color: 'rgba(100,116,139,0.8)', whiteSpace: { md: 'nowrap' } }}>{translate(`Kurs ${priceError ? 'fel' : 'OK'} · FX ${fxError ? 'fel' : 'OK'} · återköp ${buybackMeta?.updatedAt ? formatTime(buybackMeta.updatedAt) : 'fallback'} · FX ${formatTime(fxUpdated) ?? '–'}`, `Price ${priceError ? 'error' : 'OK'} · FX ${fxError ? 'error' : 'OK'} · buybacks ${buybackMeta?.updatedAt ? formatTime(buybackMeta.updatedAt) : 'fallback'} · FX ${formatTime(fxUpdated) ?? '–'}`)}</Typography>
         </Stack>
         {(fxLoading || priceLoading) && <LinearProgress sx={{ height: 4, borderRadius: 999, bgcolor: 'rgba(30,41,59,0.7)', '& .MuiLinearProgress-bar': { bgcolor: '#38bdf8', borderRadius: 999 } }} />}

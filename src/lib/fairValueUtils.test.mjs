@@ -17,10 +17,20 @@ const sampleReports = Array.from({ length: 8 }, (_, index) => {
     year,
     quarter,
     adjustedEarningsPerShare: 1 + index * 0.02,
+    adjustedProfitForPeriod: (1 + index * 0.02) * 200,
     adjustedOperatingMargin: 58 + index * 0.1,
     operatingRevenues: 500 + index * 4,
     ocfPerShare: 1.15 + index * 0.02,
     cashAndCashEquivalents: 900,
+    valuationInputs: {
+      operatingCashFlow: (1.15 + index * 0.02) * 200,
+      capexIntangible: 10, capexTangible: 15, leaseRepayments: 4, interestReceived: 0,
+      taxPaid: (1 + index * 0.02) * 50, taxExpense: (1 + index * 0.02) * 50,
+      profitBeforeTax: (1 + index * 0.02) * 250,
+      operatingProfit: (500 + index * 4) * (58 + index * 0.1) / 100,
+      nonTaxableNonRecurringProfit: 0, netBorrowing: 0,
+      restrictedCash: 0, netCurrentTaxLiabilities: 0, financialDebtExcludingLeases: 0,
+    },
   };
 });
 
@@ -56,7 +66,7 @@ test('fair value engine returns ordered scenarios and independent valuation meth
   assert.equal(result.valuationRange.high, bull.impliedPriceSEK);
 });
 
-test('only observed buybacks after the share snapshot adjust EPS and cash', () => {
+test('only observed buybacks after the share snapshot change current shares', () => {
   const result = computeSample({
     buybackData: [
       { Datum: '2025-01-15', Antal_aktier: 5_000_000, Transaktionsvärde: 500_000_000 },
@@ -73,7 +83,7 @@ test('only observed buybacks after the share snapshot adjust EPS and cash', () =
 
 test('missing fundamental values are rejected instead of being treated as zero', () => {
   const reports = sampleReports.map((report, index) =>
-    index === 7 ? { ...report, adjustedEarningsPerShare: null } : report
+    index === 7 ? { ...report, adjustedProfitForPeriod: null } : report
   );
   const result = computeSample({ reports });
 
@@ -148,7 +158,7 @@ test('custom scenario changes valuation while fixed scenarios remain stable', ()
   assert.deepEqual(result.valuationRange, baseline.valuationRange);
 });
 
-test('custom assumptions are clamped and keep terminal growth below WACC', () => {
+test('custom assumptions are clamped and keep terminal growth below the cost of equity', () => {
   const assumptions = normalizeCustomScenarioAssumptions({
     growth: 2,
     margin: -10,
@@ -171,4 +181,91 @@ test('every scenario exposes a five-year forecast matching its first-year EPS', 
     assert.ok(Math.abs(scenario.forecast[0].epsSEK - scenario.fwdEpsSEK) < 0.000001);
     assert.ok(scenario.forecast.every((year) => Number.isFinite(year.revenueMEUR)));
   });
+});
+
+
+test('DCF and P/E both respond to margin changes with the other controls held fixed', () => {
+  const baseline = computeSample();
+  const scenario = (margin) => computeSample({ customScenario: { ...baseline.customScenarioDefaults, margin } }).scenarios.find((item) => item.id === 'custom');
+  const low = scenario(40);
+  const high = scenario(65);
+  assert.ok(high.dcfValueSEK > low.dcfValueSEK);
+  assert.ok(high.peValueSEK > low.peValueSEK);
+  assert.equal(high.forecast[0].capexMEUR, low.forecast[0].capexMEUR);
+  assert.ok(high.forecast[0].equityCashFlowMEUR > low.forecast[0].equityCashFlowMEUR);
+});
+
+test('updating a share snapshot leaves valuation unchanged when current shares and cash are unchanged', () => {
+  const buybackData = [{ Datum: '2026-07-15', Antal_aktier: 10_000_000, Transaktionsvärde: 500_000_000 }];
+  const old = computeSample({ buybackData, sharesData: [{ date: '2026-06-30', sharesOutstanding: 200 }] });
+  const recent = computeSample({ buybackData, sharesData: [{ date: '2026-07-31', sharesOutstanding: 190 }] });
+  assert.equal(old.buybackInfo.currentShares, recent.buybackInfo.currentShares);
+  assert.equal(old.buybackInfo.cashAfterObservedBuybacksEurM, recent.buybackInfo.cashAfterObservedBuybacksEurM);
+  assert.equal(old.annualEpsNormSEK, recent.annualEpsNormSEK);
+  assert.deepEqual(old.valuationRange, recent.valuationRange);
+  assert.deepEqual(old.scenarios, recent.scenarios);
+});
+
+test('cash is included once in the blended value and terminal share excludes the cash add-on', () => {
+  const result = computeSample();
+  for (const scenario of result.scenarios) {
+    const breakdown = scenario.dcfBreakdown;
+    assert.ok(Math.abs(breakdown.forecastPresentValueSEK + breakdown.terminalPresentValueSEK + breakdown.excessCashPerShareSEK - scenario.dcfValueSEK) < 1e-8);
+    assert.ok(Math.abs(scenario.peValueSEK - scenario.fwdEpsSEK * scenario.pe - breakdown.excessCashPerShareSEK) < 1e-8);
+    assert.ok(breakdown.terminalSharePct > 0 && breakdown.terminalSharePct < 100);
+    assert.equal(scenario.sensitivity.values[1][1], scenario.dcfValueSEK);
+  }
+  assert.deepEqual(result.methodWeights, { dcf: 0.55, pe: 0.45 });
+});
+
+test('missing cash-flow, balance and share data block the model without reverting to estimates', () => {
+  const missing = sampleReports.map((row) => ({ ...row, valuationInputs: undefined }));
+  assert.ok(computeSample({ reports: missing }).dataQuality.warnings.includes('missing_cash_flow_inputs'));
+  const noBalance = sampleReports.map((row, i) => i === 7 ? { ...row, valuationInputs: { ...row.valuationInputs, restrictedCash: null } } : row);
+  assert.ok(computeSample({ reports: noBalance }).dataQuality.warnings.includes('missing_balance_inputs'));
+  assert.ok(computeSample({ sharesData: [] }).dataQuality.warnings.includes('missing_shares'));
+});
+
+test('incomplete latest reports cannot silently roll the model back to an older quarter', () => {
+  const result = computeSample({ reports: [...sampleReports, { year: 2026, quarter: 'Q1', operatingRevenues: 500 }] });
+  assert.equal(result.scenarios.length, 0);
+  assert.ok(result.dataQuality.warnings.includes('invalid_latest_report'));
+});
+
+test('live report enrichment requires matching published fundamentals', () => {
+  const fallback = sampleReports;
+  const live = sampleReports.map(({ valuationInputs, ...row }) => row);
+  assert.ok(resolveFairValueReports(live, fallback).at(-1).valuationInputs);
+  assert.equal(live.at(-1).valuationInputs, undefined);
+  const restated = live.map((row, i) => i === 7 ? { ...row, adjustedProfitForPeriod: 99 } : row);
+  assert.equal(resolveFairValueReports(restated, fallback).at(-1).valuationInputs, undefined);
+});
+
+test('higher actual capex reduces DCF while bond portfolio inflows never enter the model', () => {
+  const baseline = computeSample();
+  const capex = sampleReports.map((row) => ({ ...row, valuationInputs: { ...row.valuationInputs, capexTangible: 30 } }));
+  assert.ok(computeSample({ reports: capex }).scenarios[0].dcfValueSEK < baseline.scenarios[0].dcfValueSEK);
+  const bonds = sampleReports.map((row) => ({ ...row, investingCashFlow: 9000, freeCashFlow: 9999 }));
+  assert.deepEqual(computeSample({ reports: bonds }).valuationRange, baseline.valuationRange);
+});
+
+test('financial debt and unknown buyback spend do not create unsupported cash bonuses', () => {
+  const debt = sampleReports.map((row, index) => index === 7 ? { ...row, valuationInputs: { ...row.valuationInputs, financialDebtExcludingLeases: 10 } } : row);
+  assert.ok(computeSample({ reports: debt }).dataQuality.warnings.includes('unsupported_financial_debt'));
+  const early = computeSample({ buybackData: [{ Datum: '2026-01-15', Antal_aktier: 1_000_000, reportedEarly: true }] });
+  assert.equal(early.buybackInfo.excessCashEurM, 0);
+  assert.ok(early.dataQuality.warnings.includes('unpriced_buybacks'));
+});
+
+test('excess cash reserves tax obligations and restricted cash after post-report buybacks', () => {
+  const reports = sampleReports.map((row, index) => index === 7 ? {
+    ...row, valuationInputs: { ...row.valuationInputs, restrictedCash: 10, netCurrentTaxLiabilities: 20 },
+  } : row);
+  const result = computeSample({
+    reports,
+    buybackData: [{ Datum: '2026-01-15', Antal_aktier: 1_000_000, Transaktionsvärde: 110_000_000 }],
+  });
+  // 900 reported cash - 10 buybacks - 10 restricted - 20 tax - 313.2 reserve.
+  assert.ok(Math.abs(result.buybackInfo.excessCashEurM - 546.8) < 1e-8);
+  assert.equal(result.buybackInfo.cashAfterObservedBuybacksEurM, 890);
 });

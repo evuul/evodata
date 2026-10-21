@@ -854,7 +854,26 @@
       "latAm": 39.8,
       "other": 21.9,
       "regulatedMarket": 46,
-      "Top5Customers": null
+      "Top5Customers": null,
+      "valuationInputs": {
+        "operatingCashFlow": 371.897,
+        "capexIntangible": 15.863,
+        "capexTangible": 13.893,
+        "leaseRepayments": 4.872,
+        "interestReceived": 2.546,
+        "taxPaid": 2.019,
+        "taxExpense": 45.062,
+        "profitBeforeTax": 297.391,
+        "operatingProfit": 296.615,
+        "nonTaxableNonRecurringProfit": 0,
+        "netBorrowing": 0,
+        "sourceUrls": [
+          "https://storage.mfn.se/bbf67910-dce3-4b0c-8228-de12e62c78f6/evo-q2-2026-07-17-eng.pdf",
+          "https://mb.cision.com/Main/12069/4304629/3923659.pdf"
+        ],
+        "derivation": "TTM June 2026 minus Q4 2025 minus H1 2026"
+      },
+      "freeCashFlow": 342.141
     },
     {
       "year": 2025,
@@ -885,7 +904,23 @@
       "financingCashFlow": -98.3,
       "buybacksCashFlow": -93.7,
       "cashAndCashEquivalents": 818,
-      "freeCashFlow": 260.3
+      "freeCashFlow": 258.177,
+      "valuationInputs": {
+        "operatingCashFlow": 296.647,
+        "capexIntangible": 19.129,
+        "capexTangible": 19.341,
+        "leaseRepayments": 4.522,
+        "interestReceived": 1.328,
+        "taxPaid": 3.13,
+        "taxExpense": 45.559,
+        "profitBeforeTax": 352.34,
+        "operatingProfit": 350.873,
+        "nonTaxableNonRecurringProfit": 51.667,
+        "netBorrowing": 0,
+        "sourceUrls": [
+          "https://mb.cision.com/Main/12069/4304629/3923659.pdf"
+        ]
+      }
     },
     {
       "year": 2026,
@@ -917,7 +952,24 @@
       "financingCashFlow": -5.5,
       "buybacksCashFlow": 0,
       "cashAndCashEquivalents": 1098,
-      "freeCashFlow": 283.6
+      "freeCashFlow": 311.248,
+      "valuationInputs": {
+        "operatingCashFlow": 345.841,
+        "capexIntangible": 14.964,
+        "capexTangible": 19.629,
+        "leaseRepayments": 5.401,
+        "interestReceived": 4.159,
+        "taxPaid": 4.87,
+        "taxExpense": 48.161,
+        "profitBeforeTax": 300.093,
+        "operatingProfit": 292.612,
+        "nonTaxableNonRecurringProfit": 0,
+        "netBorrowing": 0,
+        "sourceUrls": [
+          "https://storage.mfn.se/bbf67910-dce3-4b0c-8228-de12e62c78f6/evo-q2-2026-07-17-eng.pdf"
+        ],
+        "derivation": "H1 2026 minus Q2 2026"
+      }
     },
     {
       "year": 2026,
@@ -949,7 +1001,26 @@
       "financingCashFlow": -304.389,
       "buybacksCashFlow": -303.21,
       "cashAndCashEquivalents": 1153.539,
-      "freeCashFlow": 359.326
+      "freeCashFlow": 258.365,
+      "valuationInputs": {
+        "operatingCashFlow": 293.044,
+        "capexIntangible": 15.96,
+        "capexTangible": 18.719,
+        "leaseRepayments": 4.233,
+        "interestReceived": 4.808,
+        "taxPaid": 85.979,
+        "taxExpense": 49.43,
+        "profitBeforeTax": 300.867,
+        "operatingProfit": 297.782,
+        "nonTaxableNonRecurringProfit": 0,
+        "netBorrowing": 0,
+        "sourceUrls": [
+          "https://storage.mfn.se/bbf67910-dce3-4b0c-8228-de12e62c78f6/evo-q2-2026-07-17-eng.pdf"
+        ],
+        "restrictedCash": 10.925,
+        "netCurrentTaxLiabilities": 360.93,
+        "financialDebtExcludingLeases": 0
+      }
     }
   ]
 }

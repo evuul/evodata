@@ -13,7 +13,8 @@
     "redis:local:down": "docker compose -f docker-compose.redis.yml down",
     "backup:upstash": "node scripts/upstashBackup.mjs",
     "restore:local-redis": "node scripts/restoreBackupToRedis.mjs",
-    "analyze:hourly:local": "node scripts/localHourlyBaseline.mjs"
+    "analyze:hourly:local": "node scripts/localHourlyBaseline.mjs",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
@@ -37,6 +38,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "eslint": "^9",
-    "eslint-config-next": "15.5.25"
+    "eslint-config-next": "15.5.25",
+    "@playwright/test": "^1.64.1"
   }
 }

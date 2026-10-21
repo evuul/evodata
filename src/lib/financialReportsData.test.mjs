@@ -96,7 +96,7 @@ test("Q2 2026 cash and cash-flow figures preserve quarter continuity", () => {
   assert.equal(latest.buybacksCashFlow, -303.21);
   assertClose(
     latest.freeCashFlow,
-    latest.operatingCashFlow + latest.investingCashFlow,
+    latest.valuationInputs.operatingCashFlow - latest.valuationInputs.capexIntangible - latest.valuationInputs.capexTangible,
   );
 });
 
@@ -120,4 +120,20 @@ test("Q2 2026 share snapshot reconciles with reported buybacks", () => {
     previousSnapshot.sharesOutstanding - repurchasedShares / 1_000_000,
     latestSnapshot.sharesOutstanding,
   );
+});
+
+
+test("valuation cash-flow inputs reconcile with the published rolling year to June 2026", () => {
+  const rows = reports.slice(-4);
+  const sum = (field) => rows.reduce((total, row) => total + row.valuationInputs[field], 0);
+  assertClose(sum('operatingCashFlow'), 1307.429);
+  assertClose(sum('capexIntangible'), 65.916);
+  assertClose(sum('capexTangible'), 71.582);
+  assertClose(sum('leaseRepayments'), 19.028);
+  assertClose(sum('interestReceived'), 12.841);
+  assertClose(sum('taxPaid'), 95.998);
+  assertClose(sum('taxExpense'), 188.212);
+  assertClose(sum('nonTaxableNonRecurringProfit'), 51.667);
+  assertClose(latest.freeCashFlow, 258.365);
+  assert.ok(rows.every((row) => row.valuationInputs.sourceUrls.every((url) => url.startsWith('https://'))));
 });

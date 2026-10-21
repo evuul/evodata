@@ -1,10 +1,12 @@
-// Builds a validated, driver-based fair value range from quarterly fundamentals.
+// Combines company-level equity cash-flow and P/E scenarios using current outstanding shares.
 
-import { summarizeBuybackExecution } from "./buybackMandate.js";
+import { summarizeBuybackExecution, normalizeBuybackExecutions } from "./buybackMandate.js";
+import { finiteNumber, normalizeFairValueReports, buildValuationFundamentals, readValuationBalance, reportQuarterEndDate, valuationSourceUrls } from "./valuationFundamentals.js";
+import { projectEquityCashFlows, discountEquityCashFlows } from "./valuationProjection.js";
+
+export { quarterToNumber, normalizeFairValueReports, resolveFairValueReports } from "./valuationFundamentals.js";
 
 const REQUIRED_QUARTERS = 8;
-const FORECAST_YEARS = 5;
-const CAPEX_HAIRCUT = 0.12;
 const LIQUIDITY_RESERVE_REVENUE_SHARE = 0.15;
 const DCF_WEIGHT = 0.55;
 const PE_WEIGHT = 0.45;
@@ -54,23 +56,9 @@ const SCENARIO_CONFIG = Object.freeze([
   },
 ]);
 
-export const resolveFairValueReports = (liveReports, fallbackReports) =>
-  Array.isArray(liveReports) && liveReports.length > 0
-    ? liveReports
-    : Array.isArray(fallbackReports)
-      ? fallbackReports
-      : [];
-
-export const quarterToNumber = (quarter) =>
-  quarter === "Q1" ? 1 : quarter === "Q2" ? 2 : quarter === "Q3" ? 3 : quarter === "Q4" ? 4 : 0;
-
 export const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const toFiniteNumber = (value) => {
-  if (value == null || value === "") return null;
-  const number = Number(value);
-  return Number.isFinite(number) ? number : null;
-};
+const toFiniteNumber = finiteNumber;
 
 export const normalizeCustomScenarioAssumptions = (input = {}, defaults = {}) => {
   const resolve = (key, fallback) => toFiniteNumber(input?.[key]) ?? toFiniteNumber(defaults?.[key]) ?? fallback;
@@ -97,406 +85,128 @@ export const normalizeCustomScenarioAssumptions = (input = {}, defaults = {}) =>
   };
 };
 
-const average = (values) =>
-  values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 
-const sumField = (rows, field) =>
-  rows.reduce((sum, row) => sum + row[field], 0);
+const sumField = (rows, field) => rows.reduce((sum, report) => sum + report[field], 0);
 
-const weightedAnnualizedAverage = (rows, field) => {
-  const weighted = rows.reduce(
-    (result, row, index) => {
-      const weight = index + 1;
-      return {
-        sum: result.sum + row[field] * weight,
-        weight: result.weight + weight,
-      };
-    },
-    { sum: 0, weight: 0 }
-  );
-  return weighted.weight ? (weighted.sum / weighted.weight) * 4 : null;
-};
-
-const reportPeriodIndex = (report) => report.year * 4 + quarterToNumber(report.quarter) - 1;
-
-const reportQuarterEndDate = (report) => {
-  const suffix = {
-    Q1: "03-31",
-    Q2: "06-30",
-    Q3: "09-30",
-    Q4: "12-31",
-  }[report?.quarter];
-  return suffix && Number.isInteger(report?.year) ? `${report.year}-${suffix}` : null;
-};
-
-export const normalizeFairValueReports = (reports = []) => {
-  if (!Array.isArray(reports)) {
-    return { reports: [], warnings: ["invalid_reports"] };
-  }
-
-  const warnings = [];
-  const periods = new Map();
-  let invalidCount = 0;
-  let duplicateCount = 0;
-
-  reports.forEach((report) => {
-    const year = toFiniteNumber(report?.year);
-    const quarter = report?.quarter;
-    const normalized = {
-      ...report,
-      year,
-      quarter,
-      adjustedEarningsPerShare: toFiniteNumber(report?.adjustedEarningsPerShare),
-      adjustedOperatingMargin: toFiniteNumber(report?.adjustedOperatingMargin),
-      operatingRevenues: toFiniteNumber(report?.operatingRevenues),
-      ocfPerShare: toFiniteNumber(report?.ocfPerShare),
-      cashAndCashEquivalents: toFiniteNumber(report?.cashAndCashEquivalents),
-    };
-    const valid =
-      Number.isInteger(year) &&
-      quarterToNumber(quarter) > 0 &&
-      normalized.adjustedEarningsPerShare != null &&
-      normalized.adjustedOperatingMargin != null &&
-      normalized.operatingRevenues != null &&
-      normalized.operatingRevenues > 0 &&
-      normalized.ocfPerShare != null;
-
-    if (!valid) {
-      invalidCount += 1;
-      return;
-    }
-
-    const key = `${year}-${quarter}`;
-    if (periods.has(key)) duplicateCount += 1;
-    periods.set(key, normalized);
-  });
-
-  if (invalidCount) warnings.push("invalid_reports");
-  if (duplicateCount) warnings.push("duplicate_periods");
-
-  const normalizedReports = [...periods.values()].sort(
-    (a, b) => reportPeriodIndex(a) - reportPeriodIndex(b)
-  );
-  const latestWindow = normalizedReports.slice(-REQUIRED_QUARTERS);
-  const consecutive = latestWindow.every(
-    (report, index) => index === 0 || reportPeriodIndex(report) === reportPeriodIndex(latestWindow[index - 1]) + 1
-  );
-  if (latestWindow.length === REQUIRED_QUARTERS && !consecutive) {
-    warnings.push("non_consecutive_quarters");
-  }
-
-  return { reports: normalizedReports, warnings };
-};
-
-const smoothPeFromFundamentals = (growth, operatingMargin) => {
-  const growthContribution = clamp(growth, -0.1, 0.18) * 30;
-  const marginContribution = clamp((operatingMargin - 45) * 0.08, -1.5, 2);
-  return clamp(14 + growthContribution + marginContribution, MIN_PE, MAX_PE);
-};
-
-const projectOwnerEarningsValue = ({
-  ownerEarningsPerShareEur,
-  nearTermGrowth,
-  discountRate,
-  terminalGrowth,
-  excessCashPerShareEur,
-  fxRate,
-}) => {
-  if (
-    ownerEarningsPerShareEur <= 0 ||
-    discountRate <= terminalGrowth ||
-    fxRate <= 0
-  ) {
-    return null;
-  }
-
-  let ownerEarnings = ownerEarningsPerShareEur;
-  let presentValue = 0;
-  for (let year = 1; year <= FORECAST_YEARS; year += 1) {
-    const fade = (year - 1) / (FORECAST_YEARS - 1);
-    const growth = nearTermGrowth + (terminalGrowth - nearTermGrowth) * fade;
-    ownerEarnings *= 1 + growth;
-    presentValue += ownerEarnings / (1 + discountRate) ** year;
-  }
-
-  const terminalValue =
-    (ownerEarnings * (1 + terminalGrowth)) / (discountRate - terminalGrowth);
-  const discountedTerminal = terminalValue / (1 + discountRate) ** FORECAST_YEARS;
-  return (presentValue + discountedTerminal + excessCashPerShareEur) * fxRate;
-};
-
-const buildFiveYearProjection = ({
-  revenueTtmEurM,
-  normalizedEpsEur,
-  shareAdjustment,
-  currentMargin,
-  targetMargin,
-  nearTermGrowth,
-  terminalGrowth,
-  fxRate,
-}) => {
-  const marginAdjustment = currentMargin > 0 ? targetMargin / currentMargin : 1;
-  let revenueEurM = revenueTtmEurM;
-  let epsEur = normalizedEpsEur * shareAdjustment * marginAdjustment;
-
-  return Array.from({ length: FORECAST_YEARS }, (_, index) => {
-    const year = index + 1;
-    const fade = index / (FORECAST_YEARS - 1);
-    const growth = nearTermGrowth + (terminalGrowth - nearTermGrowth) * fade;
-    revenueEurM *= 1 + growth;
-    epsEur *= 1 + growth;
-
-    return {
-      year,
-      growth,
-      margin: targetMargin,
-      revenueMEUR: revenueEurM,
-      epsSEK: epsEur * fxRate,
-    };
-  });
-};
-
-const buildEmptyResult = (warnings = []) => ({
-  latestLabel: "",
-  annualEpsTTMSEK: null,
-  annualEpsNormSEK: null,
-  avgMargin: null,
-  yoyGrowth: null,
-  revenueGrowth: null,
-  revTtmMEUR: null,
-  ownerEarningsPerShareSEK: null,
-  scenarios: [],
-  valuationRange: { low: null, midpoint: null, high: null },
-  buybackInfo: null,
-  dataQuality: { status: "error", warnings, quarterCount: 0 },
-  sensitivity: null,
-  customScenarioDefaults: null,
-  customScenarioAssumptions: null,
+const emptyResult = (warnings) => ({
+  latestLabel: "", annualEpsTTMSEK: null, annualEpsNormSEK: null, avgMargin: null,
+  yoyGrowth: null, revenueGrowth: null, revTtmMEUR: null, ownerEarningsPerShareSEK: null,
+  scenarios: [], valuationRange: { low: null, midpoint: null, high: null }, buybackInfo: null,
+  dataQuality: { status: "error", warnings: [...new Set(warnings)], quarterCount: 0 },
+  sensitivity: null, customScenarioDefaults: null, customScenarioAssumptions: null,
   raw: { ttmEpsEUR: null, normalizedEpsEUR: null },
 });
 
-const buildSensitivity = ({
-  ownerEarningsPerShareEur,
-  nearTermGrowth,
-  excessCashPerShareEur,
-  fxRate,
-}) => {
-  const discountRates = [0.11, 0.1, 0.09];
-  const terminalGrowthRates = [0.015, 0.025, 0.035];
-  return {
-    discountRates,
-    terminalGrowthRates,
-    values: discountRates.map((discountRate) =>
-      terminalGrowthRates.map((terminalGrowth) =>
-        projectOwnerEarningsValue({
-          ownerEarningsPerShareEur,
-          nearTermGrowth,
-          discountRate,
-          terminalGrowth,
-          excessCashPerShareEur,
-          fxRate,
-        })
-      )
-    ),
+function smoothPeFromFundamentals(growth, margin) {
+  return clamp(14 + clamp(growth, -0.1, 0.18) * 30 + clamp((margin - 45) * 0.08, -1.5, 2), MIN_PE, MAX_PE);
+}
+
+function sensitivityForScenario(context, assumptions) {
+  const discountRates = [assumptions.discountRate + 0.01, assumptions.discountRate, assumptions.discountRate - 0.01];
+  const terminalGrowthRates = [assumptions.terminalGrowth - 0.01, assumptions.terminalGrowth, assumptions.terminalGrowth + 0.01];
+  const values = discountRates.map((discountRate) => terminalGrowthRates.map((terminalGrowth) => {
+    const forecast = projectEquityCashFlows({ ...context, ...assumptions, terminalGrowth });
+    return discountEquityCashFlows({ ...context, forecast, discountRate, terminalGrowth })?.valueSEK ?? null;
+  }));
+  return { discountRates, terminalGrowthRates, values };
+}
+
+function buildScenario(config, defaults, context, currentPrice) {
+  const custom = config.id === "custom";
+  const assumptions = custom ? config : {
+    growth: clamp(defaults.growth + config.growthDelta, MIN_FWD_GROWTH, MAX_FWD_GROWTH),
+    margin: clamp(defaults.margin + config.marginDelta, 25, 75),
+    discountRate: config.discountRate,
+    terminalGrowth: config.terminalGrowth,
   };
-};
+  const pe = custom ? config.pe : clamp(smoothPeFromFundamentals(assumptions.growth, assumptions.margin) + config.peDelta, MIN_PE, MAX_PE);
+  const forecast = projectEquityCashFlows({ ...context, ...assumptions });
+  const dcf = discountEquityCashFlows({ ...context, ...assumptions, forecast });
+  if (!dcf) return null;
+  const peValueSEK = forecast[0].epsSEK * pe + dcf.excessCashPerShareSEK;
+  const value = dcf.valueSEK * DCF_WEIGHT + peValueSEK * PE_WEIGHT;
+  return {
+    id: config.id, label: config.label, variant: config.variant, ...assumptions, pe,
+    impliedPriceSEK: value,
+    upsidePct: currentPrice > 0 ? (value / currentPrice - 1) * 100 : null,
+    fwdEpsSEK: forecast[0].epsSEK, fwdEpsEUR: forecast[0].epsSEK / context.fxRate,
+    peValueSEK, dcfValueSEK: dcf.valueSEK,
+    dcfBreakdown: dcf,
+    forecast, sensitivity: sensitivityForScenario(context, assumptions),
+  };
+}
 
-export const computeFairValueInsights = ({
-  reports,
-  buybackData = [],
-  sharesData = [],
-  fxRate,
-  currentPriceSEK,
-  customScenario,
-} = {}) => {
-  const fx = toFiniteNumber(fxRate);
-  if (fx == null || fx <= 0) return buildEmptyResult(["invalid_fx"]);
+function resolveCashContext({ latest, balance, fundamentals, buybackInfo, buybackData, fx }) {
+  const cashSnapshotDate = reportQuarterEndDate(latest);
+  const unpricedBuybacks = normalizeBuybackExecutions(buybackData).some((row) => row.date > cashSnapshotDate && row.spendSek == null);
+  const executedSpendEurM = buybackInfo.executedSpendAfterCashSnapshotSek / fx / 1_000_000;
+  const cashAfterObservedBuybacksEurM = Math.max(balance.cash - executedSpendEurM, 0);
+  const liquidityReserveEurM = fundamentals.revenue * LIQUIDITY_RESERVE_REVENUE_SHARE;
+  const cashClaims = balance.restrictedCash + balance.netCurrentTaxLiabilities + liquidityReserveEurM;
+  const excessCashEurM = unpricedBuybacks ? 0 : Math.max(cashAfterObservedBuybacksEurM - cashClaims, 0);
+  const warnings = [];
+  if (unpricedBuybacks) warnings.push("unpriced_buybacks");
+  if (executedSpendEurM > balance.cash) warnings.push("buybacks_exceed_reported_cash");
+  if (cashAfterObservedBuybacksEurM < cashClaims) warnings.push("cash_below_reserve");
+  return {
+    cashAfterObservedBuybacksEurM, liquidityReserveEurM, excessCashEurM,
+    restrictedCashEurM: balance.restrictedCash, netCurrentTaxLiabilitiesEurM: balance.netCurrentTaxLiabilities,
+    warnings,
+  };
+}
 
+export function computeFairValueInsights({ reports, buybackData = [], sharesData = [], fxRate, currentPriceSEK, customScenario } = {}) {
+  const fx = finiteNumber(fxRate);
+  if (!(fx > 0)) return emptyResult(["invalid_fx"]);
   const normalized = normalizeFairValueReports(reports);
   const latestEight = normalized.reports.slice(-REQUIRED_QUARTERS);
-  const hasGap = normalized.warnings.includes("non_consecutive_quarters");
-  if (latestEight.length < REQUIRED_QUARTERS || hasGap) {
-    const warnings = latestEight.length < REQUIRED_QUARTERS
-      ? [...normalized.warnings, "not_enough_reports"]
-      : normalized.warnings;
-    return buildEmptyResult([...new Set(warnings)]);
-  }
-
-  const previousFour = latestEight.slice(0, 4);
-  const latestFour = latestEight.slice(4);
-  const latest = latestEight.at(-1);
-  const ttmEpsEur = sumField(latestFour, "adjustedEarningsPerShare");
-  const previousTtmEpsEur = sumField(previousFour, "adjustedEarningsPerShare");
-  const normalizedEpsEur = weightedAnnualizedAverage(latestEight, "adjustedEarningsPerShare");
-  const normalizedOcfEur = weightedAnnualizedAverage(latestEight, "ocfPerShare");
-  const ownerEarningsPerShareEur = normalizedOcfEur * (1 - CAPEX_HAIRCUT);
-  const revenueTtmEurM = sumField(latestFour, "operatingRevenues");
-  const previousRevenueTtmEurM = sumField(previousFour, "operatingRevenues");
-  const revenueTtmGrowth = previousRevenueTtmEurM > 0
-    ? revenueTtmEurM / previousRevenueTtmEurM - 1
-    : null;
-  const latestRevenueGrowth = latestEight.at(-5).operatingRevenues > 0
-    ? latest.operatingRevenues / latestEight.at(-5).operatingRevenues - 1
-    : null;
-  const baseRevenueGrowth = clamp(
-    (revenueTtmGrowth ?? 0) * 0.65 + (latestRevenueGrowth ?? revenueTtmGrowth ?? 0) * 0.35,
-    -0.1,
-    0.18
-  );
-  const currentMargin = average(latestFour.map((report) => report.adjustedOperatingMargin));
-  const epsGrowth = previousTtmEpsEur > 0 ? ttmEpsEur / previousTtmEpsEur - 1 : null;
-
-  const buybackInfo = summarizeBuybackExecution({
-    buybackData,
-    sharesData,
-    fxRate: fx,
-    cashSnapshotDate: reportQuarterEndDate(latest),
-  });
   const warnings = [...normalized.warnings];
-  if (!buybackInfo.reportedShares) warnings.push("missing_shares");
+  if (latestEight.length < REQUIRED_QUARTERS) return emptyResult([...warnings, "not_enough_reports"]);
+  if (warnings.includes("non_consecutive_quarters") || warnings.includes("invalid_latest_report")) return emptyResult(warnings);
+  const latest = latestEight.at(-1);
+  const latestFour = latestEight.slice(-4);
+  const fundamentals = buildValuationFundamentals(latestFour);
+  if (!fundamentals) return emptyResult([...warnings, "missing_cash_flow_inputs"]);
+  const balance = readValuationBalance(latest);
+  if (!balance) return emptyResult([...warnings, "missing_balance_inputs"]);
+  if (balance.financialDebtExcludingLeases > 0 || latestFour.some((report) => finiteNumber(report.valuationInputs.netBorrowing) !== 0)) return emptyResult([...warnings, "unsupported_financial_debt"]);
+  if (fundamentals.equityCashFlow <= 0 || fundamentals.profit <= 0 || fundamentals.normalizedOperatingCashFlow <= 0) return emptyResult([...warnings, "non_positive_cash_flow"]);
+
+  const buybackInfo = summarizeBuybackExecution({ buybackData, sharesData, fxRate: fx, cashSnapshotDate: reportQuarterEndDate(latest) });
+  if (!buybackInfo.currentShares || buybackInfo.executedSharesAfterSnapshot >= buybackInfo.reportedShares) return emptyResult([...warnings, "missing_shares"]);
   if (!buybackInfo.validRowCount) warnings.push("missing_buyback_data");
-
-  const shareAdjustment = buybackInfo.executedEpsBoost > 0
-    ? 1 + buybackInfo.executedEpsBoost
-    : 1;
-  const cashAtLatestReportEurM = latest.cashAndCashEquivalents ?? 0;
-  const executedSpendEurM = buybackInfo.executedSpendAfterCashSnapshotSek / fx / 1_000_000;
-  const cashAfterObservedBuybacksEurM = Math.max(cashAtLatestReportEurM - executedSpendEurM, 0);
-  if (executedSpendEurM > cashAtLatestReportEurM) warnings.push("buybacks_exceed_reported_cash");
-
-  const liquidityReserveEurM = revenueTtmEurM * LIQUIDITY_RESERVE_REVENUE_SHARE;
-  const excessCashEurM = Math.max(cashAfterObservedBuybacksEurM - liquidityReserveEurM, 0);
-  const excessCashPerShareEur = buybackInfo.currentShares
-    ? (excessCashEurM * 1_000_000) / buybackInfo.currentShares
-    : 0;
-  const adjustedOwnerEarningsPerShareEur = ownerEarningsPerShareEur * shareAdjustment;
-  const price = toFiniteNumber(currentPriceSEK);
-  const customScenarioDefaults = normalizeCustomScenarioAssumptions({}, {
-    growth: baseRevenueGrowth,
-    margin: currentMargin,
-    pe: smoothPeFromFundamentals(baseRevenueGrowth, currentMargin),
-    discountRate: 0.1,
-    terminalGrowth: 0.025,
-  });
-  const customScenarioAssumptions = normalizeCustomScenarioAssumptions(
-    customScenario,
-    customScenarioDefaults
-  );
-  const scenarioConfigs = [
-    ...SCENARIO_CONFIG,
-    {
-      id: "custom",
-      label: "Custom",
-      variant: "custom",
-      ...customScenarioAssumptions,
-    },
-  ];
-
-  const scenarios = scenarioConfigs.map((config) => {
-    const isCustom = config.id === "custom";
-    const growth = isCustom
-      ? config.growth
-      : clamp(baseRevenueGrowth + config.growthDelta, MIN_FWD_GROWTH, MAX_FWD_GROWTH);
-    const margin = isCustom
-      ? config.margin
-      : clamp(currentMargin + config.marginDelta, 25, 75);
-    const marginAdjustment = currentMargin > 0 ? margin / currentMargin : 1;
-    const forwardEpsBeforeBuybackEur = normalizedEpsEur * (1 + growth) * marginAdjustment;
-    const forwardEpsEur = forwardEpsBeforeBuybackEur * shareAdjustment;
-    const pe = isCustom
-      ? config.pe
-      : clamp(smoothPeFromFundamentals(growth, margin) + config.peDelta, MIN_PE, MAX_PE);
-    const peValueSek = forwardEpsEur * pe * fx;
-    const dcfValueSek = projectOwnerEarningsValue({
-      ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
-      nearTermGrowth: growth,
-      discountRate: config.discountRate,
-      terminalGrowth: config.terminalGrowth,
-      excessCashPerShareEur,
-      fxRate: fx,
-    });
-    const impliedPriceSek = dcfValueSek == null
-      ? peValueSek
-      : dcfValueSek * DCF_WEIGHT + peValueSek * PE_WEIGHT;
-
-    return {
-      id: config.id,
-      label: config.label,
-      variant: config.variant,
-      description: "Driverbaserad prognos med verifierade återköp.",
-      impliedPriceSEK: impliedPriceSek,
-      upsidePct: price && price > 0 ? ((impliedPriceSek - price) / price) * 100 : null,
-      growth,
-      margin,
-      pe,
-      discountRate: config.discountRate,
-      terminalGrowth: config.terminalGrowth,
-      forwardEpsBeforeBuybackEur,
-      fwdEpsEUR: forwardEpsEur,
-      fwdEpsSEK: forwardEpsEur * fx,
-      peValueSEK: peValueSek,
-      dcfValueSEK: dcfValueSek,
-      buybackRate: buybackInfo.executedShareReduction,
-      forecast: buildFiveYearProjection({
-        revenueTtmEurM,
-        normalizedEpsEur,
-        shareAdjustment,
-        currentMargin,
-        targetMargin: margin,
-        nearTermGrowth: growth,
-        terminalGrowth: config.terminalGrowth,
-        fxRate: fx,
-      }),
-    };
-  });
-
-  const fair = scenarios.find((scenario) => scenario.id === "fair");
-  const bull = scenarios.find((scenario) => scenario.id === "bull");
-  const bear = scenarios.find((scenario) => scenario.id === "bear");
-  if (!(bear.impliedPriceSEK <= fair.impliedPriceSEK && fair.impliedPriceSEK <= bull.impliedPriceSEK)) {
-    warnings.push("scenario_ordering");
-  }
-
+  const cashContext = resolveCashContext({ latest, balance, fundamentals, buybackInfo, buybackData, fx });
+  warnings.push(...cashContext.warnings);
+  const currentShares = buybackInfo.currentShares;
+  const revenueGrowth = fundamentals.revenue / sumField(latestEight.slice(0, 4), "operatingRevenues") - 1;
+  const recentGrowth = latest.operatingRevenues / latestEight.at(-5).operatingRevenues - 1;
+  const growth = clamp(revenueGrowth * 0.65 + recentGrowth * 0.35, -0.1, 0.18);
+  const margin = fundamentals.operatingProfit / fundamentals.revenue * 100;
+  const defaults = normalizeCustomScenarioAssumptions({}, { growth, margin, pe: smoothPeFromFundamentals(growth, margin), discountRate: 0.1, terminalGrowth: 0.025 });
+  const custom = normalizeCustomScenarioAssumptions(customScenario, defaults);
+  const context = { fundamentals, currentShares, fxRate: fx, excessCashMEUR: cashContext.excessCashEurM };
+  const configs = [...SCENARIO_CONFIG, { id: "custom", label: "Custom", variant: "custom", ...custom }];
+  const price = finiteNumber(currentPriceSEK);
+  const scenarios = configs.map((config) => buildScenario(config, defaults, context, price));
+  if (scenarios.some((scenario) => !scenario || !Number.isFinite(scenario.impliedPriceSEK))) return emptyResult([...warnings, "non_positive_cash_flow"]);
+  const [fair, bull, bear] = scenarios;
+  if (!(bear.impliedPriceSEK <= fair.impliedPriceSEK && fair.impliedPriceSEK <= bull.impliedPriceSEK)) warnings.push("scenario_ordering");
+  const ttmEps = latestFour.every((report) => report.adjustedEarningsPerShare != null) ? sumField(latestFour, "adjustedEarningsPerShare") : null;
+  const previous = latestEight.slice(0, 4);
+  const previousEps = previous.every((report) => report.adjustedEarningsPerShare != null) ? sumField(previous, "adjustedEarningsPerShare") : null;
+  const normalizedEps = fundamentals.profit * 1_000_000 / currentShares;
   return {
     latestLabel: `${latest.year} ${latest.quarter}`,
-    annualEpsTTMSEK: ttmEpsEur * fx,
-    annualEpsNormSEK: normalizedEpsEur * fx,
-    avgMargin: currentMargin,
-    yoyGrowth: epsGrowth,
-    revenueGrowth: baseRevenueGrowth,
-    revTtmMEUR: revenueTtmEurM,
-    ownerEarningsPerShareSEK: adjustedOwnerEarningsPerShareEur * fx,
-    scenarios,
-    valuationRange: {
-      low: bear.impliedPriceSEK,
-      midpoint: fair.impliedPriceSEK,
-      high: bull.impliedPriceSEK,
-    },
-    buybackInfo: {
-      ...buybackInfo,
-      shareAdjustment,
-      cashAfterObservedBuybacksEurM,
-      liquidityReserveEurM,
-      excessCashEurM,
-    },
-    dataQuality: {
-      status: warnings.length ? "caution" : "good",
-      warnings: [...new Set(warnings)],
-      quarterCount: latestEight.length,
-    },
-    sensitivity: buildSensitivity({
-      ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
-      nearTermGrowth: baseRevenueGrowth,
-      excessCashPerShareEur,
-      fxRate: fx,
-    }),
-    customScenarioDefaults,
-    customScenarioAssumptions,
+    annualEpsTTMSEK: ttmEps == null ? null : ttmEps * fx,
+    annualEpsNormSEK: normalizedEps * fx,
+    avgMargin: margin, yoyGrowth: previousEps > 0 && ttmEps != null ? ttmEps / previousEps - 1 : null,
+    revenueGrowth: growth, revTtmMEUR: fundamentals.revenue,
+    ownerEarningsPerShareSEK: fundamentals.equityCashFlow * 1_000_000 / currentShares * fx,
+    scenarios, valuationRange: { low: bear.impliedPriceSEK, midpoint: fair.impliedPriceSEK, high: bull.impliedPriceSEK },
+    buybackInfo: { ...buybackInfo, ...cashContext }, fundamentals,
+    dataQuality: { status: warnings.length ? "caution" : "good", warnings: [...new Set(warnings)], quarterCount: latestEight.length, sourceUrls: valuationSourceUrls(latestFour) },
+    sensitivity: fair.sensitivity, customScenarioDefaults: defaults, customScenarioAssumptions: custom,
     methodWeights: { dcf: DCF_WEIGHT, pe: PE_WEIGHT },
-    raw: {
-      ttmEpsEUR: ttmEpsEur,
-      normalizedEpsEUR: normalizedEpsEur,
-      ownerEarningsPerShareEur: adjustedOwnerEarningsPerShareEur,
-    },
+    raw: { ttmEpsEUR: ttmEps, normalizedEpsEUR: normalizedEps, ownerEarningsPerShareEur: fundamentals.equityCashFlow * 1_000_000 / currentShares },
   };
-};
+}

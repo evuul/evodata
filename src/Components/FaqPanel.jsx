@@ -219,8 +219,8 @@ const FaqPanel = () => {
           <AccordionDetails sx={{ px: { xs: 2, md: 2.4 }, pt: 0, pb: { xs: 2, md: 2.4 } }}>
             <Typography sx={{ color: "rgba(226,232,240,0.78)", lineHeight: 1.75 }}>
               {translate(
-                "Modellvärde är en uppskattning, inte ett prisfacit eller en rekommendation. Modellen väger in rapportdata som omsättning, marginal och EPS samt tillväxtantaganden och kapitalallokering. Värdet uppdateras när nya kvartalssiffror kommer in och kan därför ändras mellan rapporter.",
-                "Model value is an estimate, not a price target or recommendation. It weighs reported data such as revenue, margin and EPS together with growth assumptions and capital allocation. The value updates when new quarterly figures arrive and can therefore change between reports."
+                "Modell v3 väger 55% FCFE-DCF och 45% P/E. Senaste fyra kvartalens bolagsvinst och kassaflöde justeras för skatt, ränteintäkter och identifierade engångsvinster. Rapporterad capex och leasing dras av. Marginalantagandet påverkar båda metoderna, och värdet delas med aktuellt utestående aktieantal. DCF använder aktieägarnas avkastningskrav i EUR. Överskottskassa efter kända återköp, spärrad kassa, skatteåtaganden och rörelsereserv ingår en gång. Terminalvärdets andel visas separat. Bear–Bas–Bull är scenarier; viktningen är inte historiskt kalibrerad.",
+                "Model v3 blends 55% FCFE DCF and 45% P/E. Company earnings and cash flow from the latest four quarters are adjusted for tax, interest income and identified one-off gains. Reported capex and lease principal are deducted. The margin assumption affects both methods, and value is divided by current outstanding shares. DCF uses the required EUR equity return. Excess cash after known buybacks, restrictions, tax obligations and an operating reserve is included once. Terminal value share is shown separately. Bear–Base–Bull are scenarios; the weighting has not been historically calibrated."
               )}
             </Typography>
           </AccordionDetails>

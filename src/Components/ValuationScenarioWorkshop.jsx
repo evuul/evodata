@@ -18,7 +18,7 @@ const CONTROL_CONFIG = [
   { key: 'growth', labelSv: 'Tillväxt nästa år', labelEn: 'Next-year growth', step: 0.1, toUi: (value) => value * 100, fromUi: (value) => value / 100, format: (value) => `${number1.format(value)}%` },
   { key: 'margin', labelSv: 'Rörelsemarginal', labelEn: 'Operating margin', step: 0.1, toUi: (value) => value, fromUi: (value) => value, format: (value) => `${number1.format(value)}%` },
   { key: 'pe', labelSv: 'Forward P/E', labelEn: 'Forward P/E', step: 0.1, toUi: (value) => value, fromUi: (value) => value, format: (value) => `${number1.format(value)}x` },
-  { key: 'discountRate', labelSv: 'Avkastningskrav (WACC)', labelEn: 'Discount rate (WACC)', step: 0.25, toUi: (value) => value * 100, fromUi: (value) => value / 100, format: (value) => `${number1.format(value)}%` },
+  { key: 'discountRate', labelSv: 'Avkastningskrav i EUR (eget kapital)', labelEn: 'Required EUR equity return', step: 0.25, toUi: (value) => value * 100, fromUi: (value) => value / 100, format: (value) => `${number1.format(value)}%` },
   { key: 'terminalGrowth', labelSv: 'Terminal tillväxt', labelEn: 'Terminal growth', step: 0.25, toUi: (value) => value * 100, fromUi: (value) => value / 100, format: (value) => `${number1.format(value)}%` },
 ];
 
@@ -87,7 +87,7 @@ export default function ValuationScenarioWorkshop({ assumptions, limits, forecas
             <Chip size="small" label={translate('Sparas automatiskt', 'Auto-saved')} sx={{ color: '#ddd6fe', bgcolor: 'rgba(139,92,246,0.15)' }} />
           </Stack>
           <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.72)', display: 'block', mt: 0.35 }}>
-            {translate('Tillväxten tonas gradvis mot terminalvärdet under fem år.', 'Growth gradually fades toward the terminal rate over five years.')}
+            {translate('Tillväxten tonas mot terminal tillväxt under fem år. Marginalen påverkar både vinst och kassaflöde.', 'Growth fades toward the terminal rate over five years. Margin affects both earnings and cash flow.')}
           </Typography>
         </Box>
         <Button size="small" variant="outlined" startIcon={<RestartAltIcon />} onClick={onReset} sx={{ color: '#c4b5fd', borderColor: 'rgba(167,139,250,0.38)', textTransform: 'none' }}>
@@ -109,6 +109,7 @@ export default function ValuationScenarioWorkshop({ assumptions, limits, forecas
               <Typography variant="caption" sx={{ color: '#c4b5fd', fontWeight: 800 }}>{translate(`År ${item.year}`, `Year ${item.year}`)}</Typography>
               <Typography sx={{ color: '#f8fafc', fontWeight: 800, mt: 0.35 }}>{number1.format(item.revenueMEUR)} MEUR</Typography>
               <Typography variant="caption" sx={{ color: 'rgba(148,163,184,0.74)', display: 'block' }}>EPS {currency2.format(item.epsSEK)} · {number1.format(item.growth * 100)}%</Typography>
+              <Typography variant="caption" sx={{ color: '#cbd5e1', display: 'block' }}>FCFE {currency2.format(item.equityCashFlowPerShareSEK)} / {translate('aktie', 'share')}</Typography>
               <Box sx={{ height: 4, borderRadius: 999, bgcolor: 'rgba(51,65,85,0.7)', mt: 0.9, overflow: 'hidden' }}>
                 <Box sx={{ width: `${Math.max(8, (item.revenueMEUR / maxRevenue) * 100)}%`, height: '100%', bgcolor: '#a78bfa', borderRadius: 999 }} />
               </Box>
