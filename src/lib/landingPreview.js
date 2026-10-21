@@ -1,8 +1,8 @@
-// Defines the public landing-page teaser while keeping subscriber metrics masked.
+// Supplies fixed, explicitly illustrative examples without fetching subscriber data.
 
 const COPY = {
   sv: {
-    disclosure: "Förhandsvisningen innehåller illustrativa värden. Korrekta data visas efter inloggning.",
+    disclosure: "Exempeldata – påhittade värden som visar hur verktyget fungerar. Inte aktuell lobbyaktivitet eller en verklig prognos.",
     metrics: [
       { id: "players", label: "Live-spelare", value: "68 420", unit: "spelare", status: "live" },
       { id: "trend", label: "Lobbytrend", value: "+4,8", unit: "%", status: "live" },
@@ -15,7 +15,7 @@ const COPY = {
     ],
   },
   en: {
-    disclosure: "The preview contains illustrative values. Accurate data is available after sign-in.",
+    disclosure: "Example data – illustrative values showing how the tool works. Not current lobby activity or an actual forecast.",
     metrics: [
       { id: "players", label: "Live players", value: "68,420", unit: "players", status: "live" },
       { id: "trend", label: "Lobby trend", value: "+4.8", unit: "%", status: "live" },
@@ -29,13 +29,11 @@ const COPY = {
   },
 };
 
-const maskMetric = (metric) => ({ ...metric, value: metric.value.replace(/[0-9]/g, "•") });
-
 export function buildLandingPreviewModel(locale) {
   const selected = COPY[locale] ?? COPY.sv;
   return {
     disclosure: selected.disclosure,
-    metrics: selected.metrics.map(maskMetric),
+    metrics: selected.metrics.map((metric) => ({ ...metric, status: "example" })),
     features: selected.features.map((feature) => ({ ...feature })),
   };
 }

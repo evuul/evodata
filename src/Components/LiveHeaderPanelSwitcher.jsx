@@ -4,6 +4,8 @@
 
 import React from "react";
 import { Box, FormControl, ListSubheader, MenuItem, Select, Stack, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
+import DashboardFavorites from "./DashboardFavorites";
+import { useTranslate } from "@/context/LocaleContext";
 
 export default function LiveHeaderPanelSwitcher({
   activePanel,
@@ -14,12 +16,15 @@ export default function LiveHeaderPanelSwitcher({
   isLiveMoneyPanel,
   isLivePanel,
 }) {
+  const translate = useTranslate();
   return (
     <>
+      <DashboardFavorites activePanel={activePanel} panelGroups={panelGroups} onPanelChange={handlePanelChange} />
       <Box sx={{ display: "flex", justifyContent: "center", width: "100%" }}>
         {isMobileMenu ? (
           <FormControl fullWidth size="small" sx={{ maxWidth: 260 }}>
             <Select
+              inputProps={{ "aria-label": translate("Välj dashboardvy", "Choose dashboard view") }}
               value={activePanel}
               onChange={(event) => handlePanelChange(event, event.target.value)}
               renderValue={(value) =>
@@ -64,7 +69,7 @@ export default function LiveHeaderPanelSwitcher({
                 <Typography variant="caption" sx={{ pl: 1.1, color: "rgba(148,163,184,0.72)", fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8, fontSize: "0.64rem" }}>
                   {group.label}
                 </Typography>
-                <ToggleButtonGroup value={activePanel} exclusive onChange={handlePanelChange} sx={{ backgroundColor: "rgba(15,23,42,0.55)", borderRadius: "999px", p: 0.35, gap: 0.35 }}>
+                <ToggleButtonGroup aria-label={group.label} value={activePanel} exclusive onChange={handlePanelChange} sx={{ backgroundColor: "rgba(15,23,42,0.55)", borderRadius: "999px", p: 0.35, gap: 0.35 }}>
                   {group.options.map((option) => (
                     <ToggleButton
                       key={option.value}

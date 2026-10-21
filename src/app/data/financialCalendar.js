@@ -112,6 +112,78 @@ const financialCalendarEvents = [
     sourceLabelEn: "Evolution – financial calendar",
     sourceUrl: "https://www.evolution.com/investors/financial-data/financial-calendar",
   },
+  {
+    "id": "year-end-report-2026",
+    "date": "2027-02-04",
+    "category": "report",
+    "titleSv": "Bokslutskommuniké 2026",
+    "titleEn": "Year-end report 2026",
+    "descriptionSv": "Datum enligt Evolutions officiella finansiella kalender. Publiceringstid är inte angiven.",
+    "descriptionEn": "Date listed in Evolution’s official financial calendar. No publication time has been specified.",
+    "sourceLabelSv": "Evolution – finansiell kalender",
+    "sourceLabelEn": "Evolution – financial calendar",
+    "sourceUrl": "https://www.evolution.com/investors/financial-data/financial-calendar"
+  },
+  {
+    "id": "q1-report-2027",
+    "date": "2027-04-21",
+    "category": "report",
+    "titleSv": "Delårsrapport januari–mars 2027",
+    "titleEn": "Interim report January–March 2027",
+    "descriptionSv": "Datum enligt Evolutions officiella finansiella kalender. Publiceringstid är inte angiven.",
+    "descriptionEn": "Date listed in Evolution’s official financial calendar. No publication time has been specified.",
+    "sourceLabelSv": "Evolution – finansiell kalender",
+    "sourceLabelEn": "Evolution – financial calendar",
+    "sourceUrl": "https://www.evolution.com/investors/financial-data/financial-calendar"
+  },
+  {
+    "id": "agm-2027",
+    "date": "2027-04-23",
+    "category": "governance",
+    "titleSv": "Årsstämma 2027",
+    "titleEn": "Annual General Meeting 2027",
+    "descriptionSv": "Datum enligt Evolutions officiella finansiella kalender. Publiceringstid är inte angiven.",
+    "descriptionEn": "Date listed in Evolution’s official financial calendar. No publication time has been specified.",
+    "sourceLabelSv": "Evolution – finansiell kalender",
+    "sourceLabelEn": "Evolution – financial calendar",
+    "sourceUrl": "https://www.evolution.com/investors/financial-data/financial-calendar"
+  },
+  {
+    "id": "q2-report-2027",
+    "date": "2027-07-16",
+    "category": "report",
+    "titleSv": "Delårsrapport januari–juni 2027",
+    "titleEn": "Interim report January–June 2027",
+    "descriptionSv": "Datum enligt Evolutions officiella finansiella kalender. Publiceringstid är inte angiven.",
+    "descriptionEn": "Date listed in Evolution’s official financial calendar. No publication time has been specified.",
+    "sourceLabelSv": "Evolution – finansiell kalender",
+    "sourceLabelEn": "Evolution – financial calendar",
+    "sourceUrl": "https://www.evolution.com/investors/financial-data/financial-calendar"
+  },
+  {
+    "id": "q3-report-2027",
+    "date": "2027-10-21",
+    "category": "report",
+    "titleSv": "Delårsrapport januari–september 2027",
+    "titleEn": "Interim report January–September 2027",
+    "descriptionSv": "Datum enligt Evolutions officiella finansiella kalender. Publiceringstid är inte angiven.",
+    "descriptionEn": "Date listed in Evolution’s official financial calendar. No publication time has been specified.",
+    "sourceLabelSv": "Evolution – finansiell kalender",
+    "sourceLabelEn": "Evolution – financial calendar",
+    "sourceUrl": "https://www.evolution.com/investors/financial-data/financial-calendar"
+  },
+  {
+    "id": "year-end-report-2027",
+    "date": "2028-02-03",
+    "category": "report",
+    "titleSv": "Bokslutskommuniké 2027",
+    "titleEn": "Year-end report 2027",
+    "descriptionSv": "Datum enligt Evolutions officiella finansiella kalender. Publiceringstid är inte angiven.",
+    "descriptionEn": "Date listed in Evolution’s official financial calendar. No publication time has been specified.",
+    "sourceLabelSv": "Evolution – finansiell kalender",
+    "sourceLabelEn": "Evolution – financial calendar",
+    "sourceUrl": "https://www.evolution.com/investors/financial-data/financial-calendar"
+  },
 ];
 
 export default financialCalendarEvents;

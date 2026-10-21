@@ -18,6 +18,10 @@ test("keeps public and authentication pages free from dashboard polling", () => 
 });
 
 test("skips session restoration only on standalone public information pages", () => {
+  for (const path of ["/privacy", "/methodology", "/calendar"]) {
+    assert.equal(shouldRestoreAuthSession(path), false);
+    assert.equal(shouldEnableAuthenticatedLiveData(path), false);
+  }
   assert.equal(shouldRestoreAuthSession("/founders"), false);
   assert.equal(shouldRestoreAuthSession("/disclaimer"), false);
   assert.equal(shouldRestoreAuthSession("/"), true);

@@ -26,15 +26,24 @@ test("does not show stale content when the authenticated variant changes", () =>
   );
 });
 
-test("shows the error view only after an actual load failure", () => {
+test("shows the error view only after an authenticated load failure", () => {
   assert.equal(
     resolveHomeDashboardView({
       initialized: true,
-      isAuthenticated: false,
-      dashboardState: { status: "error", variant: "public", value: null, error: new Error("failed") },
+      isAuthenticated: true,
+      dashboardState: { status: "error", variant: "authenticated", value: null, error: new Error("failed") },
     }),
     "error"
   );
+});
+
+test("renders public content before session restoration and immediately after logout", () => {
+  assert.equal(resolveHomeDashboardView({ initialized: false }), "public");
+  assert.equal(resolveHomeDashboardView({
+    initialized: true,
+    isAuthenticated: false,
+    dashboardState: { status: "success", variant: "authenticated", value: { private: true } },
+  }), "public");
 });
 
 test("selects the completed dashboard variant", () => {

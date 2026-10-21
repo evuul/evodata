@@ -26,6 +26,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import { fetchAuthJson } from "@/lib/clientApi";
 import { isPrimaryAdminEmail } from "@/lib/adminAccess";
+import { buildDataStatus } from "@/lib/dataStatus";
+import DataStatusLine from "./DataStatusLine";
 
 const formatNumber = (value, locale) => Number(value || 0).toLocaleString(locale === "en" ? "en-US" : "sv-SE");
 
@@ -191,14 +193,14 @@ export default function ExtendedLobbyPanel({ accessGranted = null, embedded = fa
               {translate("Utökad livebild med spel som inte finns i den vanliga vyn.", "Extended live view with games outside the standard view.")}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={0.8} alignItems="center" sx={{ px: 1.25, py: 0.7, borderRadius: "999px", bgcolor: "rgba(15,23,42,0.72)", border: "1px solid rgba(148,163,184,0.14)" }}>
-            <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: state.data?.stale ? "#f59e0b" : state.data?.updatedAt ? "#34d399" : "#64748b", boxShadow: state.data?.stale ? "0 0 0 4px rgba(245,158,11,0.1)" : state.data?.updatedAt ? "0 0 0 4px rgba(52,211,153,0.1)" : "none" }} />
-            <Typography variant="caption" sx={{ color: "rgba(203,213,225,0.74)", fontWeight: 650 }}>
-              {state.data?.updatedAt
-                ? translate("Uppdaterad ", "Updated ") + new Date(state.data.updatedAt).toLocaleTimeString(locale === "en" ? "en-GB" : "sv-SE", { hour: "2-digit", minute: "2-digit" })
-                : translate("Ingen uppdatering", "No update")}
-            </Typography>
-          </Stack>
+          {state.data?.updatedAt ? (
+            <DataStatusLine
+              status={buildDataStatus({ type: "live", source: "Evolution · Extended lobby", observedAt: state.data.updatedAt, stale: state.data.stale })}
+              locale={locale}
+              translate={translate}
+              coverage={translate("Utökat spelurval", "Extended game selection")}
+            />
+          ) : null}
         </Stack>
 
         {state.data?.stale ? (

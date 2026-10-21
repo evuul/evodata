@@ -5,12 +5,14 @@
 import React from "react";
 import { Box, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import SupportCallout from "./SupportCallout";
+import ReportDataStatus from "./ReportDataStatus";
 
 const BUYBACK_CASH_EUR = 2_000_000_000;
 
-function PanelWithSupport({ children, placement }) {
+function PanelWithSupport({ children, placement, financialReports, model = false }) {
   return (
     <Box sx={{ width: "100%" }}>
+      <ReportDataStatus data={financialReports} model={model} />
       {children}
       <SupportCallout placement={placement} />
     </Box>
@@ -50,7 +52,7 @@ export default function LiveHeaderPanelContent({
       );
     }
     return (
-      <PanelWithSupport placement="financial_overview">
+      <PanelWithSupport placement="financial_overview" financialReports={financialReports}>
         <panels.FinancialOverviewPanel financialReports={financialReports} dividendData={dividendData} />
       </PanelWithSupport>
     );
@@ -68,7 +70,7 @@ export default function LiveHeaderPanelContent({
       );
     }
     return (
-      <PanelWithSupport placement="fair_value">
+      <PanelWithSupport placement="fair_value" financialReports={financialReports} model>
         <panels.LiveAiFairValuePanel
           reports={reports}
           buybackData={buybackData}
@@ -145,7 +147,7 @@ export default function LiveHeaderPanelContent({
       );
     }
     return (
-      <PanelWithSupport placement="gameshow_forecast">
+      <PanelWithSupport placement="gameshow_forecast" financialReports={financialReports} model>
         <panels.GameshowEarningsPanel financialReports={financialReports} averagePlayersData={averagePlayersData} />
       </PanelWithSupport>
     );
@@ -159,7 +161,7 @@ export default function LiveHeaderPanelContent({
         </Box>
       );
     }
-    return <panels.ReportViewPanel financialReports={financialReports} />;
+    return <><ReportDataStatus data={financialReports} /><panels.ReportViewPanel financialReports={financialReports} /></>;
   }
 
   if (activePanel === "faq") return <panels.FaqPanel />;

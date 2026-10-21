@@ -1,6 +1,9 @@
 "use client";
 
+// Restores language preferences safely and keeps assistive technology in sync.
+
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
+import { readStoredString, writeStoredString } from "@/lib/clientStorage";
 
 const DEFAULT_LOCALE = "sv";
 const SUPPORTED_LOCALES = ["sv", "en"];
@@ -35,7 +38,7 @@ export const LocaleProvider = ({ children }) => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem(STORAGE_KEY);
+    const stored = readStoredString(STORAGE_KEY);
     if (stored) {
       setLocaleState(normalizeLocale(stored));
       return;
@@ -45,11 +48,8 @@ export const LocaleProvider = ({ children }) => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, locale);
-    } catch {
-      // ignore storage errors
-    }
+    writeStoredString(STORAGE_KEY, locale);
+    document.documentElement.lang = locale;
   }, [locale]);
 
   const setLocale = (nextLocale) => {

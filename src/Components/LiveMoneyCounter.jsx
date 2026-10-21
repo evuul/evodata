@@ -6,8 +6,11 @@ import { Box, Chip, Grid, Stack, Tooltip, Typography, useTheme } from '@mui/mate
 import useMediaQuery from '@/lib/useMuiMediaQuery';
 import financialReports from '@/app/data/financialReports.json';
 import { useFxRateContext } from '@/context/FxRateContext';
-import { useTranslate } from '@/context/LocaleContext';
+import { useLocale, useTranslate } from '@/context/LocaleContext';
 import { buildLiveMoneyModel } from '@/lib/liveMoneyModel';
+import { buildDataStatus } from '@/lib/dataStatus';
+import ReportDataStatus from './ReportDataStatus';
+import DataStatusLine from './DataStatusLine';
 
 const formatSEK = (value, fractionDigits = 0) => Number.isFinite(value)
   ? value.toLocaleString('sv-SE', { maximumFractionDigits: fractionDigits, minimumFractionDigits: fractionDigits })
@@ -17,7 +20,8 @@ const LiveMoneyCounter = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const translate = useTranslate();
-  const { rate: fxRate } = useFxRateContext();
+  const { locale } = useLocale();
+  const { rate: fxRate, meta: fxMeta, lastUpdated: fxUpdatedAt, dataStatus: fxDataStatus } = useFxRateContext();
   const model = useMemo(
     () => buildLiveMoneyModel({ reports: financialReports?.financialReports, fxRate }),
     [fxRate]
@@ -48,6 +52,8 @@ const LiveMoneyCounter = () => {
       boxShadow: '0 20px 45px rgba(15, 23, 42, 0.45)', color: '#f8fafc',
       display: 'flex', flexDirection: 'column', gap: { xs: 2.5, md: 3 },
     }}>
+      <ReportDataStatus data={financialReports} model />
+      <DataStatusLine status={buildDataStatus({ type: 'live', source: 'EUR/SEK', observedAt: fxUpdatedAt, fallback: fxMeta?.source === 'fallback', stale: fxDataStatus === 'stale' })} locale={locale} translate={translate} />
       <Stack spacing={1.2} alignItems="center" textAlign="center">
         <Typography variant="overline" sx={{ letterSpacing: 1, color: 'rgba(148,163,184,0.75)' }}>{translate('Live Money', 'Live Money')}</Typography>
         <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontWeight: 700 }}>{translate('Vinsttakt', 'Profit pace')}</Typography>

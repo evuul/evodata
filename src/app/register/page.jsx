@@ -2,6 +2,8 @@
 
 "use client";
 
+// Collects account details and explains where to find privacy information.
+
 import { useEffect, useState } from "react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
@@ -162,6 +164,10 @@ export default function RegisterPage() {
           border: "1px solid rgba(255,255,255,0.05)",
         }}
       >
+        <Typography sx={{ color: "#cbd5e1", fontSize: 13, mb: 2 }}>
+          {translate("Läs hur dina uppgifter hanteras i vår ", "Read how your information is handled in our ")}
+          <Link component={NextLink} href="/privacy" sx={{ color: "#82c1ff" }}>{translate("integritetsinformation", "privacy information")}</Link>.
+        </Typography>
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
           <ToggleButtonGroup
             exclusive

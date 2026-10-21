@@ -20,10 +20,12 @@ function formatObserved(status, locale) {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "Europe/Stockholm",
+    ...(status.type === "live" ? { hour: "2-digit", minute: "2-digit", timeZoneName: "short" } : {}),
   }).format(date);
 }
 
-export default function DataStatusLine({ status, locale = "sv", translate }) {
+export default function DataStatusLine({ status, locale = "sv", translate, coverage }) {
   if (!status) return null;
 
   const palette = STATUS_COLORS[status.quality] ?? STATUS_COLORS.fresh;
@@ -38,10 +40,10 @@ export default function DataStatusLine({ status, locale = "sv", translate }) {
             ? translate("Modell", "Model")
             : translate("Rapporterat", "Reported");
   const observed = formatObserved(status, locale);
-  const details = [status.source, observed].filter(Boolean).join(" · ");
+  const details = [status.source, observed, coverage].filter(Boolean).join(" · ");
 
   return (
-    <Box sx={{ mt: "auto", pt: 1.5, display: "flex", alignItems: "center", gap: 0.8, minWidth: 0 }}>
+    <Box role="note" aria-label={translate("Datakälla och status", "Data source and status")} sx={{ mt: "auto", pt: 1.5, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.8, minWidth: 0 }}>
       <Chip
         label={statusLabel}
         size="small"
@@ -59,7 +61,7 @@ export default function DataStatusLine({ status, locale = "sv", translate }) {
         <Typography
           variant="caption"
           title={details}
-          sx={{ color: "rgba(203,213,225,0.62)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+          sx={{ color: "#cbd5e1", overflowWrap: "anywhere" }}
         >
           {details}
         </Typography>

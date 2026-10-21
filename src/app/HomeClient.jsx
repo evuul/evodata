@@ -10,26 +10,12 @@ import { useTranslate } from "@/context/LocaleContext";
 import { combineBuybackSnapshots } from "@/lib/buybackSnapshots";
 import { dashboardVariantForAuth, resolveHomeDashboardView } from "@/lib/homeDashboardState";
 import OnboardingGuide from "@/Components/OnboardingGuide";
+import LiveLoggedOutPreview from "@/Components/LiveLoggedOutPreview";
+import { readStoredString } from "@/lib/clientStorage";
 
 const LiveHeader = dynamic(() => import("@/Components/LiveHeader"), {
   ssr: false,
   loading: () => <LoadingState label="Laddar kontrollcenter ..." />,
-});
-
-const LiveLoggedOutPreview = dynamic(() => import("@/Components/LiveLoggedOutPreview"), {
-  ssr: false,
-  loading: () => (
-    <Box
-      sx={{
-        minHeight: "60vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <CircularProgress />
-    </Box>
-  ),
 });
 
 const emptyDataState = {
@@ -62,11 +48,6 @@ async function loadLiveHeaderData() {
     buybackData: combineBuybackSnapshots(historicalBuybacks, currentBuybacks),
     sharesData,
   };
-}
-
-async function loadLoggedOutPreviewData() {
-  await import("@/Components/LiveLoggedOutPreview");
-  return {};
 }
 
 function LoadingState({ label = "Laddar dashboards ..." }) {
@@ -126,7 +107,7 @@ export default function HomeClient() {
     if (!initialized || !isAuthenticated || typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("onboarding") !== "1") return;
-    if (window.localStorage.getItem("evotracker_onboarding_seen") === "1") return;
+    if (readStoredString("evotracker_onboarding_seen") === "1") return;
     setOnboardingOpen(true);
     params.delete("onboarding");
     const nextUrl = `${window.location.pathname}${params.toString() ? `?${params}` : ""}${window.location.hash}`;
@@ -143,14 +124,13 @@ export default function HomeClient() {
   };
 
   useEffect(() => {
-    if (!initialized) return undefined;
+    if (!initialized || !isAuthenticated) return undefined;
 
     let cancelled = false;
     const variant = dashboardVariantForAuth(isAuthenticated);
-    const loader = isAuthenticated ? loadLiveHeaderData : loadLoggedOutPreviewData;
     setDashboardData({ status: "loading", variant, error: null, value: null });
 
-    loader()
+    loadLiveHeaderData()
       .then((value) => {
         if (!cancelled) setDashboardData({ status: "success", variant, error: null, value });
       })
@@ -180,7 +160,7 @@ export default function HomeClient() {
   if (dashboardView === "public") {
     return (
       <main>
-        <LiveLoggedOutPreview {...dashboardData.value} />
+        <LiveLoggedOutPreview />
       </main>
     );
   }

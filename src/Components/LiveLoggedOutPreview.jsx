@@ -18,43 +18,16 @@ import BarChartRoundedIcon from "@mui/icons-material/BarChartRounded";
 import CheckRoundedIcon from "@mui/icons-material/CheckRounded";
 import GroupsRoundedIcon from "@mui/icons-material/GroupsRounded";
 import InsightsRoundedIcon from "@mui/icons-material/InsightsRounded";
-import LockRoundedIcon from "@mui/icons-material/LockRounded";
 import PublicRoundedIcon from "@mui/icons-material/PublicRounded";
 import QueryStatsRoundedIcon from "@mui/icons-material/QueryStatsRounded";
-import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
 import WorkspacePremiumRoundedIcon from "@mui/icons-material/WorkspacePremiumRounded";
 import { LOCALE_OPTIONS, useLocale, useTranslate } from "@/context/LocaleContext";
 import { buildLandingPreviewModel } from "@/lib/landingPreview";
 import { FOUNDER_BENEFITS, FOUNDER_PROGRAM } from "@/config/founderProgram";
 import { PREMIUM_BENEFITS, PREMIUM_PROGRAM } from "@/config/premiumProgram";
-
-const colors = {
-  border: "rgba(148, 163, 184, 0.18)",
-  surface: "#111c2e",
-  text: "#f8fafc",
-  muted: "rgba(226, 232, 240, 0.68)",
-  cyan: "#82c1ff",
-  amber: "#fbbf24",
-};
-
-const panelSx = {
-  border: `1px solid ${colors.border}`,
-  backgroundColor: colors.surface,
-  boxShadow: "0 18px 40px rgba(0,0,0,0.22)",
-};
-
-const primaryButtonSx = {
-  color: "#fff",
-  textTransform: "none",
-  borderRadius: "10px",
-  fontWeight: 750,
-  background: "linear-gradient(135deg, #4a90e2, #0077ff)",
-  boxShadow: "none",
-  "&:hover": {
-    background: "linear-gradient(135deg, #5b9bea, #1684ff)",
-    boxShadow: "none",
-  },
-};
+import ProductPreview from "./LandingProductPreview";
+import AccessComparison from "./AccessComparison";
+import { colors, panelSx, primaryButtonSx } from "./landingStyles";
 
 function BrandMark() {
   return (
@@ -90,7 +63,7 @@ function LocalePicker() {
       size="small"
       value={locale}
       onChange={(_, value) => value && setLocale(value)}
-      aria-label="Language"
+      aria-label={locale === "en" ? "Language" : "Språk"}
       sx={{ p: 0.35, borderRadius: "999px", backgroundColor: "rgba(148,163,184,0.08)" }}
     >
       {LOCALE_OPTIONS.map((option) => (
@@ -115,105 +88,6 @@ function LocalePicker() {
   );
 }
 
-function PreviewChart() {
-  return (
-    <Box component="svg" viewBox="0 0 620 176" role="img" aria-label="Illustrative player trend" sx={{ width: "100%", display: "block" }}>
-      <defs>
-        <linearGradient id="preview-area" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4a90e2" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#4a90e2" stopOpacity="0" />
-        </linearGradient>
-        <linearGradient id="preview-line" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#82c1ff" />
-          <stop offset="100%" stopColor="#4a90e2" />
-        </linearGradient>
-      </defs>
-      {[30, 76, 122, 168].map((y) => (
-        <line key={y} x1="0" x2="620" y1={y} y2={y} stroke="rgba(148,163,184,0.12)" strokeDasharray="4 7" />
-      ))}
-      <path d="M0 146 C38 138 52 111 89 119 S143 152 181 129 S225 89 264 99 S316 131 351 105 S402 54 448 73 S507 96 542 58 S584 35 620 21 L620 176 L0 176 Z" fill="url(#preview-area)" />
-      <path d="M0 146 C38 138 52 111 89 119 S143 152 181 129 S225 89 264 99 S316 131 351 105 S402 54 448 73 S507 96 542 58 S584 35 620 21" fill="none" stroke="url(#preview-line)" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="620" cy="21" r="6" fill="#82c1ff" />
-      <circle cx="620" cy="21" r="13" fill="none" stroke="#82c1ff" strokeOpacity="0.28" />
-    </Box>
-  );
-}
-
-function MetricCard({ icon, label, value, unit, accent, status }) {
-  return (
-    <Box sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 2.5, border: `1px solid ${colors.border}`, background: "rgba(15,23,42,0.58)" }}>
-      <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-        <Stack direction="row" spacing={1} alignItems="center">
-          <Box sx={{ width: 30, height: 30, borderRadius: 1.5, display: "grid", placeItems: "center", color: accent, backgroundColor: `${accent}18` }}>
-            {icon}
-          </Box>
-          <Typography sx={{ color: colors.muted, fontSize: 12, fontWeight: 650 }}>{label}</Typography>
-        </Stack>
-        <Box sx={{ width: 6, height: 6, borderRadius: "50%", backgroundColor: status === "live" ? "#4ade80" : colors.amber }} />
-      </Stack>
-      <Stack direction="row" spacing={0.7} alignItems="baseline" sx={{ mt: 1.7 }}>
-        <Typography aria-hidden="true" sx={{ color: colors.text, fontSize: { xs: 23, sm: 28 }, fontWeight: 780, letterSpacing: "0.03em", filter: "blur(4px)", userSelect: "none" }}>
-          {value}
-        </Typography>
-        <Typography sx={{ color: colors.muted, fontSize: 12, fontWeight: 650 }}>{unit}</Typography>
-      </Stack>
-    </Box>
-  );
-}
-
-function ProductPreview({ model, translate }) {
-  return (
-    <Box sx={{ ...panelSx, position: "relative", borderRadius: { xs: 3, md: 4 }, p: { xs: 1.5, sm: 2.2 }, overflow: "hidden" }}>
-      <Box aria-hidden="true" sx={{ position: "absolute", width: 300, height: 300, right: -110, top: -150, borderRadius: "50%", background: "rgba(74,144,226,0.08)", filter: "blur(60px)" }} />
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ position: "relative", px: 0.5, pb: 1.8 }}>
-        <Box>
-          <Typography sx={{ color: colors.text, fontWeight: 750, fontSize: 14 }}>{translate("Live intelligence", "Live intelligence")}</Typography>
-          <Typography sx={{ color: colors.muted, fontSize: 11, mt: 0.2 }}>{translate("Lobbyöversikt · idag", "Lobby overview · today")}</Typography>
-        </Box>
-        <Chip icon={<LockRoundedIcon sx={{ fontSize: "14px !important" }} />} label={translate("Förhandsvisning", "Preview")} size="small" sx={{ color: "#cbd5e1", backgroundColor: "rgba(148,163,184,0.10)", border: `1px solid ${colors.border}`, fontWeight: 700, fontSize: 10 }} />
-      </Stack>
-
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr 1fr", sm: "repeat(3, 1fr)" }, gap: 1.2, position: "relative" }}>
-        {model.metrics.map((metric, index) => (
-          <Box key={metric.id} sx={{ gridColumn: { xs: index === 2 ? "1 / -1" : "auto", sm: "auto" } }}>
-            <MetricCard
-              {...metric}
-              accent={colors.cyan}
-              icon={[<GroupsRoundedIcon key="players" fontSize="small" />, <ShowChartRoundedIcon key="trend" fontSize="small" />, <AutoGraphRoundedIcon key="forecast" fontSize="small" />][index]}
-            />
-          </Box>
-        ))}
-      </Box>
-
-      <Box sx={{ mt: 1.2, p: { xs: 1.5, sm: 2 }, borderRadius: 2.5, border: `1px solid ${colors.border}`, background: "rgba(15,23,42,0.58)", position: "relative" }}>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
-          <Box>
-            <Typography sx={{ color: colors.text, fontSize: 13, fontWeight: 700 }}>{translate("Spelartrend över tid", "Player trend over time")}</Typography>
-            <Typography sx={{ color: colors.muted, fontSize: 11 }}>{translate("7 d · 30 d · 90 d · glidande medelvärde", "7d · 30d · 90d · moving average")}</Typography>
-          </Box>
-          <Stack direction="row" spacing={0.7} alignItems="center">
-            <Box sx={{ width: 7, height: 7, borderRadius: "50%", bgcolor: "#4ade80" }} />
-            <Typography sx={{ color: colors.muted, fontSize: 11 }}>{translate("Uppdateras automatiskt", "Updates automatically")}</Typography>
-          </Stack>
-        </Stack>
-        <PreviewChart />
-      </Box>
-
-      <Box sx={{ position: "absolute", inset: "40% 0 0", background: "linear-gradient(180deg, transparent, rgba(15,23,42,0.90) 42%, rgba(15,23,42,0.99))", display: "flex", alignItems: "flex-end", justifyContent: "center", pb: 2.4, px: 2 }}>
-        <Stack alignItems="center" spacing={1.1}>
-          <Stack direction="row" spacing={0.8} alignItems="center">
-            <LockRoundedIcon sx={{ color: colors.cyan, fontSize: 17 }} />
-            <Typography sx={{ color: colors.text, fontSize: 13, fontWeight: 750 }}>{translate("Lås upp korrekta livevärden", "Unlock accurate live values")}</Typography>
-          </Stack>
-          <Button component={NextLink} href="/register" size="small" variant="contained" endIcon={<ArrowForwardRoundedIcon />} sx={{ ...primaryButtonSx, px: 2 }}>
-            {translate("Skapa kostnadsfritt konto", "Create free account")}
-          </Button>
-        </Stack>
-      </Box>
-    </Box>
-  );
-}
-
 const featureIcons = [GroupsRoundedIcon, QueryStatsRoundedIcon, InsightsRoundedIcon];
 
 function FeatureCard({ feature, index }) {
@@ -235,7 +109,8 @@ function FeatureCard({ feature, index }) {
 }
 
 function ReportPreview({ translate }) {
-  const rows = [78, 64, 88, 53];
+  const { locale } = useLocale();
+  const rows = [44, 32, 16, 8];
   return (
     <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, p: { xs: 2.25, sm: 3.5, md: 4.5 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "0.85fr 1.15fr" }, gap: { xs: 2.5, md: 5 }, alignItems: "center" }}>
       <Box>
@@ -260,7 +135,7 @@ function ReportPreview({ translate }) {
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography sx={{ color: colors.text, fontWeight: 720, fontSize: 14 }}>{translate("Intäkter per region", "Revenue by region")}</Typography>
-            <Typography sx={{ color: colors.muted, fontSize: 11 }}>{translate("Kvartalsvis utveckling", "Quarterly development")}</Typography>
+            <Typography sx={{ color: colors.muted, fontSize: 11 }}>{translate("Exempeldata · illustrativ fördelning", "Example data · illustrative mix")}</Typography>
           </Box>
           <BarChartRoundedIcon sx={{ color: colors.cyan }} />
         </Stack>
@@ -269,7 +144,7 @@ function ReportPreview({ translate }) {
             <Box key={label}>
               <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.65 }}>
                 <Typography sx={{ color: "#cbd5e1", fontSize: 12 }}>{label}</Typography>
-                <Typography sx={{ color: colors.muted, fontSize: 11, filter: "blur(3px)" }}>00,0 MEUR</Typography>
+                <Typography sx={{ color: colors.muted, fontSize: 11, fontVariantNumeric: "tabular-nums" }}>{[176, 128, 64, 32][index].toLocaleString(locale === "en" ? "en-GB" : "sv-SE")} MEUR</Typography>
               </Stack>
               <Box sx={{ height: 7, borderRadius: 999, bgcolor: "rgba(148,163,184,0.1)", overflow: "hidden" }}>
                 <Box sx={{ height: "100%", width: `${rows[index]}%`, borderRadius: 999, background: `linear-gradient(90deg, ${index % 2 ? "#4a90e2" : "#60a5fa"}, ${index % 2 ? "#82c1ff" : "#4a90e2"})` }} />
@@ -277,8 +152,6 @@ function ReportPreview({ translate }) {
             </Box>
           ))}
         </Stack>
-        <Box sx={{ position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(110deg, transparent 35%, rgba(7,16,25,0.52) 60%, rgba(7,16,25,0.88))" }} />
-        <Chip icon={<LockRoundedIcon sx={{ fontSize: "14px !important" }} />} label={translate("Full data efter inloggning", "Full data after sign in")} size="small" sx={{ position: "absolute", right: 18, bottom: 18, color: colors.text, bgcolor: "rgba(15,23,42,0.92)", border: `1px solid ${colors.border}`, fontWeight: 700, fontSize: 10 }} />
       </Box>
     </Box>
   );
@@ -383,6 +256,8 @@ export default function LiveLoggedOutPreview() {
         <ReportPreview translate={translate} />
       </Box>
 
+      <AccessComparison />
+
       <Box component="section" sx={{ maxWidth: 1200, mx: "auto", px: { xs: 2, sm: 3 }, pb: { xs: 5.5, md: 8 } }}>
         <Box sx={{ ...panelSx, borderRadius: { xs: 3, md: 4 }, px: { xs: 2.5, md: 4 }, py: { xs: 2.5, md: 3 }, display: "grid", gridTemplateColumns: { xs: "1fr", md: "minmax(220px, 0.7fr) minmax(0, 1.3fr) auto" }, gap: { xs: 1.8, md: 2.5 }, alignItems: "center", borderColor: "rgba(125,211,252,0.28)" }}>
           <Box>
@@ -444,15 +319,11 @@ export default function LiveLoggedOutPreview() {
         <Box sx={{ borderRadius: { xs: 3, md: 4 }, px: { xs: 2.25, md: 7 }, py: { xs: 3.25, md: 5 }, textAlign: "center", border: `1px solid ${colors.border}`, backgroundColor: colors.surface, boxShadow: "0 18px 40px rgba(0,0,0,0.2)" }}>
           <AutoGraphRoundedIcon sx={{ color: colors.cyan, fontSize: 34 }} />
           <Typography component="h2" sx={{ color: colors.text, fontSize: { xs: 29, md: 40 }, fontWeight: 780, letterSpacing: "-0.03em", mt: 1.5 }}>{translate("Se hela bilden bakom Evolution.", "See the full picture behind Evolution.")}</Typography>
-          <Typography sx={{ color: colors.muted, mt: 1.3, maxWidth: 590, mx: "auto", lineHeight: 1.7 }}>{translate("Skapa ett konto för korrekta livevärden, kompletta grafer, historiska rapporter och EvoTrackers kvartalsforecast.", "Create an account for accurate live values, complete charts, historical reports and EvoTracker's quarterly forecast.")}</Typography>
+          <Typography sx={{ color: colors.muted, mt: 1.3, maxWidth: 590, mx: "auto", lineHeight: 1.7 }}>{translate("Skapa ett kostnadsfritt konto för gameshows, standardhistorik, rapporter och kvartalsprognoser. Premium ger fler spel, längre historik och export.", "Create a free account for gameshows, standard history, reports and quarterly forecasts. Premium adds more games, extended history and exports.")}</Typography>
           <Button component={NextLink} href="/register" size="large" variant="contained" endIcon={<ArrowForwardRoundedIcon />} sx={{ ...primaryButtonSx, mt: 3, minHeight: 52, px: 3.5, borderRadius: "12px" }}>{translate("Kom igång kostnadsfritt", "Get started for free")}</Button>
           <Typography sx={{ color: "#718399", fontSize: 11.5, mt: 1.5 }}>{model.disclosure}</Typography>
         </Box>
-        <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems="center" spacing={2} sx={{ pt: 3, color: "#64748b" }}>
-          <BrandMark />
-          <Typography sx={{ fontSize: 11.5, textAlign: "center" }}>{translate("Oberoende analystjänst · Inte finansiell rådgivning", "Independent analytics service · Not financial advice")}</Typography>
-          <Button component={NextLink} href="/founders" size="small" sx={{ color: "#94a3b8", textTransform: "none", fontSize: 11.5 }}>{translate("Founders", "Founders")}</Button>
-        </Stack>
+
       </Box>
     </Box>
   );

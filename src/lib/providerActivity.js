@@ -6,5 +6,5 @@ export function shouldEnableAuthenticatedLiveData(pathname) {
 }
 
 export function shouldRestoreAuthSession(pathname) {
-  return pathname !== "/founders" && pathname !== "/disclaimer";
+  return !["/founders", "/disclaimer", "/privacy", "/methodology", "/calendar"].includes(pathname);
 }

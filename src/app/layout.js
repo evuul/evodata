@@ -1,9 +1,14 @@
+// Provides site metadata, shared providers and the public footer.
+
 import localFont from "next/font/local";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import Box from "@mui/material/Box";
 import Providers from "./providers"; // ⬅️ NYTT: gemensam klient-wrapper för alla providers
+
+import SiteFooter from "@/Components/SiteFooter";
+import { resolveSiteUrl, SITE_DESCRIPTION } from "@/config/site";
 
 const geistSans = localFont({
   variable: "--font-geist-sans",
@@ -17,11 +22,11 @@ const geistMono = localFont({
   display: "swap",
 });
 
-const site = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const site = resolveSiteUrl(process.env.NEXT_PUBLIC_SITE_URL);
 
 export const metadata = {
   title: "EVOLUTION TRACKER",
-  description: "Följer Evolution Gaming",
+  description: SITE_DESCRIPTION,
   applicationName: "Evolution Tracker",
   metadataBase: new URL(site),
   icons: {
@@ -73,6 +78,7 @@ export default function RootLayout({ children }) {
             >
               {children}
             </Box>
+            <SiteFooter />
           </Box>
         </Providers>
       </body>

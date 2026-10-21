@@ -110,7 +110,7 @@ function EventCard({ event, locale, translate, past = false }) {
         </Typography>
         <Stack direction="row" gap={1.2} flexWrap="wrap" alignItems="center">
           <Typography variant="caption" sx={{ color: "rgba(148,163,184,0.78)" }}>
-            {formatEventDate(event, locale)}{event.time ? ` · ${event.time} CEST` : ""}
+            {formatEventDate(event, locale)}{event.time ? ` · ${event.time} (Europe/Stockholm)` : ""}
           </Typography>
           <Link
             href={event.sourceUrl}
@@ -121,6 +121,11 @@ function EventCard({ event, locale, translate, past = false }) {
           >
             {sourceLabel} <OpenInNewRounded sx={{ fontSize: 13 }} />
           </Link>
+          {!past ? (
+            <Link href={`/api/calendar/${encodeURIComponent(event.id)}?locale=${locale}`} download sx={{ color: "#7dd3fc", fontSize: "0.8rem", py: 1, minHeight: 44, display: "inline-flex", alignItems: "center" }} aria-label={translate(`Lägg till i kalender: ${title}`, `Add to calendar: ${title}`)}>
+              {translate("Lägg till i kalender (.ics)", "Add to calendar (.ics)")}
+            </Link>
+          ) : null}
         </Stack>
       </Stack>
     </Box>
@@ -189,7 +194,7 @@ export default function FinancialCalendarPanel() {
                 </Typography>
                 <Typography variant="h5" sx={{ fontWeight: 850 }}>{nextTitle}</Typography>
                 <Typography variant="body2" sx={{ color: "rgba(203,213,225,0.78)" }}>
-                  {formatEventDate(nextEvent, locale)}{nextEvent.time ? ` · ${nextEvent.time} CEST` : ""}
+                  {formatEventDate(nextEvent, locale)}{nextEvent.time ? ` · ${nextEvent.time} (Europe/Stockholm)` : ""}
                 </Typography>
               </Stack>
               <Chip
@@ -231,7 +236,7 @@ export default function FinancialCalendarPanel() {
           <>
             <Divider sx={{ borderColor: "rgba(148,163,184,0.16)" }} />
             <Stack spacing={1.25}>
-              <Typography variant="h6" sx={{ fontWeight: 800 }}>{translate("Tidigare under 2026", "Earlier in 2026")}</Typography>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>{translate("Tidigare händelser", "Past events")}</Typography>
               {past.map((event) => (
                 <EventCard key={event.id} event={event} locale={locale} translate={translate} past />
               ))}

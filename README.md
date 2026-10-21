@@ -86,3 +86,17 @@ Tips för lokal analys:
 ## Säker underhållskonfiguration
 
 Skrivande synk- och diagnostik-endpoints kräver en bearer-token. Sätt `CRON_SECRET` som gemensam hemlighet, eller använd de mer avgränsade variablerna `BUYBACKS_SYNC_SECRET`, `SHORT_SYNC_SECRET` och `DEBUG_KV_SECRET`. Demokontot är avstängt om `DEMO_ACCOUNT_PASSWORD` saknas. Lägg aldrig dessa värden i repot.
+
+## Kontroller och publika informationssidor
+
+- `npm test` kör logik- och regressionstester.
+- `npm run lint` kontrollerar kodstilen och `npm run build` verifierar produktionsbygget.
+- Installera testwebbläsaren med `npx playwright install chromium` och kör `npm run test:e2e` för dator- och mobilflöden. Testerna startar en egen lokal server på port 3100 och använder simulerade API-svar för konto- och marknadsdata. Inga riktiga konton skapas och inga notifieringar skickas.
+
+Starta inte en annan Next-process i samma arbetskatalog samtidigt som webbläsartesterna; utvecklingsservern och bygget använder samma `.next`-katalog. Testutdata ligger i ignorerade `test-results/` och `playwright-report/`.
+
+De publika sidorna `/calendar`, `/methodology` och `/privacy` kräver ingen session. Kalendern underhålls i `src/app/data/financialCalendar.js` med länkar till officiella källor. Händelser utan bekräftat klockslag exporteras som heldagar; kända klockslag tolkas i `Europe/Stockholm`. Nedladdade kalenderfiler uppdateras inte automatiskt om ett datum ändras.
+
+Startsidan visar fasta exempelvärden som aldrig hämtas från den privata datainsamlingen. Kontojämförelsen använder samma historikgränser som åtkomstkontrollen. Favoritvyer sparas endast i aktuell webbläsare och ändrar inte vilka paneler kontot får öppna.
+
+Publik kontaktadress och standarddomän finns i `src/config/site.js`. Sätt `NEXT_PUBLIC_SITE_URL` till webbplatsens publika ursprung vid driftsättning så att metadata, robots och sitemap använder samma adress. Integritetstexten beskriver nuvarande lagring och måste uppdateras om leverantörer eller raderingsflöden ändras.

@@ -4,7 +4,8 @@ export const dashboardVariantForAuth = (isAuthenticated) =>
   isAuthenticated ? "authenticated" : "public";
 
 export function resolveHomeDashboardView({ initialized, isAuthenticated, dashboardState } = {}) {
-  if (!initialized) return "loading";
+  // Public content can be rendered before session restoration; private data still waits.
+  if (!initialized || !isAuthenticated) return "public";
 
   const expectedVariant = dashboardVariantForAuth(isAuthenticated);
   if (dashboardState?.variant !== expectedVariant) return "loading";
