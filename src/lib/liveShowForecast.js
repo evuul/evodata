@@ -210,6 +210,15 @@ export function pickRecentAverageBaseline(
   };
 }
 
+export function pickLiveRevenueBaseline(candidates, targetPeriod, fallbackRevenuePerPlayer) {
+  const targetIndex = periodToIndex(targetPeriod);
+  const latestQuarterPolicyStart = periodToIndex("2026 Q4");
+  // Keep historical model checks on their original two-quarter policy.
+  return pickRecentAverageBaseline(candidates, targetPeriod, fallbackRevenuePerPlayer, {
+    sampleSize: Number.isFinite(targetIndex) && targetIndex >= latestQuarterPolicyStart ? 1 : 2,
+  });
+}
+
 export function buildRobustGrowthProjection(values, options = {}) {
   const fallbackGrowth = Number.isFinite(options?.fallbackGrowth)
     ? options.fallbackGrowth

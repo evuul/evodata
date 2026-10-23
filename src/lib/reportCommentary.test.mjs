@@ -48,3 +48,15 @@ test("Q2 2026 commentary contains complete Swedish and English copy", async () =
     assert.ok(q2[field]?.trim(), `${field} should contain published copy`);
   }
 });
+
+test("Q3 2026 commentary covers the current report in both languages", async () => {
+  const q3 = (await readJson("../app/data/reportCommentary.json"))["Q3-2026"];
+  assert.equal(q3.publishedAt, "2026-10-23");
+  assert.ok(q3.positives.length > 0);
+  assert.equal(q3.positives.length, q3.positivesEn.length);
+  assert.ok(q3.negatives.length > 0);
+  assert.equal(q3.negatives.length, q3.negativesEn.length);
+  for (const field of ["outlook", "outlookEn", "buybacks", "buybacksEn"]) {
+    assert.ok(q3[field]?.trim());
+  }
+});

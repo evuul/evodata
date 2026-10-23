@@ -37,13 +37,16 @@ import {
   buildRobustGrowthProjection,
   calculateMedianCalibrationFactor,
   getLatestReportedPeriod,
-  pickRecentAverageBaseline,
+  pickLiveRevenueBaseline,
   resolveForecastPeriod,
   resolvePlayersForEstimate,
 } from "@/lib/liveShowForecast";
 import { useTranslate } from "@/context/LocaleContext";
 import ForecastAccuracySummary from "./ForecastAccuracySummary";
 import RevenueForecastSummary from "./RevenueForecastSummary";
+import RevenueForecastOutcome from "./RevenueForecastOutcome";
+import { revenueForecastHistory } from "@/app/data/revenueForecastHistory";
+import { buildRevenueForecastOutcomes } from "@/lib/revenueForecastOutcome";
 
 const REPORT_LOOKBACK_DAYS = 200; // fångar föregående kvartal (t.ex. full Q4 när vi är i Q1)
 const PLAYER_ADJUSTMENT_FACTOR = 1.1;
@@ -66,6 +69,10 @@ const QUARTERLY_PLAYER_SNAPSHOTS = {
     rawPlayers: 60946,
     days: 89,
   },
+  ...Object.fromEntries(revenueForecastHistory.map((snapshot) => [
+    snapshot.period,
+    { rawPlayers: snapshot.rawPlayers, days: snapshot.days },
+  ])),
 };
 const BASELINE_WHITELIST = new Set(["2025 Q1", "2025 Q2", "2025 Q3"]); // historiska kvartal vi accepterar trots få datapunkter
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
@@ -406,11 +413,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
 
   const pickBaseline = useCallback(
     (targetPeriod) =>
-      pickRecentAverageBaseline(
+      pickLiveRevenueBaseline(
         baselineCandidates.list,
         targetPeriod,
-        DEFAULT_REVENUE_PER_PLAYER,
-        { sampleSize: 2 }
+        DEFAULT_REVENUE_PER_PLAYER
       ),
     [baselineCandidates]
   );
@@ -470,6 +476,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       forecastTwoBeforePeriod,
       currentPeriod,
       baselineReferencePeriod,
+      ...Object.keys(QUARTERLY_PLAYER_SNAPSHOTS),
     ];
     return buildQuarterlyModelCheckPeriods({
       basePeriods,
@@ -579,7 +586,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
   const forecastCalibrationFactor =
     baselineComputed?.source === "recent-average" ? 1 : calibrationFactor;
 
-  const estimatedRevenue = Number.isFinite(baselineRevenuePerPlayer)
+  const estimatedRevenue = baseAveragePlayers > 0 && Number.isFinite(baselineRevenuePerPlayer)
     ? Math.round(baseAveragePlayers * baselineRevenuePerPlayer * forecastCalibrationFactor * 10) / 10
     : null;
 
@@ -610,9 +617,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           ? baselineRevenuePerPlayer
           : baselineForPeriod(period);
         const rowCalibrationFactor = Number.isFinite(actualRevenue) ? 1 : forecastCalibrationFactor;
-        const est = Number.isFinite(baselineForRow)
+        const documented = revenueForecastHistory.find((snapshot) => snapshot.period === period);
+        const est = documented?.live ?? (playersForEstimate > 0 && Number.isFinite(baselineForRow)
           ? Math.round(playersForEstimate * baselineForRow * rowCalibrationFactor * 10) / 10
-          : null;
+          : null);
         const diff =
           Number.isFinite(actualRevenue) && Number.isFinite(est)
             ? actualRevenue - est
@@ -628,6 +636,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
           basePlayers,
           playersUsed: playersForEstimate,
           estimated: est,
+          documented: Boolean(documented),
           actual: actualRevenue,
           diff,
           errorPercent,
@@ -710,7 +719,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       baseAveragePlayers;
     const targetBaseline = baselineForPeriod(forecastPeriod);
     const liveValue =
-      Number.isFinite(targetPlayers) && Number.isFinite(targetBaseline)
+      Number.isFinite(targetPlayers) && targetPlayers > 0 && Number.isFinite(targetBaseline)
         ? Math.round(targetPlayers * targetBaseline * forecastCalibrationFactor * 10) / 10
         : null;
     const rngValue = Number.isFinite(rngForecast.projectedRng) ? rngForecast.projectedRng : null;
@@ -757,6 +766,10 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
       tolerancePercent: forecastRange?.uncertaintyPercent,
     }),
     [forecastRange?.uncertaintyPercent, tableRows],
+  );
+  const latestForecastOutcome = useMemo(
+    () => buildRevenueForecastOutcomes(revenueForecastHistory, financialReportList).at(-1),
+    [financialReportList],
   );
   const accuracyTableRows = useMemo(
     () => tableRows.map((row) => ({
@@ -1007,6 +1020,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               )}
             </Box>
 
+            <RevenueForecastOutcome outcome={latestForecastOutcome} translate={translate} />
+
             {/* Tabell */}
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
@@ -1014,8 +1029,8 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
               </Typography>
               <Typography sx={{ color: "rgba(148,163,184,0.75)", fontSize: "0.85rem", mb: 2 }}>
                 {translate(
-                  "Backtest av dagens modell mot faktisk Live-omsättning. Det är inte tidigare låsta prognoser.",
-                  "Backtest of today's model against actual Live revenue. These are not previously locked forecasts.",
+                  "Jämförelse mot faktisk Live-omsättning. Märkta estimat är dokumenterade; övriga rader är omräknad modellkontroll. Δ = utfall − estimat.",
+                  "Comparison against actual Live revenue. Marked estimates are documented; other rows are recalculated model checks. Δ = actual − estimate.",
                 )}
               </Typography>
               <ForecastAccuracySummary summary={forecastAccuracy} translate={translate} />
@@ -1039,6 +1054,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
                         <Stack direction="row" spacing={0.8} alignItems="center">
                           <Typography sx={{ color: "#f8fafc", fontWeight: 700 }}>{row.label}</Typography>
+                          {row.documented && <Chip size="small" label={translate("Dokumenterat", "Documented")} sx={{ color: "#bfdbfe", bgcolor: "rgba(59,130,246,0.18)" }} />}
                           {row.partialCoverage && (
                             <Chip
                               size="small"
@@ -1132,6 +1148,7 @@ const LiveShowIntelligence = ({ financialReports, averagePlayersData }) => {
                         <TableCell sx={{ color: "#f8fafc" }}>
                           <Stack direction="row" spacing={0.8} alignItems="center">
                             <span>{row.label}</span>
+                            {row.documented && <Chip size="small" label={translate("Dokumenterat", "Documented")} sx={{ color: "#bfdbfe", bgcolor: "rgba(59,130,246,0.18)" }} />}
                             {row.partialCoverage && (
                               <Chip
                                 size="small"

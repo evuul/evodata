@@ -1,5 +1,7 @@
 // Validates company-level earnings and cash-flow inputs used by the equity model.
 
+import { isLocalReportSourceUrl } from "./reportUtils.js";
+
 export const quarterToNumber = (quarter) => /^Q[1-4]$/.test(quarter) ? Number(quarter[1]) : 0;
 export const periodIndex = (report) => report.year * 4 + quarterToNumber(report.quarter) - 1;
 export const reportQuarterEndDate = (report) => {
@@ -110,6 +112,7 @@ export function valuationSourceUrls(reports) {
   const urls = reports.flatMap((report) => Array.isArray(report?.valuationInputs?.sourceUrls) ? report.valuationInputs.sourceUrls : []);
   return [...new Set(urls)].filter((url) => {
     if (typeof url !== "string") return false;
+    if (isLocalReportSourceUrl(url)) return true;
     try {
       const parsed = new URL(url);
       return parsed.protocol === "https:" && !parsed.username && !parsed.password;

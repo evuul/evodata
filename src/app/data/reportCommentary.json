@@ -1,4 +1,31 @@
 {
+  "Q3-2026": {
+    "publishedAt": "2026-10-23",
+    "positives": [
+      "Tillväxten återkommer: Nettoomsättningen ökade 3,7 % till 526,1 MEUR. Samtliga regioner växte jämfört med Q2, med Nordamerika och Latinamerika som fortsatt starka bidrag.",
+      "Live och RNG växer: Live ökade 2,6 % jämfört med föregående år till 443,0 MEUR och RNG ökade 10,1 % till 83,1 MEUR. Monopoly Roll’em och Disco Balls lanserades under kvartalet.",
+      "Starkt kassaflöde: Operativt kassaflöde var 366,1 MEUR. Justerad EBITDA uppgick till 345,9 MEUR med en marginal på 65,8 %."
+    ],
+    "positivesEn": [
+      "Growth returns: Net revenue increased 3.7% to EUR 526.1 million. Every region grew compared with Q2, with North America and Latin America continuing to contribute strongly.",
+      "Live and RNG grow: Live increased 2.6% year on year to EUR 443.0 million and RNG grew 10.1% to EUR 83.1 million. Monopoly Roll’em and Disco Balls launched during the quarter.",
+      "Strong cash flow: Operating cash flow was EUR 366.1 million. Adjusted EBITDA was EUR 345.9 million with a margin of 65.8%."
+    ],
+    "negatives": [
+      "Resultatet minskade: Rapporterad vinst sjönk 3,6 % till 243,3 MEUR. Kostnader på 12,1 MEUR för UK-förlikningen och det avbrutna Galaxy-förvärvet belastade resultatet; dessa är exkluderade ur justerad EBITDA.",
+      "Brasilien påverkar Q4: Studion stängdes tillfälligt efter kvartalets slut i väntan på regulatoriskt klargörande. Rapporten anger ingen kvantifierad effekt på nästa kvartal.",
+      "Spelarökning gav inte motsvarande intäktstillväxt: Vårt dokumenterade Live-estimat på 481,8 MEUR var 8,75 % över utfallet 443,038 MEUR. Spelarantalet behöver tolkas tillsammans med intäkt per spelare och spelmix."
+    ],
+    "negativesEn": [
+      "Profit declined: Reported profit fell 3.6% to EUR 243.3 million. EUR 12.1 million in UK settlement and terminated Galaxy acquisition costs affected profit; these are excluded from adjusted EBITDA.",
+      "Brazil affects Q4: The studio temporarily closed after the quarter pending regulatory clarification. The report does not quantify the effect on the next quarter.",
+      "Player growth did not translate into matching revenue growth: Our documented Live estimate of EUR 481.8 million was 8.75% above actual revenue of EUR 443.038 million. Player counts need to be interpreted alongside revenue per player and game mix."
+    ],
+    "outlook": "Q4-prognosen använder Q3:s rapporterade Live-intäkt per observerad spelare som ny referens. Det ersätter snittet av Q1 och Q2 och sänker koefficienten med cirka 8,1 %. RNG behåller sin separata trendmodell, som låg nära Q3-utfallet. Ändringen är en uppdaterad kalibrering, inte en historiskt bevisad förbättring. Brasiliensituationen och ändrad spelmix kan fortsatt ge avvikelser.",
+    "outlookEn": "The Q4 forecast uses Q3 reported Live revenue per observed player as its new reference. This replaces the Q1/Q2 average and lowers the coefficient by about 8.1%. RNG retains its separate trend model, which was close to the Q3 outcome. The change is an updated calibration, not a historically proven improvement. Brazil and changes in game mix can still cause deviations.",
+    "buybacks": "Evolution använde 823,9 MEUR till återköp under Q3. Sedan programmets start hade 16 925 584 aktier återköpts till och med den 30 september, varav 16 168 492 drogs in i september. Vid kvartalets slut var antalet utestående aktier, efter avdrag för egna aktier, 182 301 029. EPS steg till 1,31 EUR trots lägre total vinst. Kvarvarande likvida medel var 656,4 MEUR.",
+    "buybacksEn": "Evolution spent EUR 823.9 million on buybacks during Q3. A total of 16,925,584 shares had been repurchased under the program by 30 September, of which 16,168,492 were cancelled in September. Outstanding shares excluding treasury shares were 182,301,029 at quarter end. EPS rose to EUR 1.31 despite lower total profit. Remaining cash was EUR 656.4 million."
+  },
   "Q2-2026": {
     "publishedAt": "2026-07-17",
     "positives": [

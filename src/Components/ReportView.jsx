@@ -2,11 +2,12 @@
 
 // Report view for quarterly commentary and yearly summaries.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Typography, Stack, Chip, Grid, Divider } from "@mui/material";
+import { Box, Typography, Stack, Chip, Grid, Divider, Link } from "@mui/material";
 import { useLocale, useTranslate } from "@/context/LocaleContext";
 import reportCommentary from "@/app/data/reportCommentary.json";
 import yearSummaries from "@/app/data/yearSummaries.json";
 import { buildSupportUrl } from "@/lib/supportLinks";
+import { isLocalReportSourceUrl } from "@/lib/reportUtils";
 
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const quarterToIndex = (year, quarter) => {
@@ -132,7 +133,7 @@ export default function ReportView({ financialReports }) {
         yoy: yoyRevenue,
       },
       {
-        label: translate("Rörelsemarginal (justerad)", "Operating margin (adjusted)"),
+        label: translate("Rörelsemarginal", "Operating margin"),
         value: margin != null ? `${margin.toFixed(1)}%` : "–",
         qoq: qoqMargin,
         yoy: yoyMargin,
@@ -409,6 +410,11 @@ export default function ReportView({ financialReports }) {
                     )
                   : translate("Kommentar", "Commentary")}
               </Typography>
+              {isLocalReportSourceUrl(latest?.sourceUrl) && (
+                <Link href={latest.sourceUrl} target="_blank" rel="noopener noreferrer" sx={{ display: "inline-block", mt: 1, color: "#93c5fd" }}>
+                  {translate("Läs rapporten (PDF)", "Read the report (PDF)")}
+                </Link>
+              )}
             </Box>
 
             <Box

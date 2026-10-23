@@ -14,6 +14,7 @@ import {
   getLatestReportedPeriod,
   pickMedianBaseline,
   pickRecentAverageBaseline,
+  pickLiveRevenueBaseline,
   resolveForecastPeriod,
   resolvePlayersForEstimate,
 } from "./liveShowForecast.js";
@@ -223,6 +224,25 @@ test("Q3 baseline uses the frozen Q2 and Q1 outcomes", () => {
 
   assert.deepEqual(baseline.samplePeriods, ["2026 Q2", "2026 Q1"]);
   assert.equal(Math.round(64543 * baseline.revenuePerPlayer * 10) / 10, 459.4);
+});
+
+test("Q4 uses reported Q3 revenue per player without leaking Q4 or later actuals", () => {
+  const candidates = [
+    { period: "2026 Q1", index: 8104, revenuePerPlayer: 434.883 / 61600 },
+    { period: "2026 Q2", index: 8105, revenuePerPlayer: 437.282 / 60946 },
+    { period: "2026 Q3", index: 8106, revenuePerPlayer: 443.038 / 67699 },
+    { period: "2026 Q4", index: 8107, revenuePerPlayer: 999 / 70000 },
+  ];
+  const oldBaseline = pickLiveRevenueBaseline(candidates, "2026 Q3", 1);
+  assert.deepEqual(oldBaseline.samplePeriods, ["2026 Q2", "2026 Q1"]);
+  assert.equal(Math.round(67699 * oldBaseline.revenuePerPlayer * 10) / 10, 481.8);
+  const baseline = pickLiveRevenueBaseline(candidates, "2026 Q4", 1);
+  assert.deepEqual(baseline.samplePeriods, ["2026 Q3"]);
+  assert.equal(baseline.revenuePerPlayer, 443.038 / 67699);
+  assert.equal(Math.round(76440 * baseline.revenuePerPlayer * 10) / 10, 500.2);
+  assert.ok(baseline.revenuePerPlayer < oldBaseline.revenuePerPlayer);
+  assert.equal(pickLiveRevenueBaseline([], "2026 Q4", 0.01).source, "fallback");
+  assert.deepEqual(pickLiveRevenueBaseline(candidates, "2027 Q1", 1).samplePeriods, ["2026 Q4"]);
 });
 
 test("buildRobustGrowthProjection uses the recent median and limits outliers", () => {

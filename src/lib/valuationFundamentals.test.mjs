@@ -32,8 +32,13 @@ test('missing, impossible and inconsistent report inputs fail validation', () =>
   assert.equal(readValuationBalance({ ...report, valuationInputs: { ...report.valuationInputs, restrictedCash: 201 } }), null);
 });
 
-test('source links accept only HTTPS without embedded credentials and safely handle malformed responses', () => {
+test('external source links require HTTPS without embedded credentials and tolerate malformed responses', () => {
   const source = 'https://example.com/report.pdf';
   assert.deepEqual(valuationSourceUrls([{ valuationInputs: { sourceUrls: [source, source, 'javascript:alert(1)', 'http://example.com', 'https://user:secret@example.com', null] } }, { valuationInputs: { sourceUrls: 'invalid' } }]), [source]);
   assert.deepEqual(resolveFairValueReports([null], [report]), [null]);
+});
+
+test('bundled report PDFs are allowed without accepting external or traversing relative links', () => {
+  const local = '/reports/evo-q3-2026-swe-2026-10-23-final.pdf';
+  assert.deepEqual(valuationSourceUrls([{ valuationInputs: { sourceUrls: [local, '//example.com/report.pdf', '/reports/../private.pdf', '/reports/test.pdf?redirect=x', '/other/test.pdf', '/reports/test.html'] } }]), [local]);
 });

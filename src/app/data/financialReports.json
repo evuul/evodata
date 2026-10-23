@@ -1021,6 +1021,62 @@
         "netCurrentTaxLiabilities": 360.93,
         "financialDebtExcludingLeases": 0
       }
+    },
+    {
+      "year": 2026,
+      "quarter": "Q3",
+      "publishedAt": "2026-10-23",
+      "sourceUrl": "/reports/evo-q3-2026-swe-2026-10-23-final.pdf",
+      "operatingRevenues": 526.125,
+      "adjustedEBITDA": 345.932,
+      "adjustedEBITDAMargin": 65.8,
+      "ebitda": 333.835,
+      "ebitdaMargin": 63.5,
+      "adjustedOperatingProfit": 290.264,
+      "adjustedOperatingMargin": 55.2,
+      "adjustedProfitForPeriod": 243.299,
+      "adjustedProfitMargin": 46.2,
+      "adjustedEarningsPerShare": 1.31,
+      "equityPerShare": 19.78,
+      "ocfPerShare": 1.97,
+      "averageNumberOfFTEs": 17.04,
+      "cashStart": 1153.539,
+      "cashEnd": 656.408,
+      "cashTranslationDifference": -0.093,
+      "liveCasino": 443.038,
+      "rng": 83.087,
+      "europe": 173.7,
+      "asia": 192.1,
+      "northAmerica": 84.3,
+      "latAm": 49,
+      "other": 27.1,
+      "regulatedMarket": 49,
+      "Top5Customers": null,
+      "operatingCashFlow": 366.07,
+      "investingCashFlow": -34.567,
+      "financingCashFlow": -828.541,
+      "buybacksCashFlow": -823.923,
+      "cashAndCashEquivalents": 656.408,
+      "freeCashFlow": 334.061,
+      "valuationInputs": {
+        "operatingCashFlow": 366.07,
+        "capexIntangible": 15.797,
+        "capexTangible": 16.212,
+        "leaseRepayments": 4.595,
+        "interestReceived": 3.521,
+        "taxPaid": 0.195,
+        "taxExpense": 45.078,
+        "profitBeforeTax": 288.377,
+        "operatingProfit": 290.264,
+        "nonTaxableNonRecurringProfit": 0,
+        "netBorrowing": 0,
+        "sourceUrls": [
+          "/reports/evo-q3-2026-swe-2026-10-23-final.pdf"
+        ],
+        "restrictedCash": 12.297,
+        "netCurrentTaxLiabilities": 411.303,
+        "financialDebtExcludingLeases": 0
+      }
     }
   ]
 }
