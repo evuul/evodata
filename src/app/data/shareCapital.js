@@ -14,4 +14,5 @@ export const treasuryShareSnapshots = Object.freeze([
   Object.freeze({ date: "2026-10-02", shares: 957_092 }),
   Object.freeze({ date: "2026-10-09", shares: 1_404_419 }),
   Object.freeze({ date: "2026-10-16", shares: 1_906_627 }),
+  Object.freeze({ date: "2026-10-23", shares: 2_371_196 }),
 ]);
